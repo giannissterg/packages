@@ -2,7 +2,21 @@ import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 
-// Custom reusable ComposableNode for testing
+// ── Test domain types for ProviderNode<T> ─────────────────────────────────────
+
+class DatabaseConfig {
+  final String host;
+  final int port;
+  const DatabaseConfig({required this.host, required this.port});
+}
+
+class ServiceConfig {
+  final String serviceName;
+  const ServiceConfig({required this.serviceName});
+}
+
+// ── Test ComposableNode ────────────────────────────────────────────────────────
+
 class SecurityAuditComponent extends ComposableNode {
   final String sourceFilePath;
   final String auditorRoleId;
@@ -31,6 +45,22 @@ class SecurityAuditComponent extends ComposableNode {
   }
 }
 
+/// ComposableNode that reads a typed value from context.
+class DbConnectComponent extends ComposableNode {
+  const DbConnectComponent();
+
+  @override
+  WorkflowAstNode build(BuildContext context) {
+    final config = context.read<DatabaseConfig>();
+    return PromptModelNode(
+      promptText: 'Connect to ${config.host}:${config.port}',
+      outputVariable: 'db_status',
+    );
+  }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
 void main() {
   group('vaster_ast Nodes & ComposableNode', () {
     final spec = PipelineSpec(name: 'test_pipeline');
@@ -50,7 +80,7 @@ void main() {
       expect(pipeline.bodyNodes.last, isA<OutputNode>());
     });
 
-    test('BuildContext carries pipeline spec and withRole creates new context', () {
+    test('BuildContext.withRole creates new context without mutating original', () {
       const role = AgentRole(
         roleId: 'eng',
         name: 'Engineer',
@@ -59,7 +89,7 @@ void main() {
       );
       final ctx2 = context.withRole(role);
       expect(ctx2.hasRole('eng'), isTrue);
-      expect(context.hasRole('eng'), isFalse); // original unchanged
+      expect(context.hasRole('eng'), isFalse);
     });
 
     test('ComposableNode.build() expands into correct sub-tree', () {
@@ -70,35 +100,81 @@ void main() {
 
       final expanded = component.build(context);
       expect(expanded, isA<StepTransactionNode>());
-
       final tx = expanded as StepTransactionNode;
       expect(tx.bodyNodes, hasLength(3));
       expect(tx.bodyNodes.first, isA<ReadDocumentNode>());
       expect(tx.bodyNodes[1], isA<PerformTaskNode>());
       expect(tx.bodyNodes.last, isA<OutputNode>());
     });
+  });
 
-    test('WhenConditionNode has then and else branches', () {
-      const cond = WhenConditionNode(
-        conditionVariable: 'should_review',
-        thenNodes: [PromptModelNode(promptText: 'Do review')],
-        elseNodes: [PromptModelNode(promptText: 'Skip review')],
-      );
-      expect(cond.thenNodes, hasLength(1));
-      expect(cond.elseNodes, hasLength(1));
+  group('BuildContext typed Provider API', () {
+    final spec = PipelineSpec(name: 'provider_test_pipeline');
+    final baseContext = BuildContext(pipelineSpec: spec);
+
+    test('provide<T>() injects typed value and read<T>() retrieves it', () {
+      const config = DatabaseConfig(host: 'db.prod.internal', port: 5432);
+      final ctx = baseContext.provide<DatabaseConfig>(config);
+
+      expect(ctx.has<DatabaseConfig>(), isTrue);
+      expect(ctx.read<DatabaseConfig>().host, equals('db.prod.internal'));
+      expect(ctx.read<DatabaseConfig>().port, equals(5432));
     });
 
-    test('StepTransactionNode wraps body correctly', () {
-      const tx = StepTransactionNode(
-        bodyNodes: [
-          WriteDocumentNode(path: '/mem/spec.md', content: '# Spec'),
-          PerformTaskNode(
-            agentRoleId: 'architect',
-            task: TaskDefinition(taskId: 't1', promptText: 'Review spec'),
-          ),
-        ],
+    test('tryRead<T>() returns null when not provided', () {
+      expect(baseContext.tryRead<DatabaseConfig>(), isNull);
+    });
+
+    test('read<T>() throws StateError when not provided', () {
+      expect(
+        () => baseContext.read<DatabaseConfig>(),
+        throwsA(isA<StateError>()),
       );
-      expect(tx.bodyNodes, hasLength(2));
+    });
+
+    test('multiple typed values can coexist in BuildContext', () {
+      const dbConfig = DatabaseConfig(host: 'localhost', port: 5432);
+      const svcConfig = ServiceConfig(serviceName: 'auth-service');
+
+      final ctx = baseContext
+          .provide<DatabaseConfig>(dbConfig)
+          .provide<ServiceConfig>(svcConfig);
+
+      expect(ctx.read<DatabaseConfig>().host, equals('localhost'));
+      expect(ctx.read<ServiceConfig>().serviceName, equals('auth-service'));
+    });
+
+    test('provide<T>() does not mutate parent context', () {
+      const dbConfig = DatabaseConfig(host: 'localhost', port: 5432);
+      final ctx = baseContext.provide<DatabaseConfig>(dbConfig);
+
+      expect(ctx.has<DatabaseConfig>(), isTrue);
+      expect(baseContext.has<DatabaseConfig>(), isFalse);
+    });
+
+    test('ComposableNode reads typed value injected by ancestor ProviderNode', () {
+      const dbConfig = DatabaseConfig(host: 'analytics.internal', port: 9000);
+      final ctx = baseContext.provide<DatabaseConfig>(dbConfig);
+
+      const component = DbConnectComponent();
+      final expanded = component.build(ctx);
+
+      expect(expanded, isA<PromptModelNode>());
+      expect(
+        (expanded as PromptModelNode).promptText,
+        equals('Connect to analytics.internal:9000'),
+      );
+    });
+
+    test('ProviderNode.applyToContext() injects typed value preserving T', () {
+      const dbConfig = DatabaseConfig(host: 'primary.db', port: 5432);
+      const provider = ProviderNode<DatabaseConfig>(
+        value: dbConfig,
+        children: [],
+      );
+
+      final enrichedContext = provider.applyToContext(baseContext);
+      expect(enrichedContext.read<DatabaseConfig>().host, equals('primary.db'));
     });
   });
 }

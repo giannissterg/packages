@@ -1,5 +1,4 @@
-import 'package:vaster_domain/vaster_domain.dart';
-import 'workflow_ast_node.dart';
+part of '../vaster_ast.dart';
 
 /// Top-level pipeline container node.
 final class PipelineNode extends WorkflowAstNode {
@@ -54,7 +53,7 @@ final class WriteDocumentNode extends WorkflowAstNode {
   const WriteDocumentNode({required this.path, required this.content});
 }
 
-/// Reads a document from a VFS path into a variable.
+/// Reads a document from a VFS path into an output variable.
 final class ReadDocumentNode extends WorkflowAstNode {
   final String path;
   final String? outputVariable;
@@ -62,7 +61,7 @@ final class ReadDocumentNode extends WorkflowAstNode {
   const ReadDocumentNode({required this.path, this.outputVariable});
 }
 
-/// Registers and executes code in an environment.
+/// Executes code in a registered code environment.
 final class ExecuteCodeNode extends WorkflowAstNode {
   final String envId;
   final String code;
@@ -103,4 +102,34 @@ final class OutputNode extends WorkflowAstNode {
   final String outputVariable;
 
   const OutputNode({required this.outputVariable});
+}
+
+/// Injects a typed value [T] into [BuildContext] for all [children].
+///
+/// Children (and their descendants) can access the value via
+/// `context.read<T>()` or `context.tryRead<T>()`.
+///
+/// This is a **compile-time only** construct — it leaves no ISA footprint.
+///
+/// Example:
+/// ```dart
+/// ProviderNode<DatabaseConfig>(
+///   value: DatabaseConfig(host: 'localhost', port: 5432),
+///   children: [
+///     DefineRoleNode(...),
+///     PerformTaskNode(...), // ComposableNodes here can call context.read<DatabaseConfig>()
+///   ],
+/// )
+/// ```
+final class ProviderNode<T> extends WorkflowAstNode {
+  final T value;
+  final List<WorkflowAstNode> children;
+
+  const ProviderNode({required this.value, required this.children});
+
+  /// Injects [value] into [context] preserving the type parameter [T].
+  ///
+  /// Called by the compiler when encountering this node, before recursing
+  /// into [children] with the enriched context.
+  BuildContext applyToContext(BuildContext context) => context.provide<T>(value);
 }

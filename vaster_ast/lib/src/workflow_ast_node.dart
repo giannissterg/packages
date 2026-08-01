@@ -1,8 +1,12 @@
-/// Abstract base class for all Vaster Workflow AST nodes.
+part of '../vaster_ast.dart';
+
+/// Sealed base class for all Vaster Workflow AST nodes.
 ///
-/// Every node in the Workflow Abstract Syntax Tree extends this class.
-/// Sealed sub-hierarchy covers all concrete node types.
-/// Use [ComposableNode] to define reusable, modular node components.
-abstract class WorkflowAstNode {
+/// The sealed modifier enables exhaustive `switch` statements in the compiler,
+/// giving compile-time guarantees that every node type is handled.
+///
+/// Extend [ComposableNode] to create reusable, modular pipeline components.
+/// Do not extend [WorkflowAstNode] directly.
+sealed class WorkflowAstNode {
   const WorkflowAstNode();
 }

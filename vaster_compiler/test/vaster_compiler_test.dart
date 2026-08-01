@@ -7,7 +7,16 @@ import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
-// Custom ComposableNode to verify recursive compiler expansion
+// ── Test types ─────────────────────────────────────────────────────────────────
+
+class ReviewPolicy {
+  final bool strictMode;
+  final int maxIssues;
+  const ReviewPolicy({required this.strictMode, this.maxIssues = 10});
+}
+
+// ── ComposableNodes ────────────────────────────────────────────────────────────
+
 class BootstrapStorageComponent extends ComposableNode {
   final String prefix;
   const BootstrapStorageComponent({required this.prefix});
@@ -24,10 +33,37 @@ class BootstrapStorageComponent extends ComposableNode {
   }
 }
 
-void main() {
-  group('BasicWorkflowCompiler', () {
-    const compiler = BasicWorkflowCompiler();
+/// ComposableNode that reads ReviewPolicy from context.
+class PolicyAwareReviewComponent extends ComposableNode {
+  final String filePath;
+  final String auditorRoleId;
 
+  const PolicyAwareReviewComponent({
+    required this.filePath,
+    required this.auditorRoleId,
+  });
+
+  @override
+  WorkflowAstNode build(BuildContext context) {
+    final policy = context.read<ReviewPolicy>();
+    final modeLabel = policy.strictMode ? '[STRICT]' : '[LENIENT]';
+    return PerformTaskNode(
+      agentRoleId: auditorRoleId,
+      task: TaskDefinition(
+        taskId: 'policy_review',
+        promptText: '$modeLabel Review $filePath (max issues: ${policy.maxIssues})',
+        outputVariable: 'policy_review_result',
+      ),
+    );
+  }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+void main() {
+  const compiler = BasicWorkflowCompiler();
+
+  group('BasicWorkflowCompiler - exhaustive switch', () {
     test('compiles PipelineNode into VasterProgram with correct ISA opcodes', () {
       const pipeline = PipelineNode(
         spec: PipelineSpec(name: 'auth_pipeline', rootStoragePath: '/workspace'),
@@ -56,7 +92,7 @@ void main() {
       final program = compiler.compile(pipeline);
 
       expect(program.programName, equals('auth_pipeline'));
-      expect(program.instructions.first, isA<MountFsOp>());
+      expect(program.instructions[0], isA<MountFsOp>());
       expect(program.instructions[1], isA<CreateAgentOp>());
       expect(program.instructions[2], isA<DispatchAgentTaskOp>());
       expect(program.instructions.last, isA<HaltOp>());
@@ -73,7 +109,7 @@ void main() {
 
       final program = compiler.compile(pipeline);
 
-      // BootstrapStorageComponent expands to: BeginTransaction, MountFsOp, WriteFileOp, CommitOp
+      // BootstrapStorageComponent -> StepTransactionNode -> Begin, Mount, Write, Commit
       expect(program.instructions[0], isA<BeginTransactionOp>());
       expect(program.instructions[1], isA<MountFsOp>());
       expect(program.instructions[2], isA<WriteFileOp>());
@@ -101,7 +137,68 @@ void main() {
       expect(program.instructions[2], isA<CommitOp>());
       expect(program.instructions.last, isA<HaltOp>());
     });
+  });
 
+  group('BasicWorkflowCompiler - ProviderNode<T> context injection', () {
+    test('ProviderNode injects typed value into BuildContext for ComposableNode children', () {
+      const policy = ReviewPolicy(strictMode: true, maxIssues: 5);
+
+      const pipeline = PipelineNode(
+        spec: PipelineSpec(name: 'provider_pipeline'),
+        bodyNodes: [
+          ProviderNode<ReviewPolicy>(
+            value: policy,
+            children: [
+              PolicyAwareReviewComponent(
+                filePath: '/src/auth.dart',
+                auditorRoleId: 'auditor',
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final program = compiler.compile(pipeline);
+
+      // ProviderNode emits no ISA instructions; only the inner PerformTaskNode does
+      final dispatchOp = program.instructions
+          .whereType<DispatchAgentTaskOp>()
+          .first;
+
+      expect(dispatchOp.taskPrompt, contains('[STRICT]'));
+      expect(dispatchOp.taskPrompt, contains('max issues: 5'));
+      expect(dispatchOp.agentId, equals('auditor'));
+    });
+
+    test('ProviderNode scopes injected value only to its children', () {
+      const policy = ReviewPolicy(strictMode: false, maxIssues: 20);
+
+      // ComposableNode outside ProviderNode should NOT see the typed value
+      const pipeline = PipelineNode(
+        spec: PipelineSpec(name: 'scoped_provider_pipeline'),
+        bodyNodes: [
+          ProviderNode<ReviewPolicy>(
+            value: policy,
+            children: [
+              PolicyAwareReviewComponent(
+                filePath: '/src/db.dart',
+                auditorRoleId: 'db_auditor',
+              ),
+            ],
+          ),
+          PromptModelNode(promptText: 'End of pipeline', outputVariable: 'end'),
+        ],
+      );
+
+      final program = compiler.compile(pipeline);
+
+      final dispatchOps = program.instructions.whereType<DispatchAgentTaskOp>().toList();
+      expect(dispatchOps, hasLength(1));
+      expect(dispatchOps.first.taskPrompt, contains('[LENIENT]'));
+    });
+  });
+
+  group('BasicWorkflowCompiler - E2E execution on VasterRuntime', () {
     test('compiles VasterProgram and executes successfully on VasterRuntime', () async {
       final fakeModel = FakeVasterModel(defaultResponseText: 'Pipeline complete.');
       final vm = await VasterVMEngine.bootstrap(

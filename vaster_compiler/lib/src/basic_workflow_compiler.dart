@@ -6,22 +6,19 @@ import 'compiler_interface.dart';
 /// Concrete implementation of [WorkflowCompiler] that translates a
 /// high-level Workflow AST ([PipelineNode]) into low-level [VasterProgram] ISA bytecode.
 ///
-/// Recursively traverses AST nodes and emits the corresponding ISA opcodes.
-/// When a [ComposableNode] is encountered, it calls [build(context)] and
-/// recursively compiles the expanded sub-tree.
+/// Recursively traverses AST nodes using an exhaustive `switch` over the sealed
+/// [WorkflowAstNode] hierarchy. [ComposableNode] sub-trees are expanded by calling
+/// [ComposableNode.build] before compilation. [ProviderNode] sub-trees receive an
+/// enriched [BuildContext] with the injected typed value.
 class BasicWorkflowCompiler implements WorkflowCompiler {
   const BasicWorkflowCompiler();
 
   @override
   VasterProgram compile(PipelineNode pipeline) {
-    final context = BuildContext(
-      pipelineSpec: pipeline.spec,
-    );
-
+    final context = BuildContext(pipelineSpec: pipeline.spec);
     final instructions = <VasterInstruction>[];
     _compileNodes(pipeline.bodyNodes, instructions, context);
     instructions.add(const HaltOp());
-
     return VasterProgram(
       programName: pipeline.spec.name,
       instructions: instructions,
@@ -43,13 +40,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     List<VasterInstruction> out,
     BuildContext context,
   ) {
-    // Composable nodes are expanded first by calling their build() method
-    if (node is ComposableNode) {
-      final expanded = node.build(context);
-      _compileNode(expanded, out, context);
-      return;
-    }
-
+    // Exhaustive switch over the sealed WorkflowAstNode hierarchy.
     switch (node) {
       case PipelineNode n:
         _compileNodes(n.bodyNodes, out, context);
@@ -108,31 +99,18 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ));
 
       case WhenConditionNode n:
-        // Emit: JumpIf over else-block to then-block
-        // Layout: [thenNodes...] [JumpOp past else] [elseNodes...] [merge point]
         final thenInstructions = <VasterInstruction>[];
         _compileNodes(n.thenNodes, thenInstructions, context);
 
         final elseInstructions = <VasterInstruction>[];
         _compileNodes(n.elseNodes, elseInstructions, context);
 
-        // Calculate jump targets relative to current out.length
-        final baseIndex = out.length;
-        // JumpIf skips to then-block start (right after the jump instruction)
-        final thenStart = baseIndex + 1;
-        // After then-block we need to jump past else-block
+        final thenStart = out.length + 1;
         final afterElse = thenStart + thenInstructions.length + 1 + elseInstructions.length;
 
-        out.add(JumpIfOp(
-          conditionVar: n.conditionVariable,
-          targetPc: thenStart,
-        ));
-
-        // else-block
+        out.add(JumpIfOp(conditionVar: n.conditionVariable, targetPc: thenStart));
         out.addAll(elseInstructions);
-        // Jump past then-block (only reached when condition was false)
         out.add(JumpOp(targetPc: afterElse));
-        // then-block
         out.addAll(thenInstructions);
 
       case StepTransactionNode n:
@@ -141,11 +119,21 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         out.add(const CommitOp());
 
       case OutputNode n:
-        // OutputNode emits a no-op SetRegisterOp to surface the output variable
         out.add(SetRegisterOp(
           registerName: '__output__',
           value: '\${${n.outputVariable}}',
         ));
+
+      case ProviderNode n:
+        // Inject the typed value into a child context and compile children
+        // with the enriched context. No ISA instruction is emitted.
+        final childContext = n.applyToContext(context);
+        _compileNodes(n.children, out, childContext);
+
+      case ComposableNode n:
+        // Expand the composable node and recursively compile the result.
+        final expanded = n.build(context);
+        _compileNode(expanded, out, context);
     }
   }
 }
