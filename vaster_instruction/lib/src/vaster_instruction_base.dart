@@ -1,4 +1,6 @@
 import 'package:vaster_agent/vaster_agent.dart';
+import 'package:vaster_domain/vaster_domain.dart';
+import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 import 'instruction_opcode.dart';
@@ -120,6 +122,21 @@ sealed class VasterInstruction {
       InstructionOpcode.beginTransaction => const BeginTransactionOp(),
       InstructionOpcode.commit => const CommitOp(),
       InstructionOpcode.rollback => const RollbackOp(),
+      InstructionOpcode.selectModel => SelectModelOp(
+          descriptor: ModelDescriptor.fromJson(json['descriptor'] as Map<String, dynamic>? ?? {}),
+        ),
+      InstructionOpcode.yieldHumanInteraction => YieldHumanInteractionOp(
+          request: HumanInteractionRequest.fromJson(json['request'] as Map<String, dynamic>? ?? {}),
+        ),
+      InstructionOpcode.call => CallOp(
+          functionName: json['functionName'] as String? ?? 'anonymous',
+          targetPc: json['targetPc'] as int? ?? 0,
+          arguments: Map<String, String>.from(json['arguments'] as Map? ?? {}),
+          outputVar: json['outputVar'] as String?,
+        ),
+      InstructionOpcode.returnSubroutine => ReturnSubroutineOp(
+          returnRegister: json['returnRegister'] as String?,
+        ),
       InstructionOpcode.halt => const HaltOp(),
     };
   }
@@ -443,6 +460,72 @@ final class RollbackOp extends VasterInstruction {
 
   @override
   Map<String, dynamic> toJson() => {'opcode': opcode.name};
+}
+
+/// Selects active LLM model descriptor.
+final class SelectModelOp extends VasterInstruction {
+  final ModelDescriptor descriptor;
+
+  const SelectModelOp({required this.descriptor})
+      : super(InstructionOpcode.selectModel);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'descriptor': descriptor.toJson(),
+      };
+}
+
+/// Yields VM runtime execution to pause for human interaction (approval, Q&A, review, input).
+final class YieldHumanInteractionOp extends VasterInstruction {
+  final HumanInteractionRequest request;
+
+  const YieldHumanInteractionOp({required this.request})
+      : super(InstructionOpcode.yieldHumanInteraction);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'request': request.toJson(),
+      };
+}
+
+/// Pushes a stack frame and jumps to subroutine at [targetPc].
+final class CallOp extends VasterInstruction {
+  final String functionName;
+  final int targetPc;
+  final Map<String, String> arguments;
+  final String? outputVar;
+
+  const CallOp({
+    required this.functionName,
+    required this.targetPc,
+    this.arguments = const {},
+    this.outputVar,
+  }) : super(InstructionOpcode.call);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'functionName': functionName,
+        'targetPc': targetPc,
+        if (arguments.isNotEmpty) 'arguments': arguments,
+        if (outputVar != null) 'outputVar': outputVar,
+      };
+}
+
+/// Pops the stack frame and returns execution to the caller return PC address.
+final class ReturnSubroutineOp extends VasterInstruction {
+  final String? returnRegister;
+
+  const ReturnSubroutineOp({this.returnRegister})
+      : super(InstructionOpcode.returnSubroutine);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        if (returnRegister != null) 'returnRegister': returnRegister,
+      };
 }
 
 /// Halts program execution.

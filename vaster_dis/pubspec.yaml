@@ -1,0 +1,20 @@
+name: vaster_dis
+description: CLI disassembler tool for inspecting and analyzing .vaster bytecode files.
+version: 1.0.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+executables:
+  vaster-dis: vaster_dis
+
+dependencies:
+  args: ^2.5.0
+  vaster_agent:
+  vaster_instruction:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

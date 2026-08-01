@@ -61,6 +61,13 @@ final class ReadDocumentNode extends WorkflowAstNode {
   const ReadDocumentNode({required this.path, this.outputVariable});
 }
 
+/// Registers a code execution environment in the pipeline.
+final class RegisterCodeEnvironmentNode extends WorkflowAstNode {
+  final CodeEnvironment env;
+
+  const RegisterCodeEnvironmentNode({required this.env});
+}
+
 /// Executes code in a registered code environment.
 final class ExecuteCodeNode extends WorkflowAstNode {
   final String envId;
@@ -95,6 +102,103 @@ final class StepTransactionNode extends WorkflowAstNode {
   final List<WorkflowAstNode> bodyNodes;
 
   const StepTransactionNode({required this.bodyNodes});
+}
+
+/// Selects the active LLM model descriptor for subsequent pipeline execution.
+final class SelectModelNode extends WorkflowAstNode {
+  final ModelDescriptor model;
+
+  const SelectModelNode({required this.model});
+}
+
+/// AST node yielding execution to request human interaction.
+final class YieldHumanInteractionNode extends WorkflowAstNode {
+  final HumanInteractionRequest request;
+
+  const YieldHumanInteractionNode({required this.request});
+}
+
+/// AST node asking a human user a question or presenting a list of options.
+final class AskHumanQuestionNode extends WorkflowAstNode {
+  final String requestId;
+  final String prompt;
+  final List<String> options;
+  final String outputVariable;
+
+  const AskHumanQuestionNode({
+    required this.requestId,
+    required this.prompt,
+    this.options = const [],
+    required this.outputVariable,
+  });
+}
+
+/// ComposableNode providing a Flutter-style human approval gate with approve/reject branches.
+class HumanApprovalComponent extends ComposableNode {
+  final String requestId;
+  final String prompt;
+  final List<WorkflowAstNode> onApprove;
+  final List<WorkflowAstNode> onReject;
+
+  const HumanApprovalComponent({
+    required this.requestId,
+    required this.prompt,
+    required this.onApprove,
+    this.onReject = const [],
+  });
+
+  @override
+  WorkflowAstNode build(BuildContext context) {
+    return StepTransactionNode(bodyNodes: [
+      YieldHumanInteractionNode(
+        request: HumanInteractionRequest(
+          requestId: requestId,
+          type: HumanInteractionType.approval,
+          prompt: prompt,
+          options: const ['approve', 'reject'],
+          outputVar: requestId,
+        ),
+      ),
+      WhenConditionNode(
+        conditionVariable: '${requestId}_status',
+        thenNodes: onApprove,
+        elseNodes: onReject,
+      ),
+    ]);
+  }
+}
+
+/// Defines a reusable subroutine function in the workflow AST.
+final class DefineFunctionNode extends WorkflowAstNode {
+  final String functionName;
+  final List<String> parameters;
+  final List<WorkflowAstNode> bodyNodes;
+
+  const DefineFunctionNode({
+    required this.functionName,
+    this.parameters = const [],
+    required this.bodyNodes,
+  });
+}
+
+/// Returns execution from a subroutine function, optionally returning [returnVariable].
+final class ReturnNode extends WorkflowAstNode {
+  final String? returnVariable;
+
+  const ReturnNode({this.returnVariable});
+}
+
+/// Invokes a defined subroutine function by [functionName].
+final class CallFunctionNode extends WorkflowAstNode {
+  final String functionName;
+  final Map<String, String> arguments;
+  final String? outputVariable;
+
+  const CallFunctionNode({
+    required this.functionName,
+    this.arguments = const {},
+    this.outputVariable,
+  });
 }
 
 /// Returns a pipeline output register variable as the final result.

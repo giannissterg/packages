@@ -14,7 +14,10 @@ class FakeVasterModel implements VasterModel {
   /// Custom handler function to dynamically inspect requests and generate responses.
   final FutureOr<ModelResponse> Function(ModelRequest request)? handler;
 
-  /// Default static response text returned when no handler is provided.
+  /// Map of prompt substrings to specific response text outputs.
+  final Map<String, String> responseMap;
+
+  /// Default static response text returned when no handler or response map match is found.
   final String defaultResponseText;
 
   /// Recorded history of requests received by this model backend.
@@ -32,6 +35,7 @@ class FakeVasterModel implements VasterModel {
       supportsReasoning: true,
     ),
     this.defaultResponseText = 'Fake model response text',
+    this.responseMap = const {},
     this.handler,
   });
 
@@ -44,7 +48,17 @@ class FakeVasterModel implements VasterModel {
     }
 
     final userText = request.messages.isNotEmpty ? request.messages.last.text : '';
-    final responseText = '$defaultResponseText (Echo: "$userText")';
+    final lowerUserText = userText.toLowerCase();
+
+    String? matchedText;
+    for (final entry in responseMap.entries) {
+      if (lowerUserText.contains(entry.key.toLowerCase())) {
+        matchedText = entry.value;
+        break;
+      }
+    }
+
+    final responseText = matchedText ?? '$defaultResponseText (Echo: "$userText")';
 
     final promptTokens = request.messages.fold<int>(
       0,
@@ -65,12 +79,7 @@ class FakeVasterModel implements VasterModel {
   Stream<ModelResponseChunk> generateStream(ModelRequest request) async* {
     recordedRequests.add(request);
 
-    final fullResponse = await (handler != null
-        ? handler!(request)
-        : Future.value(ModelResponse(
-            message: ChatMessage.model('$defaultResponseText (Stream)'),
-            finishReason: FinishReason.stop,
-          )));
+    final fullResponse = await generate(request);
 
     for (final part in fullResponse.message.parts) {
       if (part is TextPart) {

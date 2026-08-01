@@ -1,5 +1,5 @@
-import 'dart:async';
 import 'dart:convert';
+import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 import 'runtime_state.dart';
@@ -14,7 +14,15 @@ class VasterRuntime {
   RuntimeStatus _status = RuntimeStatus.idle;
   String? _lastError;
 
+  VasterModel? _activeModel;
+  HumanInteractionRequest? _pendingHumanRequest;
+  VasterProgram? _currentProgram;
+  final List<Map<String, dynamic>> _callStack = [];
+
   VasterRuntime({required this.vm});
+
+  /// Pending human interaction request if current status is [RuntimeStatus.pausedForHuman].
+  HumanInteractionRequest? get pendingHumanRequest => _pendingHumanRequest;
 
   /// Current execution state.
   RuntimeState get state => RuntimeState(
@@ -24,17 +32,77 @@ class VasterRuntime {
         errorDetails: _lastError,
       );
 
-  /// Executes a [VasterProgram] step-by-step from start to finish or until [HaltOp].
-  Future<RuntimeState> executeProgram(VasterProgram program) async {
-    _pc = 0;
+  /// Restores execution from raw register/PC state and resumes program execution.
+  Future<RuntimeState> restoreAndResume(
+    int resumePc,
+    VasterProgram program, {
+    Map<String, dynamic>? registers,
+    HumanInteractionRequest? pendingRequest,
+    HumanInteractionResponse? humanResponse,
+  }) async {
+    _currentProgram = program;
+    _pc = resumePc;
+    if (registers != null) {
+      _registers.clear();
+      _registers.addAll(registers);
+    }
+    _pendingHumanRequest = pendingRequest;
+
+    if (humanResponse != null) {
+      final req = _pendingHumanRequest;
+      if (req != null && req.outputVar != null) {
+        _registers[req.outputVar!] = humanResponse.value;
+        _registers['${req.outputVar!}_status'] = humanResponse.status.name;
+      }
+      _pendingHumanRequest = null;
+      _pc++; // Advance past YieldHumanInteractionOp
+    }
+
     _status = RuntimeStatus.running;
     _lastError = null;
 
+    return _runLoop(program);
+  }
+
+  /// Executes a [VasterProgram] step-by-step from start to finish or until [HaltOp].
+  Future<RuntimeState> executeProgram(VasterProgram program) async {
+    _currentProgram = program;
+    _pc = 0;
+    _status = RuntimeStatus.running;
+    _lastError = null;
+    _pendingHumanRequest = null;
+    _callStack.clear();
+
+    return _runLoop(program);
+  }
+
+  /// Resumes program execution after receiving a [HumanInteractionResponse].
+  Future<RuntimeState> resumeWithHumanResponse(HumanInteractionResponse response) async {
+    if (_status != RuntimeStatus.pausedForHuman || _currentProgram == null) {
+      throw StateError('Runtime is not paused for human interaction.');
+    }
+
+    final req = _pendingHumanRequest;
+    if (req != null && req.outputVar != null) {
+      _registers[req.outputVar!] = response.value;
+      _registers['${req.outputVar!}_status'] = response.status.name;
+    }
+
+    _pendingHumanRequest = null;
+    _status = RuntimeStatus.running;
+    _pc++; // Advance past YieldHumanInteractionOp
+
+    return _runLoop(_currentProgram!);
+  }
+
+  Future<RuntimeState> _runLoop(VasterProgram program) async {
     while (_pc < program.instructions.length && _status == RuntimeStatus.running) {
       final instruction = program.instructions[_pc];
       try {
         await _executeInstruction(instruction);
-        _pc++;
+        if (_status == RuntimeStatus.running) {
+          _pc++;
+        }
       } catch (e, st) {
         _status = RuntimeStatus.error;
         _lastError = '$e\n$st';
@@ -53,7 +121,7 @@ class VasterRuntime {
   Future<void> _executeInstruction(VasterInstruction inst) async {
     switch (inst) {
       case PromptOp op:
-        final response = await vm.prompt(op.promptText);
+        final response = await vm.prompt(op.promptText, model: _activeModel);
         if (op.outputVar != null) {
           _registers[op.outputVar!] = response.text;
         }
@@ -146,6 +214,46 @@ class VasterRuntime {
 
       case SetQuotaOp _:
         break;
+
+      case SelectModelOp op:
+        final model = vm.modelRegistry.resolveModel(op.descriptor);
+        if (model != null) {
+          _activeModel = model;
+        }
+
+      case YieldHumanInteractionOp op:
+        _pendingHumanRequest = op.request;
+        _status = RuntimeStatus.pausedForHuman;
+        vm.eventBus.publish(HumanInteractionRequiredEvent(
+          eventId: 'evt_hitl_$_pc',
+          request: op.request,
+        ));
+
+      case CallOp op:
+        for (final entry in op.arguments.entries) {
+          _registers[entry.key] = entry.value;
+        }
+        _callStack.add({
+          'functionName': op.functionName,
+          'returnPc': _pc + 1,
+          'outputVar': op.outputVar,
+        });
+        _pc = op.targetPc - 1;
+
+      case ReturnSubroutineOp op:
+        if (_callStack.isNotEmpty) {
+          final topFrame = _callStack.removeLast();
+          final returnPc = topFrame['returnPc'] as int;
+          final outputVar = topFrame['outputVar'] as String?;
+
+          if (op.returnRegister != null && outputVar != null) {
+            _registers[outputVar] = _registers[op.returnRegister!];
+          }
+
+          _pc = returnPc - 1;
+        } else {
+          _status = RuntimeStatus.halted;
+        }
 
       case JumpOp op:
         _pc = op.targetPc - 1; // -1 because _pc++ runs at end of loop

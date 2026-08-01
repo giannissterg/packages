@@ -1,0 +1,17 @@
+name: vaster_model_google_ai
+description: Official Google AI Gemini REST API backend implementation for VasterModel interface.
+version: 1.0.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  http: ^1.2.0
+  vaster_model:
+
+dev_dependencies:
+  http_multi_server: ^3.2.1
+  lints: ^6.0.0
+  test: ^1.25.6

@@ -156,16 +156,7 @@ void main() {
     test('executes full pipeline and produces delivery_report', () async {
       final fakeModel = FakeVasterModel(
         defaultResponseText: 'Agent task completed.',
-        // responseMap: {
-        //   'comprehensive system architecture': '# Architecture Doc\nSystem designed.',
-        //   'Implement the backend service': '// Backend code implemented.',
-        //   'Implement the frontend client': '// Frontend code implemented.',
-        //   'OWASP Top 10': '# Security Report\nNo critical issues.',
-        //   'Review the backend and frontend': '# Review\nApproved with minor items.',
-        //   'Write a comprehensive test suite': '// Tests: 91% coverage.',
-        //   'Write complete API documentation': '# API Docs\nOpenAPI 3.0 spec complete.',
-        //   'final delivery report': '# Delivery Report\nProject delivered successfully.',
-        // },
+        responseMap: agentResponseMap,
       );
 
       final vm = await VasterVMEngine.bootstrap(
@@ -186,6 +177,10 @@ void main() {
       expect(state.registers.containsKey('api_documentation'), isTrue);
 
       await vm.shutdown();
+    });
+
+    test('runPlayground() helper executes pipeline end-to-end', () async {
+      await runPlayground();
     });
   });
 }

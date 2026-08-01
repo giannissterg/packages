@@ -9,6 +9,7 @@ import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
+import 'model_registry.dart';
 import 'vm_config.dart';
 
 /// Master interface defining the top-level LLM Virtual Machine.
@@ -42,6 +43,12 @@ abstract interface class VasterVirtualMachine {
 
   /// Active Resource Tracker.
   ResourceTracker get resourceTracker;
+
+  /// Active Model Registry.
+  ModelRegistry get modelRegistry;
+
+  /// Registers a concrete [VasterModel] for a given [ModelDescriptor].
+  void registerModel(ModelDescriptor descriptor, VasterModel model);
 
   /// Direct model prompt turn.
   Future<ModelResponse> prompt(

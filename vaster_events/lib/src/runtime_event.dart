@@ -1,3 +1,4 @@
+import 'package:vaster_domain/vaster_domain.dart';
 import 'file_operation_type.dart';
 
 /// Abstract sealed class representing an event generated during LLM VM runtime execution.
@@ -227,6 +228,26 @@ final class SandboxExecutedEvent extends RuntimeEvent {
         'language': language,
         'exitCode': exitCode,
         'executionDurationMs': executionDuration.inMilliseconds,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
+/// Emitted when runtime execution yields and pauses waiting for human interaction.
+final class HumanInteractionRequiredEvent extends RuntimeEvent {
+  final HumanInteractionRequest request;
+
+  HumanInteractionRequiredEvent({
+    required super.eventId,
+    required this.request,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'human_interaction_required',
+        'eventId': eventId,
+        'request': request.toJson(),
         'timestamp': timestamp.toIso8601String(),
       };
 }

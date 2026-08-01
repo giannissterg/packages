@@ -118,6 +118,23 @@ void main() {
       expect(program.instructions.last, isA<HaltOp>());
     });
 
+    test('compiles SelectModelNode into SelectModelOp ISA opcode', () {
+      const spec = PipelineSpec(name: 'select_model_pipeline');
+      const descriptor = ModelDescriptor.geminiCli(modelId: 'gemini-2.5-flash');
+      final pipeline = PipelineNode(
+        spec: spec,
+        bodyNodes: const [
+          SelectModelNode(model: descriptor),
+        ],
+      );
+
+      final program = compiler.compile(pipeline);
+      final selectOps = program.instructions.whereType<SelectModelOp>().toList();
+
+      expect(selectOps, hasLength(1));
+      expect(selectOps.first.descriptor, equals(descriptor));
+    });
+
     test('compiles StepTransactionNode with BeginTransaction / Commit boundary', () {
       const pipeline = PipelineNode(
         spec: PipelineSpec(name: 'tx_pipeline'),

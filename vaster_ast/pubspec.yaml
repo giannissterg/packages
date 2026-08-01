@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   vaster_domain:
+  vaster_model:
 
 dev_dependencies:
   lints: ^6.0.0

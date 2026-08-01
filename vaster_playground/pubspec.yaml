@@ -12,7 +12,9 @@ dependencies:
   vaster_compiler:
   vaster_domain:
   vaster_instruction:
+  vaster_model:
   vaster_model_fake:
+  vaster_model_gemini_cli:
   vaster_runtime:
   vaster_vm:
 

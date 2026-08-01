@@ -21,6 +21,10 @@ enum InstructionOpcode {
   beginTransaction('begin_transaction'),
   commit('commit'),
   rollback('rollback'),
+  selectModel('select_model'),
+  yieldHumanInteraction('yield_human_interaction'),
+  call('call'),
+  returnSubroutine('return_subroutine'),
   halt('halt');
 
   final String name;

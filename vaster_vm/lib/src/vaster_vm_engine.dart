@@ -11,6 +11,7 @@ import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
+import 'model_registry.dart';
 import 'vaster_vm_interface.dart';
 import 'vm_config.dart';
 
@@ -46,6 +47,9 @@ class VasterVMEngine implements VasterVirtualMachine {
   @override
   final ResourceTracker resourceTracker;
 
+  @override
+  final ModelRegistry modelRegistry;
+
   VasterVMEngine._({
     required this.config,
     required this.sessionManager,
@@ -57,6 +61,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     required this.eventBus,
     required this.messagingHub,
     required this.resourceTracker,
+    required this.modelRegistry,
   });
 
   /// Factory bootstrap method to create a fully configured [VasterVMEngine].
@@ -81,6 +86,8 @@ class VasterVMEngine implements VasterVirtualMachine {
       eventBus: eventBus,
     );
 
+    final modelRegistry = ModelRegistry(defaultModel: config.defaultModel);
+
     final vm = VasterVMEngine._(
       config: config,
       sessionManager: sessionManager,
@@ -92,6 +99,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       eventBus: eventBus,
       messagingHub: messagingHub,
       resourceTracker: resourceTracker,
+      modelRegistry: modelRegistry,
     );
 
     // Automatic Bridge 1: Mount root filesystem if provided, or default MemoryVasterFileSystem
@@ -164,6 +172,11 @@ class VasterVMEngine implements VasterVirtualMachine {
       path: pathPrefix,
       sizeBytes: 0,
     ));
+  }
+
+  @override
+  void registerModel(ModelDescriptor descriptor, VasterModel model) {
+    modelRegistry.registerModel(descriptor, model);
   }
 
   @override
