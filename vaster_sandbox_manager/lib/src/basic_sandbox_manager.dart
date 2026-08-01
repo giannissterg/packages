@@ -37,7 +37,7 @@ class BasicSandboxManager implements SandboxManager {
   Future<SandboxResult> runCode({
     required String sandboxId,
     required String codeOrCommand,
-    String language = 'dart',
+    SandboxLanguage language = SandboxLanguage.dart,
     Map<String, dynamic> inputs = const {},
   }) async {
     final sandbox = getSandbox(sandboxId);
@@ -81,11 +81,11 @@ class BasicSandboxManager implements SandboxManager {
       },
       handler: (args) async {
         final code = args['code'] as String? ?? '';
-        final lang = args['language'] as String? ?? 'dart';
+        final langStr = args['language'] as String? ?? 'dart';
         final result = await runCode(
           sandboxId: sandboxId,
           codeOrCommand: code,
-          language: lang,
+          language: SandboxLanguage.parse(langStr),
         );
         return result.toJson();
       },

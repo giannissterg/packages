@@ -101,4 +101,11 @@ class BasicAgentManager implements AgentManager {
       rethrow;
     }
   }
+
+  @override
+  Future<AgentOutput> dispatchDescriptorTask({
+    required AgentDescriptor agentDescriptor,
+    required AgentTask task,
+  }) =>
+      dispatchTask(agentId: agentDescriptor.agentId, task: task);
 }

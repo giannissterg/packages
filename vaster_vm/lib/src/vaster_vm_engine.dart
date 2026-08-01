@@ -113,13 +113,16 @@ class VasterVMEngine implements VasterVirtualMachine {
     String promptText, {
     VasterModel? model,
     GenerationConfig? config,
+    CancellationToken? cancelToken,
   }) async {
+    cancelToken?.throwIfCancelled();
     resourceTracker.checkDeadline();
     final activeModel = model ?? this.config.defaultModel;
 
     final request = ModelRequest(
       messages: [ChatMessage.user(promptText)],
       generationConfig: config ?? const GenerationConfig(),
+      cancelToken: cancelToken,
     );
 
     final response = await activeModel.generate(request);
@@ -135,13 +138,16 @@ class VasterVMEngine implements VasterVirtualMachine {
     String promptText, {
     VasterModel? model,
     GenerationConfig? config,
+    CancellationToken? cancelToken,
   }) async* {
+    cancelToken?.throwIfCancelled();
     resourceTracker.checkDeadline();
     final activeModel = model ?? this.config.defaultModel;
 
     final request = ModelRequest(
       messages: [ChatMessage.user(promptText)],
       generationConfig: config ?? const GenerationConfig(),
+      cancelToken: cancelToken,
     );
 
     yield* activeModel.generateStream(request);
@@ -154,7 +160,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     // Bridge: Publish file operation event
     eventBus.publish(FileOperationEvent(
       eventId: 'evt_mount_$pathPrefix',
-      operation: 'mount',
+      operation: FileOperationType.mount,
       path: pathPrefix,
       sizeBytes: 0,
     ));

@@ -122,5 +122,35 @@ void main() {
       expect(events.first, isA<ModelStartedEvent>());
       expect(events.last, isA<ModelFinishedEvent>());
     });
+
+    test('enforces maxTreeDepth limit during subagent creation', () async {
+      final fakeModel = FakeVasterModel();
+
+      final a1 = await agentManager.createAgent(
+        descriptor: const AgentDescriptor(agentId: 'a1', name: 'A1', role: 'R1', systemInstruction: 'S1'),
+        model: fakeModel,
+      );
+
+      final a2 = await agentManager.createAgent(
+        descriptor: const AgentDescriptor(agentId: 'a2', name: 'A2', role: 'R2', systemInstruction: 'S2'),
+        model: fakeModel,
+        parentAgentId: a1.agentId,
+      );
+
+      final a3 = await agentManager.createAgent(
+        descriptor: const AgentDescriptor(agentId: 'a3', name: 'A3', role: 'R3', systemInstruction: 'S3'),
+        model: fakeModel,
+        parentAgentId: a2.agentId,
+      );
+
+      expect(
+        () => agentManager.createAgent(
+          descriptor: const AgentDescriptor(agentId: 'a4', name: 'A4', role: 'R4', systemInstruction: 'S4'),
+          model: fakeModel,
+          parentAgentId: a3.agentId,
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
   });
 }

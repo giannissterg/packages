@@ -8,7 +8,7 @@ void main() async {
   // Child 1: System & Governance Context Manager
   final systemContextManager = BasicContextManager(
     sources: [
-      MemoryContextSource(
+      MemoryContextSource.fromMap(
         id: 'system_memory',
         data: {'system': 'You are an advanced agent in the Vaster LLM Runtime.'},
       ),

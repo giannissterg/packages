@@ -71,5 +71,30 @@ void main() {
       expect(events.whereType<ModelStartedEvent>(), isNotEmpty);
       expect(events.whereType<ModelFinishedEvent>(), isNotEmpty);
     });
+
+    test('respects CancellationToken during prompt execution', () async {
+      final cancelToken = CancellationToken()..cancel('Stop prompt');
+      expect(
+        () => vm.prompt('Test cancelled', model: fakeModel, cancelToken: cancelToken),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('pins context region anti-eviction in VM ContextManager', () async {
+      final region = ContextRegion.text(
+        id: 'pinned_spec',
+        label: 'System Spec',
+        role: Role.system,
+        text: 'Critical Architecture Guidelines',
+        isPinned: true,
+      );
+
+      vm.contextManager.heap.addRegion(region);
+      final compiled = await vm.contextManager.compileContext(
+        budget: const TokenBudget(maxContextTokens: 100, reservedOutputTokens: 20),
+      );
+
+      expect(compiled.includedRegions.map((r) => r.id), contains('pinned_spec'));
+    });
   });
 }

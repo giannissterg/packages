@@ -1,3 +1,5 @@
+import 'file_operation_type.dart';
+
 /// Abstract sealed class representing an event generated during LLM VM runtime execution.
 sealed class RuntimeEvent {
   /// Unique event identifier.
@@ -151,9 +153,9 @@ final class ToolFinishedEvent extends RuntimeEvent {
       };
 }
 
-/// Emitted on virtual filesystem operations (read, write, delete).
+/// Emitted on virtual filesystem operations.
 final class FileOperationEvent extends RuntimeEvent {
-  final String operation; // 'read', 'write', 'delete'
+  final FileOperationType operation;
   final String path;
   final int sizeBytes;
 
@@ -170,7 +172,7 @@ final class FileOperationEvent extends RuntimeEvent {
   Map<String, dynamic> toJson() => {
         'type': 'file_operation',
         'eventId': eventId,
-        'operation': operation,
+        'operation': operation.name,
         'path': path,
         'sizeBytes': sizeBytes,
         'timestamp': timestamp.toIso8601String(),

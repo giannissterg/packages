@@ -22,6 +22,9 @@ class ContextRegion {
   /// Lifetime boundary of this context region.
   final ContextLifetime lifetime;
 
+  /// Whether this region is pinned to prevent anti-eviction during budget pressure.
+  final bool isPinned;
+
   /// Optional utility score (0.0 to 1.0) indicating relevance/recency.
   final double utility;
 
@@ -35,6 +38,7 @@ class ContextRegion {
     required this.estimatedTokens,
     this.priority = ContextPriority.medium,
     this.lifetime = ContextLifetime.session,
+    this.isPinned = false,
     this.utility = 1.0,
     this.metadata = const {},
   });
@@ -48,6 +52,7 @@ class ContextRegion {
     int? estimatedTokens,
     ContextPriority priority = ContextPriority.medium,
     ContextLifetime lifetime = ContextLifetime.session,
+    bool isPinned = false,
     double utility = 1.0,
     Map<String, dynamic> metadata = const {},
   }) {
@@ -60,6 +65,7 @@ class ContextRegion {
       estimatedTokens: tokens,
       priority: priority,
       lifetime: lifetime,
+      isPinned: isPinned,
       utility: utility,
       metadata: metadata,
     );
@@ -72,6 +78,7 @@ class ContextRegion {
     int? estimatedTokens,
     ContextPriority? priority,
     ContextLifetime? lifetime,
+    bool? isPinned,
     double? utility,
     Map<String, dynamic>? metadata,
   }) {
@@ -82,6 +89,7 @@ class ContextRegion {
       estimatedTokens: estimatedTokens ?? this.estimatedTokens,
       priority: priority ?? this.priority,
       lifetime: lifetime ?? this.lifetime,
+      isPinned: isPinned ?? this.isPinned,
       utility: utility ?? this.utility,
       metadata: metadata ?? Map.from(this.metadata),
     );
@@ -89,5 +97,5 @@ class ContextRegion {
 
   @override
   String toString() =>
-      'ContextRegion(id: $id, label: "$label", tokens: ~$estimatedTokens, priority: ${priority.name})';
+      'ContextRegion(id: $id, label: "$label", tokens: ~$estimatedTokens, priority: ${priority.name}, pinned: $isPinned)';
 }

@@ -8,7 +8,7 @@ void main() {
       final sandbox = ProcessCodeSandbox();
       final result = await sandbox.run(const SandboxRequest(
         codeOrCommand: 'echo HelloProcessSandbox',
-        language: 'bash',
+        language: SandboxLanguage.bash,
       ));
 
       expect(result.isSuccess, isTrue);
@@ -24,7 +24,7 @@ void main() {
 
       final result = await sandbox.run(const SandboxRequest(
         codeOrCommand: 'rm -rf /tmp/test',
-        language: 'bash',
+        language: SandboxLanguage.bash,
       ));
 
       expect(result.securityViolation, isTrue);

@@ -1,0 +1,17 @@
+name: vaster_instruction
+description: Pure low-level Instruction Set Architecture (ISA) opcodes, sealed VasterInstruction hierarchy, and VasterProgram container.
+version: 1.0.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  vaster_agent:
+  vaster_resources:
+  vaster_sandbox:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

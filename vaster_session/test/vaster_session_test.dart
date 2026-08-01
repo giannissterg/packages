@@ -58,7 +58,7 @@ void main() {
       final fakeModel = FakeVasterModel(defaultResponseText: 'Contextual response');
       final contextManager = BasicContextManager(
         sources: [
-          MemoryContextSource(
+          MemoryContextSource.fromMap(
             id: 'mem',
             data: {'system': 'You are bound to a session context.'},
           ),

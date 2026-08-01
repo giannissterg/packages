@@ -7,7 +7,7 @@ void main() async {
   final sandbox = ProcessCodeSandbox();
   final result = await sandbox.run(const SandboxRequest(
     codeOrCommand: 'echo Hello Process Sandbox',
-    language: 'bash',
+    language: SandboxLanguage.bash,
   ));
 
   print('Process Output: ${result.stdout}');

@@ -10,7 +10,7 @@ void main() async {
   final model = FakeVasterModel(defaultResponseText: 'Model session active.');
   final contextManager = BasicContextManager(
     sources: [
-      MemoryContextSource(
+      MemoryContextSource.fromMap(
         id: 'sys',
         data: {'system': 'You are operating in session 1.'},
       ),

@@ -1,7 +1,7 @@
-/// Model interface, message types, content parts, tool definitions, and capabilities
-/// for the Vaster LLM runtime ecosystem.
+/// Pure domain primitives and interfaces for LLM interaction.
 library;
 
+export 'src/cancellation_token.dart';
 export 'src/chat_message.dart';
 export 'src/content_part.dart';
 export 'src/generation_config.dart';

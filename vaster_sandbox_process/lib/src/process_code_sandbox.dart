@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 
 /// CLI Process implementation of [CodeSandbox] for running system commands/scripts
@@ -18,7 +19,12 @@ class ProcessCodeSandbox implements CodeSandbox {
       sandboxId: 'process_default',
       type: 'process',
       description: 'CLI Process Code Sandbox',
-      supportedLanguages: ['bash', 'sh', 'dart', 'python'],
+      supportedLanguages: [
+        SandboxLanguage.bash,
+        SandboxLanguage.sh,
+        SandboxLanguage.dart,
+        SandboxLanguage.python,
+      ],
     ),
     this.defaultPolicy = const SandboxSecurityPolicy(
       maxTimeout: Duration(seconds: 30),
@@ -28,7 +34,11 @@ class ProcessCodeSandbox implements CodeSandbox {
   });
 
   @override
-  Future<SandboxResult> run(SandboxRequest request) async {
+  Future<SandboxResult> run(
+    SandboxRequest request, {
+    CancellationToken? cancelToken,
+  }) async {
+    cancelToken?.throwIfCancelled();
     final policy = request.securityPolicy ?? defaultPolicy;
     final watch = Stopwatch()..start();
 
@@ -79,6 +89,7 @@ class ProcessCodeSandbox implements CodeSandbox {
       ).timeout(policy.maxTimeout);
 
       watch.stop();
+      cancelToken?.throwIfCancelled();
 
       return SandboxResult(
         exitCode: processResult.exitCode,

@@ -19,7 +19,7 @@ abstract interface class SandboxManager {
   Future<SandboxResult> runCode({
     required String sandboxId,
     required String codeOrCommand,
-    String language = 'dart',
+    SandboxLanguage language = SandboxLanguage.dart,
     Map<String, dynamic> inputs = const {},
   });
 

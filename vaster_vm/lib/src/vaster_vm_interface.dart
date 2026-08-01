@@ -48,6 +48,7 @@ abstract interface class VasterVirtualMachine {
     String promptText, {
     VasterModel? model,
     GenerationConfig? config,
+    CancellationToken? cancelToken,
   });
 
   /// Direct model prompt streaming.
@@ -55,6 +56,7 @@ abstract interface class VasterVirtualMachine {
     String promptText, {
     VasterModel? model,
     GenerationConfig? config,
+    CancellationToken? cancelToken,
   });
 
   /// Mounts a filesystem backend into [fileSystemManager] and bridges files to context.

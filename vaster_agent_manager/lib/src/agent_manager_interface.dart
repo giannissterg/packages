@@ -49,9 +49,16 @@ abstract interface class AgentManager {
     ToolManager? toolManager,
   });
 
-  /// Dispatches an [AgentTask] to a target agent by ID.
+  /// Dispatches an [AgentTask] to a target agent by ID or [AgentDescriptor].
   Future<AgentOutput> dispatchTask({
     required String agentId,
     required AgentTask task,
   });
+
+  /// Dispatches an [AgentTask] directly using an [AgentDescriptor] handle.
+  Future<AgentOutput> dispatchDescriptorTask({
+    required AgentDescriptor agentDescriptor,
+    required AgentTask task,
+  }) =>
+      dispatchTask(agentId: agentDescriptor.agentId, task: task);
 }

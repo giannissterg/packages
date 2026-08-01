@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 
 /// Dart Isolate implementation of [CodeSandbox] for running Dart execution routines
@@ -19,7 +20,7 @@ class IsolateCodeSandbox implements CodeSandbox {
       sandboxId: 'isolate_default',
       type: 'isolate',
       description: 'Dart Isolate Code Sandbox',
-      supportedLanguages: ['dart'],
+      supportedLanguages: [SandboxLanguage.dart],
     ),
     this.defaultPolicy = const SandboxSecurityPolicy(
       maxTimeout: Duration(seconds: 10),
@@ -29,7 +30,11 @@ class IsolateCodeSandbox implements CodeSandbox {
   });
 
   @override
-  Future<SandboxResult> run(SandboxRequest request) async {
+  Future<SandboxResult> run(
+    SandboxRequest request, {
+    CancellationToken? cancelToken,
+  }) async {
+    cancelToken?.throwIfCancelled();
     final policy = request.securityPolicy ?? defaultPolicy;
     final watch = Stopwatch()..start();
 
@@ -43,6 +48,8 @@ class IsolateCodeSandbox implements CodeSandbox {
 
       final resultVal = await isolateFuture.timeout(policy.maxTimeout);
       watch.stop();
+
+      cancelToken?.throwIfCancelled();
 
       return SandboxResult(
         exitCode: 0,
@@ -72,7 +79,6 @@ class IsolateCodeSandbox implements CodeSandbox {
   }
 
   static Object? _defaultEvaluator(String code, Map<String, dynamic> inputs) {
-    // Default fallback evaluator echoes inputs and code length
     return {
       'status': 'executed',
       'codeLength': code.length,

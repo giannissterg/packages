@@ -1,25 +1,30 @@
+import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_session/vaster_session.dart';
 import 'agent_descriptor.dart';
 import 'agent_output.dart';
 import 'agent_task.dart';
 
-/// Abstract interface class defining an autonomous agent bound to a [ModelSession].
+/// Abstract interface class defining an autonomous LLM Agent contract.
 abstract interface class VasterAgent {
-  /// Descriptor metadata handle.
+  /// Handle metadata record identifying this agent.
   AgentDescriptor get descriptor;
 
-  /// Agent ID getter.
+  /// Unique agent identifier.
   String get agentId => descriptor.agentId;
 
-  /// The active [ModelSession] powering this agent.
+  /// Session thread bound to this agent.
   ModelSession get session;
 
-  /// Executes an assigned [AgentTask] and returns [AgentOutput].
-  Future<AgentOutput> run(AgentTask task);
+  /// Executes an [AgentTask] turn loop (model generation + tool execution).
+  Future<AgentOutput> run(
+    AgentTask task, {
+    CancellationToken? cancelToken,
+  });
 
-  /// Spawns a subagent in an isolated child session, executes [task], and returns subagent output.
-  Future<AgentOutput> spawnSubagent({
-    required AgentDescriptor subagentDescriptor,
-    required AgentTask task,
+  /// Spawns a child subagent in an isolated session thread.
+  Future<VasterAgent> spawnSubagent({
+    required AgentDescriptor descriptor,
+    required VasterModel model,
+    AgentTask? task,
   });
 }

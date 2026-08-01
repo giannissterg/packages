@@ -26,6 +26,7 @@ abstract interface class ModelSession {
     ChatMessage userMessage, {
     VasterModel? targetModel,
     GenerationConfig? config,
+    CancellationToken? cancelToken,
   });
 
   /// Sends a user message turn and streams response chunks from [targetModel] (or default [model]).
@@ -33,7 +34,11 @@ abstract interface class ModelSession {
     ChatMessage userMessage, {
     VasterModel? targetModel,
     GenerationConfig? config,
+    CancellationToken? cancelToken,
   });
+
+  /// Forks current session into a new isolated session thread with deep-copied turn history.
+  ModelSession fork({String? newSessionId});
 
   /// Clears turn history from this session.
   void clearHistory();

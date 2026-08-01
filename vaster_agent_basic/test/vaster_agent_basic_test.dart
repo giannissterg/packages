@@ -43,18 +43,24 @@ void main() {
         session: session,
       );
 
-      final subOutput = await rootAgent.spawnSubagent(
-        subagentDescriptor: const AgentDescriptor(
+      final subagent = await rootAgent.spawnSubagent(
+        descriptor: const AgentDescriptor(
           agentId: 'child_ag',
           name: 'ChildAgent',
           role: 'Researcher',
           systemInstruction: 'Research subagent',
         ),
+        model: model,
         task: const AgentTask(
           taskId: 'sub_t1',
           inputPrompt: 'Research topic details',
         ),
       );
+
+      final subOutput = await subagent.run(const AgentTask(
+        taskId: 'sub_t1',
+        inputPrompt: 'Research topic details',
+      ));
 
       expect(subOutput.isSuccess, isTrue);
       expect(subOutput.agentId, equals('child_ag'));

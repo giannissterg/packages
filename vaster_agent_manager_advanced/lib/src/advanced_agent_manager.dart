@@ -186,6 +186,13 @@ class AdvancedAgentManager implements AgentManager {
     }
   }
 
+  @override
+  Future<AgentOutput> dispatchDescriptorTask({
+    required AgentDescriptor agentDescriptor,
+    required AgentTask task,
+  }) =>
+      dispatchTask(agentId: agentDescriptor.agentId, task: task);
+
   /// Dispatches multiple tasks across agents in parallel.
   Future<List<AgentOutput>> dispatchParallelTasks(
     List<({String agentId, AgentTask task})> dispatches,

@@ -42,7 +42,8 @@ class PriorityAllocationStrategy implements AllocationStrategy {
         systemInstruction = sysMsg;
       }
 
-      if (currentTokens + region.estimatedTokens <= maxInputTokens ||
+      if (region.isPinned ||
+          currentTokens + region.estimatedTokens <= maxInputTokens ||
           region.priority == ContextPriority.critical) {
         included.add(region);
         currentTokens += region.estimatedTokens;

@@ -38,6 +38,22 @@ class BasicContextManager implements ContextManager {
   }
 
   @override
+  void pinRegion(String regionId) {
+    final region = heap.regions.where((r) => r.id == regionId).firstOrNull;
+    if (region != null) {
+      heap.addRegion(region.copyWith(isPinned: true));
+    }
+  }
+
+  @override
+  void unpinRegion(String regionId) {
+    final region = heap.regions.where((r) => r.id == regionId).firstOrNull;
+    if (region != null) {
+      heap.addRegion(region.copyWith(isPinned: false));
+    }
+  }
+
+  @override
   Future<void> syncSources() async {
     for (final source in _sources) {
       final regions = await source.getRegions();

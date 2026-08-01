@@ -53,6 +53,20 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
+  void pinRegion(String regionId) {
+    for (final child in children) {
+      child.pinRegion(regionId);
+    }
+  }
+
+  @override
+  void unpinRegion(String regionId) {
+    for (final child in children) {
+      child.unpinRegion(regionId);
+    }
+  }
+
+  @override
   Future<void> syncSources() async {
     await Future.wait(children.map((child) => child.syncSources()));
   }

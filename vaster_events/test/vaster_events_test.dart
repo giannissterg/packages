@@ -61,13 +61,13 @@ void main() {
     test('sealed pattern matching on RuntimeEvent', () {
       final RuntimeEvent event = FileOperationEvent(
         eventId: 'e3',
-        operation: 'write',
+        operation: FileOperationType.write,
         path: '/mem/data.json',
         sizeBytes: 120,
       );
 
       final label = switch (event) {
-        FileOperationEvent(operation: final op, path: final p) => '$op: $p',
+        FileOperationEvent(operation: final op, path: final p) => '${op.name}: $p',
         _ => 'other',
       };
 

@@ -1,5 +1,5 @@
 name: vaster_sandbox
-description: Pure isolated code sandbox interfaces, descriptors, security policies, requests, and results for Vaster.
+description: Pure isolated code sandbox interfaces, descriptors, security policies, requests, and results.
 version: 1.0.0
 
 resolution: workspace
@@ -8,6 +8,7 @@ environment:
   sdk: ^3.13.0-282.1.beta
 
 dependencies:
+  vaster_model:
 
 dev_dependencies:
   lints: ^6.0.0

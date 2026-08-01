@@ -1,16 +1,20 @@
+import 'package:vaster_model/vaster_model.dart';
 import 'sandbox_descriptor.dart';
 import 'sandbox_request.dart';
 import 'sandbox_result.dart';
 import 'sandbox_security_policy.dart';
 
-/// Abstract interface class defining an isolated code sandbox backend.
+/// Pure abstract interface defining an isolated code execution environment.
 abstract interface class CodeSandbox {
-  /// Descriptor metadata handle.
+  /// Metadata handle identifying this sandbox.
   SandboxDescriptor get descriptor;
 
-  /// Default security policy configured for this sandbox instance.
+  /// Default security policy enforced by this sandbox backend.
   SandboxSecurityPolicy get defaultPolicy;
 
-  /// Executes a [SandboxRequest] inside this sandbox environment.
-  Future<SandboxResult> run(SandboxRequest request);
+  /// Executes code or commands inside the isolated sandbox environment.
+  Future<SandboxResult> run(
+    SandboxRequest request, {
+    CancellationToken? cancelToken,
+  });
 }

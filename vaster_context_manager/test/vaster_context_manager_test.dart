@@ -8,7 +8,7 @@ void main() {
     test('BasicContextManager registers sources and compiles context within budget', () async {
       final ContextManager manager = BasicContextManager(
         sources: [
-          MemoryContextSource(
+          MemoryContextSource.fromMap(
             id: 'sys_mem',
             data: {'system': 'You are Vaster OS assistant.'},
           ),
@@ -110,7 +110,7 @@ void main() {
     test('composes multiple child ContextManagers and merges sources & compiled context', () async {
       final systemManager = BasicContextManager(
         sources: [
-          MemoryContextSource(
+          MemoryContextSource.fromMap(
             id: 'sys_source',
             data: {'system': 'Composite system prompt.'},
           ),

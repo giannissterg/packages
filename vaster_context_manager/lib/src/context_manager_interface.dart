@@ -15,6 +15,12 @@ abstract interface class ContextManager {
   /// Unregisters a [ContextSource] by ID.
   bool unregisterSource(String id);
 
+  /// Pins a context region by ID to prevent anti-eviction during budget pressure.
+  void pinRegion(String regionId);
+
+  /// Unpins a context region by ID.
+  void unpinRegion(String regionId);
+
   /// Synchronizes all registered context sources into the active [heap].
   Future<void> syncSources();
 

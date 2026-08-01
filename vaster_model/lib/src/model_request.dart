@@ -1,3 +1,4 @@
+import 'cancellation_token.dart';
 import 'chat_message.dart';
 import 'generation_config.dart';
 import 'tool_definition.dart';
@@ -16,6 +17,9 @@ class ModelRequest {
   /// Parameter configuration (temperature, topP, maxTokens, etc.).
   final GenerationConfig generationConfig;
 
+  /// Optional cancellation token handle.
+  final CancellationToken? cancelToken;
+
   /// Optional arbitrary metadata attached to this request context.
   final Map<String, dynamic> metadata;
 
@@ -24,6 +28,7 @@ class ModelRequest {
     this.systemInstruction,
     this.tools = const [],
     this.generationConfig = const GenerationConfig(),
+    this.cancelToken,
     this.metadata = const {},
   });
 
@@ -65,6 +70,7 @@ class ModelRequest {
     List<ChatMessage>? messages,
     List<ToolDefinition>? tools,
     GenerationConfig? generationConfig,
+    CancellationToken? cancelToken,
     Map<String, dynamic>? metadata,
   }) {
     return ModelRequest(
@@ -72,6 +78,7 @@ class ModelRequest {
       messages: messages ?? List.from(this.messages),
       tools: tools ?? List.from(this.tools),
       generationConfig: generationConfig ?? this.generationConfig,
+      cancelToken: cancelToken ?? this.cancelToken,
       metadata: metadata ?? Map.from(this.metadata),
     );
   }

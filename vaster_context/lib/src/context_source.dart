@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:vaster_model/vaster_model.dart';
+import 'context_lifetime.dart';
+import 'context_priority.dart';
 import 'context_region.dart';
 
 /// Abstract sealed class representing a virtual context source provider.
@@ -16,27 +18,46 @@ sealed class ContextSource {
   FutureOr<List<ContextRegion>> getRegions();
 }
 
-/// A context source providing in-memory key-value context or variable bindings.
+/// A context source providing in-memory context regions or variable bindings.
 class MemoryContextSource extends ContextSource {
-  final Map<String, String> data;
+  final List<ContextRegion> regions;
 
   MemoryContextSource({
     required super.id,
     super.name = 'memory_source',
-    this.data = const {},
+    this.regions = const [],
   });
 
-  @override
-  List<ContextRegion> getRegions() {
-    return data.entries.map((entry) {
+  /// Factory to construct a MemoryContextSource from a key-value text map.
+  factory MemoryContextSource.fromMap({
+    required String id,
+    String name = 'memory_source',
+    Map<String, String> data = const {},
+    ContextPriority priority = ContextPriority.medium,
+    ContextLifetime lifetime = ContextLifetime.session,
+    bool isPinned = false,
+  }) {
+    final regionList = data.entries.map((entry) {
       return ContextRegion.text(
         id: '${id}_${entry.key}',
         label: 'Memory (${entry.key})',
         role: entry.key == 'system' ? Role.system : Role.user,
         text: '${entry.key}: ${entry.value}',
+        priority: priority,
+        lifetime: lifetime,
+        isPinned: isPinned,
       );
     }).toList();
+
+    return MemoryContextSource(
+      id: id,
+      name: name,
+      regions: regionList,
+    );
   }
+
+  @override
+  List<ContextRegion> getRegions() => List.unmodifiable(regions);
 }
 
 /// A context source managing past chat turn history.

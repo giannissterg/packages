@@ -31,7 +31,11 @@ class BasicVasterAgent implements VasterAgent {
   String get agentId => descriptor.agentId;
 
   @override
-  Future<AgentOutput> run(AgentTask task) async {
+  Future<AgentOutput> run(
+    AgentTask task, {
+    CancellationToken? cancelToken,
+  }) async {
+    cancelToken?.throwIfCancelled();
     final watch = Stopwatch()..start();
     final subagentOutputs = <AgentOutput>[];
 
@@ -40,6 +44,7 @@ class BasicVasterAgent implements VasterAgent {
         ChatMessage.user(
           '[Agent Task ${task.taskId}]: ${task.inputPrompt}',
         ),
+        cancelToken: cancelToken,
       );
 
       // Tool dispatch loop if response contains function calls and toolManager is available
@@ -47,12 +52,16 @@ class BasicVasterAgent implements VasterAgent {
       while (response.functionCalls.isNotEmpty &&
           toolManager != null &&
           maxLoop > 0) {
+        cancelToken?.throwIfCancelled();
         maxLoop--;
         final toolResponses =
             await toolManager!.processFunctionCalls(response.functionCalls);
 
         for (final toolMsg in toolResponses) {
-          response = await session.send(toolMsg);
+          response = await session.send(
+            toolMsg,
+            cancelToken: cancelToken,
+          );
         }
       }
 
@@ -80,29 +89,34 @@ class BasicVasterAgent implements VasterAgent {
   }
 
   @override
-  Future<AgentOutput> spawnSubagent({
-    required AgentDescriptor subagentDescriptor,
-    required AgentTask task,
+  Future<VasterAgent> spawnSubagent({
+    required AgentDescriptor descriptor,
+    required VasterModel model,
+    AgentTask? task,
   }) async {
-    final childSessionId = '${session.sessionId}_sub_${subagentDescriptor.agentId}';
+    final childSessionId = '${session.sessionId}_sub_${descriptor.agentId}';
 
     final childSession = BasicModelSession(
       sessionId: childSessionId,
-      model: session.model,
+      model: model,
       contextManager: session.contextManager,
     );
 
     VasterAgent subagent;
     if (subagentLauncher != null) {
-      subagent = await subagentLauncher!(subagentDescriptor, childSession);
+      subagent = await subagentLauncher!(descriptor, childSession);
     } else {
       subagent = BasicVasterAgent(
-        descriptor: subagentDescriptor,
+        descriptor: descriptor,
         session: childSession,
         toolManager: toolManager,
       );
     }
 
-    return await subagent.run(task);
+    if (task != null) {
+      await subagent.run(task);
+    }
+
+    return subagent;
   }
 }

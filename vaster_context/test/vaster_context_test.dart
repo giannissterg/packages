@@ -57,7 +57,7 @@ void main() {
     });
 
     test('MemoryContextSource generates text regions', () {
-      final source = MemoryContextSource(
+      final source = MemoryContextSource.fromMap(
         id: 'mem1',
         data: {'system': 'Be helpful.', 'user_pref': 'Dark mode'},
       );

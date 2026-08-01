@@ -8,7 +8,7 @@ void main() {
         sandboxId: 'isolate_1',
         type: 'isolate',
         description: 'Dart Isolate Sandbox',
-        supportedLanguages: ['dart'],
+        supportedLanguages: [SandboxLanguage.dart],
       );
 
       final json = descriptor.toJson();
@@ -16,7 +16,7 @@ void main() {
 
       expect(restored.sandboxId, equals('isolate_1'));
       expect(restored.type, equals('isolate'));
-      expect(restored.supportedLanguages, equals(['dart']));
+      expect(restored.supportedLanguages, equals([SandboxLanguage.dart]));
     });
 
     test('SandboxSecurityPolicy defaults and json roundtrip', () {
