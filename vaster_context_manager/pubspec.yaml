@@ -1,0 +1,16 @@
+name: vaster_context_manager
+description: Active context manager, allocation strategy execution, region eviction, and dynamic context compilation for Vaster.
+version: 1.0.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  vaster_context:
+  vaster_model:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

@@ -1,0 +1,19 @@
+name: vaster_agent_basic
+description: Concrete VasterAgent implementation with model turn execution, tool loops, and subagent spawning.
+version: 1.0.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  vaster_agent:
+  vaster_model:
+  vaster_session:
+  vaster_tool_manager:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
+  vaster_model_fake:
