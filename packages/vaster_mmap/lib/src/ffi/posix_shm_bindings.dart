@@ -7,13 +7,26 @@ const int oCreat = 0x0200;
 const int protRead = 0x01;
 const int protWrite = 0x02;
 const int mapShared = 0x0001;
+
+/// rw-rw-rw- permissions. Dart has no octal literals — a `0666` literal is
+/// DECIMAL 666 (= 0o1232: owner write-only!), which creates segments the
+/// owner cannot re-open for reading. Always use this constant for mode.
+const int mode0666 = 0x1B6; // 0o666
 final Pointer<Void> mapFailed = Pointer.fromAddress(-1);
 
 // C Function Signatures
-typedef NativeShmOpen = Int32 Function(Pointer<Utf8> name, Int32 oflag, Uint16 mode);
+//
+// NOTE: `shm_open` and `open` are C *variadic* functions — `mode` is a
+// vararg, not a third fixed parameter. On ARM64 (Apple Silicon) variadic
+// arguments are passed on the stack, so declaring `mode` as a fixed register
+// argument corrupts it (segments get created with garbage permission bits and
+// later re-opens fail nondeterministically). `VarArgs` emits the correct ABI.
+typedef NativeShmOpen = Int32 Function(
+    Pointer<Utf8> name, Int32 oflag, VarArgs<(Int32,)>);
 typedef DartShmOpen = int Function(Pointer<Utf8> name, int oflag, int mode);
 
-typedef NativeOpen = Int32 Function(Pointer<Utf8> path, Int32 oflag, Uint16 mode);
+typedef NativeOpen = Int32 Function(
+    Pointer<Utf8> path, Int32 oflag, VarArgs<(Int32,)>);
 typedef DartOpen = int Function(Pointer<Utf8> path, int oflag, int mode);
 
 typedef NativeShmUnlink = Int32 Function(Pointer<Utf8> name);

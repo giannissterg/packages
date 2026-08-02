@@ -52,7 +52,7 @@ class SharedMemoryRing {
       fd = PosixShmBindings.shmOpen(
         cName,
         oRdcwr | oCreat,
-        0666,
+        mode0666,
       );
     } catch (_) {}
 
@@ -64,7 +64,7 @@ class SharedMemoryRing {
         tempFile.createSync(recursive: true);
       }
       final cPath = tmpPath.toNativeUtf8();
-      fd = PosixShmBindings.open(cPath, oRdcwr | oCreat, 0666);
+      fd = PosixShmBindings.open(cPath, oRdcwr | oCreat, mode0666);
       calloc.free(cPath);
     }
 

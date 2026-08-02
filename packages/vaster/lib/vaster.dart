@@ -20,6 +20,8 @@ export 'package:vaster_instruction/vaster_instruction.dart';
 export 'package:vaster_model/vaster_model.dart';
 export 'package:vaster_model_fake/vaster_model_fake.dart';
 export 'package:vaster_kv/vaster_kv.dart';
+export 'package:vaster_kv_mmap/vaster_kv_mmap.dart';
+export 'package:vaster_mmap/vaster_mmap.dart';
 export 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
 export 'package:vaster_model_llama_cpp/vaster_model_llama_cpp.dart';
 export 'package:vaster_model_claude_cli/vaster_model_claude_cli.dart';

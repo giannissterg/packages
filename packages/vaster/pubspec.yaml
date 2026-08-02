@@ -54,6 +54,10 @@ dependencies:
     path: ../vaster_model_fake
   vaster_kv:
     path: ../vaster_kv
+  vaster_kv_mmap:
+    path: ../vaster_kv_mmap
+  vaster_mmap:
+    path: ../vaster_mmap
   vaster_model_claude_api:
     path: ../vaster_model_claude_api
   vaster_model_llama_cpp:
