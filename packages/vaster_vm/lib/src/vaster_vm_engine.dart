@@ -143,6 +143,47 @@ class VasterVMEngine implements VasterVirtualMachine {
       vm.registerSandbox(sb);
     }
 
+    // Automatic Bridge 3: Register VFS syscalls as first-class tools so their
+    // schemas are advertised to models and available to agents. NOTE: the
+    // runtime's tool-calling loop executes these two names through its own
+    // policy-gated built-in path (which takes precedence); these registrations
+    // serve definition advertisement and agent/tool-manager callers.
+    vm.registerTool(FunctionTool.define(
+      name: 'write_file',
+      description: 'Write text content to a file in the virtual filesystem.',
+      parametersSchema: const {
+        'type': 'object',
+        'properties': {
+          'path': {'type': 'string', 'description': 'Absolute VFS path'},
+          'content': {'type': 'string', 'description': 'Text content to write'},
+        },
+        'required': ['path', 'content'],
+      },
+      handler: (args) async {
+        final path = args['path']?.toString() ?? '';
+        final content = args['content']?.toString() ?? '';
+        await vm.fileSystemManager.resolveFileSystem(path).writeText(path, content);
+        return {'status': 'ok', 'path': path};
+      },
+    ));
+    vm.registerTool(FunctionTool.define(
+      name: 'read_file',
+      description: 'Read text content from a file in the virtual filesystem.',
+      parametersSchema: const {
+        'type': 'object',
+        'properties': {
+          'path': {'type': 'string', 'description': 'Absolute VFS path'},
+        },
+        'required': ['path'],
+      },
+      handler: (args) async {
+        final path = args['path']?.toString() ?? '';
+        final content =
+            await vm.fileSystemManager.resolveFileSystem(path).readText(path);
+        return {'content': content};
+      },
+    ));
+
     return vm;
   }
 

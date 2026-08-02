@@ -166,6 +166,9 @@ class VasterRuntime {
         break;
       }
       final instruction = program.instructions[_pc];
+      // Capture the executing PC before dispatch: control-flow ops mutate _pc,
+      // and observers must see the instruction's own address.
+      final executingPc = _pc;
       try {
         final stopwatch = Stopwatch()..start();
         await scheduler.scheduleOpcode(
@@ -176,7 +179,7 @@ class VasterRuntime {
         stopwatch.stop();
         budget.consumeTime(stopwatch.elapsed);
 
-        stepObserver?.call(_pc, instruction, _registers.snapshot());
+        stepObserver?.call(executingPc, instruction, _registers.snapshot());
 
         if (_status == RuntimeStatus.running) _pc++;
       } catch (e, st) {
@@ -230,6 +233,8 @@ class VasterRuntime {
         break;
       }
       final instruction = program.instructions[_pc];
+      // Capture the executing PC before dispatch (control-flow ops mutate _pc).
+      final executingPc = _pc;
       try {
         final stopwatch = Stopwatch()..start();
         await scheduler.scheduleOpcode(
@@ -240,7 +245,7 @@ class VasterRuntime {
         stopwatch.stop();
         budget.consumeTime(stopwatch.elapsed);
 
-        stepObserver?.call(_pc, instruction, _registers.snapshot());
+        stepObserver?.call(executingPc, instruction, _registers.snapshot());
 
         if (_status == RuntimeStatus.running) _pc++;
         executed++;
@@ -575,19 +580,15 @@ class VasterRuntime {
     return response;
   }
 
-  /// Dispatches one tool call: registered tools win, then built-in VFS
-  /// syscalls, then a typed error payload the model can recover from.
+  /// Dispatches one tool call. Built-in VFS syscalls take precedence — they
+  /// carry the runtime's policy checks (fileWrite/fileRead), which registered
+  /// handlers cannot enforce. Everything else resolves through the VM's
+  /// [ToolManager] symbol table; unlinked names return a typed error payload
+  /// the model can recover from.
   Future<Map<String, dynamic>> _dispatchToolCall(FunctionCallPart call) async {
     try {
-      // 1. Symbol table — the linked tool registry.
-      if (vm.toolManager.getTool(call.name) != null) {
-        final result = await vm.toolManager.executeCall(call);
-        return result.isError
-            ? {'error': result.errorDetails ?? 'Tool execution failed.'}
-            : result.response;
-      }
-
-      // 2. Built-in VFS syscalls.
+      // 1. Built-in policy-gated VFS syscalls (must win over registrations so
+      //    the ExecutionPolicy cannot be bypassed via the tool table).
       switch (call.name) {
         case 'write_file':
           final path = call.arguments['path']?.toString() ?? '';
@@ -601,6 +602,14 @@ class VasterRuntime {
           final content =
               await vm.fileSystemManager.resolveFileSystem(path).readText(path);
           return {'content': content};
+      }
+
+      // 2. Symbol table — the linked tool registry.
+      if (vm.toolManager.getTool(call.name) != null) {
+        final result = await vm.toolManager.executeCall(call);
+        return result.isError
+            ? {'error': result.errorDetails ?? 'Tool execution failed.'}
+            : result.response;
       }
 
       // 3. Unlinked symbol.
