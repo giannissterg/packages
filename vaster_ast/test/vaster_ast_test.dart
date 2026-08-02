@@ -27,16 +27,12 @@ class SecurityAuditComponent extends ComposableNode {
   VasterNode build(BuildContext context) {
     return Transaction(
       children: [
-        ReadFile(path: sourceFilePath, output: 'source_content'),
+        ReadFile(path: sourceFilePath),
         Task(
           agentRoleId: auditorRoleId,
-          task: TaskDefinition(
-            taskId: 'security_audit',
-            promptText: 'Audit $sourceFilePath for security vulnerabilities.',
-            output: 'audit_report',
-          ),
+          taskPrompt: 'Audit $sourceFilePath for security vulnerabilities.',
         ),
-        Output(output: 'audit_report'),
+        const Output(),
       ],
     );
   }
@@ -49,7 +45,7 @@ class DbConnectComponent extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final config = context.read<DatabaseConfig>();
-    return Prompt(promptText: 'Connect to ${config.host}:${config.port}', output: 'db_status');
+    return Prompt('Connect to ${config.host}:${config.port}');
   }
 }
 
@@ -65,8 +61,8 @@ void main() {
         spec: PipelineSpec(name: 'demo'),
         children: [
           Mount(mount: StorageMount(mountPrefix: '/mem')),
-          Prompt(promptText: 'Hello', output: 'r0'),
-          Output(output: 'r0'),
+          Prompt('Hello'),
+          Output(),
         ],
       );
       expect(pipeline.children, hasLength(3));

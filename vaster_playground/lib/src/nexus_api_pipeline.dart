@@ -1,8 +1,8 @@
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 
-import 'playground_config.dart';
 import 'playground_components.dart';
+import 'playground_config.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // The full multi-agent software delivery pipeline assembled from
@@ -30,21 +30,6 @@ const _qualityGate = QualityGate(
 );
 
 /// The complete multi-agent delivery pipeline for Nexus API.
-///
-/// Pipeline phases:
-///   Phase 0 — Bootstrap:   Mount VFS storage, write project brief
-///   Phase 1 — Planning:    Architect designs system from brief
-///   Phase 2 — Build:       Backend + Frontend implemented in parallel
-///   Phase 3 — Security:    Security audit with OWASP + dependency check
-///   Phase 4 — Review:      Tech lead reviews implementations + security findings
-///   Phase 5 — Testing:     QA writes 90%-coverage test suite
-///   Phase 6 — Docs:        Technical writer produces API docs + runbook
-///   Phase 7 — Delivery:    Architect assembles final delivery report
-///
-/// Typed context injections (ProviderNode`<T`>):
-///   ProjectConfig    — consumed by all agent components
-///   SecurityPolicy   — consumed by SecurityAuditComponent
-///   QualityGate      — consumed by TechLeadReviewComponent + TestSuiteComponent
 const nexusApiPipeline = Pipeline(
   spec: PipelineSpec(
     name: 'nexus_api_delivery_pipeline',
@@ -93,12 +78,9 @@ The platform exposes a unified gateway for downstream microservices.
     ),
 
     // ── Typed context injection ───────────────────────────────────────────────
-    // Wrap entire pipeline in Provider<ProjectConfig> so every ComposableNode
-    // can call context.read<ProjectConfig>() down the tree.
     Provider<ProjectConfig>(
       value: _projectConfig,
       children: [
-        // Provision the full agent team (reads ProjectConfig for role instructions)
         ProvisionAgentTeamComponent(),
 
         // ── Phase 1: Architecture Design ──────────────────────────────────────
@@ -125,22 +107,24 @@ The platform exposes a unified gateway for downstream microservices.
         Provider<QualityGate>(
           value: _qualityGate,
           children: [
-            // Tech lead cross-reviews all implementation + security findings
             TechLeadReviewComponent(),
-
-            // QA writes test suite targeting the quality gate's coverage requirement
             TestSuiteComponent(),
           ],
         ),
 
-        // Docs have no quality gate dependency — run independently
         DocumentationComponent(),
 
-        // ── Phase 7: Human Approval Gate & Delivery Subroutine ───────────────
+        // ── Phase 7: Human Approval Gate & Delivery Component ────────────────
         ApprovalGate(
           requestId: 'nexus_release_approval',
           prompt: 'Approve production deployment of Nexus API release v1.0.0?',
-          onApprove: [Call(name: 'deploy_nexus_subroutine')],
+          onApprove: [
+            DeliveryReportComponent(),
+            WriteFile(
+              path: '/workspace/reports/delivery_report.md',
+              content: '\${delivery_report}',
+            ),
+          ],
           onReject: [
             WriteFile(
               path: '/workspace/reports/delivery_report.md',
@@ -149,20 +133,7 @@ The platform exposes a unified gateway for downstream microservices.
           ],
         ),
 
-        // Reusable subroutine definition compiled into jump-isolated program memory
-        Subroutine(
-          name: 'deploy_nexus_subroutine',
-          children: [
-            DeliveryReportComponent(),
-            WriteFile(
-              path: '/workspace/reports/delivery_report.md',
-              content: '\${delivery_report}',
-            ),
-            Return(value: 'delivery_report'),
-          ],
-        ),
-
-        Output(output: 'delivery_report'),
+        Output(),
       ],
     ),
   ],

@@ -44,3 +44,15 @@ abstract class ComposableNode extends VasterNode {
   /// Use [context.read<T>()] to access typed values injected by ancestor [Provider]s.
   VasterNode build(BuildContext context);
 }
+
+/// Inline functional component builder extending [ComposableNode].
+///
+/// Allows creating lightweight functional components via a closure `(context) => VasterNode`.
+final class Component extends ComposableNode {
+  final VasterNode Function(BuildContext context) builder;
+
+  const Component(this.builder);
+
+  @override
+  VasterNode build(BuildContext context) => builder(context);
+}

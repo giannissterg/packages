@@ -2,6 +2,7 @@ import 'package:vaster_agent/vaster_agent.dart';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_model/vaster_model.dart';
 
 import 'compiler_interface.dart';
 
@@ -9,93 +10,34 @@ import 'compiler_interface.dart';
 /// high-level Vaster AST ([Pipeline]) into low-level [VasterProgram] ISA bytecode.
 ///
 /// Recursively traverses AST nodes using an exhaustive `switch` over the sealed
-/// [VasterNode] hierarchy. [ComposableNode] sub-trees are expanded by calling
-/// [ComposableNode.build] before compilation. Subroutine functions ([Subroutine])
-/// are compiled into jump-isolated program memory blocks with backpatched call targets.
+/// [VasterNode] hierarchy. All container and scope nodes expand seamlessly through
+/// [ComposableNode.build] and [Provider.applyToContext] before compilation.
 class BasicWorkflowCompiler implements WorkflowCompiler {
   const BasicWorkflowCompiler();
 
   @override
   VasterProgram compile(Pipeline pipeline) {
-    final context = BuildContext(pipelineSpec: pipeline.spec);
+    final initialContext = BuildContext(pipelineSpec: pipeline.spec);
+    final expandedTree = pipeline.build(initialContext);
+
     final instructions = <VasterInstruction>[];
-    final functionSymbols = <String, int>{};
-    final pendingCalls = <int, String>{}; // instruction index -> functionName
+    final state = _CompilerState();
 
-    final mainNodes = <VasterNode>[];
-    final functionNodes = <_ExtractedFunction>[];
-
-    _extractNodes(pipeline.children, mainNodes, functionNodes, context);
-
-    // 1. Compile main body nodes
-    _compileNodes(mainNodes, instructions, context, functionSymbols, pendingCalls);
-
-    // 2. Compile subroutines at end of main program block (preceded by jump past subroutines)
-    if (functionNodes.isNotEmpty) {
-      final jumpToHaltIdx = instructions.length;
-      instructions.add(const JumpOp(targetPc: 0)); // Placeholder
-
-      for (final fn in functionNodes) {
-        functionSymbols[fn.node.name] = instructions.length;
-        _compileNodes(fn.node.children, instructions, fn.context, functionSymbols, pendingCalls);
-        if (instructions.isEmpty || instructions.last is! ReturnSubroutineOp) {
-          instructions.add(const ReturnSubroutineOp());
-        }
-      }
-
-      final haltIdx = instructions.length;
-      instructions[jumpToHaltIdx] = JumpOp(targetPc: haltIdx);
-    }
+    _compileNode(expandedTree, instructions, initialContext, state);
 
     instructions.add(const HaltOp());
 
-    // 3. Backpatch function call target PCs
-    for (int i = 0; i < instructions.length; i++) {
-      final inst = instructions[i];
-      if (inst is CallOp) {
-        final targetPc = functionSymbols[inst.functionName] ?? 0;
-        instructions[i] = CallOp(
-          functionName: inst.functionName,
-          targetPc: targetPc,
-          arguments: inst.arguments,
-          outputVar: inst.outputVar,
-        );
-      }
-    }
-
     return VasterProgram(programName: pipeline.spec.name, instructions: instructions);
-  }
-
-  void _extractNodes(
-    List<VasterNode> sourceNodes,
-    List<VasterNode> mainNodes,
-    List<_ExtractedFunction> functionNodes,
-    BuildContext context,
-  ) {
-    for (final node in sourceNodes) {
-      if (node is Subroutine) {
-        functionNodes.add(_ExtractedFunction(node, context));
-      } else if (node is ComposableNode) {
-        final expanded = node.build(context);
-        _extractNodes([expanded], mainNodes, functionNodes, context);
-      } else if (node is Provider) {
-        final childContext = node.applyToContext(context);
-        _extractNodes(node.children, mainNodes, functionNodes, childContext);
-      } else {
-        mainNodes.add(node);
-      }
-    }
   }
 
   void _compileNodes(
     List<VasterNode> nodes,
     List<VasterInstruction> out,
     BuildContext context,
-    Map<String, int> functionSymbols,
-    Map<int, String> pendingCalls,
+    _CompilerState state,
   ) {
     for (final node in nodes) {
-      _compileNode(node, out, context, functionSymbols, pendingCalls);
+      _compileNode(node, out, context, state);
     }
   }
 
@@ -103,75 +45,48 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     VasterNode node,
     List<VasterInstruction> out,
     BuildContext context,
-    Map<String, int> functionSymbols,
-    Map<int, String> pendingCalls,
+    _CompilerState state,
   ) {
     switch (node) {
-      case Pipeline n:
-        _compileNodes(n.children, out, context, functionSymbols, pendingCalls);
-
-      case Mount n:
-        out.add(MountFsOp(mountPrefix: n.mount.mountPrefix, diskPath: n.mount.diskPath));
-
       case Prompt n:
-        out.add(PromptOp(promptText: n.promptText, outputVar: n.output));
-
-      case Agent n:
-        out.add(
-          CreateAgentOp(
-            descriptor: AgentDescriptor(
-              agentId: n.role.roleId,
-              name: n.role.name,
-              role: n.role.title,
-              systemInstruction: n.role.instruction,
-            ),
-          ),
-        );
-        out.add(CreateSessionOp(sessionId: 'sess_${n.role.roleId}'));
+        final reg = state.nextAutoRegister();
+        out.add(PromptOp(promptText: n.promptText, outputVar: reg));
+        state.lastOutputRegister = reg;
 
       case WriteFile n:
         out.add(WriteFileOp(vfsPath: n.path, content: n.content));
 
       case ReadFile n:
-        out.add(ReadFileOp(vfsPath: n.path, outputVar: n.output));
-
-      case Task n:
-        out.add(SetSessionOp(sessionId: 'sess_${n.agentRoleId}'));
-        out.add(
-          DispatchAgentTaskOp(
-            agentId: n.agentRoleId,
-            taskPrompt: n.task.promptText,
-            outputVar: n.task.output,
-          ),
-        );
+        final reg = state.nextAutoRegister();
+        out.add(ReadFileOp(vfsPath: n.path, outputVar: reg));
+        state.lastOutputRegister = reg;
 
       case ParallelTasks n:
-        out.add(
-          DispatchParallelTasksOp(
-            dispatches: n.entries
-                .map(
-                  (t) => ParallelTaskDispatch(
-                    agentId: t.agentRoleId,
-                    taskPrompt: t.promptText,
-                    outputVar: t.output,
-                  ),
-                )
-                .toList(),
-          ),
-        );
-
-      case Sandbox n:
-        out.add(RegisterSandboxOp(sandboxId: n.env.envId, language: n.env.language));
+        final dispatches = <ParallelTaskDispatch>[];
+        for (final t in n.entries) {
+          final reg = state.nextAutoRegister();
+          dispatches.add(
+            ParallelTaskDispatch(
+              agentId: t.agentRoleId,
+              taskPrompt: t.promptText,
+              outputVar: reg,
+            ),
+          );
+          state.lastOutputRegister = reg;
+        }
+        out.add(DispatchParallelTasksOp(dispatches: dispatches));
 
       case Execute n:
-        out.add(ExecSandboxOp(sandboxId: n.envId, code: n.code, outputVar: n.output));
+        final reg = state.nextAutoRegister();
+        out.add(ExecSandboxOp(sandboxId: n.envId, code: n.code, outputVar: reg));
+        state.lastOutputRegister = reg;
 
       case When n:
         final thenInstructions = <VasterInstruction>[];
-        _compileNodes(n.then, thenInstructions, context, functionSymbols, pendingCalls);
+        _compileNodes(n.then, thenInstructions, context, state);
 
         final elseInstructions = <VasterInstruction>[];
-        _compileNodes(n.otherwise, elseInstructions, context, functionSymbols, pendingCalls);
+        _compileNodes(n.otherwise, elseInstructions, context, state);
 
         final elseStart = out.length + 1;
         final thenStart = elseStart + elseInstructions.length + 1;
@@ -184,16 +99,14 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
       case Transaction n:
         out.add(const BeginTransactionOp());
-        _compileNodes(n.children, out, context, functionSymbols, pendingCalls);
+        _compileNodes(n.children, out, context, state);
         out.add(const CommitOp());
-
-      case SelectModel n:
-        out.add(SelectModelOp(descriptor: n.model));
 
       case YieldHuman n:
         out.add(YieldHumanInteractionOp(request: n.request));
 
       case AskHuman n:
+        final reg = state.nextAutoRegister();
         out.add(
           YieldHumanInteractionOp(
             request: HumanInteractionRequest(
@@ -201,47 +114,84 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
               type: HumanInteractionType.question,
               prompt: n.prompt,
               options: n.options,
-              outputVar: n.output,
+              outputVar: reg,
             ),
           ),
         );
-
-      case Subroutine _:
-        // Handled during compilation pass 2
-        break;
-
-      case Return n:
-        out.add(ReturnSubroutineOp(returnRegister: n.value));
-
-      case Call n:
-        final callIdx = out.length;
-        final targetPc = functionSymbols[n.name] ?? 0;
-        pendingCalls[callIdx] = n.name;
-        out.add(
-          CallOp(
-            functionName: n.name,
-            targetPc: targetPc,
-            arguments: n.arguments,
-            outputVar: n.output,
-          ),
-        );
+        state.lastOutputRegister = reg;
 
       case Output n:
-        out.add(ConcatRegisterOp(targetVar: '__output__', sourceVars: [n.output]));
+        if (n.child != null) {
+          _compileNode(n.child!, out, context, state);
+        }
+        final sourceReg = n.valueKey ?? state.lastOutputRegister;
+        if (sourceReg != null) {
+          out.add(ConcatRegisterOp(targetVar: '__output__', sourceVars: [sourceReg]));
+        }
 
       case Provider n:
         final childContext = n.applyToContext(context);
-        _compileNodes(n.children, out, childContext, functionSymbols, pendingCalls);
+        _compileNodes(n.children, out, childContext, state);
 
       case ComposableNode n:
         final expanded = n.build(context);
-        _compileNode(expanded, out, context, functionSymbols, pendingCalls);
+        _compileNode(expanded, out, context, state);
+
+      // Handle private leaf execution nodes emitted by ComposableNode headers
+      case dynamic n when n.runtimeType.toString() == '_PipelineBody':
+        _compileNodes((n as dynamic).children as List<VasterNode>, out, context, state);
+
+      case dynamic n when n.runtimeType.toString() == '_AgentProvisionHeader':
+        final role = (n as dynamic).role as AgentRole;
+        out.add(
+          CreateAgentOp(
+            descriptor: AgentDescriptor(
+              agentId: role.roleId,
+              name: role.name,
+              role: role.title,
+              systemInstruction: role.instruction,
+            ),
+          ),
+        );
+        out.add(CreateSessionOp(sessionId: 'sess_${role.roleId}'));
+
+      case dynamic n when n.runtimeType.toString() == '_MountHeader':
+        final mount = (n as dynamic).mount as StorageMount;
+        out.add(MountFsOp(mountPrefix: mount.mountPrefix, diskPath: mount.diskPath));
+
+      case dynamic n when n.runtimeType.toString() == '_SandboxHeader':
+        final env = (n as dynamic).env as CodeEnvironment;
+        out.add(RegisterSandboxOp(sandboxId: env.envId, language: env.language));
+
+      case dynamic n when n.runtimeType.toString() == '_SelectModelHeader':
+        final model = (n as dynamic).model as ModelDescriptor;
+        out.add(SelectModelOp(descriptor: model));
+
+      case dynamic n when n.runtimeType.toString() == '_TaskExecution':
+        final reg = state.nextAutoRegister();
+        final roleId = (n as dynamic).agentRoleId as String;
+        final prompt = (n as dynamic).taskPrompt as String;
+        out.add(SetSessionOp(sessionId: 'sess_$roleId'));
+        out.add(
+          DispatchAgentTaskOp(
+            agentId: roleId,
+            taskPrompt: prompt,
+            outputVar: reg,
+          ),
+        );
+        state.lastOutputRegister = reg;
+
+      default:
+        break;
     }
   }
 }
 
-class _ExtractedFunction {
-  final Subroutine node;
-  final BuildContext context;
-  const _ExtractedFunction(this.node, this.context);
+class _CompilerState {
+  int _regCounter = 0;
+  String? lastOutputRegister;
+
+  String nextAutoRegister() {
+    return '__auto_reg_${_regCounter++}';
+  }
 }

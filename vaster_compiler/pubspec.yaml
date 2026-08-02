@@ -12,6 +12,7 @@ dependencies:
   vaster_ast:
   vaster_domain:
   vaster_instruction:
+  vaster_model:
   vaster_resources:
   vaster_sandbox:
 

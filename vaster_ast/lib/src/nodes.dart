@@ -1,66 +1,140 @@
 part of '../vaster_ast.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Vaster AST Nodes
+// Vaster Declarative Functional AST Nodes
 //
-// All node types follow Flutter naming conventions: short, declarative names
-// without the "Node" suffix. Container nodes use `children` for their body.
+// All container and scope nodes (Pipeline, Agent, ToolSet, Mount, Sandbox, SelectModel)
+// are ComposableNodes that wrap their child sub-trees in Provider<T> nodes.
 // ══════════════════════════════════════════════════════════════════════════════
 
 /// Top-level pipeline container.
-///
-/// The root of every Vaster workflow. Holds the [PipelineSpec] metadata and
-/// the list of [children] nodes that make up the pipeline body.
-///
-/// Example:
-/// ```dart
-/// Pipeline(
-///   spec: PipelineSpec(name: 'my_pipeline'),
-///   children: [
-///     Mount(mount: StorageMount(mountPrefix: '/workspace')),
-///     Prompt(promptText: 'Hello', output: 'r0'),
-///     Output(output: 'r0'),
-///   ],
-/// )
-/// ```
-final class Pipeline extends VasterNode {
+class Pipeline extends ComposableNode {
   final PipelineSpec spec;
+  final List<AgentRole> roles;
+  final List<StorageMount> mounts;
+  final List<ToolDefinition> tools;
+  final ModelDescriptor? model;
   final List<VasterNode> children;
 
-  const Pipeline({required this.spec, this.children = const []});
+  const Pipeline({
+    required this.spec,
+    this.roles = const [],
+    this.mounts = const [],
+    this.tools = const [],
+    this.model,
+    this.children = const [],
+  });
+
+  @override
+  VasterNode build(BuildContext context) {
+    VasterNode tree = _PipelineBody(children);
+    if (model != null) {
+      tree = Provider<ModelDescriptor>(value: model!, children: [tree]);
+    }
+    if (tools.isNotEmpty) {
+      tree = Provider<ToolSetData>(value: ToolSetData(tools), children: [tree]);
+    }
+    if (mounts.isNotEmpty) {
+      tree = Provider<List<StorageMount>>(value: mounts, children: [tree]);
+    }
+    if (roles.isNotEmpty) {
+      tree = Provider<List<AgentRole>>(value: roles, children: [tree]);
+    }
+    return Provider<PipelineSpec>(value: spec, children: [tree]);
+  }
 }
 
-/// Mounts virtual or disk-backed storage into the pipeline's VFS.
-final class Mount extends VasterNode {
-  final StorageMount mount;
-
-  const Mount({required this.mount});
+final class _PipelineBody extends VasterNode {
+  final List<VasterNode> children;
+  const _PipelineBody(this.children);
 }
 
-/// Provisions an agent role into the pipeline.
-///
-/// Creates an agent with the given [role] and an associated session.
-final class Agent extends VasterNode {
+/// Provisions an agent role scope provider.
+class Agent extends ComposableNode {
   final AgentRole role;
+  final List<VasterNode> children;
 
-  const Agent({required this.role});
+  const Agent({required this.role, this.children = const []});
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Provider<AgentRole>(
+      value: role,
+      children: [
+        _AgentProvisionHeader(role: role),
+        ...children,
+      ],
+    );
+  }
 }
 
-/// Dispatches a task to a specific agent role.
-///
-/// The agent identified by [agentRoleId] receives [task] and produces
-/// output into the task's [outputVariable].
-final class Task extends VasterNode {
-  final String agentRoleId;
-  final TaskDefinition task;
+final class _AgentProvisionHeader extends VasterNode {
+  final AgentRole role;
+  const _AgentProvisionHeader({required this.role});
+}
 
-  const Task({required this.agentRoleId, required this.task});
+/// ToolSet scope provider node.
+class ToolSet extends ComposableNode {
+  final List<ToolDefinition> tools;
+  final List<VasterNode> children;
+
+  const ToolSet({required this.tools, this.children = const []});
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Provider<ToolSetData>(
+      value: ToolSetData(tools),
+      children: children,
+    );
+  }
+}
+
+/// Storage Mount scope provider node.
+class Mount extends ComposableNode {
+  final StorageMount mount;
+  final List<VasterNode> children;
+
+  const Mount({required this.mount, this.children = const []});
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Provider<StorageMount>(
+      value: mount,
+      children: [
+        _MountHeader(mount: mount),
+        ...children,
+      ],
+    );
+  }
+}
+
+final class _MountHeader extends VasterNode {
+  final StorageMount mount;
+  const _MountHeader({required this.mount});
+}
+
+/// Dispatches a task to an agent role.
+/// If [agentRoleId] is omitted, inherits from the enclosing [Agent] scope in [BuildContext].
+class Task extends ComposableNode {
+  final String? agentRoleId;
+  final String taskPrompt;
+
+  const Task({this.agentRoleId, required this.taskPrompt});
+
+  @override
+  VasterNode build(BuildContext context) {
+    final roleId = agentRoleId ?? context.tryRead<AgentRole>()?.roleId ?? 'default';
+    return _TaskExecution(agentRoleId: roleId, taskPrompt: taskPrompt);
+  }
+}
+
+final class _TaskExecution extends VasterNode {
+  final String agentRoleId;
+  final String taskPrompt;
+  const _TaskExecution({required this.agentRoleId, required this.taskPrompt});
 }
 
 /// Concurrently dispatches tasks across multiple agent roles.
-///
-/// All [entries] execute in parallel. Each [ParallelTaskEntry] targets
-/// a specific agent role with its own prompt and output variable.
 final class ParallelTasks extends VasterNode {
   final List<ParallelTaskEntry> entries;
 
@@ -68,14 +142,10 @@ final class ParallelTasks extends VasterNode {
 }
 
 /// Sends a direct prompt turn to the model.
-///
-/// The [promptText] is sent as-is to the current model session.
-/// If [output] is provided, the response is stored in that register.
 final class Prompt extends VasterNode {
   final String promptText;
-  final String? output;
 
-  const Prompt({required this.promptText, this.output});
+  const Prompt(this.promptText);
 }
 
 /// Writes document content to a VFS path.
@@ -86,38 +156,49 @@ final class WriteFile extends VasterNode {
   const WriteFile({required this.path, required this.content});
 }
 
-/// Reads a document from a VFS path into an output register.
+/// Reads a document from a VFS path.
 final class ReadFile extends VasterNode {
   final String path;
-  final String? output;
 
-  const ReadFile({required this.path, this.output});
+  const ReadFile({required this.path});
 }
 
-/// Registers a code execution sandbox environment in the pipeline.
-final class Sandbox extends VasterNode {
+/// Code Sandbox scope provider node.
+class Sandbox extends ComposableNode {
   final CodeEnvironment env;
+  final List<VasterNode> children;
 
-  const Sandbox({required this.env});
+  const Sandbox({required this.env, this.children = const []});
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Provider<CodeEnvironment>(
+      value: env,
+      children: [
+        _SandboxHeader(env: env),
+        ...children,
+      ],
+    );
+  }
+}
+
+final class _SandboxHeader extends VasterNode {
+  final CodeEnvironment env;
+  const _SandboxHeader({required this.env});
 }
 
 /// Executes code in a registered sandbox environment.
 final class Execute extends VasterNode {
   final String envId;
   final String code;
-  final String? output;
 
   const Execute({
     required this.envId,
     required this.code,
-    this.output,
   });
 }
 
 /// Conditional branch node.
-///
-/// Evaluates [condition] at runtime and executes [then] children if truthy,
-/// or [otherwise] children if falsy.
 final class When extends VasterNode {
   final String condition;
   final List<VasterNode> then;
@@ -131,20 +212,34 @@ final class When extends VasterNode {
 }
 
 /// Transactional step boundary — automatically rolls back VFS state on failure.
-///
-/// All [children] execute within a transaction. If any child fails,
-/// the VFS state is rolled back to the point before the transaction began.
 final class Transaction extends VasterNode {
   final List<VasterNode> children;
 
   const Transaction({required this.children});
 }
 
-/// Selects the active LLM model descriptor for subsequent pipeline execution.
-final class SelectModel extends VasterNode {
+/// Model selection scope provider node.
+class SelectModel extends ComposableNode {
   final ModelDescriptor model;
+  final List<VasterNode> children;
 
-  const SelectModel({required this.model});
+  const SelectModel({required this.model, this.children = const []});
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Provider<ModelDescriptor>(
+      value: model,
+      children: [
+        _SelectModelHeader(model: model),
+        ...children,
+      ],
+    );
+  }
+}
+
+final class _SelectModelHeader extends VasterNode {
+  final ModelDescriptor model;
+  const _SelectModelHeader({required this.model});
 }
 
 /// Yields execution to request human interaction.
@@ -155,28 +250,20 @@ final class YieldHuman extends VasterNode {
 }
 
 /// Asks a human user a question or presents a list of options.
-///
-/// The response is stored in [output] as a string matching one of [options].
 final class AskHuman extends VasterNode {
   final String requestId;
   final String prompt;
   final List<String> options;
-  final String output;
 
   const AskHuman({
     required this.requestId,
     required this.prompt,
     this.options = const [],
-    required this.output,
   });
 }
 
 /// ComposableNode providing a Flutter-style human approval gate with
 /// approve/reject branches.
-///
-/// Yields a human interaction request of type [HumanInteractionType.approval].
-/// If approved, [onApprove] children execute. If rejected, [onReject] children
-/// execute instead.
 class ApprovalGate extends ComposableNode {
   final String requestId;
   final String prompt;
@@ -211,78 +298,42 @@ class ApprovalGate extends ComposableNode {
   }
 }
 
-/// Defines a reusable subroutine function in the workflow.
-///
-/// Subroutines are compiled into jump-isolated program memory blocks.
-/// They can be invoked via [Call] nodes and may return a value via [Return].
-final class Subroutine extends VasterNode {
-  final String name;
-  final List<String> params;
-  final List<VasterNode> children;
-
-  const Subroutine({
-    required this.name,
-    this.params = const [],
-    required this.children,
-  });
-}
-
-/// Returns execution from a subroutine, optionally returning [value].
-final class Return extends VasterNode {
-  final String? value;
-
-  const Return({this.value});
-}
-
-/// Invokes a defined subroutine function by [name].
-///
-/// Arguments are passed as a map of register names. If [output] is provided,
-/// the subroutine's return value is stored in that register.
-final class Call extends VasterNode {
-  final String name;
-  final Map<String, String> arguments;
-  final String? output;
-
-  const Call({
-    required this.name,
-    this.arguments = const {},
-    this.output,
-  });
-}
-
-/// Returns a pipeline output register variable as the final result.
+/// Declarative pipeline output node.
 final class Output extends VasterNode {
-  final String output;
+  final VasterNode? child;
+  final String? valueKey;
 
-  const Output({required this.output});
+  const Output({this.child, this.valueKey});
 }
 
 /// Injects a typed value [T] into [BuildContext] for all [children].
-///
-/// Children (and their descendants) can access the value via
-/// `context.read<T>()` or `context.tryRead<T>()`.
-///
-/// This is a **compile-time only** construct — it leaves no ISA footprint.
-///
-/// Example:
-/// ```dart
-/// Provider<DatabaseConfig>(
-///   value: DatabaseConfig(host: 'localhost', port: 5432),
-///   children: [
-///     Agent(...),
-///     Task(...), // ComposableNodes here can call context.read<DatabaseConfig>()
-///   ],
-/// )
-/// ```
 final class Provider<T> extends VasterNode {
   final T value;
   final List<VasterNode> children;
 
   const Provider({required this.value, required this.children});
 
-  /// Injects [value] into [context] preserving the type parameter [T].
-  ///
-  /// Called by the compiler when encountering this node, before recursing
-  /// into [children] with the enriched context.
   BuildContext applyToContext(BuildContext context) => context.provide<T>(value);
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Backwards Compatibility Node Aliases
+// ══════════════════════════════════════════════════════════════════════════════
+typedef PipelineNode = Pipeline;
+typedef MountStorageNode = Mount;
+typedef DefineRoleNode = Agent;
+typedef PerformTaskNode = Task;
+typedef PerformParallelTasksNode = ParallelTasks;
+typedef PromptModelNode = Prompt;
+typedef WriteDocumentNode = WriteFile;
+typedef ReadDocumentNode = ReadFile;
+typedef RegisterCodeEnvironmentNode = Sandbox;
+typedef ExecuteCodeNode = Execute;
+typedef WhenConditionNode = When;
+typedef StepTransactionNode = Transaction;
+typedef SelectModelNode = SelectModel;
+typedef YieldHumanInteractionNode = YieldHuman;
+typedef AskHumanQuestionNode = AskHuman;
+typedef HumanApprovalComponent = ApprovalGate;
+typedef OutputNode = Output;
+typedef ProviderNode<T> = Provider<T>;

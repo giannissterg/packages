@@ -101,7 +101,6 @@ class ProvisionAgentTeamComponent extends ComposableNode {
 }
 
 /// Designs system architecture from a brief and persists the result to VFS.
-/// Reads [ProjectConfig] from context.
 class ArchitectureDesignComponent extends ComposableNode {
   final String briefPath;
   final String outputPath;
@@ -113,19 +112,15 @@ class ArchitectureDesignComponent extends ComposableNode {
     final project = context.read<ProjectConfig>();
     return Transaction(
       children: [
-        ReadFile(path: briefPath, output: 'project_brief'),
+        ReadFile(path: briefPath),
         Task(
           agentRoleId: 'architect',
-          task: TaskDefinition(
-            taskId: 'design_architecture',
-            promptText:
-                'Read the project brief below and produce a comprehensive system architecture '
-                'document for ${project.projectName} using ${project.language}.\n\n'
-                'Brief: \${project_brief}\n\n'
-                'Include: system overview, component diagram, API contracts, data models, '
-                'deployment topology for ${project.targetDeploymentEnv}, and technology decisions.',
-            output: 'architecture_doc',
-          ),
+          taskPrompt:
+              'Read the project brief below and produce a comprehensive system architecture '
+              'document for ${project.projectName} using ${project.language}.\n\n'
+              'Brief: \${project_brief}\n\n'
+              'Include: system overview, component diagram, API contracts, data models, '
+              'deployment topology for ${project.targetDeploymentEnv}, and technology decisions.',
         ),
         WriteFile(path: outputPath, content: '\${architecture_doc}'),
       ],
@@ -134,7 +129,6 @@ class ArchitectureDesignComponent extends ComposableNode {
 }
 
 /// Runs parallel implementation tasks for backend and frontend simultaneously.
-/// Reads [ProjectConfig] from context.
 class ParallelImplementationComponent extends ComposableNode {
   final String architecturePath;
 
@@ -146,7 +140,7 @@ class ParallelImplementationComponent extends ComposableNode {
     return Pipeline(
       spec: context.pipelineSpec,
       children: [
-        ReadFile(path: architecturePath, output: 'arch_doc'),
+        ReadFile(path: architecturePath),
         ParallelTasks(
           entries: [
             ParallelTaskEntry(
@@ -156,7 +150,6 @@ class ParallelImplementationComponent extends ComposableNode {
                   'architecture document below. Write production-quality ${project.language} code '
                   'with proper error handling, logging, and configuration management.\n\n'
                   'Architecture: \${arch_doc}',
-              output: 'backend_implementation',
             ),
             ParallelTaskEntry(
               agentRoleId: 'frontend_dev',
@@ -165,15 +158,14 @@ class ParallelImplementationComponent extends ComposableNode {
                   'architecture document below. Write clean, component-based UI code that '
                   'consumes the backend REST APIs.\n\n'
                   'Architecture: \${arch_doc}',
-              output: 'frontend_implementation',
             ),
           ],
         ),
-        WriteFile(
+        const WriteFile(
           path: '/workspace/src/backend/main.dart',
           content: '\${backend_implementation}',
         ),
-        WriteFile(
+        const WriteFile(
           path: '/workspace/src/frontend/app.dart',
           content: '\${frontend_implementation}',
         ),
@@ -183,7 +175,6 @@ class ParallelImplementationComponent extends ComposableNode {
 }
 
 /// Performs a comprehensive security audit.
-/// Reads [SecurityPolicy] from context to determine audit depth.
 class SecurityAuditComponent extends ComposableNode {
   final String backendPath;
   final String architecturePath;
@@ -198,22 +189,18 @@ class SecurityAuditComponent extends ComposableNode {
 
     return Transaction(
       children: [
-        ReadFile(path: backendPath, output: 'backend_src'),
-        ReadFile(path: architecturePath, output: 'arch_doc'),
+        ReadFile(path: backendPath),
+        ReadFile(path: architecturePath),
         Task(
           agentRoleId: 'security_auditor',
-          task: TaskDefinition(
-            taskId: 'security_audit',
-            promptText:
-                '$owaspClause$depClause'
-                'Identify all vulnerabilities with CVSS scores. Flag anything above '
-                '${policy.maxCvssScore} as CRITICAL. Provide remediation steps.\n\n'
-                'Backend source:\n\${backend_src}\n\n'
-                'Architecture:\n\${arch_doc}',
-            output: 'security_report',
-          ),
+          taskPrompt:
+              '$owaspClause$depClause'
+              'Identify all vulnerabilities with CVSS scores. Flag anything above '
+              '${policy.maxCvssScore} as CRITICAL. Provide remediation steps.\n\n'
+              'Backend source:\n\${backend_src}\n\n'
+              'Architecture:\n\${arch_doc}',
         ),
-        WriteFile(
+        const WriteFile(
           path: '/workspace/reports/security_audit.md',
           content: '\${security_report}',
         ),
@@ -223,7 +210,6 @@ class SecurityAuditComponent extends ComposableNode {
 }
 
 /// Tech lead reviews both implementations for quality and architecture alignment.
-/// Reads [QualityGate] from context.
 class TechLeadReviewComponent extends ComposableNode {
   const TechLeadReviewComponent();
 
@@ -234,26 +220,21 @@ class TechLeadReviewComponent extends ComposableNode {
 
     return Task(
       agentRoleId: 'tech_lead',
-      task: TaskDefinition(
-        taskId: 'implementation_review',
-        promptText:
-            'Review the backend and frontend implementations for quality, '
-            'architecture alignment, and adherence to our quality gate:\n'
-            '- Minimum test coverage: ${gate.minTestCoverage}%\n'
-            '- Documentation coverage enforced: ${gate.enforceDocCoverage}\n'
-            '- Required reviewers sign-off: $reviewersClause\n\n'
-            'Backend:\n\${backend_implementation}\n\n'
-            'Frontend:\n\${frontend_implementation}\n\n'
-            'Security report:\n\${security_report}\n\n'
-            'List all action items with MUST/SHOULD priority.',
-        output: 'tech_lead_review',
-      ),
+      taskPrompt:
+          'Review the backend and frontend implementations for quality, '
+          'architecture alignment, and adherence to our quality gate:\n'
+          '- Minimum test coverage: ${gate.minTestCoverage}%\n'
+          '- Documentation coverage enforced: ${gate.enforceDocCoverage}\n'
+          '- Required reviewers sign-off: $reviewersClause\n\n'
+          'Backend:\n\${backend_implementation}\n\n'
+          'Frontend:\n\${frontend_implementation}\n\n'
+          'Security report:\n\${security_report}\n\n'
+          'List all action items with MUST/SHOULD priority.',
     );
   }
 }
 
 /// Writes comprehensive test suites for the backend service.
-/// Reads both [QualityGate] and [ProjectConfig] from context.
 class TestSuiteComponent extends ComposableNode {
   const TestSuiteComponent();
 
@@ -266,22 +247,18 @@ class TestSuiteComponent extends ComposableNode {
       children: [
         Task(
           agentRoleId: 'qa_engineer',
-          task: TaskDefinition(
-            taskId: 'write_tests',
-            promptText:
-                'Write a comprehensive test suite for ${project.projectName} backend. '
-                'Target ${gate.minTestCoverage}% code coverage. Include:\n'
-                '- Unit tests for all business logic\n'
-                '- Integration tests for all API endpoints\n'
-                '- E2E tests for critical user flows\n'
-                '- Security regression tests based on the audit findings\n\n'
-                'Backend implementation:\n\${backend_implementation}\n\n'
-                'Tech lead review (action items):\n\${tech_lead_review}\n\n'
-                'Use ${project.language}-idiomatic testing patterns.',
-            output: 'test_suite',
-          ),
+          taskPrompt:
+              'Write a comprehensive test suite for ${project.projectName} backend. '
+              'Target ${gate.minTestCoverage}% code coverage. Include:\n'
+              '- Unit tests for all business logic\n'
+              '- Integration tests for all API endpoints\n'
+              '- E2E tests for critical user flows\n'
+              '- Security regression tests based on the audit findings\n\n'
+              'Backend implementation:\n\${backend_implementation}\n\n'
+              'Tech lead review (action items):\n\${tech_lead_review}\n\n'
+              'Use ${project.language}-idiomatic testing patterns.',
         ),
-        WriteFile(path: '/workspace/test/api_test.dart', content: '\${test_suite}'),
+        const WriteFile(path: '/workspace/test/api_test.dart', content: '\${test_suite}'),
       ],
     );
   }
@@ -298,20 +275,16 @@ class DocumentationComponent extends ComposableNode {
       children: [
         Task(
           agentRoleId: 'tech_writer',
-          task: TaskDefinition(
-            taskId: 'write_api_docs',
-            promptText:
-                'Write complete API documentation for ${project.projectName} including:\n'
-                '1. OpenAPI 3.0 specification\n'
-                '2. Developer getting-started guide\n'
-                '3. Authentication & authorization guide\n'
-                '4. Deployment runbook for ${project.targetDeploymentEnv}\n\n'
-                'Architecture:\n\${architecture_doc}\n\n'
-                'Backend implementation:\n\${backend_implementation}',
-            output: 'api_documentation',
-          ),
+          taskPrompt:
+              'Write complete API documentation for ${project.projectName} including:\n'
+              '1. OpenAPI 3.0 specification\n'
+              '2. Developer getting-started guide\n'
+              '3. Authentication & authorization guide\n'
+              '4. Deployment runbook for ${project.targetDeploymentEnv}\n\n'
+              'Architecture:\n\${architecture_doc}\n\n'
+              'Backend implementation:\n\${backend_implementation}',
         ),
-        WriteFile(
+        const WriteFile(
           path: '/workspace/docs/api_reference.md',
           content: '\${api_documentation}',
         ),
@@ -329,24 +302,20 @@ class DeliveryReportComponent extends ComposableNode {
     final project = context.read<ProjectConfig>();
     return Task(
       agentRoleId: 'architect',
-      task: TaskDefinition(
-        taskId: 'delivery_report',
-        promptText:
-            'Produce a final delivery report for ${project.projectName} summarising:\n'
-            '- Architecture decisions and rationale\n'
-            '- Implementation status (backend + frontend)\n'
-            '- Security audit outcome and remediation status\n'
-            '- Quality gate results (coverage, reviews)\n'
-            '- Test results summary\n'
-            '- Documentation completeness\n'
-            '- Known risks and open items\n\n'
-            'Architecture: \${architecture_doc}\n'
-            'Security: \${security_report}\n'
-            'Review: \${tech_lead_review}\n'
-            'Tests: \${test_suite}\n'
-            'Docs: \${api_documentation}',
-        output: 'delivery_report',
-      ),
+      taskPrompt:
+          'Produce a final delivery report for ${project.projectName} summarising:\n'
+          '- Architecture decisions and rationale\n'
+          '- Implementation status (backend + frontend)\n'
+          '- Security audit outcome and remediation status\n'
+          '- Quality gate results (coverage, reviews)\n'
+          '- Test results summary\n'
+          '- Documentation completeness\n'
+          '- Known risks and open items\n\n'
+          'Architecture: \${architecture_doc}\n'
+          'Security: \${security_report}\n'
+          'Review: \${tech_lead_review}\n'
+          'Tests: \${test_suite}\n'
+          'Docs: \${api_documentation}',
     );
   }
 }

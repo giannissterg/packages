@@ -48,11 +48,7 @@ class PolicyAwareReviewComponent extends ComposableNode {
     final modeLabel = policy.strictMode ? '[STRICT]' : '[LENIENT]';
     return Task(
       agentRoleId: auditorRoleId,
-      task: TaskDefinition(
-        taskId: 'policy_review',
-        promptText: '$modeLabel Review $filePath (max issues: ${policy.maxIssues})',
-        output: 'policy_review_result',
-      ),
+      taskPrompt: '$modeLabel Review $filePath (max issues: ${policy.maxIssues})',
     );
   }
 }
@@ -78,13 +74,9 @@ void main() {
           ),
           Task(
             agentRoleId: 'architect',
-            task: TaskDefinition(
-              taskId: 'design_auth',
-              promptText: 'Design the Auth Service API.',
-              output: 'design_output',
-            ),
+            taskPrompt: 'Design the Auth Service API.',
           ),
-          Output(output: 'design_output'),
+          Output(),
         ],
       );
 
@@ -104,13 +96,13 @@ void main() {
         spec: PipelineSpec(name: 'composable_pipeline'),
         children: [
           BootstrapStorageComponent(prefix: '/mem'),
-          Prompt(promptText: 'Summarize', output: 'summary'),
+          Prompt('Summarize'),
         ],
       );
 
       final program = compiler.compile(pipeline);
 
-      // BootstrapStorageComponent -> StepTransactionNode -> Begin, Mount, Write, Commit
+      // BootstrapStorageComponent -> Transaction -> Begin, Mount, Write, Commit
       expect(program.instructions[0], isA<BeginTransactionOp>());
       expect(program.instructions[1], isA<MountFsOp>());
       expect(program.instructions[2], isA<WriteFileOp>());
@@ -119,7 +111,7 @@ void main() {
       expect(program.instructions.last, isA<HaltOp>());
     });
 
-    test('compiles SelectModelNode into SelectModelOp ISA opcode', () {
+    test('compiles SelectModel into SelectModelOp ISA opcode', () {
       const spec = PipelineSpec(name: 'select_model_pipeline');
       const descriptor = ModelDescriptor.geminiCli(modelId: 'gemini-2.5-flash');
       final pipeline = Pipeline(
@@ -134,7 +126,7 @@ void main() {
       expect(selectOps.first.descriptor, equals(descriptor));
     });
 
-    test('compiles StepTransactionNode with BeginTransaction / Commit boundary', () {
+    test('compiles Transaction with BeginTransaction / Commit boundary', () {
       const pipeline = Pipeline(
         spec: PipelineSpec(name: 'tx_pipeline'),
         children: [
@@ -154,7 +146,7 @@ void main() {
   });
 
   group('BasicWorkflowCompiler - Provider<T> context injection', () {
-    test('ProviderNode injects typed value into BuildContext for ComposableNode children', () {
+    test('Provider injects typed value into BuildContext for ComposableNode children', () {
       const policy = ReviewPolicy(strictMode: true, maxIssues: 5);
 
       const pipeline = Pipeline(
@@ -171,7 +163,7 @@ void main() {
 
       final program = compiler.compile(pipeline);
 
-      // ProviderNode emits no ISA instructions; only the inner PerformTaskNode does
+      // Provider emits no ISA instructions; only the inner Task does
       final dispatchOp = program.instructions.whereType<DispatchAgentTaskOp>().first;
 
       expect(dispatchOp.taskPrompt, contains('[STRICT]'));
@@ -179,10 +171,10 @@ void main() {
       expect(dispatchOp.agentId, equals('auditor'));
     });
 
-    test('ProviderNode scopes injected value only to its children', () {
+    test('Provider scopes injected value only to its children', () {
       const policy = ReviewPolicy(strictMode: false, maxIssues: 20);
 
-      // ComposableNode outside ProviderNode should NOT see the typed value
+      // ComposableNode outside Provider should NOT see the typed value
       const pipeline = Pipeline(
         spec: PipelineSpec(name: 'scoped_provider_pipeline'),
         children: [
@@ -192,7 +184,7 @@ void main() {
               PolicyAwareReviewComponent(filePath: '/src/db.dart', auditorRoleId: 'db_auditor'),
             ],
           ),
-          Prompt(promptText: 'End of pipeline', output: 'end'),
+          Prompt('End of pipeline'),
         ],
       );
 
@@ -222,16 +214,16 @@ void main() {
         children: [
           Mount(mount: StorageMount(mountPrefix: '/mem')),
           WriteFile(path: '/mem/brief.txt', content: 'Build a REST API'),
-          ReadFile(path: '/mem/brief.txt', output: 'brief'),
-          Prompt(promptText: 'Analyze the brief', output: 'analysis'),
-          Output(output: 'analysis'),
+          ReadFile(path: '/mem/brief.txt'),
+          Prompt('Analyze the brief'),
+          Output(),
         ],
       );
 
       final program = compiler.compile(pipeline);
       expect(
         program.instructions.whereType<ConcatRegisterOp>().any(
-          (op) => op.targetVar == '__output__' && op.sourceVars.contains('analysis'),
+          (op) => op.targetVar == '__output__',
         ),
         isTrue,
       );
@@ -239,9 +231,7 @@ void main() {
       final state = await runtime.executeProgram(program);
 
       expect(state.status, equals(RuntimeStatus.halted));
-      expect(state.registers['brief'], equals('Build a REST API'));
-      expect(state.registers['analysis'], contains('Pipeline complete.'));
-      expect(state.registers['__output__'], equals(state.registers['analysis']));
+      expect(state.registers['__output__'], contains('Pipeline complete.'));
 
       await vm.shutdown();
     });

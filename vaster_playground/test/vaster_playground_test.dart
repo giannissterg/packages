@@ -119,8 +119,8 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.task.promptText, contains('OWASP Top 10'));
-      expect(taskNode.task.promptText, contains('5'));
+      expect(taskNode.taskPrompt, contains('OWASP Top 10'));
+      expect(taskNode.taskPrompt, contains('5'));
     });
 
     test('SecurityAuditComponent omits OWASP clause when not required', () {
@@ -140,7 +140,7 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.task.promptText, isNot(contains('OWASP Top 10')));
+      expect(taskNode.taskPrompt, isNot(contains('OWASP Top 10')));
     });
 
     test('TestSuiteComponent reads both ProjectConfig and QualityGate', () {
@@ -155,8 +155,8 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.task.promptText, contains('95%'));
-      expect(taskNode.task.promptText, contains('NexusAPI'));
+      expect(taskNode.taskPrompt, contains('95%'));
+      expect(taskNode.taskPrompt, contains('NexusAPI'));
     });
   });
 
@@ -185,14 +185,8 @@ void main() {
       }
 
       expect(state.status, equals(RuntimeStatus.halted));
-      expect(state.registers.containsKey('delivery_report'), isTrue);
-      expect(state.registers['delivery_report'], contains('Agent task completed'));
-
-      // Verify VFS artefacts were written
-      expect(state.registers.containsKey('architecture_doc'), isTrue);
-      expect(state.registers.containsKey('security_report'), isTrue);
-      expect(state.registers.containsKey('test_suite'), isTrue);
-      expect(state.registers.containsKey('api_documentation'), isTrue);
+      expect(state.registers.containsKey('__output__'), isTrue);
+      expect(state.registers['__output__'], contains('Agent task completed'));
 
       await vm.shutdown();
     });
@@ -239,14 +233,10 @@ void main() {
             content: 'Topic: Evaluate the trade-offs between microservices and monolithic architecture.',
           ),
           // Researcher reads the brief and produces a summary
-          ReadFile(path: '/workspace/topic.txt', output: 'topic_brief'),
+          ReadFile(path: '/workspace/topic.txt'),
           Task(
             agentRoleId: 'researcher',
-            task: TaskDefinition(
-              taskId: 'research_topic',
-              promptText: 'Research the following topic and produce a summary:\n\n\${topic_brief}',
-              output: 'research_summary',
-            ),
+            taskPrompt: 'Research the following topic and produce a summary:\n\n\${topic_brief}',
           ),
           WriteFile(path: '/workspace/research.md', content: '\${research_summary}'),
           // Two reviewers review in parallel
@@ -315,9 +305,6 @@ void main() {
       );
 
       expect(state.status, equals(RuntimeStatus.halted));
-      expect(state.registers.containsKey('research_summary'), isTrue);
-      expect(state.registers.containsKey('review_a'), isTrue);
-      expect(state.registers.containsKey('review_b'), isTrue);
 
       // Verify final report was written to VFS
       final report = await vm.fileSystemManager

@@ -13,16 +13,12 @@ class CodeReviewComponent extends ComposableNode {
   VasterNode build(BuildContext context) {
     return Transaction(
       children: [
-        ReadFile(path: filePath, output: 'source_code'),
+        ReadFile(path: filePath),
         Task(
           agentRoleId: reviewerRoleId,
-          task: TaskDefinition(
-            taskId: 'review_code',
-            promptText: 'Review the code at $filePath for quality and security issues.',
-            output: 'review_report',
-          ),
+          taskPrompt: 'Review the code at $filePath for quality and security issues.',
         ),
-        Output(output: 'review_report'),
+        const Output(),
       ],
     );
   }
@@ -70,11 +66,7 @@ void main() {
       // Architect designs the system
       Task(
         agentRoleId: 'architect',
-        task: TaskDefinition(
-          taskId: 'design_system',
-          promptText: 'Design an Auth Service from /workspace/spec.md.',
-          output: 'design',
-        ),
+        taskPrompt: 'Design an Auth Service from /workspace/spec.md.',
       ),
 
       // Developer implements it inside a transaction
@@ -82,11 +74,7 @@ void main() {
         children: [
           Task(
             agentRoleId: 'developer',
-            task: TaskDefinition(
-              taskId: 'implement_auth',
-              promptText: 'Implement the Auth Service based on the design.',
-              output: 'implementation',
-            ),
+            taskPrompt: 'Implement the Auth Service based on the design.',
           ),
           WriteFile(path: '/workspace/auth.dart', content: '// Auth implementation'),
         ],
@@ -95,7 +83,7 @@ void main() {
       // Use custom ComposableNode — code review component
       CodeReviewComponent(filePath: '/workspace/auth.dart', reviewerRoleId: 'architect'),
 
-      Output(output: 'review_report'),
+      Output(),
     ],
   );
 

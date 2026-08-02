@@ -1,5 +1,11 @@
 part of '../vaster_ast.dart';
 
+/// Container for active tool definitions in BuildContext.
+final class ToolSetData {
+  final List<ToolDefinition> tools;
+  const ToolSetData(this.tools);
+}
+
 /// Context passed during AST expansion and compilation.
 ///
 /// Carries pipeline-level configuration, environment properties, and typed
@@ -49,6 +55,14 @@ class BuildContext {
       );
     }
     return value as T;
+  }
+
+  /// Declarative alias for [read<T>] to retrieve contextual data.
+  T get<T>([String? key]) {
+    if (key != null && properties.containsKey(key)) {
+      return properties[key] as T;
+    }
+    return read<T>();
   }
 
   /// Reads a typed value of [T] or returns `null` if not provided.
