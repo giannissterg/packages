@@ -1,0 +1,88 @@
+name: vaster
+description: Vaster LLM Virtual Machine — Declarative AST, ISA Compiler, Bytecode Engine, Multi-Agent Sessions, Continuations, and Sidecar RPC.
+version: 0.0.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  vaster_agent:
+    path: ../vaster_agent
+  vaster_agent_basic:
+    path: ../vaster_agent_basic
+  vaster_agent_manager:
+    path: ../vaster_agent_manager
+  vaster_agent_messaging:
+    path: ../vaster_agent_messaging
+  vaster_ast:
+    path: ../vaster_ast
+  vaster_budget:
+    path: ../vaster_budget
+  vaster_cli:
+    path: ../vaster_cli
+  vaster_compiler:
+    path: ../vaster_compiler
+  vaster_context:
+    path: ../vaster_context
+  vaster_context_manager:
+    path: ../vaster_context_manager
+  vaster_continuation:
+    path: ../vaster_continuation
+  vaster_continuation_manager:
+    path: ../vaster_continuation_manager
+  vaster_dis:
+    path: ../vaster_dis
+  vaster_domain:
+    path: ../vaster_domain
+  vaster_events:
+    path: ../vaster_events
+  vaster_filesystem:
+    path: ../vaster_filesystem
+  vaster_filesystem_local:
+    path: ../vaster_filesystem_local
+  vaster_filesystem_manager:
+    path: ../vaster_filesystem_manager
+  vaster_filesystem_memory:
+    path: ../vaster_filesystem_memory
+  vaster_instruction:
+    path: ../vaster_instruction
+  vaster_model:
+    path: ../vaster_model
+  vaster_model_fake:
+    path: ../vaster_model_fake
+  vaster_model_gemini_cli:
+    path: ../vaster_model_gemini_cli
+  vaster_model_google_ai:
+    path: ../vaster_model_google_ai
+  vaster_model_rpc:
+    path: ../vaster_model_rpc
+  vaster_model_rpc_server:
+    path: ../vaster_model_rpc_server
+  vaster_policy:
+    path: ../vaster_policy
+  vaster_policy_engine:
+    path: ../vaster_policy_engine
+  vaster_resources:
+    path: ../vaster_resources
+  vaster_runtime:
+    path: ../vaster_runtime
+  vaster_sandbox:
+    path: ../vaster_sandbox
+  vaster_scheduler:
+    path: ../vaster_scheduler
+  vaster_session:
+    path: ../vaster_session
+  vaster_session_manager:
+    path: ../vaster_session_manager
+  vaster_tool:
+    path: ../vaster_tool
+  vaster_tool_manager:
+    path: ../vaster_tool_manager
+  vaster_vm:
+    path: ../vaster_vm
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
