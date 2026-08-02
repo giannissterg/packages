@@ -28,7 +28,7 @@ class GeminiCliVasterModel implements VasterModel {
   GeminiCliVasterModel({
     this.executablePath = 'gemini',
     this.selectedModel,
-    this.extraArgs = const [],
+    this.extraArgs = const ['--approval-mode', 'yolo'],
     this.workingDirectory,
     this.modelName = 'gemini-cli',
     this.capabilities = const ModelCapabilities(
@@ -47,32 +47,21 @@ class GeminiCliVasterModel implements VasterModel {
     final prompt = _buildPrompt(request);
     final args = _buildCliArgs(prompt: prompt, outputFormat: 'json');
 
-    final process = await Process.start(
+    final result = await Process.run(
       executablePath,
       args,
       workingDirectory: workingDirectory,
       runInShell: true,
     );
 
-    // Close stdin immediately so gemini does not wait for stdin EOF
-    await process.stdin.close();
-
-    final stdoutFuture = process.stdout.transform(utf8.decoder).join();
-    final stderrFuture = process.stderr.transform(utf8.decoder).join();
-
-    final stdoutText = await stdoutFuture;
-    final stderrText = await stderrFuture;
-    final exitCode = await process.exitCode;
-
-    if (exitCode != 0) {
-      // Check if stdout contains structured JSON error payload
-      final errorMsg = _extractErrorMessage(stdoutText, stderrText);
+    if (result.exitCode != 0) {
+      final errorMsg = _extractErrorMessage(result.stdout.toString(), result.stderr.toString());
       throw StateError(
-        'Gemini CLI failed with exit code $exitCode: $errorMsg',
+        'Gemini CLI failed with exit code ${result.exitCode}: $errorMsg',
       );
     }
 
-    return _parseJsonResponse(stdoutText);
+    return _parseJsonResponse(result.stdout.toString());
   }
 
   @override

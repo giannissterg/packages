@@ -1,0 +1,52 @@
+name: vaster_cli
+description: Official command-line interface for running, disassembling, serving, and inspecting Vaster LLM Virtual Machine pipelines.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+executables:
+  vaster: vaster_cli
+
+dependencies:
+  args: ^2.6.0
+  vaster_ast:
+    path: ../vaster_ast
+  vaster_budget:
+    path: ../vaster_budget
+  vaster_compiler:
+    path: ../vaster_compiler
+  vaster_continuation:
+    path: ../vaster_continuation
+  vaster_continuation_manager:
+    path: ../vaster_continuation_manager
+  vaster_dis:
+    path: ../vaster_dis
+  vaster_domain:
+    path: ../vaster_domain
+  vaster_filesystem_local:
+    path: ../vaster_filesystem_local
+  vaster_model_fake:
+    path: ../vaster_model_fake
+  vaster_model_gemini_cli:
+    path: ../vaster_model_gemini_cli
+  vaster_model_google_ai:
+    path: ../vaster_model_google_ai
+  vaster_model_rpc:
+    path: ../vaster_model_rpc
+  vaster_model_rpc_server:
+    path: ../vaster_model_rpc_server
+  vaster_policy:
+    path: ../vaster_policy
+  vaster_runtime:
+    path: ../vaster_runtime
+  vaster_scheduler:
+    path: ../vaster_scheduler
+  vaster_vm:
+    path: ../vaster_vm
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

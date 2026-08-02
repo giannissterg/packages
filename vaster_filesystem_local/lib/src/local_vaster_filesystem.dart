@@ -6,17 +6,29 @@ import 'package:vaster_filesystem/vaster_filesystem.dart';
 /// Host disk implementation of [VasterFileSystem] scoped within a [rootPath] directory.
 class LocalVasterFileSystem implements VasterFileSystem {
   final Directory rootDirectory;
+  final String? mountPrefix;
 
-  LocalVasterFileSystem(String rootPath)
+  LocalVasterFileSystem(String rootPath, {this.mountPrefix})
       : rootDirectory = Directory(rootPath).absolute;
 
+  String _cleanRelPath(String virtualPath) {
+    var rel = virtualPath.replaceAll('\\', '/');
+    if (mountPrefix != null && rel.startsWith(mountPrefix!)) {
+      rel = rel.substring(mountPrefix!.length);
+    } else if (rel.startsWith('/workspace')) {
+      rel = rel.substring('/workspace'.length);
+    }
+    if (rel.startsWith('/')) rel = rel.substring(1);
+    return rel;
+  }
+
   File _resolveFile(String virtualPath) {
-    final rel = virtualPath.startsWith('/') ? virtualPath.substring(1) : virtualPath;
+    final rel = _cleanRelPath(virtualPath);
     return File('${rootDirectory.path}/$rel');
   }
 
   Directory _resolveDir(String virtualPath) {
-    final rel = virtualPath.startsWith('/') ? virtualPath.substring(1) : virtualPath;
+    final rel = _cleanRelPath(virtualPath);
     return Directory('${rootDirectory.path}/$rel');
   }
 

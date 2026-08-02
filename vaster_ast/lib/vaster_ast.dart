@@ -7,3 +7,4 @@ part 'src/build_context.dart';
 part 'src/vaster_node.dart';
 part 'src/composable_node.dart';
 part 'src/nodes.dart';
+part 'src/flutter_nodes.dart';

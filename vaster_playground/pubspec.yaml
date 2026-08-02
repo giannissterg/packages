@@ -20,6 +20,8 @@ dependencies:
   vaster_model_fake:
   vaster_model_gemini_cli:
   vaster_model_google_ai:
+  vaster_model_rpc:
+  vaster_model_rpc_server:
   vaster_policy:
   vaster_runtime:
   vaster_scheduler:
