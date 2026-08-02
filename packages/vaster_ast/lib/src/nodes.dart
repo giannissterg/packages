@@ -187,19 +187,33 @@ class Task extends ComposableNode {
   final String? agentRoleId;
   final String taskPrompt;
 
-  const Task({this.agentRoleId, required this.taskPrompt});
+  /// Optional JSON Schema typing this task's output — the workflow-language
+  /// equivalent of a return-type annotation. Lowered into the emitted
+  /// [DispatchAgentTaskOp] so structured-output backends can enforce it.
+  final Map<String, dynamic>? outputSchema;
+
+  const Task({this.agentRoleId, required this.taskPrompt, this.outputSchema});
 
   @override
   VasterNode build(BuildContext context) {
     final roleId = agentRoleId ?? context.tryRead<AgentRole>()?.roleId ?? 'default';
-    return _TaskExecution(agentRoleId: roleId, taskPrompt: taskPrompt);
+    return _TaskExecution(
+      agentRoleId: roleId,
+      taskPrompt: taskPrompt,
+      outputSchema: outputSchema,
+    );
   }
 }
 
 final class _TaskExecution extends VasterNode {
   final String agentRoleId;
   final String taskPrompt;
-  const _TaskExecution({required this.agentRoleId, required this.taskPrompt});
+  final Map<String, dynamic>? outputSchema;
+  const _TaskExecution({
+    required this.agentRoleId,
+    required this.taskPrompt,
+    this.outputSchema,
+  });
 }
 
 /// Concurrently dispatches tasks across multiple agent roles.
@@ -213,7 +227,10 @@ final class ParallelTasks extends VasterNode {
 final class Prompt extends VasterNode {
   final String promptText;
 
-  const Prompt(this.promptText);
+  /// Optional JSON Schema typing the prompt's output (return-type annotation).
+  final Map<String, dynamic>? outputSchema;
+
+  const Prompt(this.promptText, {this.outputSchema});
 }
 
 /// Writes document content to a VFS path.

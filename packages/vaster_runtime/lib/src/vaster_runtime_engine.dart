@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
@@ -179,13 +181,39 @@ class VasterRuntime {
         if (_status == RuntimeStatus.running) _pc++;
       } catch (e, st) {
         _status = RuntimeStatus.error;
-        _lastError = '$e\n$st';
+        _lastError = _formatTrap(instruction, e, st);
         break;
       }
     }
     if (_status == RuntimeStatus.running) _status = RuntimeStatus.halted;
     return state;
   }
+
+  /// Formats a VM trap report: the faulting PC, disassembled instruction, and
+  /// a register dump — a machine-level panic instead of a bare stack trace.
+  String _formatTrap(VasterInstruction instruction, Object error, StackTrace stack) {
+    final registers = _registers.snapshot();
+    final registerDump = registers.isEmpty
+        ? '  (empty)'
+        : registers.entries
+            .map((e) => '  ${e.key} = ${_truncate('${e.value}')}')
+            .join('\n');
+    return [
+      '── VASTER VM TRAP ──────────────────────────────',
+      'fault    : $error',
+      'pc       : $_pc',
+      'opcode   : ${instruction.opcode.name}',
+      'inst     : ${_truncate(jsonEncode(instruction.toJson()))}',
+      'session  : ${_activeSessionId ?? '(none)'}',
+      'registers:',
+      registerDump,
+      '── stack ───────────────────────────────────────',
+      '$stack',
+    ].join('\n');
+  }
+
+  static String _truncate(String value, [int max = 200]) =>
+      value.length <= max ? value : '${value.substring(0, max)}…';
 
   /// Executes up to [stepCount] instructions of [program] and returns the resulting [RuntimeState].
   Future<RuntimeState> executeStep(VasterProgram program, {int stepCount = 5}) async {
@@ -218,7 +246,7 @@ class VasterRuntime {
         executed++;
       } catch (e, st) {
         _status = RuntimeStatus.error;
-        _lastError = '$e\n$st';
+        _lastError = _formatTrap(instruction, e, st);
         break;
       }
     }
@@ -236,16 +264,23 @@ class VasterRuntime {
     switch (inst) {
       // ── Model / LLM ───────────────────────────────────────────────────────
       case PromptOp op:
+        // Typed invocation: a responseSchema on the op lowers to the model
+        // request's structured-output config (compiler-emitted return type).
+        final promptConfig = op.responseSchema == null
+            ? null
+            : GenerationConfig(responseSchema: op.responseSchema);
         var response = _activeSessionId != null
             ? await vm.promptInSession(
                 _activeSessionId!,
                 op.promptText,
                 model: _activeModel,
+                config: promptConfig,
                 cacheHints: _cacheHints.activeHints,
               )
             : await vm.prompt(
                 op.promptText,
                 model: _activeModel,
+                config: promptConfig,
                 cacheHints: _cacheHints.activeHints,
               );
         if (response.functionCalls.isNotEmpty) {
@@ -255,7 +290,11 @@ class VasterRuntime {
             sessionId: _activeSessionId,
           );
         }
-        final tokens = (op.promptText.length ~/ 4) + (response.text.length ~/ 4);
+        // Charge real server-reported usage; the length heuristic is only a
+        // fallback for backends that don't report tokens.
+        final tokens = response.usage.totalTokenCount > 0
+            ? response.usage.totalTokenCount
+            : (op.promptText.length ~/ 4) + (response.text.length ~/ 4);
         budget.consumeTokens(tokens);
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
@@ -315,9 +354,12 @@ class VasterRuntime {
         await vm.createAgent(descriptor: op.descriptor);
 
       case DispatchAgentTaskOp op:
-        final meta = _cacheHints.isEmpty
-            ? <String, dynamic>{}
-            : {'cacheHints': _cacheHints.activeHints.map((h) => h.toJson()).toList()};
+        final meta = <String, dynamic>{
+          if (_cacheHints.isEmpty == false)
+            'cacheHints': _cacheHints.activeHints.map((h) => h.toJson()).toList(),
+          // Typed invocation: forwarded to the agent's ModelRequest.
+          if (op.responseSchema != null) 'responseSchema': op.responseSchema,
+        };
         final output = await vm.runAgentTask(
           AgentTask(taskId: 'isa_task_$_pc', inputPrompt: op.taskPrompt, metadata: meta),
           agentId: op.agentId,

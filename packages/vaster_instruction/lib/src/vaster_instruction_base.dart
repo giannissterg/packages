@@ -49,6 +49,9 @@ sealed class VasterInstruction {
       InstructionOpcode.prompt => PromptOp(
           promptText: json['promptText'] as String? ?? '',
           outputVar: json['outputVar'] as String?,
+          responseSchema: json['responseSchema'] == null
+              ? null
+              : Map<String, dynamic>.from(json['responseSchema'] as Map),
         ),
       InstructionOpcode.mountFs => MountFsOp(
           mountPrefix: json['mountPrefix'] as String? ?? '/mem',
@@ -78,6 +81,9 @@ sealed class VasterInstruction {
           agentId: json['agentId'] as String? ?? '',
           taskPrompt: json['taskPrompt'] as String? ?? '',
           outputVar: json['outputVar'] as String?,
+          responseSchema: json['responseSchema'] == null
+              ? null
+              : Map<String, dynamic>.from(json['responseSchema'] as Map),
         ),
       InstructionOpcode.dispatchParallelTasks => DispatchParallelTasksOp(
           dispatches: (json['dispatches'] as List? ?? [])
@@ -170,7 +176,12 @@ final class PromptOp extends VasterInstruction {
   final String promptText;
   final String? outputVar;
 
-  const PromptOp({required this.promptText, this.outputVar})
+  /// Optional JSON Schema constraining the model's output (typed return value).
+  /// When set, backends supporting structured outputs guarantee [outputVar]
+  /// holds JSON validating against this schema.
+  final Map<String, dynamic>? responseSchema;
+
+  const PromptOp({required this.promptText, this.outputVar, this.responseSchema})
       : super(InstructionOpcode.prompt);
 
   @override
@@ -178,6 +189,7 @@ final class PromptOp extends VasterInstruction {
         'opcode': opcode.name,
         'promptText': promptText,
         if (outputVar != null) 'outputVar': outputVar,
+        if (responseSchema != null) 'responseSchema': responseSchema,
       };
 }
 
@@ -283,10 +295,14 @@ final class DispatchAgentTaskOp extends VasterInstruction {
   final String taskPrompt;
   final String? outputVar;
 
+  /// Optional JSON Schema constraining the task's output (typed return value).
+  final Map<String, dynamic>? responseSchema;
+
   const DispatchAgentTaskOp({
     required this.agentId,
     required this.taskPrompt,
     this.outputVar,
+    this.responseSchema,
   }) : super(InstructionOpcode.dispatchAgentTask);
 
   @override
@@ -295,6 +311,7 @@ final class DispatchAgentTaskOp extends VasterInstruction {
         'agentId': agentId,
         'taskPrompt': taskPrompt,
         if (outputVar != null) 'outputVar': outputVar,
+        if (responseSchema != null) 'responseSchema': responseSchema,
       };
 }
 

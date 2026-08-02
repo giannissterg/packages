@@ -266,7 +266,9 @@ class VasterVMEngine implements VasterVirtualMachine {
 
     final response = await activeModel.generate(request);
     resourceTracker.consumeTokens(
-      (promptText.length ~/ 4) + (response.text.length ~/ 4),
+      response.usage.totalTokenCount > 0
+          ? response.usage.totalTokenCount
+          : (promptText.length ~/ 4) + (response.text.length ~/ 4),
     );
 
     return response;

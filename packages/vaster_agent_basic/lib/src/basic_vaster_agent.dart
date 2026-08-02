@@ -79,12 +79,19 @@ class BasicVasterAgent implements VasterAgent {
         final systemInstruction = compiled.systemInstruction;
         final messages = [...compiled.messages, ...session.history];
 
-        // b. Build ModelRequest — agent owns this, not the session
+        // b. Build ModelRequest — agent owns this, not the session.
+        // A responseSchema forwarded via task metadata becomes a structured-
+        // output constraint (typed return value for the dispatching ISA op).
+        final responseSchema = task.metadata['responseSchema'];
         final request = ModelRequest(
           systemInstruction: systemInstruction,
           messages: messages,
           tools: resolvedTools,
           cancelToken: cancelToken,
+          generationConfig: responseSchema is Map
+              ? GenerationConfig(
+                  responseSchema: Map<String, dynamic>.from(responseSchema))
+              : const GenerationConfig(),
         );
 
         // c. Generate and track token usage
