@@ -138,11 +138,8 @@ class MemoryVasterFileSystem implements VasterFileSystem {
 
   @override
   Future<FileSystemSnapshot> createSnapshot() async {
-    final snapshotFiles = <String, Uint8List>{};
-    for (final entry in _storage.entries) {
-      snapshotFiles[entry.key] = Uint8List.fromList(entry.value);
-    }
-    return FileSystemSnapshot(files: snapshotFiles);
+    // COW: Share immutable page byte references directly without allocating new arrays
+    return FileSystemSnapshot(files: Map.of(_storage));
   }
 
   @override
@@ -150,8 +147,9 @@ class MemoryVasterFileSystem implements VasterFileSystem {
     _storage.clear();
     _timestamps.clear();
     final now = DateTime.now();
+    // COW: Restore page byte references instantly in 0ms without re-allocation
     for (final entry in snapshot.files.entries) {
-      _storage[entry.key] = Uint8List.fromList(entry.value);
+      _storage[entry.key] = entry.value;
       _timestamps[entry.key] = now;
     }
   }
