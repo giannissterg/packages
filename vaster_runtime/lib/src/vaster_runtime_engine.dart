@@ -253,6 +253,13 @@ class VasterRuntime {
           payload: op.payload,
         ));
 
+      case PopMessageOp op:
+        final msg = vm.messagingHub.popNextMessage(op.agentId);
+        if (op.outputVar != null) {
+          final payloadStr = msg?.payload['text']?.toString() ?? msg?.payload.toString() ?? '';
+          _registers.write(op.outputVar!, payloadStr);
+        }
+
       // ── Session / Context ─────────────────────────────────────────────────
       case ForkSessionOp op:
         final source = vm.sessionManager.getSession(op.sourceSessionId);

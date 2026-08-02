@@ -242,6 +242,61 @@ final class _SelectModelHeader extends VasterNode {
   const _SelectModelHeader({required this.model});
 }
 
+/// Sends an asynchronous actor message to a target recipient agent.
+/// If [senderAgentId] is omitted, inherits from the enclosing [Agent] scope in [BuildContext].
+class SendMessage extends ComposableNode {
+  final String? senderAgentId;
+  final String recipientAgentId;
+  final Map<String, dynamic> payload;
+
+  const SendMessage({
+    this.senderAgentId,
+    required this.recipientAgentId,
+    required this.payload,
+  });
+
+  @override
+  VasterNode build(BuildContext context) {
+    final senderId = senderAgentId ?? context.tryRead<AgentRole>()?.roleId ?? 'anonymous';
+    return _SendMessageExecution(
+      senderAgentId: senderId,
+      recipientAgentId: recipientAgentId,
+      payload: payload,
+    );
+  }
+}
+
+final class _SendMessageExecution extends VasterNode {
+  final String senderAgentId;
+  final String recipientAgentId;
+  final Map<String, dynamic> payload;
+
+  const _SendMessageExecution({
+    required this.senderAgentId,
+    required this.recipientAgentId,
+    required this.payload,
+  });
+}
+
+/// Receives / pops the next unread actor message for an agent from their inbox.
+/// If [agentId] is omitted, inherits from the enclosing [Agent] scope in [BuildContext].
+class ReceiveMessage extends ComposableNode {
+  final String? agentId;
+
+  const ReceiveMessage({this.agentId});
+
+  @override
+  VasterNode build(BuildContext context) {
+    final id = agentId ?? context.tryRead<AgentRole>()?.roleId ?? 'anonymous';
+    return _ReceiveMessageExecution(agentId: id);
+  }
+}
+
+final class _ReceiveMessageExecution extends VasterNode {
+  final String agentId;
+  const _ReceiveMessageExecution({required this.agentId});
+}
+
 /// Yields execution to request human interaction.
 final class YieldHuman extends VasterNode {
   final HumanInteractionRequest request;

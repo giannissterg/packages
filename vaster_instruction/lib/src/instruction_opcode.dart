@@ -10,6 +10,7 @@ enum InstructionOpcode {
   dispatchAgentTask('dispatch_agent_task'),
   dispatchParallelTasks('dispatch_parallel_tasks'),
   sendMessage('send_message'),
+  popMessage('pop_message'),
   forkSession('fork_session'),
   pinContext('pin_context'),
   setQuota('set_quota'),

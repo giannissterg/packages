@@ -90,6 +90,10 @@ sealed class VasterInstruction {
           recipientId: json['recipientId'] as String? ?? '',
           payload: Map<String, dynamic>.from(json['payload'] as Map? ?? {}),
         ),
+      InstructionOpcode.popMessage => PopMessageOp(
+          agentId: json['agentId'] as String? ?? '',
+          outputVar: json['outputVar'] as String?,
+        ),
       InstructionOpcode.forkSession => ForkSessionOp(
           sourceSessionId: json['sourceSessionId'] as String? ?? '',
           targetSessionId: json['targetSessionId'] as String? ?? '',
@@ -321,6 +325,24 @@ final class SendMessageOp extends VasterInstruction {
         'senderId': senderId,
         'recipientId': recipientId,
         'payload': payload,
+      };
+}
+
+/// Pops next unread message for [agentId] into [outputVar].
+final class PopMessageOp extends VasterInstruction {
+  final String agentId;
+  final String? outputVar;
+
+  const PopMessageOp({
+    required this.agentId,
+    this.outputVar,
+  }) : super(InstructionOpcode.popMessage);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'agentId': agentId,
+        if (outputVar != null) 'outputVar': outputVar,
       };
 }
 

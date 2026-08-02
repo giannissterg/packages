@@ -131,6 +131,10 @@ class VasterDisassembler {
       case SendMessageOp op:
         return 'from=${op.senderId} to=${op.recipientId}';
 
+      case PopMessageOp op:
+        final outVar = op.outputVar != null ? ' -> r[${op.outputVar}]' : '';
+        return 'agent=${op.agentId}$outVar';
+
       case ForkSessionOp op:
         return 'source=${op.sourceSessionId} -> target=${op.targetSessionId}';
 

@@ -181,6 +181,24 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         );
         state.lastOutputRegister = reg;
 
+      case dynamic n when n.runtimeType.toString() == '_SendMessageExecution':
+        final senderId = (n as dynamic).senderAgentId as String;
+        final recipientId = (n as dynamic).recipientAgentId as String;
+        final payload = (n as dynamic).payload as Map<String, dynamic>;
+        out.add(
+          SendMessageOp(
+            senderId: senderId,
+            recipientId: recipientId,
+            payload: payload,
+          ),
+        );
+
+      case dynamic n when n.runtimeType.toString() == '_ReceiveMessageExecution':
+        final reg = state.nextAutoRegister();
+        final agentId = (n as dynamic).agentId as String;
+        out.add(PopMessageOp(agentId: agentId, outputVar: reg));
+        state.lastOutputRegister = reg;
+
       default:
         break;
     }

@@ -5,19 +5,16 @@ import 'package:vaster_domain/vaster_domain.dart';
 // Custom ComposableNode — reusable code review component
 class CodeReviewComponent extends ComposableNode {
   final String filePath;
-  final String reviewerRoleId;
 
-  const CodeReviewComponent({required this.filePath, required this.reviewerRoleId});
+  const CodeReviewComponent({required this.filePath});
 
   @override
   VasterNode build(BuildContext context) {
     return Transaction(
       children: [
         ReadFile(path: filePath),
-        Task(
-          agentRoleId: reviewerRoleId,
-          taskPrompt: 'Review the code at $filePath for quality and security issues.',
-        ),
+        // Task automatically reads enclosing AgentRole from context!
+        const Task(taskPrompt: 'Review the code for quality and security issues.'),
         const Output(),
       ],
     );
@@ -29,61 +26,65 @@ void main() {
   print('          Vaster Compiler Ecosystem Demo                       ');
   print('================================================================\n');
 
-  const pipeline = Pipeline(
-    spec: PipelineSpec(
+  const architectRole = AgentRole(
+    roleId: 'architect',
+    name: 'Lead Architect',
+    title: 'System Designer',
+    instruction: 'You design scalable, production-ready system architectures.',
+  );
+
+  const developerRole = AgentRole(
+    roleId: 'developer',
+    name: 'Backend Developer',
+    title: 'Dart Engineer',
+    instruction: 'You write clean, idiomatic Dart backend services.',
+  );
+
+  // Declarative Functional AST Tree
+  final pipeline = Pipeline(
+    spec: const PipelineSpec(
       name: 'multi_agent_auth_pipeline',
       version: '1.0.0',
       rootStoragePath: '/workspace',
     ),
+    mounts: const [StorageMount(mountPrefix: '/workspace')],
     children: [
-      // Mount storage
-      Mount(mount: StorageMount(mountPrefix: '/workspace')),
-
-      // Define agent roles
-      Agent(
-        role: AgentRole(
-          roleId: 'architect',
-          name: 'Lead Architect',
-          title: 'System Designer',
-          instruction: 'You design scalable, production-ready system architectures.',
-        ),
-      ),
-      Agent(
-        role: AgentRole(
-          roleId: 'developer',
-          name: 'Backend Developer',
-          title: 'Dart Engineer',
-          instruction: 'You write clean, idiomatic Dart backend services.',
-        ),
-      ),
-
       // Write spec document
-      WriteFile(
+      const WriteFile(
         path: '/workspace/spec.md',
         content: '# Auth Service Spec\nImplement JWT-based authentication.',
       ),
 
-      // Architect designs the system
-      Task(
-        agentRoleId: 'architect',
-        taskPrompt: 'Design an Auth Service from /workspace/spec.md.',
-      ),
-
-      // Developer implements it inside a transaction
-      Transaction(
+      // Architect Agent Scope
+      Agent(
+        role: architectRole,
         children: [
-          Task(
-            agentRoleId: 'developer',
-            taskPrompt: 'Implement the Auth Service based on the design.',
-          ),
-          WriteFile(path: '/workspace/auth.dart', content: '// Auth implementation'),
+          const Task(taskPrompt: 'Design an Auth Service from /workspace/spec.md.'),
         ],
       ),
 
-      // Use custom ComposableNode — code review component
-      CodeReviewComponent(filePath: '/workspace/auth.dart', reviewerRoleId: 'architect'),
+      // Developer Agent Scope
+      Agent(
+        role: developerRole,
+        children: [
+          Transaction(
+            children: [
+              const Task(taskPrompt: 'Implement the Auth Service based on the design.'),
+              const WriteFile(path: '/workspace/auth.dart', content: '// Auth implementation'),
+            ],
+          ),
+        ],
+      ),
 
-      Output(),
+      // Architect Code Review Scope
+      Agent(
+        role: architectRole,
+        children: [
+          const CodeReviewComponent(filePath: '/workspace/auth.dart'),
+        ],
+      ),
+
+      const Output(),
     ],
   );
 
