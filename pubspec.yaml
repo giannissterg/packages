@@ -1,0 +1,52 @@
+name: vaster_workspace
+description: Vaster LLM Virtual Machine Workspace.
+version: 1.0.0
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+workspace:
+  - packages/vaster_model
+  - packages/vaster_model_fake
+  - packages/vaster_context
+  - packages/vaster_context_manager
+  - packages/vaster_session
+  - packages/vaster_session_manager
+  - packages/vaster_filesystem
+  - packages/vaster_filesystem_memory
+  - packages/vaster_filesystem_local
+  - packages/vaster_filesystem_manager
+  - packages/vaster_tool
+  - packages/vaster_tool_manager
+  - packages/vaster_sandbox
+  - packages/vaster_sandbox_isolate
+  - packages/vaster_sandbox_process
+  - packages/vaster_sandbox_manager
+  - packages/vaster_events
+  - packages/vaster_agent
+  - packages/vaster_agent_basic
+  - packages/vaster_agent_manager
+  - packages/vaster_agent_manager_basic
+  - packages/vaster_agent_manager_advanced
+  - packages/vaster_agent_messaging
+  - packages/vaster_resources
+  - packages/vaster_vm
+  - packages/vaster_instruction
+  - packages/vaster_runtime
+  - packages/vaster_domain
+  - packages/vaster_ast
+  - packages/vaster_compiler
+  - packages/vaster_playground
+  - packages/vaster_model_gemini_cli
+  - packages/vaster_model_google_ai
+  - packages/vaster_dis
+  - packages/vaster_continuation
+  - packages/vaster_continuation_manager
+  - packages/vaster_policy
+  - packages/vaster_policy_engine
+  - packages/vaster_budget
+  - packages/vaster_scheduler
+  - packages/vaster_model_rpc
+  - packages/vaster_model_rpc_server
+  - packages/vaster_cli
+  - packages/vaster
