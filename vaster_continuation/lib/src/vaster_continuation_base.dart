@@ -1,7 +1,5 @@
 import 'package:vaster_domain/vaster_domain.dart';
-import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model/vaster_model.dart';
-import 'package:vaster_runtime/vaster_runtime.dart';
 
 /// Single activation record / stack frame on the Vaster VM call stack.
 class StackFrame {
@@ -93,49 +91,4 @@ class VasterContinuation {
       suspendedAt: DateTime.tryParse(json['suspendedAt'] as String? ?? '') ?? DateTime.now(),
     );
   }
-}
-
-/// Standalone manager for creating, storing, and restoring [VasterContinuation] snapshots.
-class ContinuationManager {
-  final Map<String, VasterContinuation> _storage = {};
-
-  /// Captures a continuation snapshot linking execution state with session context and active model.
-  VasterContinuation capture(
-    VasterRuntime runtime,
-    String programName, {
-    String? sessionId,
-    ModelDescriptor? activeModelDescriptor,
-  }) {
-    final state = runtime.state;
-    final continuation = VasterContinuation(
-      continuationId: 'cont_${DateTime.now().millisecondsSinceEpoch}',
-      programName: programName,
-      sessionId: sessionId,
-      activeModelDescriptor: activeModelDescriptor,
-      resumePc: state.pc,
-      registers: Map<String, dynamic>.from(state.registers),
-      pendingRequest: runtime.pendingHumanRequest,
-    );
-    _storage[continuation.continuationId] = continuation;
-    return continuation;
-  }
-
-  /// Restores execution from a stored or provided [continuation] snapshot.
-  Future<RuntimeState> restoreAndResume(
-    VasterRuntime runtime,
-    VasterContinuation continuation,
-    VasterProgram program, {
-    HumanInteractionResponse? humanResponse,
-  }) async {
-    return runtime.restoreAndResume(
-      continuation.resumePc,
-      program,
-      registers: continuation.registers,
-      pendingRequest: continuation.pendingRequest,
-      humanResponse: humanResponse,
-    );
-  }
-
-  /// Gets a stored continuation by ID.
-  VasterContinuation? getContinuation(String id) => _storage[id];
 }

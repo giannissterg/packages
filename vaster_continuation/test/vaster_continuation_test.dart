@@ -1,15 +1,18 @@
 import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
+import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
+import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 void main() {
-  group('ContinuationManager & VasterContinuation Package', () {
+  group('VasterContinuation Entity Model', () {
     late VasterVirtualMachine vm;
     late ContinuationManager continuationManager;
 
@@ -17,7 +20,7 @@ void main() {
       vm = await VasterVMEngine.bootstrap(
         config: VMConfig(defaultModel: FakeVasterModel()),
       );
-      continuationManager = ContinuationManager();
+      continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
     });
 
     test('captures and restores execution continuation snapshot using ContinuationManager', () async {
@@ -40,12 +43,17 @@ void main() {
       final program = compiler.compile(pipeline);
 
       // 1. Execute program until HITL yield
-      final runtime1 = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+      final runtime1 = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
       final state1 = await runtime1.executeProgram(program);
       expect(state1.status, equals(RuntimeStatus.pausedForHuman));
 
       // 2. Capture continuation snapshot using dedicated ContinuationManager
-      final snapshot = continuationManager.capture(runtime1, program.programName);
+      final snapshot = await continuationManager.capture(runtime1, program.programName);
       final jsonMap = snapshot.toJson();
 
       // 3. Reconstruct snapshot from JSON
@@ -53,7 +61,12 @@ void main() {
       expect(restoredSnapshot.programName, equals('continuation_pkg_pipeline'));
 
       // 4. Restore execution on a fresh runtime instance
-      final runtime2 = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+      final runtime2 = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
       final state2 = await continuationManager.restoreAndResume(
         runtime2,
         restoredSnapshot,

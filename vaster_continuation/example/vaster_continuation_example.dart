@@ -1,12 +1,15 @@
 import 'dart:convert';
 
 import 'package:vaster_ast/vaster_ast.dart';
+import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
+import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 void main() async {
@@ -19,7 +22,7 @@ void main() async {
     config: VMConfig(defaultModel: FakeVasterModel()),
   );
   const compiler = BasicWorkflowCompiler();
-  final continuationManager = ContinuationManager();
+  final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
 
   // 2. Build AST with Human Approval Gate
   final pipeline = PipelineNode(
@@ -40,13 +43,18 @@ void main() async {
 
   // 3. Start execution
   print('▶ 1. Starting execution on Server Instance #1...');
-  final runtime1 = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+  final runtime1 = VasterRuntime(
+    vm: vm,
+    policy: ExecutionPolicy.unlimited,
+    budget: ExecutionBudget.unlimited(),
+    scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+  );
   final state1 = await runtime1.executeProgram(program);
   print('   Status: ${state1.status.name} (PC: ${state1.pc})\n');
 
   // 4. Capture continuation snapshot and serialize to JSON
   print('💾 2. Capturing VasterContinuation snapshot...');
-  final snapshot = continuationManager.capture(runtime1, program.programName);
+  final snapshot = await continuationManager.capture(runtime1, program.programName);
   final jsonString = const JsonEncoder.withIndent('  ').convert(snapshot.toJson());
   print('   Snapshot JSON Payload:');
   print('$jsonString\n');
@@ -54,7 +62,12 @@ void main() async {
   // 5. Simulate Server Restart / Restore on Server Instance #2
   print('🔄 3. Restoring snapshot on Server Instance #2 & approving deployment...');
   final restoredSnapshot = VasterContinuation.fromJson(jsonDecode(jsonString));
-  final runtime2 = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+  final runtime2 = VasterRuntime(
+    vm: vm,
+    policy: ExecutionPolicy.unlimited,
+    budget: ExecutionBudget.unlimited(),
+    scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+  );
 
   final finalState = await continuationManager.restoreAndResume(
     runtime2,

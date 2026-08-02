@@ -9,8 +9,10 @@ environment:
 
 dependencies:
   vaster_ast:
+  vaster_budget:
   vaster_compiler:
   vaster_continuation:
+  vaster_continuation_manager:
   vaster_domain:
   vaster_instruction:
   vaster_model:
@@ -18,6 +20,7 @@ dependencies:
   vaster_model_gemini_cli:
   vaster_policy:
   vaster_runtime:
+  vaster_scheduler:
   vaster_vm:
 
 dev_dependencies:

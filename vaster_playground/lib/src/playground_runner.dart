@@ -1,13 +1,15 @@
 import 'dart:io';
 
+import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
-import 'package:vaster_continuation/vaster_continuation.dart';
+import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_model_gemini_cli/vaster_model_gemini_cli.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 import 'agent_responses.dart';
@@ -79,7 +81,12 @@ Future<void> runPlayground({
 
   // ── 4. Execute program ─────────────────────────────────────────────────────
   _printPhase('EXECUTION', 'Executing ${program.instructions.length} ISA instructions');
-  final runtime = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+  final runtime = VasterRuntime(
+    vm: vm,
+    policy: ExecutionPolicy.unlimited,
+    budget: ExecutionBudget.unlimited(),
+    scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+  );
 
   final stopwatch = Stopwatch()..start();
   var state = await runtime.executeProgram(program);
@@ -92,8 +99,8 @@ Future<void> runPlayground({
     stdout.writeln('     Prompt     : "${request?.prompt}"\n');
 
     _printPhase('CONTINUATION SNAPSHOT', 'Capturing VasterContinuation snapshot to JSON');
-    final continuationManager = ContinuationManager();
-    final snapshot = continuationManager.capture(
+    final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
+    final snapshot = await continuationManager.capture(
       runtime,
       program.programName,
       activeModelDescriptor: descriptor,

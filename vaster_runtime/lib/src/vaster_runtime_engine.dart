@@ -1,6 +1,8 @@
+import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_policy/vaster_policy.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 import 'call_stack.dart';
 import 'cache_hint_tracker.dart';
@@ -20,9 +22,13 @@ import 'runtime_status.dart';
 /// | [CallStack]        | Subroutine activation records                    |
 /// | [CacheHintTracker] | JIT context cache hint tracking                 |
 /// | [HitlController]   | Human-in-the-Loop lifecycle state machine       |
+/// | [ExecutionBudget]   | Time, token, and cost capacity budget tracking  |
+/// | [VasterScheduler]  | Opcode scheduling, priorities, and preemption   |
 /// | [VasterVirtualMachine] | All VM subsystem access (model, VFS, agents…) |
 class VasterRuntime {
   final VasterVirtualMachine vm;
+  final ExecutionBudget budget;
+  final VasterScheduler scheduler;
 
   final RegisterFile _registers = RegisterFile();
   final CallStack _callStack = CallStack();
@@ -41,6 +47,8 @@ class VasterRuntime {
   VasterRuntime({
     required this.vm,
     required ExecutionPolicy policy,
+    required this.budget,
+    required this.scheduler,
   }) : _activePolicy = policy;
 
   /// Pending human interaction request if status is [RuntimeStatus.pausedForHuman].
@@ -107,9 +115,22 @@ class VasterRuntime {
 
   Future<RuntimeState> _runLoop(VasterProgram program) async {
     while (_pc < program.instructions.length && _status == RuntimeStatus.running) {
+      if (budget.isExpired) {
+        _status = RuntimeStatus.timedOut;
+        _lastError = 'Execution budget or deadline expired at PC $_pc';
+        break;
+      }
       final instruction = program.instructions[_pc];
       try {
-        await _executeInstruction(instruction);
+        final stopwatch = Stopwatch()..start();
+        await scheduler.scheduleOpcode(
+          taskName: 'op_${instruction.runtimeType}_$_pc',
+          budget: budget,
+          action: () => _executeInstruction(instruction),
+        );
+        stopwatch.stop();
+        budget.consumeTime(stopwatch.elapsed);
+
         if (_status == RuntimeStatus.running) _pc++;
       } catch (e, st) {
         _status = RuntimeStatus.error;

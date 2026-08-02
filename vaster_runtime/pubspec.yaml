@@ -9,12 +9,14 @@ environment:
 
 dependencies:
   vaster_agent:
+  vaster_budget:
   vaster_domain:
   vaster_events:
   vaster_instruction:
   vaster_model:
   vaster_policy:
   vaster_resources:
+  vaster_scheduler:
   vaster_vm:
 
 dev_dependencies:
@@ -23,5 +25,6 @@ dev_dependencies:
   vaster_ast:
   vaster_compiler:
   vaster_continuation:
+  vaster_continuation_manager:
   vaster_model_fake:
   vaster_policy_engine:

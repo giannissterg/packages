@@ -1,11 +1,13 @@
 import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
+import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 // ── Test types ─────────────────────────────────────────────────────────────────
@@ -224,7 +226,12 @@ void main() {
       final vm = await VasterVMEngine.bootstrap(
         config: VMConfig(defaultModel: fakeModel, rootMountPath: '/mem'),
       );
-      final runtime = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+      final runtime = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
 
       const pipeline = PipelineNode(
         spec: PipelineSpec(name: 'e2e_pipeline'),

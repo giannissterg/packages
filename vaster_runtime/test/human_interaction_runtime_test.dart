@@ -1,12 +1,15 @@
 import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
+import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
+import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 void main() {
@@ -37,7 +40,12 @@ void main() {
         ],
       );
 
-      final runtime = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+      final runtime = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
 
       final initialState = await runtime.executeProgram(program);
 
@@ -79,7 +87,12 @@ void main() {
       );
 
       final program = compiler.compile(pipeline);
-      final runtime = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+      final runtime = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
 
       // 1. Initial run yields for approval
       final state1 = await runtime.executeProgram(program);
@@ -99,7 +112,7 @@ void main() {
 
     test('supports full VasterContinuation snapshot serialization & restoration via ContinuationManager', () async {
       const compiler = BasicWorkflowCompiler();
-      final continuationManager = ContinuationManager();
+      final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
 
       final pipeline = PipelineNode(
         spec: const PipelineSpec(name: 'snapshot_pipeline'),
@@ -118,12 +131,17 @@ void main() {
       final program = compiler.compile(pipeline);
 
       // 1. First runtime instance starts program and pauses at HITL node
-      final runtime1 = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+      final runtime1 = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
       final state1 = await runtime1.executeProgram(program);
       expect(state1.status, equals(RuntimeStatus.pausedForHuman));
 
       // 2. Capture VasterContinuation snapshot and serialize to JSON
-      final snapshot = continuationManager.capture(runtime1, program.programName);
+      final snapshot = await continuationManager.capture(runtime1, program.programName);
       final snapshotJson = snapshot.toJson();
 
       // 3. Reconstruct VasterContinuation snapshot from JSON (e.g. Server restart)
@@ -131,7 +149,12 @@ void main() {
       expect(restoredSnapshot.programName, equals('snapshot_pipeline'));
 
       // 4. Second runtime instance restores execution from snapshot and finishes program
-      final runtime2 = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
+      final runtime2 = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
       final state2 = await continuationManager.restoreAndResume(
         runtime2,
         restoredSnapshot,
