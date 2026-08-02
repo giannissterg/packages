@@ -2,6 +2,7 @@ import 'package:vaster_agent_basic/vaster_agent_basic.dart';
 import 'package:vaster_agent_manager/vaster_agent_manager.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
@@ -11,8 +12,11 @@ class BasicAgentManager implements AgentManager {
   final Map<String, VasterAgent> _agents = {};
   final Map<String, AgentState> _states = {};
 
+  final ResourceTracker? resourceTracker;
+
   BasicAgentManager({
     required this.sessionManager,
+    this.resourceTracker,
     List<VasterAgent>? initialAgents,
   }) {
     if (initialAgents != null) {
@@ -68,6 +72,7 @@ class BasicAgentManager implements AgentManager {
     final agent = BasicVasterAgent(
       descriptor: descriptor,
       session: session,
+      resourceTracker: resourceTracker ?? ResourceTracker(quota: ResourceQuota.unlimited),
       toolManager: toolManager,
     );
 

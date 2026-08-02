@@ -13,6 +13,7 @@ dependencies:
   vaster_context_manager:
   vaster_events:
   vaster_model:
+  vaster_resources:
   vaster_session_manager:
   vaster_tool_manager:
 

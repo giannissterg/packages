@@ -37,6 +37,15 @@ abstract interface class ModelSession {
     CancellationToken? cancelToken,
   });
 
+  /// Directly appends [message] to this session's turn history without
+  /// triggering model generation.
+  ///
+  /// Used by agents that build and execute [ModelRequest] themselves (e.g. to
+  /// include tool definitions) and need to record user, model, and tool turns
+  /// manually. The session remains the sole owner of history; the caller is
+  /// responsible for correct turn ordering.
+  void appendMessage(ChatMessage message);
+
   /// Forks current session into a new isolated session thread with deep-copied turn history.
   ModelSession fork({String? newSessionId});
 

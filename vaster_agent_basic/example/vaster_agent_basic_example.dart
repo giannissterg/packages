@@ -1,5 +1,6 @@
 import 'package:vaster_agent_basic/vaster_agent_basic.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session/vaster_session.dart';
 
 void main() async {
@@ -16,6 +17,7 @@ void main() async {
       systemInstruction: 'Write high quality code.',
     ),
     session: session,
+    resourceTracker: ResourceTracker(quota: ResourceQuota.unlimited),
   );
 
   final output = await agent.run(const AgentTask(

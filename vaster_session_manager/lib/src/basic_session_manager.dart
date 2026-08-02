@@ -38,6 +38,11 @@ class BasicSessionManager implements SessionManager {
   }
 
   @override
+  void registerSession(String sessionId, ModelSession session) {
+    _sessions[sessionId] = session;
+  }
+
+  @override
   ModelSession? getSession(String sessionId) {
     return _sessions[sessionId];
   }

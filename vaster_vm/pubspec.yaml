@@ -22,6 +22,8 @@ dependencies:
   vaster_filesystem_manager:
   vaster_filesystem_memory:
   vaster_model:
+  vaster_policy:
+  vaster_policy_engine:
   vaster_resources:
   vaster_sandbox:
   vaster_sandbox_isolate:

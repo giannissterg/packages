@@ -83,5 +83,31 @@ void main() {
       expect(state.status, equals(RuntimeStatus.halted));
       expect(state.registers['v_restored'], equals('v1.0'));
     });
+
+    test('creates session and routes PromptOp into session history', () async {
+      const program = VasterProgram(
+        programName: 'session_prompt_test',
+        instructions: [
+          CreateSessionOp(sessionId: 'sess_multi_turn'),
+          SetSessionOp(sessionId: 'sess_multi_turn'),
+          PromptOp(promptText: 'Hello Model', outputVar: 'ans1'),
+          PromptOp(promptText: 'Follow up prompt', outputVar: 'ans2'),
+          HaltOp(),
+        ],
+      );
+
+      final state = await runtime.executeProgram(program);
+
+      expect(state.status, equals(RuntimeStatus.halted));
+      expect(state.registers['ans1'], isNotEmpty);
+      expect(state.registers['ans2'], isNotEmpty);
+
+      final session = vm.sessionManager.getSession('sess_multi_turn');
+      expect(session, isNotNull);
+      // 2 prompts = 4 messages (user, model, user, model)
+      expect(session!.history.length, equals(4));
+      expect(session.history[0].text, contains('Hello Model'));
+      expect(session.history[2].text, contains('Follow up prompt'));
+    });
   });
 }

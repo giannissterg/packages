@@ -143,6 +143,9 @@ class BasicModelSession implements ModelSession {
   }
 
   @override
+  void appendMessage(ChatMessage message) => _history.add(message);
+
+  @override
   void clearHistory() {
     _history.clear();
   }

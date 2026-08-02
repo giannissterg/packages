@@ -5,6 +5,7 @@ import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_filesystem_manager/vaster_filesystem_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
@@ -47,11 +48,30 @@ abstract interface class VasterVirtualMachine {
   /// Active Model Registry.
   ModelRegistry get modelRegistry;
 
+  /// Active Security Policy Engine.
+  PolicyEngine get policyEngine;
+
   /// Registers a concrete [VasterModel] for a given [ModelDescriptor].
   void registerModel(ModelDescriptor descriptor, VasterModel model);
 
   /// Direct model prompt turn.
   Future<ModelResponse> prompt(
+    String promptText, {
+    VasterModel? model,
+    GenerationConfig? config,
+    CancellationToken? cancelToken,
+    List<ContextCacheHint>? cacheHints,
+  });
+
+  /// Creates a new model session in [sessionManager] with an isolated ContextManager.
+  Future<ModelSession> createSession({
+    required String sessionId,
+    ModelDescriptor? modelDescriptor,
+  });
+
+  /// Session-aware prompt turn routing through [sessionId]'s turn history and context.
+  Future<ModelResponse> promptInSession(
+    String sessionId,
     String promptText, {
     VasterModel? model,
     GenerationConfig? config,

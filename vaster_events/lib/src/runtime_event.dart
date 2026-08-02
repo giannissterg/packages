@@ -251,3 +251,58 @@ final class HumanInteractionRequiredEvent extends RuntimeEvent {
         'timestamp': timestamp.toIso8601String(),
       };
 }
+
+/// Emitted when a new model session is created in the VM.
+final class SessionCreatedEvent extends RuntimeEvent {
+  final String sessionId;
+  final String modelName;
+
+  SessionCreatedEvent({
+    required super.eventId,
+    required this.sessionId,
+    required this.modelName,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'session_created',
+        'eventId': eventId,
+        'sessionId': sessionId,
+        'modelName': modelName,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
+/// Emitted when a security policy evaluation is performed by the PolicyEngine.
+final class PolicyEvaluatedEvent extends RuntimeEvent {
+  final String policyId;
+  final String action;
+  final String resource;
+  final String decision;
+  final String reason;
+
+  PolicyEvaluatedEvent({
+    required super.eventId,
+    required this.policyId,
+    required this.action,
+    required this.resource,
+    required this.decision,
+    required this.reason,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'policy_evaluated',
+        'eventId': eventId,
+        'policyId': policyId,
+        'action': action,
+        'resource': resource,
+        'decision': decision,
+        'reason': reason,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}

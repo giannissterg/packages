@@ -1,6 +1,7 @@
 import 'package:vaster_agent/vaster_agent.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 import 'instruction_opcode.dart';
@@ -124,6 +125,19 @@ sealed class VasterInstruction {
       InstructionOpcode.rollback => const RollbackOp(),
       InstructionOpcode.selectModel => SelectModelOp(
           descriptor: ModelDescriptor.fromJson(json['descriptor'] as Map<String, dynamic>? ?? {}),
+        ),
+      InstructionOpcode.createSession => CreateSessionOp(
+          sessionId: json['sessionId'] as String? ?? '',
+          modelDescriptor: json['modelDescriptor'] != null
+              ? ModelDescriptor.fromJson(json['modelDescriptor'] as Map<String, dynamic>)
+              : null,
+        ),
+      InstructionOpcode.setSession => SetSessionOp(
+          sessionId: json['sessionId'] as String? ?? '',
+        ),
+      InstructionOpcode.checkPolicy => CheckPolicyOp(
+          action: PolicyAction.parse(json['action'] as String? ?? ''),
+          resource: json['resource'] as String? ?? '',
         ),
       InstructionOpcode.yieldHumanInteraction => YieldHumanInteractionOp(
           request: HumanInteractionRequest.fromJson(json['request'] as Map<String, dynamic>? ?? {}),
@@ -525,6 +539,56 @@ final class ReturnSubroutineOp extends VasterInstruction {
   Map<String, dynamic> toJson() => {
         'opcode': opcode.name,
         if (returnRegister != null) 'returnRegister': returnRegister,
+      };
+}
+
+/// Creates a new model session in the VM's SessionManager.
+final class CreateSessionOp extends VasterInstruction {
+  final String sessionId;
+  final ModelDescriptor? modelDescriptor;
+
+  const CreateSessionOp({
+    required this.sessionId,
+    this.modelDescriptor,
+  }) : super(InstructionOpcode.createSession);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'sessionId': sessionId,
+        if (modelDescriptor != null) 'modelDescriptor': modelDescriptor!.toJson(),
+      };
+}
+
+/// Sets the active session context for subsequent PromptOp instructions.
+final class SetSessionOp extends VasterInstruction {
+  final String sessionId;
+
+  const SetSessionOp({required this.sessionId})
+      : super(InstructionOpcode.setSession);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'sessionId': sessionId,
+      };
+}
+
+/// Explicitly checks security policy authorization for [action] on [resource].
+final class CheckPolicyOp extends VasterInstruction {
+  final PolicyAction action;
+  final String resource;
+
+  const CheckPolicyOp({
+    required this.action,
+    required this.resource,
+  }) : super(InstructionOpcode.checkPolicy);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'action': action.name,
+        'resource': resource,
       };
 }
 

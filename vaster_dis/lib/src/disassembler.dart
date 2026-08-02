@@ -170,6 +170,16 @@ class VasterDisassembler {
       case SelectModelOp op:
         return op.descriptor.descriptorKey;
 
+      case CreateSessionOp op:
+        final modelStr = op.modelDescriptor != null ? ' model=${op.modelDescriptor!.descriptorKey}' : '';
+        return 'id=${op.sessionId}$modelStr';
+
+      case SetSessionOp op:
+        return 'id=${op.sessionId}';
+
+      case CheckPolicyOp op:
+        return 'action=${op.action.name} resource="${op.resource}"';
+
       case YieldHumanInteractionOp op:
         final opts = op.request.options.isNotEmpty ? ' [${op.request.options.join(', ')}]' : '';
         final outVar = op.request.outputVar != null ? ' -> r[${op.request.outputVar}]' : '';

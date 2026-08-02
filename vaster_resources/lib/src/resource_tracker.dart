@@ -35,9 +35,9 @@ class ResourceTracker {
     }
   }
 
-  /// Increments tool call count and checks quota limit.
-  void recordToolCall() {
-    _toolCallCount++;
+  /// Increments tool call count by [count] and checks quota limit.
+  void recordToolCall({int count = 1}) {
+    _toolCallCount += count;
     if (quota.maxToolCallsPerTask != null && _toolCallCount > quota.maxToolCallsPerTask!) {
       throw QuotaExceededException(
         resourceType: 'tool_calls',

@@ -1,0 +1,14 @@
+name: vaster_policy
+description: Core capability-based security and policy domain model for Vaster VM.
+version: 1.0.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

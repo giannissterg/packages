@@ -1,16 +1,32 @@
 import 'package:vaster_agent/vaster_agent.dart';
+import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session/vaster_session.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
 /// Concrete implementation of [VasterAgent] executing model turns,
 /// tool dispatch loops, and subagent spawning into child sessions.
+///
+/// ### Ownership (Rule 5)
+/// - [resourceTracker] is a required construction-time dependency.
+///   Callers that want unlimited execution pass
+///   `ResourceTracker(quota: ResourceQuota.unlimited)`.
+/// - [descriptor.maxToolCallLoops] controls the maximum tool loop
+///   iterations — a behavioral limit that belongs in the descriptor,
+///   not in [run].
+/// - [toolManager] is an optional construction-time dependency; agents
+///   that need no tools are constructed without one.
 class BasicVasterAgent implements VasterAgent {
   @override
   final AgentDescriptor descriptor;
 
   @override
   final ModelSession session;
+
+  /// Resource quota tracker enforcing token and tool call limits.
+  /// Required at construction time — never passed per-invocation.
+  final ResourceTracker resourceTracker;
 
   final ToolManager? toolManager;
 
@@ -23,6 +39,7 @@ class BasicVasterAgent implements VasterAgent {
   BasicVasterAgent({
     required this.descriptor,
     required this.session,
+    required this.resourceTracker,
     this.toolManager,
     this.subagentLauncher,
   });
@@ -40,39 +57,98 @@ class BasicVasterAgent implements VasterAgent {
     final subagentOutputs = <AgentOutput>[];
 
     try {
-      var response = await session.send(
-        ChatMessage.user(
-          '[Agent Task ${task.taskId}]: ${task.inputPrompt}',
-        ),
-        cancelToken: cancelToken,
+      // ── ① Resolve tool definitions filtered by descriptor whitelist ──────────
+      final resolvedTools = _resolveTools();
+
+      // ── ② Record initial user message in session history ─────────────────────
+      session.appendMessage(
+        ChatMessage.user('[Agent Task ${task.taskId}]: ${task.inputPrompt}'),
       );
 
-      // Tool dispatch loop if response contains function calls and toolManager is available
-      int maxLoop = 5;
-      while (response.functionCalls.isNotEmpty &&
-          toolManager != null &&
-          maxLoop > 0) {
+      // ── ③ Model → tool → model loop ──────────────────────────────────────────
+      ModelResponse? response;
+      for (var loop = 0; loop < descriptor.maxToolCallLoops; loop++) {
         cancelToken?.throwIfCancelled();
-        maxLoop--;
-        final toolResponses =
-            await toolManager!.processFunctionCalls(response.functionCalls);
 
-        for (final toolMsg in toolResponses) {
-          response = await session.send(
-            toolMsg,
-            cancelToken: cancelToken,
+        // a. Compile context (if context manager is attached to session)
+        ChatMessage? systemInstruction;
+        List<ChatMessage> messages = session.history;
+        final ctxManager = session.contextManager;
+        if (ctxManager != null) {
+          final budget = TokenBudget(
+            maxContextTokens: session.model.capabilities.maxContextTokens,
+            reservedOutputTokens: session.model.capabilities.maxOutputTokens,
           );
+          final compiled = await ctxManager.compileContext(budget: budget);
+          systemInstruction = compiled.systemInstruction;
+          messages = [...compiled.messages];
         }
+
+        // b. Build ModelRequest — agent owns this, not the session
+        final request = ModelRequest(
+          systemInstruction: systemInstruction,
+          messages: messages,
+          tools: resolvedTools,
+          cancelToken: cancelToken,
+        );
+
+        // c. Generate and track token usage
+        response = await session.model.generate(request);
+        resourceTracker.consumeTokens(
+          response.usage.totalTokenCount > 0
+              ? response.usage.totalTokenCount
+              : (request.messages.fold<int>(
+                      0, (s, m) => s + m.text.length) ~/
+                  4) +
+                  (response.text.length ~/ 4),
+        );
+
+        // d. Record the model turn in session history
+        session.appendMessage(response.message);
+
+        // e. No tool calls → done
+        final calls = response.functionCalls.toList();
+        if (calls.isEmpty) break;
+
+        // f. Guard: stop if no tool manager (shouldn't call tools without one)
+        if (toolManager == null) break;
+
+        // g. Execute all tool calls in parallel
+        final results = await Future.wait(calls.map(toolManager!.executeCall));
+
+        // h. Record quota for every tool call executed
+        resourceTracker.recordToolCall(count: calls.length);
+
+        // i. Batch all FunctionResponseParts into a single tool-role message.
+        //    Both Gemini and OpenAI require all responses from one model turn to
+        //    arrive together before the next generation — sending them separately
+        //    produces a malformed turn structure that providers reject.
+        final toolMessage = ChatMessage(
+          role: Role.tool,
+          parts: results.map((r) => r.toResponsePart()).toList(),
+        );
+        session.appendMessage(toolMessage);
       }
 
       watch.stop();
       return AgentOutput(
         taskId: task.taskId,
         agentId: agentId,
-        outputText: response.text,
+        outputText: response?.text ?? '',
         isSuccess: true,
         subagentOutputs: subagentOutputs,
         executionDuration: watch.elapsed,
+      );
+    } on QuotaExceededException catch (e) {
+      watch.stop();
+      return AgentOutput(
+        taskId: task.taskId,
+        agentId: agentId,
+        outputText: '',
+        isSuccess: false,
+        subagentOutputs: subagentOutputs,
+        executionDuration: watch.elapsed,
+        errorDetails: 'Quota exceeded: ${e.message}',
       );
     } catch (e, st) {
       watch.stop();
@@ -109,6 +185,7 @@ class BasicVasterAgent implements VasterAgent {
       subagent = BasicVasterAgent(
         descriptor: descriptor,
         session: childSession,
+        resourceTracker: resourceTracker,
         toolManager: toolManager,
       );
     }
@@ -118,5 +195,17 @@ class BasicVasterAgent implements VasterAgent {
     }
 
     return subagent;
+  }
+
+  // ─── Helpers ───────────────────────────────────────────────────────────────
+
+  /// Returns compiled [ToolDefinition]s filtered by [descriptor.allowedToolNames].
+  /// An empty whitelist means all registered tools are exposed.
+  List<ToolDefinition> _resolveTools() {
+    if (toolManager == null) return const [];
+    final all = toolManager!.compiledDefinitions;
+    if (descriptor.allowedToolNames.isEmpty) return all;
+    final allowed = descriptor.allowedToolNames.toSet();
+    return all.where((t) => allowed.contains(t.name)).toList();
   }
 }

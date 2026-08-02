@@ -7,6 +7,7 @@ import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_filesystem_manager/vaster_filesystem_manager.dart';
 import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_sandbox_isolate/vaster_sandbox_isolate.dart';
 import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
@@ -51,6 +52,9 @@ class VasterVMEngine implements VasterVirtualMachine {
   @override
   final ModelRegistry modelRegistry;
 
+  @override
+  final PolicyEngine policyEngine;
+
   VasterVMEngine._({
     required this.config,
     required this.sessionManager,
@@ -63,6 +67,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     required this.messagingHub,
     required this.resourceTracker,
     required this.modelRegistry,
+    required this.policyEngine,
   });
 
   /// Factory bootstrap method to create a fully configured [VasterVMEngine].
@@ -71,6 +76,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     VasterFileSystem? rootFileSystem,
     List<ExecutableTool>? initialTools,
     List<CodeSandbox>? initialSandboxes,
+    PolicyEngine? policyEngine,
   }) async {
     final eventBus = BasicEventBus();
     final messagingHub = BasicAgentMessagingHub();
@@ -81,10 +87,12 @@ class VasterVMEngine implements VasterVirtualMachine {
     final fileSystemManager = BasicFileSystemManager();
     final toolManager = BasicToolManager(tools: initialTools);
     final sandboxManager = BasicSandboxManager(sandboxes: initialSandboxes);
+    final activePolicyEngine = policyEngine ?? BasicPolicyEngine(eventBus: eventBus);
 
     final agentManager = AdvancedAgentManager(
       sessionManager: sessionManager,
       eventBus: eventBus,
+      resourceTracker: resourceTracker,
     );
 
     final modelRegistry = ModelRegistry(defaultModel: config.defaultModel);
@@ -101,6 +109,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       messagingHub: messagingHub,
       resourceTracker: resourceTracker,
       modelRegistry: modelRegistry,
+      policyEngine: activePolicyEngine,
     );
 
     // Automatic Bridge 1: Mount root filesystem if provided, or default MemoryVasterFileSystem
@@ -115,6 +124,33 @@ class VasterVMEngine implements VasterVirtualMachine {
     }
 
     return vm;
+  }
+
+  @override
+  Future<ModelSession> createSession({
+    required String sessionId,
+    ModelDescriptor? modelDescriptor,
+  }) async {
+    final model = (modelDescriptor != null
+        ? modelRegistry.resolveModel(modelDescriptor)
+        : config.defaultModel);
+    if (model == null) {
+      throw StateError('No model registered for session "$sessionId".');
+    }
+
+    final session = await sessionManager.createSession(
+      sessionId: sessionId,
+      model: model,
+      contextManager: BasicContextManager(),
+    );
+
+    eventBus.publish(SessionCreatedEvent(
+      eventId: 'evt_session_created_$sessionId',
+      sessionId: sessionId,
+      modelName: model.modelName,
+    ));
+
+    return session;
   }
 
   @override
@@ -139,6 +175,37 @@ class VasterVMEngine implements VasterVirtualMachine {
     final response = await activeModel.generate(request);
     resourceTracker.consumeTokens(
       (promptText.length ~/ 4) + (response.text.length ~/ 4),
+    );
+
+    return response;
+  }
+
+  @override
+  Future<ModelResponse> promptInSession(
+    String sessionId,
+    String promptText, {
+    VasterModel? model,
+    GenerationConfig? config,
+    CancellationToken? cancelToken,
+    List<ContextCacheHint>? cacheHints,
+  }) async {
+    cancelToken?.throwIfCancelled();
+    resourceTracker.checkDeadline();
+
+    var session = sessionManager.getSession(sessionId);
+    session ??= await createSession(sessionId: sessionId);
+
+    final response = await session.send(
+      ChatMessage.user(promptText),
+      targetModel: model,
+      config: config,
+      cancelToken: cancelToken,
+    );
+
+    resourceTracker.consumeTokens(
+      response.usage.totalTokenCount > 0
+          ? response.usage.totalTokenCount
+          : (promptText.length ~/ 4) + (response.text.length ~/ 4),
     );
 
     return response;

@@ -94,7 +94,9 @@ void main() {
       expect(program.programName, equals('auth_pipeline'));
       expect(program.instructions[0], isA<MountFsOp>());
       expect(program.instructions[1], isA<CreateAgentOp>());
-      expect(program.instructions[2], isA<DispatchAgentTaskOp>());
+      expect(program.instructions[2], isA<CreateSessionOp>());
+      expect(program.instructions[3], isA<SetSessionOp>());
+      expect(program.instructions[4], isA<DispatchAgentTaskOp>());
       expect(program.instructions.last, isA<HaltOp>());
     });
 

@@ -18,6 +18,9 @@ abstract interface class SessionManager {
     Map<String, dynamic> metadata = const {},
   });
 
+  /// Registers an existing [ModelSession] with [sessionId].
+  void registerSession(String sessionId, ModelSession session);
+
   /// Retrieves an existing [ModelSession] by ID.
   ModelSession? getSession(String sessionId);
 

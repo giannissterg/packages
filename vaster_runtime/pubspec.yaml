@@ -13,6 +13,7 @@ dependencies:
   vaster_events:
   vaster_instruction:
   vaster_model:
+  vaster_policy:
   vaster_resources:
   vaster_vm:
 

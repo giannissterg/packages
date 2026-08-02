@@ -9,7 +9,9 @@ environment:
 
 dependencies:
   vaster_agent:
+  vaster_context:
   vaster_model:
+  vaster_resources:
   vaster_session:
   vaster_tool_manager:
 

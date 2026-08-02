@@ -1,5 +1,6 @@
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 import 'call_stack.dart';
 import 'cache_hint_tracker.dart';
@@ -33,6 +34,8 @@ class VasterRuntime {
   String? _lastError;
 
   VasterModel? _activeModel;
+  String? _activeSessionId;
+  ExecutionPolicy _activePolicy = ExecutionPolicy.unlimited;
   VasterProgram? _currentProgram;
 
   VasterRuntime({required this.vm});
@@ -54,6 +57,8 @@ class VasterRuntime {
     _pc = 0;
     _status = RuntimeStatus.running;
     _lastError = null;
+    _activeSessionId = null;
+    _activePolicy = ExecutionPolicy.unlimited;
     _registers.clear();
     _callStack.clear();
     _cacheHints.clear();
@@ -122,25 +127,46 @@ class VasterRuntime {
     switch (inst) {
       // ── Model / LLM ───────────────────────────────────────────────────────
       case PromptOp op:
-        final response = await vm.prompt(
-          op.promptText,
-          model: _activeModel,
-          cacheHints: _cacheHints.activeHints,
-        );
+        final response = _activeSessionId != null
+            ? await vm.promptInSession(
+                _activeSessionId!,
+                op.promptText,
+                model: _activeModel,
+                cacheHints: _cacheHints.activeHints,
+              )
+            : await vm.prompt(
+                op.promptText,
+                model: _activeModel,
+                cacheHints: _cacheHints.activeHints,
+              );
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
       case SelectModelOp op:
         _activeModel = vm.modelRegistry.resolveModel(op.descriptor);
+
+      case CreateSessionOp op:
+        await vm.createSession(
+          sessionId: op.sessionId,
+          modelDescriptor: op.modelDescriptor,
+        );
+
+      case SetSessionOp op:
+        _activeSessionId = op.sessionId;
+
+      case CheckPolicyOp op:
+        _checkPolicy(op.action, op.resource);
 
       // ── Filesystem ────────────────────────────────────────────────────────
       case MountFsOp op:
         vm.mountFileSystem(op.mountPrefix, MemoryVasterFileSystem());
 
       case WriteFileOp op:
+        _checkPolicy(PolicyAction.fileWrite, op.vfsPath);
         final fs = vm.fileSystemManager.resolveFileSystem(op.vfsPath);
         await fs.writeText(op.vfsPath, op.content);
 
       case ReadFileOp op:
+        _checkPolicy(PolicyAction.fileRead, op.vfsPath);
         final fs = vm.fileSystemManager.resolveFileSystem(op.vfsPath);
         final content = await fs.readText(op.vfsPath);
         if (op.outputVar != null) _registers.write(op.outputVar!, content);
@@ -159,6 +185,7 @@ class VasterRuntime {
         vm.mountSandbox(op.sandboxId, op.language);
 
       case ExecSandboxOp op:
+        _checkPolicy(PolicyAction.sandboxExec, op.sandboxId);
         final result = await vm.sandboxManager.runCode(
           sandboxId: op.sandboxId,
           codeOrCommand: op.code,
@@ -205,7 +232,11 @@ class VasterRuntime {
 
       // ── Session / Context ─────────────────────────────────────────────────
       case ForkSessionOp op:
-        vm.sessionManager.getSession(op.sourceSessionId)?.fork(newSessionId: op.targetSessionId);
+        final source = vm.sessionManager.getSession(op.sourceSessionId);
+        if (source != null) {
+          final forked = source.fork(newSessionId: op.targetSessionId);
+          vm.sessionManager.registerSession(op.targetSessionId, forked);
+        }
 
       case PinContextOp op:
         vm.contextManager.pinRegion(op.regionId);
@@ -263,6 +294,17 @@ class VasterRuntime {
 
       case HaltOp _:
         _status = RuntimeStatus.halted;
+    }
+  }
+
+  void _checkPolicy(PolicyAction action, String resource) {
+    final decision = vm.policyEngine.authorize(
+      policy: _activePolicy,
+      action: action,
+      resource: resource,
+    );
+    if (decision.isDenied) {
+      throw StateError('Policy violation: ${decision.reason}');
     }
   }
 }

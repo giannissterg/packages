@@ -11,6 +11,7 @@ dependencies:
   vaster_agent:
   vaster_domain:
   vaster_model:
+  vaster_policy:
   vaster_resources:
   vaster_sandbox:
 

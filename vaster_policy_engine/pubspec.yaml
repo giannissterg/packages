@@ -1,5 +1,5 @@
-name: vaster_agent
-description: Pure agent interfaces, descriptors, tasks, and outputs for Vaster.
+name: vaster_policy_engine
+description: Policy evaluation engine and hierarchical containment for Vaster VM.
 version: 1.0.0
 
 resolution: workspace
@@ -8,9 +8,8 @@ environment:
   sdk: ^3.13.0-282.1.beta
 
 dependencies:
-  vaster_model:
+  vaster_events:
   vaster_policy:
-  vaster_session:
 
 dev_dependencies:
   lints: ^6.0.0

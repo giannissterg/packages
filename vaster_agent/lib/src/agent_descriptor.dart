@@ -1,3 +1,5 @@
+import 'package:vaster_policy/vaster_policy.dart';
+
 /// Descriptor handle metadata defining an agent's identity, role, and capabilities.
 class AgentDescriptor {
   /// Unique agent identifier.
@@ -13,7 +15,15 @@ class AgentDescriptor {
   final String systemInstruction;
 
   /// Whitelist of allowed tool names accessible by this agent.
+  /// An empty list means all registered tools are exposed.
   final List<String> allowedToolNames;
+
+  /// Maximum number of model→tool→model loop iterations allowed per task.
+  /// Prevents runaway tool call chains. Defaults to 10.
+  final int maxToolCallLoops;
+
+  /// Optional execution policy governing capabilities and security restrictions for this agent.
+  final ExecutionPolicy? policy;
 
   /// Arbitrary metadata attributes.
   final Map<String, dynamic> metadata;
@@ -24,6 +34,8 @@ class AgentDescriptor {
     required this.role,
     required this.systemInstruction,
     this.allowedToolNames = const [],
+    this.maxToolCallLoops = 10,
+    this.policy,
     this.metadata = const {},
   });
 
@@ -33,6 +45,8 @@ class AgentDescriptor {
         'role': role,
         'systemInstruction': systemInstruction,
         'allowedToolNames': allowedToolNames,
+        'maxToolCallLoops': maxToolCallLoops,
+        if (policy != null) 'policy': policy!.toJson(),
         if (metadata.isNotEmpty) 'metadata': metadata,
       };
 
@@ -44,6 +58,10 @@ class AgentDescriptor {
       systemInstruction: json['systemInstruction'] as String? ?? '',
       allowedToolNames:
           (json['allowedToolNames'] as List?)?.cast<String>() ?? [],
+      maxToolCallLoops: json['maxToolCallLoops'] as int? ?? 10,
+      policy: json['policy'] != null
+          ? ExecutionPolicy.fromJson(json['policy'] as Map<String, dynamic>)
+          : null,
       metadata: Map<String, dynamic>.from(json['metadata'] as Map? ?? {}),
     );
   }

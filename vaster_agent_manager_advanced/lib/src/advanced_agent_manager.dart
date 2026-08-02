@@ -4,6 +4,7 @@ import 'package:vaster_agent_manager/vaster_agent_manager.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
@@ -12,6 +13,11 @@ import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 class AdvancedAgentManager implements AgentManager {
   final SessionManager sessionManager;
   final RuntimeEventBus? eventBus;
+
+  /// Optional VM-level resource tracker forwarded to every agent at construction.
+  /// If null, agents are constructed with [ResourceQuota.unlimited].
+  final ResourceTracker? resourceTracker;
+
   final int maxTreeDepth;
 
   final Map<String, VasterAgent> _agents = {};
@@ -22,6 +28,7 @@ class AdvancedAgentManager implements AgentManager {
   AdvancedAgentManager({
     required this.sessionManager,
     this.eventBus,
+    this.resourceTracker,
     this.maxTreeDepth = 5,
     List<VasterAgent>? initialAgents,
   }) {
@@ -125,6 +132,7 @@ class AdvancedAgentManager implements AgentManager {
     final agent = BasicVasterAgent(
       descriptor: descriptor,
       session: session,
+      resourceTracker: resourceTracker ?? ResourceTracker(quota: ResourceQuota.unlimited),
       toolManager: toolManager,
     );
 

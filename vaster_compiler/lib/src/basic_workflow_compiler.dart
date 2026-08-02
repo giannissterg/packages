@@ -133,6 +133,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
             systemInstruction: n.role.instruction,
           ),
         ));
+        out.add(CreateSessionOp(sessionId: 'sess_${n.role.roleId}'));
 
       case WriteDocumentNode n:
         out.add(WriteFileOp(
@@ -147,6 +148,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ));
 
       case PerformTaskNode n:
+        out.add(SetSessionOp(sessionId: 'sess_${n.agentRoleId}'));
         out.add(DispatchAgentTaskOp(
           agentId: n.agentRoleId,
           taskPrompt: n.task.promptText,
