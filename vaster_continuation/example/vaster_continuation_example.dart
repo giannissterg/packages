@@ -1,11 +1,10 @@
 import 'dart:convert';
 
-import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_budget/vaster_budget.dart';
-import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
 import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
 import 'package:vaster_domain/vaster_domain.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
@@ -17,27 +16,40 @@ void main() async {
   print('       Vaster Continuation & Snapshot Manager Demo              ');
   print('================================================================\n');
 
-  // 1. Bootstrap VM & Compiler
+  // 1. Bootstrap VM & Continuation Manager
   final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
-  const compiler = BasicWorkflowCompiler();
   final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
 
-  // 2. Build AST with Human Approval Gate
-  final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'production_deployment_pipeline'),
-    children: [
-      WriteFile(path: '/mem/build.log', content: 'Build succeeded.'),
-      ApprovalGate(
-        requestId: 'deploy_to_prod',
-        prompt: 'Deploy release v1.2.0 to production?',
-        onApprove: const [
-          WriteFile(path: '/mem/release.log', content: 'v1.2.0 Live in Prod.'),
-        ],
+  // 2. Build program manually with low-level ISA instructions:
+  //    0: WriteFileOp('/mem/build.log', 'Build succeeded.')
+  //    1: BeginTransactionOp
+  //    2: YieldHumanInteractionOp(deploy_to_prod)
+  //    3: JumpIfOp('deploy_to_prod_status', targetPc: 5)
+  //    4: JumpOp(targetPc: 6)          ← skip reject (empty)
+  //    5: WriteFileOp('/mem/release.log', 'v1.2.0 Live in Prod.')  ← approve branch
+  //    6: CommitOp
+  //    7: HaltOp
+  final program = VasterProgram(
+    programName: 'production_deployment_pipeline',
+    instructions: [
+      const WriteFileOp(vfsPath: '/mem/build.log', content: 'Build succeeded.'),
+      const BeginTransactionOp(),
+      YieldHumanInteractionOp(
+        request: HumanInteractionRequest(
+          requestId: 'deploy_to_prod',
+          type: HumanInteractionType.approval,
+          prompt: 'Deploy release v1.2.0 to production?',
+          options: const ['approve', 'reject'],
+          outputVar: 'deploy_to_prod',
+        ),
       ),
+      const JumpIfOp(conditionVar: 'deploy_to_prod_status', targetPc: 5),
+      const JumpOp(targetPc: 6),
+      const WriteFileOp(vfsPath: '/mem/release.log', content: 'v1.2.0 Live in Prod.'),
+      const CommitOp(),
+      const HaltOp(),
     ],
   );
-
-  final program = compiler.compile(pipeline);
 
   // 3. Start execution
   print('▶ 1. Starting execution on Server Instance #1...');

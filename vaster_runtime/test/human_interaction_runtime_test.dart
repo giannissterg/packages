@@ -1,7 +1,5 @@
 import 'package:test/test.dart';
-import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_budget/vaster_budget.dart';
-import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
 import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
 import 'package:vaster_domain/vaster_domain.dart';
@@ -11,6 +9,55 @@ import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm/vaster_vm.dart';
+
+/// Helper: builds a VasterProgram that mimics an ApprovalGate with
+/// approve/reject branches — without depending on vaster_ast or vaster_compiler.
+///
+/// Layout (no reject instructions):
+/// ```
+/// 0: BeginTransactionOp
+/// 1: YieldHumanInteractionOp(request)
+/// 2: JumpIfOp(conditionVar: '${requestId}_status', targetPc: <approveStart>)
+/// 3: <reject instructions...>
+///   : JumpOp(targetPc: <afterApprove>)
+///   : <approve instructions...>
+///   : CommitOp
+///   : HaltOp
+/// ```
+VasterProgram _approvalGateProgram({
+  required String programName,
+  required String requestId,
+  required String prompt,
+  required List<VasterInstruction> onApprove,
+  List<VasterInstruction> onReject = const [],
+}) {
+  final rejectLen = onReject.length;
+  final approveLen = onApprove.length;
+
+  final approveStart = 3 + rejectLen + 1;
+  final afterApprove = approveStart + approveLen;
+
+  final instructions = <VasterInstruction>[
+    const BeginTransactionOp(),
+    YieldHumanInteractionOp(
+      request: HumanInteractionRequest(
+        requestId: requestId,
+        type: HumanInteractionType.approval,
+        prompt: prompt,
+        options: const ['approve', 'reject'],
+        outputVar: requestId,
+      ),
+    ),
+    JumpIfOp(conditionVar: '${requestId}_status', targetPc: approveStart),
+    ...onReject,
+    JumpOp(targetPc: afterApprove),
+    ...onApprove,
+    const CommitOp(),
+    const HaltOp(),
+  ];
+
+  return VasterProgram(programName: programName, instructions: instructions);
+}
 
 void main() {
   group('Human-in-the-Loop (HITL) Runtime Interactivity', () {
@@ -66,21 +113,14 @@ void main() {
     });
 
     test('HumanApprovalComponent branches based on human response', () async {
-      const compiler = BasicWorkflowCompiler();
-
-      final pipeline = Pipeline(
-        spec: const PipelineSpec(name: 'approval_pipeline'),
-        children: [
-          ApprovalGate(
-            requestId: 'prod_deploy',
-            prompt: 'Approve deployment?',
-            onApprove: const [WriteFile(path: '/mem/deploy.txt', content: 'DEPLOYED')],
-            onReject: const [WriteFile(path: '/mem/deploy.txt', content: 'REJECTED')],
-          ),
-        ],
+      final program = _approvalGateProgram(
+        programName: 'approval_pipeline',
+        requestId: 'prod_deploy',
+        prompt: 'Approve deployment?',
+        onApprove: const [WriteFileOp(vfsPath: '/mem/deploy.txt', content: 'DEPLOYED')],
+        onReject: const [WriteFileOp(vfsPath: '/mem/deploy.txt', content: 'REJECTED')],
       );
 
-      final program = compiler.compile(pipeline);
       final runtime = VasterRuntime(
         vm: vm,
         policy: ExecutionPolicy.unlimited,
@@ -107,22 +147,38 @@ void main() {
     });
 
     test('supports full VasterContinuation snapshot serialization & restoration via ContinuationManager', () async {
-      const compiler = BasicWorkflowCompiler();
       final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
 
-      final pipeline = Pipeline(
-        spec: const PipelineSpec(name: 'snapshot_pipeline'),
-        children: [
-          WriteFile(path: '/mem/before.txt', content: 'hello'),
-          ApprovalGate(
-            requestId: 'approval_001',
-            prompt: 'Approve continuation snapshot test?',
-            onApprove: const [WriteFile(path: '/mem/after.txt', content: 'world')],
+      // Build program manually with low-level ISA instructions:
+      // 0: WriteFileOp('/mem/before.txt', 'hello')
+      // 1: BeginTransactionOp
+      // 2: YieldHumanInteractionOp(approval_001)
+      // 3: JumpIfOp('approval_001_status', targetPc: 5)
+      // 4: JumpOp(targetPc: 6)          ← skip reject (empty)
+      // 5: WriteFileOp('/mem/after.txt', 'world')  ← approve branch
+      // 6: CommitOp
+      // 7: HaltOp
+      final program = VasterProgram(
+        programName: 'snapshot_pipeline',
+        instructions: [
+          const WriteFileOp(vfsPath: '/mem/before.txt', content: 'hello'),
+          const BeginTransactionOp(),
+          YieldHumanInteractionOp(
+            request: HumanInteractionRequest(
+              requestId: 'approval_001',
+              type: HumanInteractionType.approval,
+              prompt: 'Approve continuation snapshot test?',
+              options: const ['approve', 'reject'],
+              outputVar: 'approval_001',
+            ),
           ),
+          const JumpIfOp(conditionVar: 'approval_001_status', targetPc: 5),
+          const JumpOp(targetPc: 6),
+          const WriteFileOp(vfsPath: '/mem/after.txt', content: 'world'),
+          const CommitOp(),
+          const HaltOp(),
         ],
       );
-
-      final program = compiler.compile(pipeline);
 
       // 1. First runtime instance starts program and pauses at HITL node
       final runtime1 = VasterRuntime(
