@@ -1,12 +1,16 @@
 import 'package:vaster_agent_manager_basic/vaster_agent_manager_basic.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 
 void main() async {
   print('=== Vaster Basic Agent Manager Example ===');
 
   final sessionManager = BasicSessionManager();
-  final agentManager = BasicAgentManager(sessionManager: sessionManager);
+  final agentManager = BasicAgentManager(
+    sessionManager: sessionManager,
+    resourceTracker: ResourceTracker(quota: ResourceQuota.unlimited),
+  );
 
   final model = FakeVasterModel(defaultResponseText: 'Basic agent execution.');
 

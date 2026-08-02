@@ -1,6 +1,8 @@
 import 'package:test/test.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_policy/vaster_policy.dart';
+import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -18,7 +20,7 @@ void main() {
           rootMountPath: '/mem',
         ),
       );
-      runtime = VasterRuntime(vm: vm);
+      runtime = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
     });
 
     tearDown(() async {
@@ -108,6 +110,54 @@ void main() {
       expect(session!.history.length, equals(4));
       expect(session.history[0].text, contains('Hello Model'));
       expect(session.history[2].text, contains('Follow up prompt'));
+    });
+
+    test('executes CheckPolicyOp successfully when operation is authorized', () async {
+      const program = VasterProgram(
+        programName: 'check_policy_pass_test',
+        instructions: [
+          CheckPolicyOp(action: PolicyAction.fileRead, resource: '/mem/data.json'),
+          SetRegisterOp(registerName: 'result', value: 'authorized'),
+          HaltOp(),
+        ],
+      );
+
+      final state = await runtime.executeProgram(program);
+
+      expect(state.status, equals(RuntimeStatus.halted));
+      expect(state.registers['result'], equals('authorized'));
+    });
+
+    test('enforces write restriction under read-only policy engine', () async {
+      // Custom VM with readOnly policy engine
+      final restrictedVm = await VasterVMEngine.bootstrap(
+        config: VMConfig(defaultModel: fakeModel, rootMountPath: '/mem'),
+        policyEngine: BasicPolicyEngine(),
+      );
+
+      // Create runtime with restricted policy set on execution
+      final restrictedRuntime = VasterRuntime(
+        vm: restrictedVm,
+        policy: ExecutionPolicy.readOnly,
+      );
+
+      // Program trying to write a file that gets denied by CheckPolicyOp
+      const program = VasterProgram(
+        programName: 'policy_denial_test',
+        instructions: [
+          CheckPolicyOp(action: PolicyAction.fileDelete, resource: '/sys/protected.sys'),
+          WriteFileOp(vfsPath: '/mem/test.txt', content: 'hello'),
+          HaltOp(),
+        ],
+      );
+
+      final state = await restrictedRuntime.executeProgram(program);
+
+      // Verify execution errored due to default-deny fallback for fileDelete
+      expect(state.status, equals(RuntimeStatus.error));
+      expect(state.errorDetails, contains('Policy violation'));
+
+      await restrictedVm.shutdown();
     });
   });
 }

@@ -14,8 +14,8 @@ abstract interface class ModelSession {
   /// The default model backend targeted by this session.
   VasterModel get model;
 
-  /// Optional context manager attached to this session.
-  ContextManager? get contextManager;
+  /// Context manager attached to this session.
+  ContextManager get contextManager;
 
   /// Unmodifiable view of message history in this session.
   List<ChatMessage> get history;

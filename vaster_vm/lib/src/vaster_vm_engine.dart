@@ -74,8 +74,8 @@ class VasterVMEngine implements VasterVirtualMachine {
   static Future<VasterVMEngine> bootstrap({
     required VMConfig config,
     VasterFileSystem? rootFileSystem,
-    List<ExecutableTool>? initialTools,
-    List<CodeSandbox>? initialSandboxes,
+    List<ExecutableTool> initialTools = const [],
+    List<CodeSandbox> initialSandboxes = const [],
     PolicyEngine? policyEngine,
   }) async {
     final eventBus = BasicEventBus();
@@ -117,10 +117,8 @@ class VasterVMEngine implements VasterVirtualMachine {
     vm.mountFileSystem(config.rootMountPath, rootFs);
 
     // Automatic Bridge 2: Register initial sandboxes into ToolManager
-    if (initialSandboxes != null) {
-      for (final sb in initialSandboxes) {
-        vm.registerSandbox(sb);
-      }
+    for (final sb in initialSandboxes) {
+      vm.registerSandbox(sb);
     }
 
     return vm;

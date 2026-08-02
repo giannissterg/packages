@@ -20,3 +20,4 @@ dev_dependencies:
   vaster_ast:
   vaster_compiler:
   vaster_model_fake:
+  vaster_policy:

@@ -1,13 +1,19 @@
 import 'package:vaster_agent_basic/vaster_agent_basic.dart';
+import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session/vaster_session.dart';
+import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
 void main() async {
   print('=== Vaster Basic Agent Example ===');
 
   final fakeModel = FakeVasterModel(defaultResponseText: 'Execution finished.');
-  final session = BasicModelSession(sessionId: 'sess_demo', model: fakeModel);
+  final session = BasicModelSession(
+    sessionId: 'sess_demo',
+    model: fakeModel,
+    contextManager: BasicContextManager(),
+  );
 
   final agent = BasicVasterAgent(
     descriptor: const AgentDescriptor(
@@ -18,6 +24,7 @@ void main() async {
     ),
     session: session,
     resourceTracker: ResourceTracker(quota: ResourceQuota.unlimited),
+    toolManager: BasicToolManager(),
   );
 
   final output = await agent.run(const AgentTask(

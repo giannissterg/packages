@@ -1,4 +1,5 @@
 import 'package:test/test.dart';
+import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_session/vaster_session.dart';
@@ -10,6 +11,7 @@ void main() {
       final originalSession = BasicModelSession(
         sessionId: 'main_session',
         model: fakeModel,
+        contextManager: BasicContextManager(),
       );
 
       await originalSession.send(ChatMessage.user('Turn 1'));

@@ -28,7 +28,7 @@ class BasicVasterAgent implements VasterAgent {
   /// Required at construction time — never passed per-invocation.
   final ResourceTracker resourceTracker;
 
-  final ToolManager? toolManager;
+  final ToolManager toolManager;
 
   /// Subagent launcher callback to construct child sessions.
   final Future<VasterAgent> Function(
@@ -40,7 +40,7 @@ class BasicVasterAgent implements VasterAgent {
     required this.descriptor,
     required this.session,
     required this.resourceTracker,
-    this.toolManager,
+    required this.toolManager,
     this.subagentLauncher,
   });
 
@@ -70,19 +70,14 @@ class BasicVasterAgent implements VasterAgent {
       for (var loop = 0; loop < descriptor.maxToolCallLoops; loop++) {
         cancelToken?.throwIfCancelled();
 
-        // a. Compile context (if context manager is attached to session)
-        ChatMessage? systemInstruction;
-        List<ChatMessage> messages = session.history;
-        final ctxManager = session.contextManager;
-        if (ctxManager != null) {
-          final budget = TokenBudget(
-            maxContextTokens: session.model.capabilities.maxContextTokens,
-            reservedOutputTokens: session.model.capabilities.maxOutputTokens,
-          );
-          final compiled = await ctxManager.compileContext(budget: budget);
-          systemInstruction = compiled.systemInstruction;
-          messages = [...compiled.messages];
-        }
+        // a. Compile context from session's context manager
+        final budget = TokenBudget(
+          maxContextTokens: session.model.capabilities.maxContextTokens,
+          reservedOutputTokens: session.model.capabilities.maxOutputTokens,
+        );
+        final compiled = await session.contextManager.compileContext(budget: budget);
+        final systemInstruction = compiled.systemInstruction;
+        final messages = [...compiled.messages];
 
         // b. Build ModelRequest — agent owns this, not the session
         final request = ModelRequest(
@@ -110,11 +105,8 @@ class BasicVasterAgent implements VasterAgent {
         final calls = response.functionCalls.toList();
         if (calls.isEmpty) break;
 
-        // f. Guard: stop if no tool manager (shouldn't call tools without one)
-        if (toolManager == null) break;
-
-        // g. Execute all tool calls in parallel
-        final results = await Future.wait(calls.map(toolManager!.executeCall));
+        // f. Execute all tool calls in parallel
+        final results = await Future.wait(calls.map(toolManager.executeCall));
 
         // h. Record quota for every tool call executed
         resourceTracker.recordToolCall(count: calls.length);
@@ -202,8 +194,7 @@ class BasicVasterAgent implements VasterAgent {
   /// Returns compiled [ToolDefinition]s filtered by [descriptor.allowedToolNames].
   /// An empty whitelist means all registered tools are exposed.
   List<ToolDefinition> _resolveTools() {
-    if (toolManager == null) return const [];
-    final all = toolManager!.compiledDefinitions;
+    final all = toolManager.compiledDefinitions;
     if (descriptor.allowedToolNames.isEmpty) return all;
     final allowed = descriptor.allowedToolNames.toSet();
     return all.where((t) => allowed.contains(t.name)).toList();

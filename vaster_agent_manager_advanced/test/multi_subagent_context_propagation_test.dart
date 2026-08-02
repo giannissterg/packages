@@ -5,10 +5,11 @@ import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 
 void main() {
-  group('Multi-Subagent Context Propagation & Hierarchy', () {
+  group('Multi-Subagent Context Propagation & Supervision', () {
     late SessionManager sessionManager;
     late ContextManager contextManager;
     late RuntimeEventBus eventBus;
@@ -24,6 +25,7 @@ void main() {
       agentManager = AdvancedAgentManager(
         sessionManager: sessionManager,
         eventBus: eventBus,
+        resourceTracker: ResourceTracker(quota: ResourceQuota.unlimited),
         maxTreeDepth: 5,
       );
 
@@ -92,7 +94,7 @@ void main() {
 
       // 6. Verify context propagation in child subagent session
       final coderSession = sessionManager.getSession('sess_sub_coder')!;
-      final compiled = await coderSession.contextManager!.compileContext(
+      final compiled = await coderSession.contextManager.compileContext(
         budget: const TokenBudget(maxContextTokens: 1000, reservedOutputTokens: 200),
       );
 

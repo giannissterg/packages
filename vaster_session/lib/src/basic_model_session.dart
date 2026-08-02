@@ -14,22 +14,22 @@ class BasicModelSession implements ModelSession {
   final VasterModel model;
 
   @override
-  final ContextManager? contextManager;
+  final ContextManager contextManager;
 
   final List<ChatMessage> _history = [];
 
   BasicModelSession({
     required String sessionId,
     required this.model,
-    this.contextManager,
-    List<ChatMessage>? initialHistory,
+    required this.contextManager,
+    List<ChatMessage> initialHistory = const [],
     Map<String, dynamic> metadata = const {},
   }) : descriptor = SessionDescriptor(
           sessionId: sessionId,
           modelName: model.modelName,
           metadata: metadata,
         ) {
-    if (initialHistory != null) {
+    if (initialHistory.isNotEmpty) {
       _history.addAll(initialHistory);
     }
   }
@@ -52,19 +52,14 @@ class BasicModelSession implements ModelSession {
     final activeModel = targetModel ?? model;
     _history.add(userMessage);
 
-    List<ChatMessage> compiledMessages = List.from(_history);
-    ChatMessage? systemInstruction;
-
-    if (contextManager != null) {
-      final compiled = await contextManager!.compileContext(
-        budget: TokenBudget(
-          maxContextTokens: activeModel.capabilities.maxContextTokens,
-          reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
-        ),
-      );
-      systemInstruction = compiled.systemInstruction;
-      compiledMessages = [...compiled.messages, userMessage];
-    }
+    final compiled = await contextManager.compileContext(
+      budget: TokenBudget(
+        maxContextTokens: activeModel.capabilities.maxContextTokens,
+        reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
+      ),
+    );
+    final systemInstruction = compiled.systemInstruction;
+    final compiledMessages = [...compiled.messages, userMessage];
 
     cancelToken?.throwIfCancelled();
 
@@ -92,19 +87,14 @@ class BasicModelSession implements ModelSession {
     final activeModel = targetModel ?? model;
     _history.add(userMessage);
 
-    List<ChatMessage> compiledMessages = List.from(_history);
-    ChatMessage? systemInstruction;
-
-    if (contextManager != null) {
-      final compiled = await contextManager!.compileContext(
-        budget: TokenBudget(
-          maxContextTokens: activeModel.capabilities.maxContextTokens,
-          reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
-        ),
-      );
-      systemInstruction = compiled.systemInstruction;
-      compiledMessages = [...compiled.messages, userMessage];
-    }
+    final compiled = await contextManager.compileContext(
+      budget: TokenBudget(
+        maxContextTokens: activeModel.capabilities.maxContextTokens,
+        reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
+      ),
+    );
+    final systemInstruction = compiled.systemInstruction;
+    final compiledMessages = [...compiled.messages, userMessage];
 
     final request = ModelRequest(
       systemInstruction: systemInstruction,

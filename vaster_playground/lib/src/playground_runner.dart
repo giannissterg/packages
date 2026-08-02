@@ -6,6 +6,7 @@ import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_model_gemini_cli/vaster_model_gemini_cli.dart';
+import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -78,7 +79,7 @@ Future<void> runPlayground({
 
   // ── 4. Execute program ─────────────────────────────────────────────────────
   _printPhase('EXECUTION', 'Executing ${program.instructions.length} ISA instructions');
-  final runtime = VasterRuntime(vm: vm);
+  final runtime = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
 
   final stopwatch = Stopwatch()..start();
   var state = await runtime.executeProgram(program);

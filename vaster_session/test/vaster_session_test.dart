@@ -12,6 +12,7 @@ void main() {
       final ModelSession session = BasicModelSession(
         sessionId: 'sess_1',
         model: fakeModel,
+        contextManager: BasicContextManager(),
       );
 
       expect(session.sessionId, equals('sess_1'));
@@ -28,7 +29,11 @@ void main() {
       final defaultModel = FakeVasterModel(modelName: 'fast-model', defaultResponseText: 'Fast model output');
       final targetModel = FakeVasterModel(modelName: 'reasoning-model', defaultResponseText: 'Reasoning model output');
 
-      final session = BasicModelSession(sessionId: 'sess_dyn', model: defaultModel);
+      final session = BasicModelSession(
+        sessionId: 'sess_dyn',
+        model: defaultModel,
+        contextManager: BasicContextManager(),
+      );
 
       final res1 = await session.send(ChatMessage.user('Turn 1'));
       expect(res1.text, contains('Fast model output'));
@@ -45,6 +50,7 @@ void main() {
       final session = BasicModelSession(
         sessionId: 'sess_stream',
         model: fakeModel,
+        contextManager: BasicContextManager(),
       );
 
       final chunks = await session.sendStream(ChatMessage.user('Stream test')).toList();
@@ -80,7 +86,11 @@ void main() {
 
     test('clearHistory resets history', () async {
       final fakeModel = FakeVasterModel();
-      final session = BasicModelSession(sessionId: 's', model: fakeModel);
+      final session = BasicModelSession(
+        sessionId: 's',
+        model: fakeModel,
+        contextManager: BasicContextManager(),
+      );
       await session.send(ChatMessage.user('Hi'));
       expect(session.history, hasLength(2));
 

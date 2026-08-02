@@ -35,10 +35,13 @@ class VasterRuntime {
 
   VasterModel? _activeModel;
   String? _activeSessionId;
-  ExecutionPolicy _activePolicy = ExecutionPolicy.unlimited;
+  final ExecutionPolicy _activePolicy;
   VasterProgram? _currentProgram;
 
-  VasterRuntime({required this.vm});
+  VasterRuntime({
+    required this.vm,
+    required ExecutionPolicy policy,
+  }) : _activePolicy = policy;
 
   /// Pending human interaction request if status is [RuntimeStatus.pausedForHuman].
   HumanInteractionRequest? get pendingHumanRequest => _hitl.pendingRequest;
@@ -58,7 +61,6 @@ class VasterRuntime {
     _status = RuntimeStatus.running;
     _lastError = null;
     _activeSessionId = null;
-    _activePolicy = ExecutionPolicy.unlimited;
     _registers.clear();
     _callStack.clear();
     _cacheHints.clear();

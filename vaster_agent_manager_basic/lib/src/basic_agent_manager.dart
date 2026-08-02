@@ -12,17 +12,15 @@ class BasicAgentManager implements AgentManager {
   final Map<String, VasterAgent> _agents = {};
   final Map<String, AgentState> _states = {};
 
-  final ResourceTracker? resourceTracker;
+  final ResourceTracker resourceTracker;
 
   BasicAgentManager({
     required this.sessionManager,
-    this.resourceTracker,
-    List<VasterAgent>? initialAgents,
+    required this.resourceTracker,
+    List<VasterAgent> initialAgents = const [],
   }) {
-    if (initialAgents != null) {
-      for (final agent in initialAgents) {
-        registerAgent(agent);
-      }
+    for (final agent in initialAgents) {
+      registerAgent(agent);
     }
   }
 
@@ -66,14 +64,14 @@ class BasicAgentManager implements AgentManager {
     final session = await sessionManager.createSession(
       sessionId: sessionId,
       model: model,
-      contextManager: contextManager,
+      contextManager: contextManager ?? BasicContextManager(),
     );
 
     final agent = BasicVasterAgent(
       descriptor: descriptor,
       session: session,
-      resourceTracker: resourceTracker ?? ResourceTracker(quota: ResourceQuota.unlimited),
-      toolManager: toolManager,
+      resourceTracker: resourceTracker,
+      toolManager: toolManager ?? BasicToolManager(),
     );
 
     registerAgent(agent);

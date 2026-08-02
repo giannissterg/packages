@@ -12,12 +12,8 @@ import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 /// parallel task dispatching, lifecycle states, and optional [RuntimeEventBus] telemetry.
 class AdvancedAgentManager implements AgentManager {
   final SessionManager sessionManager;
-  final RuntimeEventBus? eventBus;
-
-  /// Optional VM-level resource tracker forwarded to every agent at construction.
-  /// If null, agents are constructed with [ResourceQuota.unlimited].
-  final ResourceTracker? resourceTracker;
-
+  final RuntimeEventBus eventBus;
+  final ResourceTracker resourceTracker;
   final int maxTreeDepth;
 
   final Map<String, VasterAgent> _agents = {};
@@ -27,15 +23,13 @@ class AdvancedAgentManager implements AgentManager {
 
   AdvancedAgentManager({
     required this.sessionManager,
-    this.eventBus,
-    this.resourceTracker,
+    required this.eventBus,
+    required this.resourceTracker,
     this.maxTreeDepth = 5,
-    List<VasterAgent>? initialAgents,
+    List<VasterAgent> initialAgents = const [],
   }) {
-    if (initialAgents != null) {
-      for (final agent in initialAgents) {
-        registerAgent(agent);
-      }
+    for (final agent in initialAgents) {
+      registerAgent(agent);
     }
   }
 
@@ -126,14 +120,14 @@ class AdvancedAgentManager implements AgentManager {
     final session = await sessionManager.createSession(
       sessionId: sessionId,
       model: model,
-      contextManager: contextManager,
+      contextManager: contextManager ?? BasicContextManager(),
     );
 
     final agent = BasicVasterAgent(
       descriptor: descriptor,
       session: session,
-      resourceTracker: resourceTracker ?? ResourceTracker(quota: ResourceQuota.unlimited),
-      toolManager: toolManager,
+      resourceTracker: resourceTracker,
+      toolManager: toolManager ?? BasicToolManager(),
     );
 
     registerAgent(agent, parentAgentId: parentAgentId);
@@ -168,7 +162,7 @@ class AdvancedAgentManager implements AgentManager {
 
     _states[agentId] = AgentState.running;
 
-    eventBus?.publish(ModelStartedEvent(
+    eventBus.publish(ModelStartedEvent(
       eventId: 'evt_start_${task.taskId}',
       sessionId: agent.session.sessionId,
       modelName: agent.session.model.modelName,
@@ -179,7 +173,7 @@ class AdvancedAgentManager implements AgentManager {
       final output = await agent.run(task);
       _states[agentId] = AgentState.idle;
 
-      eventBus?.publish(ModelFinishedEvent(
+      eventBus.publish(ModelFinishedEvent(
         eventId: 'evt_finish_${task.taskId}',
         sessionId: agent.session.sessionId,
         finishReason: 'stop',

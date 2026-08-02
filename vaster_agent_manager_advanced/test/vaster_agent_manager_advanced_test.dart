@@ -2,6 +2,7 @@ import 'package:test/test.dart';
 import 'package:vaster_agent_manager_advanced/vaster_agent_manager_advanced.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 
 void main() {
@@ -16,6 +17,7 @@ void main() {
       agentManager = AdvancedAgentManager(
         sessionManager: sessionManager,
         eventBus: eventBus,
+        resourceTracker: ResourceTracker(quota: ResourceQuota.unlimited),
         maxTreeDepth: 3,
       );
     });

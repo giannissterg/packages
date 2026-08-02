@@ -16,6 +16,7 @@ dependencies:
   vaster_model:
   vaster_model_fake:
   vaster_model_gemini_cli:
+  vaster_policy:
   vaster_runtime:
   vaster_vm:
 

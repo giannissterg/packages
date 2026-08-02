@@ -4,6 +4,7 @@ import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -39,7 +40,7 @@ void main() {
       final program = compiler.compile(pipeline);
 
       // 1. Execute program until HITL yield
-      final runtime1 = VasterRuntime(vm: vm);
+      final runtime1 = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
       final state1 = await runtime1.executeProgram(program);
       expect(state1.status, equals(RuntimeStatus.pausedForHuman));
 
@@ -52,7 +53,7 @@ void main() {
       expect(restoredSnapshot.programName, equals('continuation_pkg_pipeline'));
 
       // 4. Restore execution on a fresh runtime instance
-      final runtime2 = VasterRuntime(vm: vm);
+      final runtime2 = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
       final state2 = await continuationManager.restoreAndResume(
         runtime2,
         restoredSnapshot,

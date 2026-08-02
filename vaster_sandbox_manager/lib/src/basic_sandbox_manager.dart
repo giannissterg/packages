@@ -6,11 +6,9 @@ import 'sandbox_manager_interface.dart';
 class BasicSandboxManager implements SandboxManager {
   final Map<String, CodeSandbox> _sandboxes = {};
 
-  BasicSandboxManager({List<CodeSandbox>? sandboxes}) {
-    if (sandboxes != null) {
-      for (final s in sandboxes) {
-        registerSandbox(s);
-      }
+  BasicSandboxManager({List<CodeSandbox> sandboxes = const []}) {
+    for (final s in sandboxes) {
+      registerSandbox(s);
     }
   }
 

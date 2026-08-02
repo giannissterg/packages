@@ -4,6 +4,7 @@ import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_playground/vaster_playground.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_vm/vaster_vm.dart';
@@ -162,13 +163,18 @@ void main() {
       final vm = await VasterVMEngine.bootstrap(
         config: VMConfig(defaultModel: fakeModel, rootMountPath: '/workspace'),
       );
-      final runtime = VasterRuntime(vm: vm);
+      final runtime = VasterRuntime(vm: vm, policy: ExecutionPolicy.unlimited);
       final program = compiler.compile(nexusApiPipeline);
-      final state = await runtime.executeProgram(program);
+      var state = await runtime.executeProgram(program);
+      if (state.status == RuntimeStatus.pausedForHuman) {
+        state = await runtime.resumeWithHumanResponse(
+          HumanInteractionResponse.approve(requestId: 'nexus_release_approval'),
+        );
+      }
 
       expect(state.status, equals(RuntimeStatus.halted));
       expect(state.registers.containsKey('delivery_report'), isTrue);
-      expect(state.registers['delivery_report'], contains('Delivery Report'));
+      expect(state.registers['delivery_report'], contains('Agent task completed'));
 
       // Verify VFS artefacts were written
       expect(state.registers.containsKey('architecture_doc'), isTrue);

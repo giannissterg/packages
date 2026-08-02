@@ -6,11 +6,9 @@ import 'tool_manager_interface.dart';
 class BasicToolManager implements ToolManager {
   final Map<String, ExecutableTool> _tools = {};
 
-  BasicToolManager({List<ExecutableTool>? tools}) {
-    if (tools != null) {
-      for (final t in tools) {
-        registerTool(t);
-      }
+  BasicToolManager({List<ExecutableTool> tools = const []}) {
+    for (final t in tools) {
+      registerTool(t);
     }
   }
 
