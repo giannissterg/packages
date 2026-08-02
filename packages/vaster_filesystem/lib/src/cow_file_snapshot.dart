@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 /// Represents a lightweight Copy-on-Write (COW) snapshot of file page references.
@@ -35,6 +36,29 @@ class CowFileSnapshot {
       pages: {},
       dirtyPaths: {},
       deletedPaths: {},
+    );
+  }
+
+  /// Serializes the snapshot to JSON, base64-encoding each page buffer.
+  Map<String, dynamic> toJson() => {
+        'pages': pages.map((path, bytes) => MapEntry(path, base64Encode(bytes))),
+        'dirtyPaths': dirtyPaths.toList(),
+        'deletedPaths': deletedPaths.toList(),
+      };
+
+  /// Reconstructs a snapshot from its [toJson] representation.
+  factory CowFileSnapshot.fromJson(Map<String, dynamic> json) {
+    final rawPages = (json['pages'] as Map?) ?? const {};
+    return CowFileSnapshot(
+      pages: rawPages.map(
+        (path, encoded) => MapEntry(path as String, base64Decode(encoded as String)),
+      ),
+      dirtyPaths: ((json['dirtyPaths'] as List?) ?? const [])
+          .map((e) => e as String)
+          .toSet(),
+      deletedPaths: ((json['deletedPaths'] as List?) ?? const [])
+          .map((e) => e as String)
+          .toSet(),
     );
   }
 }

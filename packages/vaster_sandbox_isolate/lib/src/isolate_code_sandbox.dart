@@ -51,29 +51,28 @@ class IsolateCodeSandbox implements CodeSandbox {
 
       cancelToken?.throwIfCancelled();
 
-      return SandboxResult(
-        exitCode: 0,
+      return SandboxResult.success(
         stdout: 'Isolate execution completed.\nResult: $resultVal',
-        stderr: '',
         executionTime: watch.elapsed,
         resultValue: resultVal,
+        metrics: SandboxMetrics(cpuTime: watch.elapsed),
       );
     } on TimeoutException {
       watch.stop();
-      return SandboxResult(
-        exitCode: 124,
-        stdout: '',
-        stderr: 'Execution timed out after ${policy.maxTimeout.inSeconds} seconds.',
+      return SandboxResult.timeout(
+        maxTimeout: policy.maxTimeout,
         executionTime: watch.elapsed,
-        timedOut: true,
       );
     } catch (e, st) {
       watch.stop();
-      return SandboxResult(
+      return SandboxResult.failure(
         exitCode: 1,
-        stdout: '',
-        stderr: 'Isolate execution error: $e\n$st',
+        stderr: 'Isolate execution error: $e',
         executionTime: watch.elapsed,
+        errorDetails: SandboxErrorDetails(
+          exceptionType: e.runtimeType.toString(),
+          stackTrace: st.toString(),
+        ),
       );
     }
   }

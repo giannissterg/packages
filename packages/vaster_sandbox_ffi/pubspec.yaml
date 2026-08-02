@@ -1,0 +1,19 @@
+name: vaster_sandbox_ffi
+description: Native C/C++/Rust Dynamic Library execution sandbox using dart:ffi.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  ffi: ^2.1.0
+  vaster_model:
+    path: ../vaster_model
+  vaster_sandbox:
+    path: ../vaster_sandbox
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

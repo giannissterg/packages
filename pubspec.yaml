@@ -51,3 +51,5 @@ workspace:
   - packages/vaster_cli
   - packages/vaster
   - packages/vaster_mmap
+  - packages/vaster_sandbox_ffi
+  - packages/vaster_replay

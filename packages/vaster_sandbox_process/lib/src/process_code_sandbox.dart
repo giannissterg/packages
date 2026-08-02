@@ -59,12 +59,10 @@ class ProcessCodeSandbox implements CodeSandbox {
     // Check command whitelist if policy specifies allowedCommands
     if (policy.allowedCommands != null &&
         !policy.allowedCommands!.contains(executable)) {
-      return SandboxResult(
-        exitCode: 126,
-        stdout: '',
-        stderr: 'Command "$executable" is blocked by security policy.',
+      return SandboxResult.securityViolation(
+        violatedRule: SecurityViolationRule.allowedCommands,
         executionTime: Duration.zero,
-        securityViolation: true,
+        stderr: 'Command "$executable" is blocked by security policy.',
       );
     }
 
@@ -91,7 +89,15 @@ class ProcessCodeSandbox implements CodeSandbox {
       watch.stop();
       cancelToken?.throwIfCancelled();
 
-      return SandboxResult(
+      if (processResult.exitCode == 0) {
+        return SandboxResult.success(
+          stdout: processResult.stdout.toString(),
+          executionTime: watch.elapsed,
+          metrics: SandboxMetrics(cpuTime: watch.elapsed),
+        );
+      }
+
+      return SandboxResult.failure(
         exitCode: processResult.exitCode,
         stdout: processResult.stdout.toString(),
         stderr: processResult.stderr.toString(),
@@ -99,20 +105,20 @@ class ProcessCodeSandbox implements CodeSandbox {
       );
     } on TimeoutException {
       watch.stop();
-      return SandboxResult(
-        exitCode: 124,
-        stdout: '',
-        stderr: 'Process execution timed out after ${policy.maxTimeout.inSeconds} seconds.',
+      return SandboxResult.timeout(
+        maxTimeout: policy.maxTimeout,
         executionTime: watch.elapsed,
-        timedOut: true,
       );
     } catch (e, st) {
       watch.stop();
-      return SandboxResult(
+      return SandboxResult.failure(
         exitCode: 1,
-        stdout: '',
-        stderr: 'Process error: $e\n$st',
+        stderr: 'Process error: $e',
         executionTime: watch.elapsed,
+        errorDetails: SandboxErrorDetails(
+          exceptionType: e.runtimeType.toString(),
+          stackTrace: st.toString(),
+        ),
       );
     }
   }

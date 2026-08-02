@@ -11,6 +11,18 @@ import 'register_file.dart';
 import 'runtime_state.dart';
 import 'runtime_status.dart';
 
+/// Observer invoked after each instruction is executed by a [VasterRuntime].
+///
+/// Fires with the program counter of the instruction that just ran, the
+/// instruction itself, and an unmodifiable snapshot of the post-execution
+/// register state. Used by tracing/replay tooling (e.g. `vaster_replay`) to
+/// build an execution journal. When no observer is set there is zero overhead.
+typedef RuntimeStepObserver = void Function(
+  int pc,
+  VasterInstruction instruction,
+  Map<String, Object?> registers,
+);
+
 /// Low-Level ISA Execution Runtime consuming [VasterVirtualMachine].
 ///
 /// Acts as a **pure fetch-decode-dispatch loop**. Each responsibility is
@@ -39,6 +51,12 @@ class VasterRuntime {
   RuntimeStatus _status = RuntimeStatus.idle;
   String? _lastError;
 
+  /// Optional per-instruction observer for tracing and time-travel replay.
+  ///
+  /// When set, it is invoked after every executed instruction with the
+  /// post-execution register snapshot. Defaults to `null` (no tracing).
+  RuntimeStepObserver? stepObserver;
+
   VasterModel? _activeModel;
   String? _activeSessionId;
   final ExecutionPolicy _activePolicy;
@@ -62,17 +80,42 @@ class VasterRuntime {
         errorDetails: _lastError,
       );
 
-  /// Executes a [VasterProgram] from the beginning until [HaltOp] or error.
-  Future<RuntimeState> executeProgram(VasterProgram program) async {
+  /// Currently active [VasterProgram] being executed.
+  VasterProgram? get currentProgram => _currentProgram;
+
+  /// Sets/writes a register value in the active register file.
+  void setRegister(String registerName, Object? value) {
+    _registers.write(registerName, value);
+  }
+
+  /// Executes a [VasterProgram] until [HaltOp] or error.
+  ///
+  /// [startPc] is the instruction index to begin at (default `0`).
+  ///
+  /// [resetState] controls whether prior execution state is cleared before
+  /// running. When `true` (the default) the register file, call stack, cache
+  /// hints, HITL state, and active session are reset — the correct behavior for
+  /// starting a fresh program. Pass `false` to *resume* or *replay* from an
+  /// arbitrary [startPc] while preserving already-applied state (registers,
+  /// session, cache hints). Reset is now driven solely by this flag and is
+  /// independent of [startPc], so a resume that lands on pc `0` no longer
+  /// silently wipes applied registers.
+  Future<RuntimeState> executeProgram(
+    VasterProgram program, {
+    int startPc = 0,
+    bool resetState = true,
+  }) async {
     _currentProgram = program;
-    _pc = 0;
+    _pc = startPc;
     _status = RuntimeStatus.running;
     _lastError = null;
-    _activeSessionId = null;
-    _registers.clear();
-    _callStack.clear();
-    _cacheHints.clear();
-    _hitl.clear();
+    if (resetState) {
+      _activeSessionId = null;
+      _registers.clear();
+      _callStack.clear();
+      _cacheHints.clear();
+      _hitl.clear();
+    }
 
     return _runLoop(program);
   }
@@ -131,6 +174,8 @@ class VasterRuntime {
         stopwatch.stop();
         budget.consumeTime(stopwatch.elapsed);
 
+        stepObserver?.call(_pc, instruction, _registers.snapshot());
+
         if (_status == RuntimeStatus.running) _pc++;
       } catch (e, st) {
         _status = RuntimeStatus.error;
@@ -166,6 +211,8 @@ class VasterRuntime {
         );
         stopwatch.stop();
         budget.consumeTime(stopwatch.elapsed);
+
+        stepObserver?.call(_pc, instruction, _registers.snapshot());
 
         if (_status == RuntimeStatus.running) _pc++;
         executed++;

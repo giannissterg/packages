@@ -1,4 +1,27 @@
-/// Output payload resulting from a [CodeSandbox] execution.
+import 'dart:typed_data';
+
+import 'sandbox_error_details.dart';
+import 'sandbox_metrics.dart';
+
+/// Explicit status classification of a [CodeSandbox] execution attempt.
+enum SandboxExecutionStatus {
+  /// Clean success (exitCode == 0).
+  success,
+
+  /// Execution exceeded maximum allowed timeout.
+  timedOut,
+
+  /// Execution was blocked by security policy rules.
+  securityViolation,
+
+  /// Exception occurred during code/isolate execution.
+  runtimeError,
+
+  /// Process or command exited with non-zero status code.
+  processError,
+}
+
+/// Rich output payload resulting from a [CodeSandbox] execution.
 class SandboxResult {
   /// Execution exit code (0 = clean success).
   final int exitCode;
@@ -21,6 +44,18 @@ class SandboxResult {
   /// Result value / payload object if returned by isolate/code evaluation.
   final Object? resultValue;
 
+  /// Categorized execution status enum.
+  final SandboxExecutionStatus status;
+
+  /// Resource consumption metrics (peak RAM, CPU time).
+  final SandboxMetrics metrics;
+
+  /// Output file artifacts generated during execution (vfsPath -> bytes).
+  final Map<String, Uint8List> outputFiles;
+
+  /// Structured error details (exception type, stack trace, violated rule).
+  final SandboxErrorDetails? errorDetails;
+
   const SandboxResult({
     required this.exitCode,
     required this.stdout,
@@ -29,7 +64,96 @@ class SandboxResult {
     this.timedOut = false,
     this.securityViolation = false,
     this.resultValue,
-  });
+    SandboxExecutionStatus? status,
+    this.metrics = const SandboxMetrics.empty(),
+    this.outputFiles = const {},
+    this.errorDetails,
+  }) : status = status ??
+            (timedOut
+                ? SandboxExecutionStatus.timedOut
+                : securityViolation
+                    ? SandboxExecutionStatus.securityViolation
+                    : exitCode == 0
+                        ? SandboxExecutionStatus.success
+                        : SandboxExecutionStatus.processError);
+
+  /// Named constructor for successful execution.
+  factory SandboxResult.success({
+    required String stdout,
+    required Duration executionTime,
+    Object? resultValue,
+    Map<String, Uint8List> outputFiles = const {},
+    SandboxMetrics metrics = const SandboxMetrics.empty(),
+  }) {
+    return SandboxResult(
+      exitCode: 0,
+      stdout: stdout,
+      stderr: '',
+      executionTime: executionTime,
+      status: SandboxExecutionStatus.success,
+      resultValue: resultValue,
+      outputFiles: outputFiles,
+      metrics: metrics,
+    );
+  }
+
+  /// Named constructor for execution timeouts.
+  factory SandboxResult.timeout({
+    required Duration maxTimeout,
+    required Duration executionTime,
+    String stdout = '',
+  }) {
+    return SandboxResult(
+      exitCode: 124,
+      stdout: stdout,
+      stderr: 'Execution timed out after ${maxTimeout.inSeconds} seconds.',
+      executionTime: executionTime,
+      timedOut: true,
+      status: SandboxExecutionStatus.timedOut,
+      errorDetails: const SandboxErrorDetails(
+        exceptionType: 'TimeoutException',
+        violatedRule: SecurityViolationRule.maxTimeout,
+      ),
+    );
+  }
+
+  /// Named constructor for security policy violations.
+  factory SandboxResult.securityViolation({
+    required SecurityViolationRule violatedRule,
+    required Duration executionTime,
+    String stderr = '',
+  }) {
+    return SandboxResult(
+      exitCode: 126,
+      stdout: '',
+      stderr: stderr.isNotEmpty ? stderr : 'Security policy violation: ${violatedRule.name}',
+      executionTime: executionTime,
+      securityViolation: true,
+      status: SandboxExecutionStatus.securityViolation,
+      errorDetails: SandboxErrorDetails(
+        exceptionType: 'SecurityPolicyViolation',
+        violatedRule: violatedRule,
+      ),
+    );
+  }
+
+  /// Named constructor for execution failures or runtime exceptions.
+  factory SandboxResult.failure({
+    required int exitCode,
+    required String stderr,
+    required Duration executionTime,
+    String stdout = '',
+    SandboxErrorDetails? errorDetails,
+  }) {
+    return SandboxResult(
+      exitCode: exitCode,
+      stdout: stdout,
+      stderr: stderr,
+      executionTime: executionTime,
+      status: SandboxExecutionStatus.runtimeError,
+      errorDetails: errorDetails,
+    );
+  }
 
   /// Convenience getter returning true if exitCode == 0 and no error/violation occurred.
   bool get isSuccess => exitCode == 0 && !timedOut && !securityViolation;
@@ -41,23 +165,40 @@ class SandboxResult {
         'executionTimeMs': executionTime.inMilliseconds,
         'timedOut': timedOut,
         'securityViolation': securityViolation,
+        'status': status.name,
+        'metrics': metrics.toJson(),
         if (resultValue != null) 'resultValue': resultValue,
+        if (errorDetails != null) 'errorDetails': errorDetails!.toJson(),
+        if (outputFiles.isNotEmpty) 'outputFileCount': outputFiles.length,
       };
 
   factory SandboxResult.fromJson(Map<String, dynamic> json) {
+    final statusName = json['status'] as String?;
+    final status = statusName != null
+        ? SandboxExecutionStatus.values.firstWhere(
+            (s) => s.name == statusName,
+            orElse: () => SandboxExecutionStatus.processError,
+          )
+        : null;
+
+    final metricsJson = json['metrics'] as Map<String, dynamic>?;
+    final errorJson = json['errorDetails'] as Map<String, dynamic>?;
+
     return SandboxResult(
       exitCode: json['exitCode'] as int? ?? 0,
       stdout: json['stdout'] as String? ?? '',
       stderr: json['stderr'] as String? ?? '',
-      executionTime:
-          Duration(milliseconds: json['executionTimeMs'] as int? ?? 0),
+      executionTime: Duration(milliseconds: json['executionTimeMs'] as int? ?? 0),
       timedOut: json['timedOut'] as bool? ?? false,
       securityViolation: json['securityViolation'] as bool? ?? false,
       resultValue: json['resultValue'],
+      status: status,
+      metrics: metricsJson != null ? SandboxMetrics.fromJson(metricsJson) : const SandboxMetrics.empty(),
+      errorDetails: errorJson != null ? SandboxErrorDetails.fromJson(errorJson) : null,
     );
   }
 
   @override
   String toString() =>
-      'SandboxResult(exit: $exitCode, stdout: "${stdout.trim()}", stderr: "${stderr.trim()}", time: ${executionTime.inMilliseconds}ms)';
+      'SandboxResult(status: ${status.name}, exit: $exitCode, stdout: "${stdout.trim()}", stderr: "${stderr.trim()}", time: ${executionTime.inMilliseconds}ms)';
 }
