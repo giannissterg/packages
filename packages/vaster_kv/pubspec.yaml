@@ -1,0 +1,20 @@
+name: vaster_kv
+description: Physical context management for Vaster — KV-cache controllers and the ContextMmu that lowers virtual context regions onto physical LLM cache state.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  vaster_context:
+    path: ../vaster_context
+  vaster_context_manager:
+    path: ../vaster_context_manager
+  vaster_model:
+    path: ../vaster_model
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

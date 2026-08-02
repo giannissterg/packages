@@ -41,6 +41,8 @@ workspace:
   - packages/vaster_model_google_ai
   - packages/vaster_model_claude_cli
   - packages/vaster_model_claude_api
+  - packages/vaster_kv
+  - packages/vaster_model_llama_cpp
   - packages/vaster_dis
   - packages/vaster_continuation
   - packages/vaster_continuation_manager

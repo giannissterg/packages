@@ -52,8 +52,12 @@ dependencies:
     path: ../vaster_model
   vaster_model_fake:
     path: ../vaster_model_fake
+  vaster_kv:
+    path: ../vaster_kv
   vaster_model_claude_api:
     path: ../vaster_model_claude_api
+  vaster_model_llama_cpp:
+    path: ../vaster_model_llama_cpp
   vaster_model_claude_cli:
     path: ../vaster_model_claude_cli
   vaster_model_gemini_cli:
