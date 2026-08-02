@@ -18,7 +18,11 @@ import 'package:vaster_mmap/vaster_mmap.dart';
 /// by default the canonical region content (UTF-8) — a transport payload a
 /// sidecar prefills from — but it can be real KV tensor bytes produced by an
 /// inference engine (e.g. read back from a llama.cpp slot file).
-class MmapKvCacheController implements KvCacheController {
+///
+/// Also implements [KvFrameResolver], so an `MmapVasterModel` constructed
+/// with this controller lowers cache hints to [KvFrameRef]s on the wire —
+/// the sidecar receives frame *names*, not context bytes.
+class MmapKvCacheController implements KvCacheController, KvFrameResolver {
   /// Prefix for shared-memory segment names.
   final String namePrefix;
 
@@ -120,6 +124,20 @@ class MmapKvCacheController implements KvCacheController {
   @override
   Future<List<KvCacheHandle>> list() async =>
       _frames.values.map((e) => e.$1).toList();
+
+  /// [KvFrameResolver]: lowers a cache-hint fingerprint to a wire frame ref
+  /// (cross-process discovery included via [lookup]'s attach fallback).
+  @override
+  Future<KvFrameRef?> resolveFrame(String contentFingerprint) async {
+    final handle = await lookup(contentFingerprint);
+    if (handle == null) return null;
+    return KvFrameRef(
+      frameName: handle.handleId,
+      contentFingerprint: contentFingerprint,
+      tokenCount: handle.tokenCount,
+      sizeBytes: handle.sizeBytes,
+    );
+  }
 
   /// Detaches all frames without destroying the shared segments (other
   /// processes keep their mappings; state remains discoverable).
