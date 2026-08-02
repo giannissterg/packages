@@ -201,4 +201,131 @@ void main() {
       await runPlayground();
     });
   });
+
+  group('Custom Multi-Agent Pipeline — Research & Review', () {
+    test('compiles and executes a 3-agent pipeline with parallel tasks and HITL', () async {
+      // ── Build a custom 3-agent pipeline: Researcher, Reviewer, Approver ──
+      final pipeline = Pipeline(
+        spec: const PipelineSpec(name: 'research_review_pipeline'),
+        children: [
+          // Provision 3 agents
+          Agent(
+            role: AgentRole(
+              roleId: 'researcher',
+              name: 'Researcher',
+              title: 'Research Agent',
+              instruction: 'You research topics and produce concise summaries.',
+            ),
+          ),
+          Agent(
+            role: AgentRole(
+              roleId: 'reviewer_a',
+              name: 'Reviewer A',
+              title: 'Senior Reviewer',
+              instruction: 'You review research summaries for accuracy and completeness.',
+            ),
+          ),
+          Agent(
+            role: AgentRole(
+              roleId: 'reviewer_b',
+              name: 'Reviewer B',
+              title: 'Staff Reviewer',
+              instruction: 'You review research summaries for clarity and structure.',
+            ),
+          ),
+          // Write a topic brief to VFS
+          WriteFile(
+            path: '/workspace/topic.txt',
+            content: 'Topic: Evaluate the trade-offs between microservices and monolithic architecture.',
+          ),
+          // Researcher reads the brief and produces a summary
+          ReadFile(path: '/workspace/topic.txt', output: 'topic_brief'),
+          Task(
+            agentRoleId: 'researcher',
+            task: TaskDefinition(
+              taskId: 'research_topic',
+              promptText: 'Research the following topic and produce a summary:\n\n\${topic_brief}',
+              output: 'research_summary',
+            ),
+          ),
+          WriteFile(path: '/workspace/research.md', content: '\${research_summary}'),
+          // Two reviewers review in parallel
+          ParallelTasks(
+            entries: [
+              ParallelTaskEntry(
+                agentRoleId: 'reviewer_a',
+                promptText: 'Review this research summary for accuracy:\n\n\${research_summary}',
+                output: 'review_a',
+              ),
+              ParallelTaskEntry(
+                agentRoleId: 'reviewer_b',
+                promptText: 'Review this research summary for clarity:\n\n\${research_summary}',
+                output: 'review_b',
+              ),
+            ],
+          ),
+          // Human approval gate before finalizing
+          ApprovalGate(
+            requestId: 'research_approval',
+            prompt: 'Approve the research summary and reviews?',
+            onApprove: [
+              WriteFile(path: '/workspace/final_report.md', content: 'Approved!\n\n\${research_summary}'),
+            ],
+          ),
+        ],
+      );
+
+      // ── Compile ──
+      final program = compiler.compile(pipeline);
+      expect(program.programName, equals('research_review_pipeline'));
+      expect(program.instructions, isNotEmpty);
+      expect(program.instructions.last, isA<HaltOp>());
+
+      // Verify 3 CreateAgentOp instructions
+      final createOps = program.instructions.whereType<CreateAgentOp>().toList();
+      expect(createOps, hasLength(3));
+      final roleIds = createOps.map((o) => o.descriptor.agentId).toSet();
+      expect(roleIds, containsAll(['researcher', 'reviewer_a', 'reviewer_b']));
+
+      // Verify parallel dispatch
+      final parallelOps = program.instructions.whereType<DispatchParallelTasksOp>().toList();
+      expect(parallelOps, hasLength(1));
+      expect(parallelOps.first.dispatches, hasLength(2));
+
+      // ── Execute ──
+      final fakeModel = FakeVasterModel(
+        defaultResponseText: 'Task completed successfully.',
+      );
+      final vm = await VasterVMEngine.bootstrap(
+        config: VMConfig(defaultModel: fakeModel, rootMountPath: '/workspace'),
+      );
+      final runtime = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+
+      var state = await runtime.executeProgram(program);
+      expect(state.status, equals(RuntimeStatus.pausedForHuman));
+
+      // Approve the research
+      state = await runtime.resumeWithHumanResponse(
+        HumanInteractionResponse.approve(requestId: 'research_approval'),
+      );
+
+      expect(state.status, equals(RuntimeStatus.halted));
+      expect(state.registers.containsKey('research_summary'), isTrue);
+      expect(state.registers.containsKey('review_a'), isTrue);
+      expect(state.registers.containsKey('review_b'), isTrue);
+
+      // Verify final report was written to VFS
+      final report = await vm.fileSystemManager
+          .resolveFileSystem('/workspace/final_report.md')
+          .readText('/workspace/final_report.md');
+      expect(report, contains('Approved!'));
+
+      await vm.shutdown();
+    });
+  });
 }
