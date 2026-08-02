@@ -236,9 +236,9 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ));
 
       case OutputNode n:
-        out.add(SetRegisterOp(
-          registerName: '__output__',
-          value: '\${${n.outputVariable}}',
+        out.add(ConcatRegisterOp(
+          targetVar: '__output__',
+          sourceVars: [n.outputVariable],
         ));
 
       case ProviderNode n:

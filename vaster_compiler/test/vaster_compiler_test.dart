@@ -238,11 +238,19 @@ void main() {
       );
 
       final program = compiler.compile(pipeline);
+      expect(
+        program.instructions.whereType<ConcatRegisterOp>().any(
+              (op) => op.targetVar == '__output__' && op.sourceVars.contains('analysis'),
+            ),
+        isTrue,
+      );
+
       final state = await runtime.executeProgram(program);
 
       expect(state.status, equals(RuntimeStatus.halted));
       expect(state.registers['brief'], equals('Build a REST API'));
       expect(state.registers['analysis'], contains('Pipeline complete.'));
+      expect(state.registers['__output__'], equals(state.registers['analysis']));
 
       await vm.shutdown();
     });
