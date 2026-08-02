@@ -102,6 +102,18 @@ abstract interface class VasterVirtualMachine {
     List<ContextCacheHint>? cacheHints,
   });
 
+  /// Typed continuation turn: sends a full message transcript (including
+  /// `tool_use` / `tool_result` parts) plus tool definitions to the model.
+  /// This is the ABI-preserving path used by the runtime's tool-calling loop.
+  Future<ModelResponse> promptWithHistory(
+    List<ChatMessage> messages, {
+    VasterModel? model,
+    List<ToolDefinition>? tools,
+    GenerationConfig? config,
+    CancellationToken? cancelToken,
+    List<ContextCacheHint>? cacheHints,
+  });
+
   /// Direct model prompt streaming.
   Stream<ModelResponseChunk> promptStream(
     String promptText, {

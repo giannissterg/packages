@@ -519,43 +519,101 @@ class VasterRuntime {
   /// Currently active tool definitions registered in this runtime context.
   List<ToolDefinition> get activeToolSet => List.unmodifiable(_activeToolSet);
 
+  /// Maximum model turns in one tool-calling loop (runaway guard).
+  static const int maxToolIterations = 8;
+
+  /// The ABI-preserving tool-calling loop.
+  ///
+  /// Tool calls dispatch through the VM's [ToolManager] symbol table — any
+  /// registered tool (sandbox bridges, function tools, toolsets) is callable
+  /// by the model. `write_file` / `read_file` remain as built-in VFS syscalls
+  /// when no registered tool overrides them. Every result returns to the model
+  /// as a typed `tool_result` part in a full transcript continuation — never
+  /// flattened to prose.
   Future<ModelResponse> _executeToolCallingLoop({
     required String prompt,
     required ModelResponse initialResponse,
     String? sessionId,
   }) async {
     var response = initialResponse;
+    final transcript = <ChatMessage>[ChatMessage.user(prompt)];
+
+    // Linked symbol table: program-registered defs + VM tool registry.
+    final toolDefinitions = {
+      for (final def in vm.toolManager.compiledDefinitions) def.name: def,
+      for (final def in _activeToolSet) def.name: def,
+    }.values.toList();
+
     var iterations = 0;
-    while (response.functionCalls.isNotEmpty && iterations < 5) {
+    while (response.functionCalls.isNotEmpty && iterations < maxToolIterations) {
       iterations++;
-      final toolCall = response.functionCalls.first;
-      _checkPolicy(PolicyAction.toolCall, toolCall.name);
 
-      String resultText;
-      try {
-        if (toolCall.name == 'write_file') {
-          final path = toolCall.arguments['path']?.toString() ?? '';
-          final content = toolCall.arguments['content']?.toString() ?? '';
-          final fs = vm.fileSystemManager.resolveFileSystem(path);
-          await fs.writeText(path, content);
-          resultText = 'Successfully wrote to $path';
-        } else if (toolCall.name == 'read_file') {
-          final path = toolCall.arguments['path']?.toString() ?? '';
-          final fs = vm.fileSystemManager.resolveFileSystem(path);
-          resultText = await fs.readText(path);
-        } else {
-          resultText = 'Tool ${toolCall.name} executed successfully.';
-        }
-      } catch (e) {
-        resultText = 'Tool execution error: $e';
+      // Echo the assistant turn (with its tool_use parts), then execute every
+      // call in the turn and answer them all in a single tool message.
+      transcript.add(response.message);
+      final results = <ContentPart>[];
+      for (final call in response.functionCalls) {
+        _checkPolicy(PolicyAction.toolCall, call.name);
+        results.add(FunctionResponsePart(
+          callId: call.callId,
+          name: call.name,
+          response: await _dispatchToolCall(call),
+        ));
       }
+      transcript.add(ChatMessage(role: Role.tool, parts: results));
 
-      final followUpPrompt = 'Tool output for ${toolCall.name}: $resultText';
-      response = sessionId != null
-          ? await vm.promptInSession(sessionId, followUpPrompt, model: _activeModel)
-          : await vm.prompt(followUpPrompt, model: _activeModel);
+      response = await vm.promptWithHistory(
+        transcript,
+        model: _activeModel,
+        tools: toolDefinitions,
+        cacheHints: _cacheHints.activeHints,
+      );
+      budget.consumeTokens(response.usage.totalTokenCount > 0
+          ? response.usage.totalTokenCount
+          : response.text.length ~/ 4);
     }
     return response;
+  }
+
+  /// Dispatches one tool call: registered tools win, then built-in VFS
+  /// syscalls, then a typed error payload the model can recover from.
+  Future<Map<String, dynamic>> _dispatchToolCall(FunctionCallPart call) async {
+    try {
+      // 1. Symbol table — the linked tool registry.
+      if (vm.toolManager.getTool(call.name) != null) {
+        final result = await vm.toolManager.executeCall(call);
+        return result.isError
+            ? {'error': result.errorDetails ?? 'Tool execution failed.'}
+            : result.response;
+      }
+
+      // 2. Built-in VFS syscalls.
+      switch (call.name) {
+        case 'write_file':
+          final path = call.arguments['path']?.toString() ?? '';
+          _checkPolicy(PolicyAction.fileWrite, path);
+          final content = call.arguments['content']?.toString() ?? '';
+          await vm.fileSystemManager.resolveFileSystem(path).writeText(path, content);
+          return {'status': 'ok', 'path': path};
+        case 'read_file':
+          final path = call.arguments['path']?.toString() ?? '';
+          _checkPolicy(PolicyAction.fileRead, path);
+          final content =
+              await vm.fileSystemManager.resolveFileSystem(path).readText(path);
+          return {'content': content};
+      }
+
+      // 3. Unlinked symbol.
+      return {
+        'error':
+            'Unknown tool "${call.name}" — not registered in the VM tool table.',
+      };
+    } on StateError catch (e) {
+      if (e.message.startsWith('Policy violation')) rethrow; // security trap
+      return {'error': e.message};
+    } catch (e) {
+      return {'error': 'Tool execution error: $e'};
+    }
   }
 
   void _checkPolicy(PolicyAction action, String resource) {

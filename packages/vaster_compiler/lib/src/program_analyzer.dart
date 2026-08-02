@@ -151,20 +151,26 @@ class ProgramAnalyzer {
       ));
     }
 
-    // ── Unreachable code ─────────────────────────────────────────────────
-    for (var pc = 1; pc < instructions.length; pc++) {
-      final previous = instructions[pc - 1];
-      final fallsThrough = previous is! HaltOp && previous is! JumpOp;
-      if (!fallsThrough && !jumpTargets.contains(pc)) {
+    // ── Unreachable code (forward reachability propagation) ──────────────
+    // An instruction is reachable iff the previous one falls through to it,
+    // or it is a jump target. (One-pass approximation: all jump targets are
+    // treated as reachable — conservative, never a false positive.)
+    var reachable = true;
+    for (var pc = 0; pc < instructions.length; pc++) {
+      if (jumpTargets.contains(pc)) reachable = true;
+      if (!reachable) {
         diagnostics.add(CompileDiagnostic(
           severity: CompileSeverity.warning,
           code: 'unreachable_code',
           message:
               'Instruction ${instructions[pc].opcode.name} is unreachable '
-              '(follows ${previous.opcode.name} and is not a jump target).',
+              '(no control path leads to it).',
           pc: pc,
         ));
+        continue;
       }
+      final inst = instructions[pc];
+      if (inst is HaltOp || inst is JumpOp) reachable = false;
     }
 
     return diagnostics;

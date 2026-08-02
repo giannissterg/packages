@@ -275,6 +275,37 @@ class VasterVMEngine implements VasterVirtualMachine {
   }
 
   @override
+  Future<ModelResponse> promptWithHistory(
+    List<ChatMessage> messages, {
+    VasterModel? model,
+    List<ToolDefinition>? tools,
+    GenerationConfig? config,
+    CancellationToken? cancelToken,
+    List<ContextCacheHint>? cacheHints,
+  }) async {
+    cancelToken?.throwIfCancelled();
+    resourceTracker.checkDeadline();
+    final activeModel = model ?? this.config.defaultModel;
+
+    final request = ModelRequest(
+      messages: messages,
+      tools: tools ?? const [],
+      generationConfig: config ?? const GenerationConfig(),
+      cancelToken: cancelToken,
+      cacheHints: cacheHints ?? const [],
+    );
+
+    final response = await activeModel.generate(request);
+    resourceTracker.consumeTokens(
+      response.usage.totalTokenCount > 0
+          ? response.usage.totalTokenCount
+          : response.text.length ~/ 4,
+    );
+
+    return response;
+  }
+
+  @override
   Future<ModelResponse> promptInSession(
     String sessionId,
     String promptText, {
