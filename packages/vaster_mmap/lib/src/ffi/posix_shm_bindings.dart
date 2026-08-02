@@ -1,0 +1,41 @@
+import 'dart:ffi';
+import 'package:ffi/ffi.dart';
+
+// POSIX System Constants for macOS / Linux
+const int oRdcwr = 0x0002;
+const int oCreat = 0x0200;
+const int protRead = 0x01;
+const int protWrite = 0x02;
+const int mapShared = 0x0001;
+final Pointer<Void> mapFailed = Pointer.fromAddress(-1);
+
+// C Function Signatures
+typedef NativeShmOpen = Int32 Function(Pointer<Utf8> name, Int32 oflag, Uint16 mode);
+typedef DartShmOpen = int Function(Pointer<Utf8> name, int oflag, int mode);
+
+typedef NativeOpen = Int32 Function(Pointer<Utf8> path, Int32 oflag, Uint16 mode);
+typedef DartOpen = int Function(Pointer<Utf8> path, int oflag, int mode);
+
+typedef NativeShmUnlink = Int32 Function(Pointer<Utf8> name);
+typedef DartShmUnlink = int Function(Pointer<Utf8> name);
+
+typedef NativeFtruncate = Int32 Function(Int32 fd, Int64 length);
+typedef DartFtruncate = int Function(int fd, int length);
+
+typedef NativeMmap = Pointer<Void> Function(Pointer<Void> addr, Size len, Int32 prot, Int32 flags, Int32 fd, Int64 offset);
+typedef DartMmap = Pointer<Void> Function(Pointer<Void> addr, int len, int prot, int flags, int fd, int offset);
+
+typedef NativeMunmap = Int32 Function(Pointer<Void> addr, Size len);
+typedef DartMunmap = int Function(Pointer<Void> addr, int len);
+
+/// FFI Bindings helper to low-level POSIX shared memory and semaphore APIs.
+class PosixShmBindings {
+  static final DynamicLibrary _libc = DynamicLibrary.process();
+
+  static final DartShmOpen shmOpen = _libc.lookupFunction<NativeShmOpen, DartShmOpen>('shm_open');
+  static final DartOpen open = _libc.lookupFunction<NativeOpen, DartOpen>('open');
+  static final DartShmUnlink shmUnlink = _libc.lookupFunction<NativeShmUnlink, DartShmUnlink>('shm_unlink');
+  static final DartFtruncate ftruncate = _libc.lookupFunction<NativeFtruncate, DartFtruncate>('ftruncate');
+  static final DartMmap mmap = _libc.lookupFunction<NativeMmap, DartMmap>('mmap');
+  static final DartMunmap munmap = _libc.lookupFunction<NativeMunmap, DartMunmap>('munmap');
+}

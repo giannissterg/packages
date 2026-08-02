@@ -50,3 +50,4 @@ workspace:
   - packages/vaster_model_rpc_server
   - packages/vaster_cli
   - packages/vaster
+  - packages/vaster_mmap
