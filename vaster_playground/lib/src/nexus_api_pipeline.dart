@@ -137,14 +137,34 @@ The platform exposes a unified gateway for downstream microservices.
         // Docs have no quality gate dependency — run independently
         DocumentationComponent(),
 
-        // ── Phase 7: Delivery Report ──────────────────────────────────────────
-        DeliveryReportComponent(),
-
-        // Write the delivery report to VFS and surface as pipeline output
-        WriteDocumentNode(
-          path: '/workspace/reports/delivery_report.md',
-          content: '\${delivery_report}',
+        // ── Phase 7: Human Approval Gate & Delivery Subroutine ───────────────
+        HumanApprovalComponent(
+          requestId: 'nexus_release_approval',
+          prompt: 'Approve production deployment of Nexus API release v1.0.0?',
+          onApprove: [
+            CallFunctionNode(functionName: 'deploy_nexus_subroutine'),
+          ],
+          onReject: [
+            WriteDocumentNode(
+              path: '/workspace/reports/delivery_report.md',
+              content: 'Deployment rejected by human approval gate.',
+            ),
+          ],
         ),
+
+        // Reusable subroutine definition compiled into jump-isolated program memory
+        DefineFunctionNode(
+          functionName: 'deploy_nexus_subroutine',
+          bodyNodes: [
+            DeliveryReportComponent(),
+            WriteDocumentNode(
+              path: '/workspace/reports/delivery_report.md',
+              content: '\${delivery_report}',
+            ),
+            ReturnNode(returnVariable: 'delivery_report'),
+          ],
+        ),
+
         OutputNode(outputVariable: 'delivery_report'),
       ],
     ),

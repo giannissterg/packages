@@ -2,6 +2,7 @@
 library;
 
 export 'src/compiled_context.dart';
+export 'src/context_cache_descriptor.dart';
 export 'src/context_heap.dart';
 export 'src/context_lifetime.dart';
 export 'src/context_priority.dart';

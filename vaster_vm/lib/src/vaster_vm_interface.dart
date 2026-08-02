@@ -56,6 +56,7 @@ abstract interface class VasterVirtualMachine {
     VasterModel? model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
+    List<ContextCacheHint>? cacheHints,
   });
 
   /// Direct model prompt streaming.
@@ -64,6 +65,7 @@ abstract interface class VasterVirtualMachine {
     VasterModel? model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
+    List<ContextCacheHint>? cacheHints,
   });
 
   /// Mounts a filesystem backend into [fileSystemManager] and bridges files to context.
@@ -74,6 +76,11 @@ abstract interface class VasterVirtualMachine {
 
   /// Registers a [CodeSandbox] into [sandboxManager] and bridges it into an [ExecutableTool].
   void registerSandbox(CodeSandbox sandbox);
+
+  /// Constructs and registers a default isolate-backed [CodeSandbox] for [sandboxId]
+  /// supporting [language]. This is a factory convenience so the runtime does not
+  /// need to depend on concrete sandbox implementations.
+  void mountSandbox(String sandboxId, SandboxLanguage language);
 
   /// Creates and registers an autonomous agent in [agentManager].
   Future<VasterAgent> createAgent({

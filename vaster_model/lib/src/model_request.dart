@@ -1,5 +1,6 @@
 import 'cancellation_token.dart';
 import 'chat_message.dart';
+import 'context_cache_hint.dart';
 import 'generation_config.dart';
 import 'tool_definition.dart';
 
@@ -23,6 +24,11 @@ class ModelRequest {
   /// Optional arbitrary metadata attached to this request context.
   final Map<String, dynamic> metadata;
 
+  /// Optional JIT context cache hints for pinned regions.
+  /// Each hint carries a content fingerprint that a [VasterModel] provider
+  /// can translate to its native caching handle (e.g. Gemini `cachedContent`).
+  final List<ContextCacheHint> cacheHints;
+
   const ModelRequest({
     required this.messages,
     this.systemInstruction,
@@ -30,6 +36,7 @@ class ModelRequest {
     this.generationConfig = const GenerationConfig(),
     this.cancelToken,
     this.metadata = const {},
+    this.cacheHints = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +46,8 @@ class ModelRequest {
         if (tools.isNotEmpty) 'tools': tools.map((t) => t.toJson()).toList(),
         'generationConfig': generationConfig.toJson(),
         if (metadata.isNotEmpty) 'metadata': metadata,
+        if (cacheHints.isNotEmpty)
+          'cacheHints': cacheHints.map((h) => h.toJson()).toList(),
       };
 
   factory ModelRequest.fromJson(Map<String, dynamic> json) {
@@ -62,6 +71,10 @@ class ModelRequest {
           ? GenerationConfig.fromJson(genRaw)
           : const GenerationConfig(),
       metadata: Map<String, dynamic>.from(json['metadata'] as Map? ?? {}),
+      cacheHints: (json['cacheHints'] as List? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map((h) => ContextCacheHint.fromJson(h))
+          .toList(),
     );
   }
 
@@ -72,6 +85,7 @@ class ModelRequest {
     GenerationConfig? generationConfig,
     CancellationToken? cancelToken,
     Map<String, dynamic>? metadata,
+    List<ContextCacheHint>? cacheHints,
   }) {
     return ModelRequest(
       systemInstruction: systemInstruction ?? this.systemInstruction,
@@ -80,6 +94,7 @@ class ModelRequest {
       generationConfig: generationConfig ?? this.generationConfig,
       cancelToken: cancelToken ?? this.cancelToken,
       metadata: metadata ?? Map.from(this.metadata),
+      cacheHints: cacheHints ?? List.from(this.cacheHints),
     );
   }
 }

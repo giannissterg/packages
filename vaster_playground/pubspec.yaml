@@ -10,6 +10,7 @@ environment:
 dependencies:
   vaster_ast:
   vaster_compiler:
+  vaster_continuation:
   vaster_domain:
   vaster_instruction:
   vaster_model:

@@ -8,6 +8,7 @@ environment:
   sdk: ^3.13.0-282.1.beta
 
 dependencies:
+  crypto: ^3.0.3
   vaster_model:
 
 dev_dependencies:

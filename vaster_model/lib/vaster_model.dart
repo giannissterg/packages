@@ -3,6 +3,7 @@ library;
 
 export 'src/cancellation_token.dart';
 export 'src/chat_message.dart';
+export 'src/context_cache_hint.dart';
 export 'src/content_part.dart';
 export 'src/generation_config.dart';
 export 'src/model_capabilities.dart';

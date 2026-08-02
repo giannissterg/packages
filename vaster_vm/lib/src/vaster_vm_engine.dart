@@ -8,6 +8,7 @@ import 'package:vaster_filesystem_manager/vaster_filesystem_manager.dart';
 import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_resources/vaster_resources.dart';
+import 'package:vaster_sandbox_isolate/vaster_sandbox_isolate.dart';
 import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
@@ -122,6 +123,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     VasterModel? model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
+    List<ContextCacheHint>? cacheHints,
   }) async {
     cancelToken?.throwIfCancelled();
     resourceTracker.checkDeadline();
@@ -131,6 +133,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       messages: [ChatMessage.user(promptText)],
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
+      cacheHints: cacheHints ?? const [],
     );
 
     final response = await activeModel.generate(request);
@@ -147,6 +150,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     VasterModel? model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
+    List<ContextCacheHint>? cacheHints,
   }) async* {
     cancelToken?.throwIfCancelled();
     resourceTracker.checkDeadline();
@@ -156,6 +160,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       messages: [ChatMessage.user(promptText)],
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
+      cacheHints: cacheHints ?? const [],
     );
 
     yield* activeModel.generateStream(request);
@@ -195,6 +200,18 @@ class VasterVMEngine implements VasterVirtualMachine {
       description: sandbox.descriptor.description,
     );
     toolManager.registerTool(sandboxTool);
+  }
+
+  @override
+  void mountSandbox(String sandboxId, SandboxLanguage language) {
+    registerSandbox(IsolateCodeSandbox(
+      descriptor: SandboxDescriptor(
+        sandboxId: sandboxId,
+        type: 'isolate',
+        description: 'ISA Isolate Sandbox',
+        supportedLanguages: [language],
+      ),
+    ));
   }
 
   @override

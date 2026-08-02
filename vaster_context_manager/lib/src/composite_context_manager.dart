@@ -67,6 +67,27 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
+  ContextCacheDescriptor? getCacheDescriptor(String regionId) {
+    for (final child in children) {
+      final descriptor = child.getCacheDescriptor(regionId);
+      if (descriptor != null) return descriptor;
+    }
+    return null;
+  }
+
+  @override
+  List<ContextCacheDescriptor> getPinnedCacheDescriptors() {
+    final seen = <String>{};
+    final descriptors = <ContextCacheDescriptor>[];
+    for (final child in children) {
+      for (final d in child.getPinnedCacheDescriptors()) {
+        if (seen.add(d.regionId)) descriptors.add(d);
+      }
+    }
+    return descriptors;
+  }
+
+  @override
   Future<void> syncSources() async {
     await Future.wait(children.map((child) => child.syncSources()));
   }

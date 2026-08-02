@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:vaster_context/vaster_context.dart';
+import 'package:vaster_model/vaster_model.dart';
 import 'allocation_strategy.dart';
 import 'context_manager_interface.dart';
 
 /// Standard single-heap implementation of [ContextManager].
 class BasicContextManager implements ContextManager {
   final List<ContextSource> _sources = [];
+  /// In-process cache: regionId → ContextCacheDescriptor (keyed by content fingerprint).
+  final Map<String, ContextCacheDescriptor> _cacheDescriptors = {};
 
   @override
   final ContextHeap heap = ContextHeap();
@@ -51,6 +54,41 @@ class BasicContextManager implements ContextManager {
     if (region != null) {
       heap.addRegion(region.copyWith(isPinned: false));
     }
+    _cacheDescriptors.remove(regionId);
+  }
+
+  @override
+  ContextCacheDescriptor? getCacheDescriptor(String regionId) {
+    final region = heap.regions.where((r) => r.id == regionId).firstOrNull;
+    if (region == null) return null;
+
+    // Build a canonical text fingerprint from the region's message content.
+    final rawContent = region.messages
+        .expand((m) => m.parts)
+        .map((p) {
+          if (p is TextPart) return p.text;
+          return p.toString();
+        })
+        .join('\n');
+
+    final existing = _cacheDescriptors[regionId];
+    if (existing != null && !existing.isExpired) return existing;
+
+    final descriptor = ContextCacheDescriptor.fromContent(
+      regionId: regionId,
+      rawContent: rawContent,
+    );
+    _cacheDescriptors[regionId] = descriptor;
+    return descriptor;
+  }
+
+  @override
+  List<ContextCacheDescriptor> getPinnedCacheDescriptors() {
+    return heap.regions
+        .where((r) => r.isPinned)
+        .map((r) => getCacheDescriptor(r.id))
+        .whereType<ContextCacheDescriptor>()
+        .toList();
   }
 
   @override

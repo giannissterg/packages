@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:vaster_compiler/vaster_compiler.dart';
+import 'package:vaster_continuation/vaster_continuation.dart';
+import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_model_gemini_cli/vaster_model_gemini_cli.dart';
@@ -79,10 +81,44 @@ Future<void> runPlayground({
   final runtime = VasterRuntime(vm: vm);
 
   final stopwatch = Stopwatch()..start();
-  final state = await runtime.executeProgram(program);
+  var state = await runtime.executeProgram(program);
+
+  // ── 5. Human-in-the-Loop & Continuation Snapshot ───────────────────────────
+  if (state.status == RuntimeStatus.pausedForHuman) {
+    final request = runtime.pendingHumanRequest;
+    stdout.writeln('  ⏸  VM PAUSED FOR HUMAN INTERACTION (HITL)');
+    stdout.writeln('     Request ID : ${request?.requestId}');
+    stdout.writeln('     Prompt     : "${request?.prompt}"\n');
+
+    _printPhase('CONTINUATION SNAPSHOT', 'Capturing VasterContinuation snapshot to JSON');
+    final continuationManager = ContinuationManager();
+    final snapshot = continuationManager.capture(
+      runtime,
+      program.programName,
+      activeModelDescriptor: descriptor,
+    );
+    final snapshotJson = snapshot.toJson();
+
+    stdout.writeln('  ✓ Captured VasterContinuation snapshot ID: ${snapshot.continuationId}');
+    stdout.writeln('  ✓ Resume PC: ${snapshot.resumePc}');
+    stdout.writeln('  ✓ Active Model Descriptor: ${snapshot.activeModelDescriptor?.descriptorKey}');
+    stdout.writeln('  ✓ JSON Payload Keys: ${snapshotJson.keys.join(', ')}\n');
+
+    _printPhase('RESUMPTION', 'Restoring VasterContinuation & approving deployment turn');
+    state = await continuationManager.restoreAndResume(
+      runtime,
+      snapshot,
+      program,
+      humanResponse: HumanInteractionResponse.approve(
+        requestId: request?.requestId ?? '',
+        comment: 'Approved by Playground CLI operator',
+      ),
+    );
+  }
+
   stopwatch.stop();
 
-  // ── 5. Print results ───────────────────────────────────────────────────────
+  // ── 6. Print results ───────────────────────────────────────────────────────
   _printResults(state, stopwatch.elapsedMilliseconds);
 
   await vm.shutdown();

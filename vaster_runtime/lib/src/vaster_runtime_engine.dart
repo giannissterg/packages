@@ -1,77 +1,63 @@
-import 'dart:convert';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_vm/vaster_vm.dart';
+import 'call_stack.dart';
+import 'cache_hint_tracker.dart';
+import 'hitl_controller.dart';
+import 'register_file.dart';
 import 'runtime_state.dart';
 import 'runtime_status.dart';
 
 /// Low-Level ISA Execution Runtime consuming [VasterVirtualMachine].
+///
+/// Acts as a **pure fetch-decode-dispatch loop**. Each responsibility is
+/// delegated to a focused collaborator:
+///
+/// | Collaborator       | Responsibility                                  |
+/// |--------------------|--------------------------------------------------|
+/// | [RegisterFile]     | Named register I/O and data manipulation ops    |
+/// | [CallStack]        | Subroutine activation records                    |
+/// | [CacheHintTracker] | JIT context cache hint tracking                 |
+/// | [HitlController]   | Human-in-the-Loop lifecycle state machine       |
+/// | [VasterVirtualMachine] | All VM subsystem access (model, VFS, agents…) |
 class VasterRuntime {
   final VasterVirtualMachine vm;
-  final Map<String, dynamic> _registers = {};
+
+  final RegisterFile _registers = RegisterFile();
+  final CallStack _callStack = CallStack();
+  final CacheHintTracker _cacheHints = CacheHintTracker();
+  final HitlController _hitl = HitlController();
 
   int _pc = 0;
   RuntimeStatus _status = RuntimeStatus.idle;
   String? _lastError;
 
   VasterModel? _activeModel;
-  HumanInteractionRequest? _pendingHumanRequest;
   VasterProgram? _currentProgram;
-  final List<Map<String, dynamic>> _callStack = [];
 
   VasterRuntime({required this.vm});
 
-  /// Pending human interaction request if current status is [RuntimeStatus.pausedForHuman].
-  HumanInteractionRequest? get pendingHumanRequest => _pendingHumanRequest;
+  /// Pending human interaction request if status is [RuntimeStatus.pausedForHuman].
+  HumanInteractionRequest? get pendingHumanRequest => _hitl.pendingRequest;
 
-  /// Current execution state.
+  /// Current execution state snapshot.
   RuntimeState get state => RuntimeState(
         pc: _pc,
         status: _status,
-        registers: Map.unmodifiable(_registers),
+        registers: _registers.snapshot(),
         errorDetails: _lastError,
       );
 
-  /// Restores execution from raw register/PC state and resumes program execution.
-  Future<RuntimeState> restoreAndResume(
-    int resumePc,
-    VasterProgram program, {
-    Map<String, dynamic>? registers,
-    HumanInteractionRequest? pendingRequest,
-    HumanInteractionResponse? humanResponse,
-  }) async {
-    _currentProgram = program;
-    _pc = resumePc;
-    if (registers != null) {
-      _registers.clear();
-      _registers.addAll(registers);
-    }
-    _pendingHumanRequest = pendingRequest;
-
-    if (humanResponse != null) {
-      final req = _pendingHumanRequest;
-      if (req != null && req.outputVar != null) {
-        _registers[req.outputVar!] = humanResponse.value;
-        _registers['${req.outputVar!}_status'] = humanResponse.status.name;
-      }
-      _pendingHumanRequest = null;
-      _pc++; // Advance past YieldHumanInteractionOp
-    }
-
-    _status = RuntimeStatus.running;
-    _lastError = null;
-
-    return _runLoop(program);
-  }
-
-  /// Executes a [VasterProgram] step-by-step from start to finish or until [HaltOp].
+  /// Executes a [VasterProgram] from the beginning until [HaltOp] or error.
   Future<RuntimeState> executeProgram(VasterProgram program) async {
     _currentProgram = program;
     _pc = 0;
     _status = RuntimeStatus.running;
     _lastError = null;
-    _pendingHumanRequest = null;
+    _registers.clear();
     _callStack.clear();
+    _cacheHints.clear();
+    _hitl.clear();
 
     return _runLoop(program);
   }
@@ -81,100 +67,117 @@ class VasterRuntime {
     if (_status != RuntimeStatus.pausedForHuman || _currentProgram == null) {
       throw StateError('Runtime is not paused for human interaction.');
     }
-
-    final req = _pendingHumanRequest;
-    if (req != null && req.outputVar != null) {
-      _registers[req.outputVar!] = response.value;
-      _registers['${req.outputVar!}_status'] = response.status.name;
-    }
-
-    _pendingHumanRequest = null;
+    _pc += _hitl.consume(response: response, registers: _registers);
     _status = RuntimeStatus.running;
-    _pc++; // Advance past YieldHumanInteractionOp
-
     return _runLoop(_currentProgram!);
   }
+
+  /// Restores execution from a continuation snapshot and resumes the program.
+  Future<RuntimeState> restoreAndResume(
+    int resumePc,
+    VasterProgram program, {
+    Map<String, dynamic>? registers,
+    HumanInteractionRequest? pendingRequest,
+    HumanInteractionResponse? humanResponse,
+  }) async {
+    _currentProgram = program;
+    _pc = resumePc;
+    if (registers != null) _registers.restore(registers);
+    _hitl.restorePending(pendingRequest);
+
+    if (humanResponse != null) {
+      _pc += _hitl.consume(response: humanResponse, registers: _registers);
+    }
+
+    _status = RuntimeStatus.running;
+    _lastError = null;
+    return _runLoop(program);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Internal fetch-decode loop
+  // ─────────────────────────────────────────────────────────────────────────
 
   Future<RuntimeState> _runLoop(VasterProgram program) async {
     while (_pc < program.instructions.length && _status == RuntimeStatus.running) {
       final instruction = program.instructions[_pc];
       try {
         await _executeInstruction(instruction);
-        if (_status == RuntimeStatus.running) {
-          _pc++;
-        }
+        if (_status == RuntimeStatus.running) _pc++;
       } catch (e, st) {
         _status = RuntimeStatus.error;
         _lastError = '$e\n$st';
         break;
       }
     }
-
-    if (_status == RuntimeStatus.running) {
-      _status = RuntimeStatus.halted;
-    }
-
+    if (_status == RuntimeStatus.running) _status = RuntimeStatus.halted;
     return state;
   }
 
-  /// Executes a single [VasterInstruction] step.
+  // ─────────────────────────────────────────────────────────────────────────
+  // Dispatch table — each arm delegates to the correct owner (≤3 lines each)
+  // ─────────────────────────────────────────────────────────────────────────
+
   Future<void> _executeInstruction(VasterInstruction inst) async {
     switch (inst) {
+      // ── Model / LLM ───────────────────────────────────────────────────────
       case PromptOp op:
-        final response = await vm.prompt(op.promptText, model: _activeModel);
-        if (op.outputVar != null) {
-          _registers[op.outputVar!] = response.text;
-        }
+        final response = await vm.prompt(
+          op.promptText,
+          model: _activeModel,
+          cacheHints: _cacheHints.activeHints,
+        );
+        if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
+      case SelectModelOp op:
+        _activeModel = vm.modelRegistry.resolveModel(op.descriptor);
+
+      // ── Filesystem ────────────────────────────────────────────────────────
       case MountFsOp op:
-        final fs = MemoryVasterFileSystem();
-        vm.mountFileSystem(op.mountPrefix, fs);
+        vm.mountFileSystem(op.mountPrefix, MemoryVasterFileSystem());
 
       case WriteFileOp op:
-        final targetFs = vm.fileSystemManager.resolveFileSystem(op.vfsPath);
-        await targetFs.writeText(op.vfsPath, op.content);
+        final fs = vm.fileSystemManager.resolveFileSystem(op.vfsPath);
+        await fs.writeText(op.vfsPath, op.content);
 
       case ReadFileOp op:
-        final targetFs = vm.fileSystemManager.resolveFileSystem(op.vfsPath);
-        final content = await targetFs.readText(op.vfsPath);
-        if (op.outputVar != null) {
-          _registers[op.outputVar!] = content;
-        }
+        final fs = vm.fileSystemManager.resolveFileSystem(op.vfsPath);
+        final content = await fs.readText(op.vfsPath);
+        if (op.outputVar != null) _registers.write(op.outputVar!, content);
 
+      case BeginTransactionOp _:
+        await vm.fileSystemManager.beginTransaction();
+
+      case CommitOp _:
+        await vm.fileSystemManager.commit();
+
+      case RollbackOp _:
+        await vm.fileSystemManager.rollback();
+
+      // ── Sandbox ───────────────────────────────────────────────────────────
       case RegisterSandboxOp op:
-        final sandbox = IsolateCodeSandbox(
-          descriptor: SandboxDescriptor(
-            sandboxId: op.sandboxId,
-            type: 'isolate',
-            description: 'ISA Isolate Sandbox',
-            supportedLanguages: [op.language],
-          ),
-        );
-        vm.registerSandbox(sandbox);
+        vm.mountSandbox(op.sandboxId, op.language);
 
       case ExecSandboxOp op:
         final result = await vm.sandboxManager.runCode(
           sandboxId: op.sandboxId,
           codeOrCommand: op.code,
         );
-        if (op.outputVar != null) {
-          _registers[op.outputVar!] = result.stdout;
-        }
+        if (op.outputVar != null) _registers.write(op.outputVar!, result.stdout);
 
+      // ── Agents ────────────────────────────────────────────────────────────
       case CreateAgentOp op:
         await vm.createAgent(descriptor: op.descriptor);
 
       case DispatchAgentTaskOp op:
+        final meta = _cacheHints.isEmpty
+            ? <String, dynamic>{}
+            : {'cacheHints': _cacheHints.activeHints.map((h) => h.toJson()).toList()};
         final output = await vm.runAgentTask(
-          AgentTask(
-            taskId: 'isa_task_$_pc',
-            inputPrompt: op.taskPrompt,
-          ),
+          AgentTask(taskId: 'isa_task_$_pc', inputPrompt: op.taskPrompt, metadata: meta),
           agentId: op.agentId,
         );
-        if (op.outputVar != null) {
-          _registers[op.outputVar!] = output.outputText;
-        }
+        if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
       case DispatchParallelTasksOp op:
         if (vm.agentManager is AdvancedAgentManager) {
@@ -185,13 +188,10 @@ class VasterRuntime {
                     task: AgentTask(taskId: 'parallel_$_pc', inputPrompt: d.taskPrompt),
                   ))
               .toList();
-
           final outputs = await manager.dispatchParallelTasks(dispatches);
           for (int i = 0; i < outputs.length; i++) {
-            final varName = op.dispatches[i].outputVar;
-            if (varName != null) {
-              _registers[varName] = outputs[i].outputText;
-            }
+            final v = op.dispatches[i].outputVar;
+            if (v != null) _registers.write(v, outputs[i].outputText);
           }
         }
 
@@ -203,98 +203,63 @@ class VasterRuntime {
           payload: op.payload,
         ));
 
+      // ── Session / Context ─────────────────────────────────────────────────
       case ForkSessionOp op:
-        final session = vm.sessionManager.getSession(op.sourceSessionId);
-        if (session != null) {
-          session.fork(newSessionId: op.targetSessionId);
-        }
+        vm.sessionManager.getSession(op.sourceSessionId)?.fork(newSessionId: op.targetSessionId);
 
       case PinContextOp op:
         vm.contextManager.pinRegion(op.regionId);
+        _cacheHints.onRegionPinned(op.regionId, vm.contextManager);
 
       case SetQuotaOp _:
-        break;
+        break; // quota enforcement handled by ResourceTracker in vm
 
-      case SelectModelOp op:
-        final model = vm.modelRegistry.resolveModel(op.descriptor);
-        if (model != null) {
-          _activeModel = model;
-        }
-
+      // ── HITL ─────────────────────────────────────────────────────────────
       case YieldHumanInteractionOp op:
-        _pendingHumanRequest = op.request;
-        _status = RuntimeStatus.pausedForHuman;
-        vm.eventBus.publish(HumanInteractionRequiredEvent(
-          eventId: 'evt_hitl_$_pc',
-          request: op.request,
-        ));
+      _status = _hitl.pause(request: op.request, eventBus: vm.eventBus, currentPc: _pc);
 
+      // ── Control flow ──────────────────────────────────────────────────────
       case CallOp op:
-        for (final entry in op.arguments.entries) {
-          _registers[entry.key] = entry.value;
-        }
-        _callStack.add({
-          'functionName': op.functionName,
-          'returnPc': _pc + 1,
-          'outputVar': op.outputVar,
-        });
+        _registers.writeAll(op.arguments);
+        _callStack.push(ActivationRecord(
+          functionName: op.functionName,
+          returnPc: _pc + 1,
+          outputVar: op.outputVar,
+        ));
         _pc = op.targetPc - 1;
 
       case ReturnSubroutineOp op:
-        if (_callStack.isNotEmpty) {
-          final topFrame = _callStack.removeLast();
-          final returnPc = topFrame['returnPc'] as int;
-          final outputVar = topFrame['outputVar'] as String?;
-
-          if (op.returnRegister != null && outputVar != null) {
-            _registers[outputVar] = _registers[op.returnRegister!];
-          }
-
-          _pc = returnPc - 1;
-        } else {
+        if (_callStack.isEmpty) {
           _status = RuntimeStatus.halted;
+        } else {
+          final frame = _callStack.pop();
+          if (op.returnRegister != null && frame.outputVar != null) {
+            _registers.write(frame.outputVar!, _registers.read(op.returnRegister!));
+          }
+          _pc = frame.returnPc - 1;
         }
 
       case JumpOp op:
-        _pc = op.targetPc - 1; // -1 because _pc++ runs at end of loop
+        _pc = op.targetPc - 1;
 
       case JumpIfOp op:
-        final val = _registers[op.conditionVar];
+        final val = _registers.read(op.conditionVar);
         final isTrue = val != null && val != false && val != '' && val != 0;
-        if (isTrue) {
-          _pc = op.targetPc - 1;
-        }
+        if (isTrue) _pc = op.targetPc - 1;
 
+      // ── Register file ─────────────────────────────────────────────────────
       case SetRegisterOp op:
-        _registers[op.registerName] = op.value;
+        _registers.write(op.registerName, op.value);
 
       case JsonExtractOp op:
-        final raw = _registers[op.sourceVar];
-        if (raw != null) {
-          try {
-            final decoded = raw is Map ? raw : jsonDecode(raw.toString());
-            if (decoded is Map && decoded.containsKey(op.jsonKey)) {
-              _registers[op.targetVar] = decoded[op.jsonKey];
-            }
-          } catch (_) {}
-        }
+        _registers.jsonExtract(
+          sourceVar: op.sourceVar,
+          jsonKey: op.jsonKey,
+          targetVar: op.targetVar,
+        );
 
       case ConcatRegisterOp op:
-        final buffer = StringBuffer();
-        for (final varName in op.sourceVars) {
-          final v = _registers[varName];
-          if (v != null) buffer.write(v);
-        }
-        _registers[op.targetVar] = buffer.toString();
-
-      case BeginTransactionOp _:
-        await vm.fileSystemManager.beginTransaction();
-
-      case CommitOp _:
-        await vm.fileSystemManager.commit();
-
-      case RollbackOp _:
-        await vm.fileSystemManager.rollback();
+        _registers.concat(targetVar: op.targetVar, sourceVars: op.sourceVars);
 
       case HaltOp _:
         _status = RuntimeStatus.halted;

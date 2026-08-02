@@ -21,6 +21,14 @@ abstract interface class ContextManager {
   /// Unpins a context region by ID.
   void unpinRegion(String regionId);
 
+  /// Returns a [ContextCacheDescriptor] for a pinned region, computing or retrieving
+  /// its SHA-256 content fingerprint for JIT provider-side context caching.
+  /// Returns null if [regionId] does not exist in the heap.
+  ContextCacheDescriptor? getCacheDescriptor(String regionId);
+
+  /// Returns cache descriptors for all currently pinned regions.
+  List<ContextCacheDescriptor> getPinnedCacheDescriptors();
+
   /// Synchronizes all registered context sources into the active [heap].
   Future<void> syncSources();
 

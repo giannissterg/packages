@@ -22,7 +22,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     final pendingCalls = <int, String>{}; // instruction index -> functionName
 
     final mainNodes = <WorkflowAstNode>[];
-    final functionNodes = <DefineFunctionNode>[];
+    final functionNodes = <_ExtractedFunction>[];
 
     _extractNodes(pipeline.bodyNodes, mainNodes, functionNodes, context);
 
@@ -34,9 +34,9 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       final jumpToHaltIdx = instructions.length;
       instructions.add(const JumpOp(targetPc: 0)); // Placeholder
 
-      for (final fnNode in functionNodes) {
-        functionSymbols[fnNode.functionName] = instructions.length;
-        _compileNodes(fnNode.bodyNodes, instructions, context, functionSymbols, pendingCalls);
+      for (final fn in functionNodes) {
+        functionSymbols[fn.node.functionName] = instructions.length;
+        _compileNodes(fn.node.bodyNodes, instructions, fn.context, functionSymbols, pendingCalls);
         if (instructions.isEmpty || instructions.last is! ReturnSubroutineOp) {
           instructions.add(const ReturnSubroutineOp());
         }
@@ -49,17 +49,17 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     instructions.add(const HaltOp());
 
     // 3. Backpatch function call target PCs
-    for (final entry in pendingCalls.entries) {
-      final idx = entry.key;
-      final fnName = entry.value;
-      final targetPc = functionSymbols[fnName] ?? 0;
-      final origCall = instructions[idx] as CallOp;
-      instructions[idx] = CallOp(
-        functionName: fnName,
-        targetPc: targetPc,
-        arguments: origCall.arguments,
-        outputVar: origCall.outputVar,
-      );
+    for (int i = 0; i < instructions.length; i++) {
+      final inst = instructions[i];
+      if (inst is CallOp) {
+        final targetPc = functionSymbols[inst.functionName] ?? 0;
+        instructions[i] = CallOp(
+          functionName: inst.functionName,
+          targetPc: targetPc,
+          arguments: inst.arguments,
+          outputVar: inst.outputVar,
+        );
+      }
     }
 
     return VasterProgram(
@@ -71,12 +71,12 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
   void _extractNodes(
     List<WorkflowAstNode> sourceNodes,
     List<WorkflowAstNode> mainNodes,
-    List<DefineFunctionNode> functionNodes,
+    List<_ExtractedFunction> functionNodes,
     BuildContext context,
   ) {
     for (final node in sourceNodes) {
       if (node is DefineFunctionNode) {
-        functionNodes.add(node);
+        functionNodes.add(_ExtractedFunction(node, context));
       } else if (node is ComposableNode) {
         final expanded = node.build(context);
         _extractNodes([expanded], mainNodes, functionNodes, context);
@@ -248,4 +248,10 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         _compileNode(expanded, out, context, functionSymbols, pendingCalls);
     }
   }
+}
+
+class _ExtractedFunction {
+  final DefineFunctionNode node;
+  final BuildContext context;
+  const _ExtractedFunction(this.node, this.context);
 }
