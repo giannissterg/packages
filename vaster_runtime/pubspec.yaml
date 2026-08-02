@@ -17,6 +17,7 @@ dependencies:
   vaster_policy:
   vaster_resources:
   vaster_scheduler:
+  vaster_tool:
   vaster_vm:
 
 dev_dependencies:

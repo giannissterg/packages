@@ -1,19 +1,25 @@
 import 'dart:async';
 import 'package:vaster_agent_manager_advanced/vaster_agent_manager_advanced.dart';
 import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
+import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_filesystem_manager/vaster_filesystem_manager.dart';
 import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 import 'package:vaster_resources/vaster_resources.dart';
+import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_sandbox_isolate/vaster_sandbox_isolate.dart';
 import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 import 'model_registry.dart';
+import 'program_execution_job.dart';
 import 'vaster_vm_interface.dart';
 import 'vm_config.dart';
 
@@ -55,6 +61,14 @@ class VasterVMEngine implements VasterVirtualMachine {
   @override
   final PolicyEngine policyEngine;
 
+  @override
+  final VasterScheduler scheduler;
+
+  @override
+  final ExecutionBudget rootBudget;
+
+  final Map<String, ProgramExecutionJob> _jobs = {};
+
   VasterVMEngine._({
     required this.config,
     required this.sessionManager,
@@ -68,6 +82,8 @@ class VasterVMEngine implements VasterVirtualMachine {
     required this.resourceTracker,
     required this.modelRegistry,
     required this.policyEngine,
+    required this.scheduler,
+    required this.rootBudget,
   });
 
   /// Factory bootstrap method to create a fully configured [VasterVMEngine].
@@ -77,6 +93,8 @@ class VasterVMEngine implements VasterVirtualMachine {
     List<ExecutableTool> initialTools = const [],
     List<CodeSandbox> initialSandboxes = const [],
     PolicyEngine? policyEngine,
+    VasterScheduler? scheduler,
+    ExecutionBudget? rootBudget,
   }) async {
     final eventBus = BasicEventBus();
     final messagingHub = BasicAgentMessagingHub();
@@ -88,6 +106,8 @@ class VasterVMEngine implements VasterVirtualMachine {
     final toolManager = BasicToolManager(tools: initialTools);
     final sandboxManager = BasicSandboxManager(sandboxes: initialSandboxes);
     final activePolicyEngine = policyEngine ?? BasicPolicyEngine(eventBus: eventBus);
+    final activeScheduler = scheduler ?? BasicVasterScheduler(taskQueue: PriorityTaskQueue());
+    final activeRootBudget = rootBudget ?? ExecutionBudget.unlimited();
 
     final agentManager = AdvancedAgentManager(
       sessionManager: sessionManager,
@@ -110,6 +130,8 @@ class VasterVMEngine implements VasterVirtualMachine {
       resourceTracker: resourceTracker,
       modelRegistry: modelRegistry,
       policyEngine: activePolicyEngine,
+      scheduler: activeScheduler,
+      rootBudget: activeRootBudget,
     );
 
     // Automatic Bridge 1: Mount root filesystem if provided, or default MemoryVasterFileSystem
@@ -122,6 +144,78 @@ class VasterVMEngine implements VasterVirtualMachine {
     }
 
     return vm;
+  }
+
+  @override
+  ProgramExecutionJob submitProgram(
+    VasterProgram program, {
+    ExecutionPolicy? policy,
+    ExecutionBudget? customBudget,
+    TaskPriority priority = TaskPriority.normal,
+  }) {
+    final jobId = 'job_${_jobs.length + 1}_${program.programName}';
+    final jobBudget = customBudget ?? rootBudget.createChildBudget();
+    final activePolicy = policy ?? ExecutionPolicy.unlimited;
+
+    final runtime = VasterRuntime(
+      vm: this,
+      policy: activePolicy,
+      budget: jobBudget,
+      scheduler: scheduler,
+    );
+
+    final job = ProgramExecutionJob(
+      jobId: jobId,
+      program: program,
+      runtime: runtime,
+      budget: jobBudget,
+      priority: priority,
+      lastState: const RuntimeState(pc: 0, status: RuntimeStatus.idle),
+    );
+
+    scheduler.taskQueue.enqueue(
+      ScheduledTask(
+        taskId: jobId,
+        taskName: program.programName,
+        priority: priority,
+        budget: jobBudget,
+        action: () async => job.runtime.executeProgram(program),
+      ),
+    );
+
+    _jobs[jobId] = job;
+    return job;
+  }
+
+  @override
+  Future<Map<String, RuntimeState>> runScheduledJobs({int stepQuantum = 5}) async {
+    final results = <String, RuntimeState>{};
+
+    while (scheduler.taskQueue.isNotEmpty) {
+      final task = scheduler.taskQueue.dequeue();
+      if (task == null) break;
+
+      final job = _jobs[task.taskId];
+      if (job == null || job.isDone || job.isPausedForHuman) continue;
+
+      final state = await job.runtime.executeStep(job.program, stepCount: stepQuantum);
+      job.lastState = state;
+      results[job.jobId] = state;
+
+      if (!job.isDone && !job.isPausedForHuman) {
+        scheduler.taskQueue.enqueue(
+          ScheduledTask(
+            taskId: job.jobId,
+            taskName: job.program.programName,
+            priority: job.priority,
+            budget: job.budget,
+            action: () async => job.runtime.executeProgram(job.program),
+          ),
+        );
+      }
+    }
+
+    return results;
   }
 
   @override

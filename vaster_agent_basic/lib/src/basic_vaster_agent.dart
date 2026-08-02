@@ -77,7 +77,7 @@ class BasicVasterAgent implements VasterAgent {
         );
         final compiled = await session.contextManager.compileContext(budget: budget);
         final systemInstruction = compiled.systemInstruction;
-        final messages = [...compiled.messages];
+        final messages = [...compiled.messages, ...session.history];
 
         // b. Build ModelRequest — agent owns this, not the session
         final request = ModelRequest(

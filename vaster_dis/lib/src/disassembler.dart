@@ -141,6 +141,10 @@ class VasterDisassembler {
       case PinContextOp op:
         return 'region=${op.regionId}';
 
+      case RegisterToolSetOp op:
+        final toolNames = op.tools.map((t) => t.name).join(', ');
+        return 'tools [${op.tools.length}]: $toolNames';
+
       case SetQuotaOp op:
         return 'tokens=${op.quota.maxTokenBudget} tools=${op.quota.maxToolCallsPerTask}';
 

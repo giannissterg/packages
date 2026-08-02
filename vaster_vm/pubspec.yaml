@@ -14,6 +14,7 @@ dependencies:
   vaster_agent_manager_advanced:
   vaster_agent_manager_basic:
   vaster_agent_messaging:
+  vaster_budget:
   vaster_context:
   vaster_context_manager:
   vaster_events:
@@ -21,14 +22,17 @@ dependencies:
   vaster_filesystem_local:
   vaster_filesystem_manager:
   vaster_filesystem_memory:
+  vaster_instruction:
   vaster_model:
   vaster_policy:
   vaster_policy_engine:
   vaster_resources:
+  vaster_runtime:
   vaster_sandbox:
   vaster_sandbox_isolate:
   vaster_sandbox_manager:
   vaster_sandbox_process:
+  vaster_scheduler:
   vaster_session:
   vaster_session_manager:
   vaster_tool:

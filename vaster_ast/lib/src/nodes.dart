@@ -84,9 +84,17 @@ class ToolSet extends ComposableNode {
   VasterNode build(BuildContext context) {
     return Provider<ToolSetData>(
       value: ToolSetData(tools),
-      children: children,
+      children: [
+        _ToolSetHeader(tools: tools),
+        ...children,
+      ],
     );
   }
+}
+
+final class _ToolSetHeader extends VasterNode {
+  final List<ToolDefinition> tools;
+  const _ToolSetHeader({required this.tools});
 }
 
 /// Storage Mount scope provider node.
@@ -111,6 +119,66 @@ class Mount extends ComposableNode {
 final class _MountHeader extends VasterNode {
   final StorageMount mount;
   const _MountHeader({required this.mount});
+}
+
+/// Budget scope provider node in AST.
+/// Enforces sub-tree budget constraints (maxTokens, maxCost, maxDuration).
+class BudgetScope extends ComposableNode {
+  final int? maxTokens;
+  final double? maxCost;
+  final Duration? maxDuration;
+  final List<VasterNode> children;
+
+  const BudgetScope({
+    this.maxTokens,
+    this.maxCost,
+    this.maxDuration,
+    this.children = const [],
+  });
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Provider<BudgetConstraint>(
+      value: BudgetConstraint(
+        maxTokens: maxTokens,
+        maxCost: maxCost,
+        maxDuration: maxDuration,
+      ),
+      children: [
+        _BudgetHeader(
+          maxTokens: maxTokens,
+          maxCost: maxCost,
+          maxDuration: maxDuration,
+        ),
+        ...children,
+      ],
+    );
+  }
+}
+
+/// Data class carrying budget constraint parameters in BuildContext.
+final class BudgetConstraint {
+  final int? maxTokens;
+  final double? maxCost;
+  final Duration? maxDuration;
+
+  const BudgetConstraint({
+    this.maxTokens,
+    this.maxCost,
+    this.maxDuration,
+  });
+}
+
+final class _BudgetHeader extends VasterNode {
+  final int? maxTokens;
+  final double? maxCost;
+  final Duration? maxDuration;
+
+  const _BudgetHeader({
+    this.maxTokens,
+    this.maxCost,
+    this.maxDuration,
+  });
 }
 
 /// Dispatches a task to an agent role.

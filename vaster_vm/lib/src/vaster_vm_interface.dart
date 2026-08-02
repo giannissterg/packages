@@ -1,16 +1,22 @@
 import 'package:vaster_agent_manager/vaster_agent_manager.dart';
 import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
+import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_filesystem_manager/vaster_filesystem_manager.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 import 'package:vaster_resources/vaster_resources.dart';
+import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 import 'model_registry.dart';
+import 'program_execution_job.dart';
 import 'vm_config.dart';
 
 /// Master interface defining the top-level LLM Virtual Machine.
@@ -50,6 +56,23 @@ abstract interface class VasterVirtualMachine {
 
   /// Active Security Policy Engine.
   PolicyEngine get policyEngine;
+
+  /// Active Instruction Scheduler.
+  VasterScheduler get scheduler;
+
+  /// Root VM Execution Budget.
+  ExecutionBudget get rootBudget;
+
+  /// Submits an ISA program to the VM for multi-pipeline time-sliced execution.
+  ProgramExecutionJob submitProgram(
+    VasterProgram program, {
+    ExecutionPolicy? policy,
+    ExecutionBudget? customBudget,
+    TaskPriority priority = TaskPriority.normal,
+  });
+
+  /// Executes all submitted program jobs concurrently using instruction time-slicing.
+  Future<Map<String, RuntimeState>> runScheduledJobs({int stepQuantum = 5});
 
   /// Registers a concrete [VasterModel] for a given [ModelDescriptor].
   void registerModel(ModelDescriptor descriptor, VasterModel model);

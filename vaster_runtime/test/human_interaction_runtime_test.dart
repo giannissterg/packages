@@ -1,5 +1,7 @@
 import 'package:test/test.dart';
+import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_budget/vaster_budget.dart';
+import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
 import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
 import 'package:vaster_domain/vaster_domain.dart';
@@ -146,6 +148,46 @@ void main() {
       expect(content, equals('DEPLOYED'));
     });
 
+    test('HumanApprovalComponent executes onReject branch when user rejects', () async {
+      final program = _approvalGateProgram(
+        programName: 'rejection_pipeline',
+        requestId: 'staging_deploy',
+        prompt: 'Approve deployment to staging?',
+        onApprove: const [WriteFileOp(vfsPath: '/mem/staging.txt', content: 'APPROVED_STAGING')],
+        onReject: const [WriteFileOp(vfsPath: '/mem/staging.txt', content: 'REJECTED_STAGING')],
+      );
+
+      final runtime = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+
+      // 1. Initial run yields for approval
+      final state1 = await runtime.executeProgram(program);
+      expect(state1.status, equals(RuntimeStatus.pausedForHuman));
+      expect(runtime.pendingHumanRequest?.requestId, equals('staging_deploy'));
+
+      // 2. User rejects with feedback comment
+      final state2 = await runtime.resumeWithHumanResponse(
+        HumanInteractionResponse.reject(
+          requestId: 'staging_deploy',
+          reason: 'Security review pending',
+        ),
+      );
+
+      expect(state2.status, equals(RuntimeStatus.halted));
+      expect(state2.registers['staging_deploy_status'], equals('rejected'));
+      expect(state2.registers['staging_deploy'], equals('Security review pending'));
+
+      // Read file content from VFS
+      final content = await vm.fileSystemManager
+          .resolveFileSystem('/mem/staging.txt')
+          .readText('/mem/staging.txt');
+      expect(content, equals('REJECTED_STAGING'));
+    });
+
     test('supports full VasterContinuation snapshot serialization & restoration via ContinuationManager', () async {
       final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
 
@@ -217,6 +259,70 @@ void main() {
           .resolveFileSystem('/mem/after.txt')
           .readText('/mem/after.txt');
       expect(afterContent, equals('world'));
+    });
+
+    test('AST ApprovalGate node compiles and executes end-to-end with approve and reject branches', () async {
+      final compiler = BasicWorkflowCompiler();
+      final pipeline = Pipeline(
+        spec: const PipelineSpec(name: 'ast_approval_gate_pipeline'),
+        children: const [
+          ApprovalGate(
+            requestId: 'ast_gate_001',
+            prompt: 'Approve AST Pipeline execution?',
+            onApprove: [
+              WriteFile(path: '/mem/ast_res.txt', content: 'AST_APPROVED'),
+            ],
+            onReject: [
+              WriteFile(path: '/mem/ast_res.txt', content: 'AST_REJECTED'),
+            ],
+          ),
+        ],
+      );
+
+      final program = compiler.compile(pipeline);
+
+      // Test 1: Approval flow
+      final runtimeApprove = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+
+      var stateApprove = await runtimeApprove.executeProgram(program);
+      expect(stateApprove.status, equals(RuntimeStatus.pausedForHuman));
+      expect(runtimeApprove.pendingHumanRequest?.requestId, equals('ast_gate_001'));
+
+      stateApprove = await runtimeApprove.resumeWithHumanResponse(
+        HumanInteractionResponse.approve(requestId: 'ast_gate_001'),
+      );
+      expect(stateApprove.status, equals(RuntimeStatus.halted));
+
+      final approveContent = await vm.fileSystemManager
+          .resolveFileSystem('/mem/ast_res.txt')
+          .readText('/mem/ast_res.txt');
+      expect(approveContent, equals('AST_APPROVED'));
+
+      // Test 2: Rejection flow
+      final runtimeReject = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+
+      var stateReject = await runtimeReject.executeProgram(program);
+      expect(stateReject.status, equals(RuntimeStatus.pausedForHuman));
+
+      stateReject = await runtimeReject.resumeWithHumanResponse(
+        HumanInteractionResponse.reject(requestId: 'ast_gate_001', reason: 'Rejected by security'),
+      );
+      expect(stateReject.status, equals(RuntimeStatus.halted));
+
+      final rejectContent = await vm.fileSystemManager
+          .resolveFileSystem('/mem/ast_res.txt')
+          .readText('/mem/ast_res.txt');
+      expect(rejectContent, equals('AST_REJECTED'));
     });
   });
 }

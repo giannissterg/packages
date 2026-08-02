@@ -13,11 +13,13 @@ dependencies:
   vaster_compiler:
   vaster_continuation:
   vaster_continuation_manager:
+  vaster_dis:
   vaster_domain:
   vaster_instruction:
   vaster_model:
   vaster_model_fake:
   vaster_model_gemini_cli:
+  vaster_model_google_ai:
   vaster_policy:
   vaster_runtime:
   vaster_scheduler:

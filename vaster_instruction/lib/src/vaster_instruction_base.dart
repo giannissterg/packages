@@ -101,6 +101,11 @@ sealed class VasterInstruction {
       InstructionOpcode.pinContext => PinContextOp(
           regionId: json['regionId'] as String? ?? '',
         ),
+      InstructionOpcode.registerToolSet => RegisterToolSetOp(
+          tools: (json['tools'] as List? ?? [])
+              .map((t) => ToolDefinition.fromJson(Map<String, dynamic>.from(t as Map)))
+              .toList(),
+        ),
       InstructionOpcode.setQuota => SetQuotaOp(
           quota: ResourceQuota.fromJson(json['quota'] as Map<String, dynamic>? ?? {}),
         ),
@@ -375,6 +380,20 @@ final class PinContextOp extends VasterInstruction {
   Map<String, dynamic> toJson() => {
         'opcode': opcode.name,
         'regionId': regionId,
+      };
+}
+
+/// Registers a set of tools into the runtime environment.
+final class RegisterToolSetOp extends VasterInstruction {
+  final List<ToolDefinition> tools;
+
+  const RegisterToolSetOp({required this.tools})
+      : super(InstructionOpcode.registerToolSet);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'tools': tools.map((t) => t.toJson()).toList(),
       };
 }
 

@@ -13,6 +13,7 @@ enum InstructionOpcode {
   popMessage('pop_message'),
   forkSession('fork_session'),
   pinContext('pin_context'),
+  registerToolSet('register_tool_set'),
   setQuota('set_quota'),
   jump('jump'),
   jumpIf('jump_if'),

@@ -3,6 +3,7 @@ import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_resources/vaster_resources.dart';
 
 import 'compiler_interface.dart';
 
@@ -158,6 +159,22 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       case dynamic n when n.runtimeType.toString() == '_MountHeader':
         final mount = (n as dynamic).mount as StorageMount;
         out.add(MountFsOp(mountPrefix: mount.mountPrefix, diskPath: mount.diskPath));
+
+      case dynamic n when n.runtimeType.toString() == '_ToolSetHeader':
+        final tools = (n as dynamic).tools as List<ToolDefinition>;
+        out.add(RegisterToolSetOp(tools: tools));
+
+      case dynamic n when n.runtimeType.toString() == '_BudgetHeader':
+        final maxTokens = (n as dynamic).maxTokens as int?;
+        final maxDuration = (n as dynamic).maxDuration as Duration?;
+        out.add(
+          SetQuotaOp(
+            quota: ResourceQuota(
+              maxTokenBudget: maxTokens,
+              timeDeadline: maxDuration,
+            ),
+          ),
+        );
 
       case dynamic n when n.runtimeType.toString() == '_SandboxHeader':
         final env = (n as dynamic).env as CodeEnvironment;

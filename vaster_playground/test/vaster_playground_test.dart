@@ -186,7 +186,7 @@ void main() {
 
       expect(state.status, equals(RuntimeStatus.halted));
       expect(state.registers.containsKey('__output__'), isTrue);
-      expect(state.registers['__output__'], contains('Agent task completed'));
+      expect(state.registers['__output__'], contains('# Nexus API — Final Delivery Report'));
 
       await vm.shutdown();
     });

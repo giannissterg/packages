@@ -142,6 +142,45 @@ class VasterRuntime {
     return state;
   }
 
+  /// Executes up to [stepCount] instructions of [program] and returns the resulting [RuntimeState].
+  Future<RuntimeState> executeStep(VasterProgram program, {int stepCount = 5}) async {
+    if (_status == RuntimeStatus.idle) {
+      _status = RuntimeStatus.running;
+    }
+    int executed = 0;
+    while (_pc < program.instructions.length &&
+        _status == RuntimeStatus.running &&
+        executed < stepCount) {
+      if (budget.isExpired) {
+        _status = RuntimeStatus.timedOut;
+        _lastError = 'Execution budget or deadline expired at PC $_pc';
+        break;
+      }
+      final instruction = program.instructions[_pc];
+      try {
+        final stopwatch = Stopwatch()..start();
+        await scheduler.scheduleOpcode(
+          taskName: 'op_${instruction.runtimeType}_$_pc',
+          budget: budget,
+          action: () => _executeInstruction(instruction),
+        );
+        stopwatch.stop();
+        budget.consumeTime(stopwatch.elapsed);
+
+        if (_status == RuntimeStatus.running) _pc++;
+        executed++;
+      } catch (e, st) {
+        _status = RuntimeStatus.error;
+        _lastError = '$e\n$st';
+        break;
+      }
+    }
+    if (_pc >= program.instructions.length && _status == RuntimeStatus.running) {
+      _status = RuntimeStatus.halted;
+    }
+    return state;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Dispatch table — each arm delegates to the correct owner (≤3 lines each)
   // ─────────────────────────────────────────────────────────────────────────
@@ -150,7 +189,7 @@ class VasterRuntime {
     switch (inst) {
       // ── Model / LLM ───────────────────────────────────────────────────────
       case PromptOp op:
-        final response = _activeSessionId != null
+        var response = _activeSessionId != null
             ? await vm.promptInSession(
                 _activeSessionId!,
                 op.promptText,
@@ -162,6 +201,15 @@ class VasterRuntime {
                 model: _activeModel,
                 cacheHints: _cacheHints.activeHints,
               );
+        if (response.functionCalls.isNotEmpty) {
+          response = await _executeToolCallingLoop(
+            prompt: op.promptText,
+            initialResponse: response,
+            sessionId: _activeSessionId,
+          );
+        }
+        final tokens = (op.promptText.length ~/ 4) + (response.text.length ~/ 4);
+        budget.consumeTokens(tokens);
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
       case SelectModelOp op:
@@ -227,6 +275,8 @@ class VasterRuntime {
           AgentTask(taskId: 'isa_task_$_pc', inputPrompt: op.taskPrompt, metadata: meta),
           agentId: op.agentId,
         );
+        final tokens = (op.taskPrompt.length ~/ 4) + (output.outputText.length ~/ 4);
+        budget.consumeTokens(tokens);
         if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
       case DispatchParallelTasksOp op:
@@ -272,6 +322,50 @@ class VasterRuntime {
         vm.contextManager.pinRegion(op.regionId);
         _cacheHints.onRegionPinned(op.regionId, vm.contextManager);
 
+      case RegisterToolSetOp op:
+        _activeToolSet = op.tools;
+        for (final tool in op.tools) {
+          if (tool.name == 'write_file') {
+            vm.toolManager.registerTool(
+              FunctionTool.define(
+                name: 'write_file',
+                description: tool.description,
+                parametersSchema: tool.parametersSchema,
+                handler: (args) async {
+                  final path = args['path']?.toString() ?? '';
+                  final content = args['content']?.toString() ?? '';
+                  final fs = vm.fileSystemManager.resolveFileSystem(path);
+                  await fs.writeText(path, content);
+                  return {'result': 'Successfully wrote to $path'};
+                },
+              ),
+            );
+          } else if (tool.name == 'read_file') {
+            vm.toolManager.registerTool(
+              FunctionTool.define(
+                name: 'read_file',
+                description: tool.description,
+                parametersSchema: tool.parametersSchema,
+                handler: (args) async {
+                  final path = args['path']?.toString() ?? '';
+                  final fs = vm.fileSystemManager.resolveFileSystem(path);
+                  final content = await fs.readText(path);
+                  return {'content': content};
+                },
+              ),
+            );
+          } else {
+            vm.toolManager.registerTool(
+              FunctionTool.define(
+                name: tool.name,
+                description: tool.description,
+                parametersSchema: tool.parametersSchema,
+                handler: (args) async => {'result': 'Tool ${tool.name} executed successfully.'},
+              ),
+            );
+          }
+        }
+
       case SetQuotaOp _:
         break; // quota enforcement handled by ResourceTracker in vm
 
@@ -305,7 +399,11 @@ class VasterRuntime {
 
       case JumpIfOp op:
         final val = _registers.read(op.conditionVar);
-        final isTrue = val != null && val != false && val != '' && val != 0;
+        final isTrue = switch (val) {
+          true || 'approved' || 'true' => true,
+          false || 'rejected' || 'false' || '' || 0 || null => false,
+          _ => true,
+        };
         if (isTrue) _pc = op.targetPc - 1;
 
       // ── Register file ─────────────────────────────────────────────────────
@@ -325,6 +423,50 @@ class VasterRuntime {
       case HaltOp _:
         _status = RuntimeStatus.halted;
     }
+  }
+
+  List<ToolDefinition> _activeToolSet = const [];
+
+  /// Currently active tool definitions registered in this runtime context.
+  List<ToolDefinition> get activeToolSet => List.unmodifiable(_activeToolSet);
+
+  Future<ModelResponse> _executeToolCallingLoop({
+    required String prompt,
+    required ModelResponse initialResponse,
+    String? sessionId,
+  }) async {
+    var response = initialResponse;
+    var iterations = 0;
+    while (response.functionCalls.isNotEmpty && iterations < 5) {
+      iterations++;
+      final toolCall = response.functionCalls.first;
+      _checkPolicy(PolicyAction.toolCall, toolCall.name);
+
+      String resultText;
+      try {
+        if (toolCall.name == 'write_file') {
+          final path = toolCall.arguments['path']?.toString() ?? '';
+          final content = toolCall.arguments['content']?.toString() ?? '';
+          final fs = vm.fileSystemManager.resolveFileSystem(path);
+          await fs.writeText(path, content);
+          resultText = 'Successfully wrote to $path';
+        } else if (toolCall.name == 'read_file') {
+          final path = toolCall.arguments['path']?.toString() ?? '';
+          final fs = vm.fileSystemManager.resolveFileSystem(path);
+          resultText = await fs.readText(path);
+        } else {
+          resultText = 'Tool ${toolCall.name} executed successfully.';
+        }
+      } catch (e) {
+        resultText = 'Tool execution error: $e';
+      }
+
+      final followUpPrompt = 'Tool output for ${toolCall.name}: $resultText';
+      response = sessionId != null
+          ? await vm.promptInSession(sessionId, followUpPrompt, model: _activeModel)
+          : await vm.prompt(followUpPrompt, model: _activeModel);
+    }
+    return response;
   }
 
   void _checkPolicy(PolicyAction action, String resource) {
