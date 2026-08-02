@@ -46,10 +46,7 @@ Future<void> runPlayground({
   if (model != null) {
     activeModel = model;
   } else if (useGeminiCli || modelName != null) {
-    activeModel = GeminiCliVasterModel(
-      selectedModel: modelName,
-      extraArgs: const ['--skip-trust'],
-    );
+    activeModel = GeminiCliVasterModel(selectedModel: modelName, extraArgs: const ['--skip-trust']);
   } else {
     activeModel = FakeVasterModel(
       defaultResponseText: 'Agent response: task completed successfully.',
@@ -139,7 +136,7 @@ void _printBanner({bool useGeminiCli = false, String? modelName}) {
 
   stdout.writeln('\n${'═' * 70}');
   stdout.writeln('  VASTER PLAYGROUND — Nexus API Multi-Agent Delivery Pipeline');
-  stdout.writeln('  7 Agents · 7 Phases · ProviderNode<T> · Backend: $backendLabel');
+  stdout.writeln('  7 Agents · 7 Phases · Provider<T> · Backend: $backendLabel');
   stdout.writeln('${'═' * 70}\n');
 }
 
@@ -159,8 +156,7 @@ void _printCompilationStats(VasterProgram program) {
   stdout.writeln('  Pipeline: ${program.programName}');
   stdout.writeln('  Total ISA instructions: ${program.instructions.length}');
   stdout.writeln('  Instruction breakdown:');
-  final sorted = opcodeCounts.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
+  final sorted = opcodeCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
   for (final e in sorted) {
     final bar = '█' * e.value;
     stdout.writeln('    ${e.key.padRight(28)} $bar (${e.value})');
@@ -181,9 +177,7 @@ void _printResults(RuntimeState state, int elapsedMs) {
   stdout.writeln('  Produced registers (${state.registers.length}):');
   for (final entry in state.registers.entries) {
     final value = entry.value?.toString() ?? '';
-    final preview = value.length > 80
-        ? '${value.substring(0, 77)}...'
-        : value;
+    final preview = value.length > 80 ? '${value.substring(0, 77)}...' : value;
     stdout.writeln('    [${entry.key}] ${preview.replaceAll('\n', ' ')}');
   }
 

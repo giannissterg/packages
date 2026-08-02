@@ -37,15 +37,22 @@ void main() {
       final createOps = program.instructions.whereType<CreateAgentOp>().toList();
       expect(createOps, hasLength(7));
       final roleIds = createOps.map((o) => o.descriptor.agentId).toSet();
-      expect(roleIds, containsAll([
-        'architect', 'tech_lead', 'backend_dev', 'frontend_dev',
-        'security_auditor', 'qa_engineer', 'tech_writer',
-      ]));
+      expect(
+        roleIds,
+        containsAll([
+          'architect',
+          'tech_lead',
+          'backend_dev',
+          'frontend_dev',
+          'security_auditor',
+          'qa_engineer',
+          'tech_writer',
+        ]),
+      );
     });
 
     test('emits DispatchParallelTasksOp for parallel backend+frontend build', () {
-      final parallelOps =
-          program.instructions.whereType<DispatchParallelTasksOp>().toList();
+      final parallelOps = program.instructions.whereType<DispatchParallelTasksOp>().toList();
       expect(parallelOps, isNotEmpty);
       final dispatches = parallelOps.first.dispatches;
       expect(dispatches, hasLength(2));
@@ -60,12 +67,10 @@ void main() {
       expect(begins, greaterThan(0));
     });
 
-    test('ProviderNode<T> scoping leaves no ISA footprint', () {
+    test('Provider<T> scoping leaves no ISA footprint', () {
       // ProviderNode emits zero instructions itself; only its children do.
       // Confirm the instruction list has no dedicated "provide" opcode.
-      final opcodes = program.instructions
-          .map((i) => i.toJson()['opcode'] as String)
-          .toList();
+      final opcodes = program.instructions.map((i) => i.toJson()['opcode'] as String).toList();
       expect(opcodes.any((op) => op.contains('provide')), isFalse);
     });
 
@@ -78,24 +83,24 @@ void main() {
   });
 
   group('Nexus API Pipeline — Typed Context Injection', () {
-    test('ProvisionAgentTeamComponent reads ProjectConfig and includes project name in instructions', () {
-      const cfg = ProjectConfig(projectName: 'MyApp', language: 'Go');
-      const component = ProvisionAgentTeamComponent();
-      final context = BuildContext(
-        pipelineSpec: PipelineSpec(name: 'test'),
-        typedValues: {ProjectConfig: cfg},
-      );
+    test(
+      'ProvisionAgentTeamComponent reads ProjectConfig and includes project name in instructions',
+      () {
+        const cfg = ProjectConfig(projectName: 'MyApp', language: 'Go');
+        const component = ProvisionAgentTeamComponent();
+        final context = BuildContext(
+          pipelineSpec: PipelineSpec(name: 'test'),
+          typedValues: {ProjectConfig: cfg},
+        );
 
-      final expanded = component.build(context);
-      final roles = (expanded as PipelineNode)
-          .bodyNodes
-          .whereType<DefineRoleNode>()
-          .toList();
+        final expanded = component.build(context);
+        final roles = (expanded as Pipeline).children.whereType<Agent>().toList();
 
-      expect(roles, hasLength(7));
-      expect(roles.first.role.instruction, contains('MyApp'));
-      expect(roles.first.role.instruction, contains('Go'));
-    });
+        expect(roles, hasLength(7));
+        expect(roles.first.role.instruction, contains('MyApp'));
+        expect(roles.first.role.instruction, contains('Go'));
+      },
+    );
 
     test('SecurityAuditComponent reads SecurityPolicy and includes OWASP clause when required', () {
       const policy = SecurityPolicy(requireOWASPAudit: true, maxCvssScore: 5);
@@ -112,8 +117,8 @@ void main() {
       );
 
       final expanded = component.build(context);
-      final tx = expanded as StepTransactionNode;
-      final taskNode = tx.bodyNodes.whereType<PerformTaskNode>().first;
+      final tx = expanded as Transaction;
+      final taskNode = tx.children.whereType<Task>().first;
       expect(taskNode.task.promptText, contains('OWASP Top 10'));
       expect(taskNode.task.promptText, contains('5'));
     });
@@ -133,8 +138,8 @@ void main() {
       );
 
       final expanded = component.build(context);
-      final tx = expanded as StepTransactionNode;
-      final taskNode = tx.bodyNodes.whereType<PerformTaskNode>().first;
+      final tx = expanded as Transaction;
+      final taskNode = tx.children.whereType<Task>().first;
       expect(taskNode.task.promptText, isNot(contains('OWASP Top 10')));
     });
 
@@ -148,8 +153,8 @@ void main() {
       );
 
       final expanded = component.build(context);
-      final tx = expanded as StepTransactionNode;
-      final taskNode = tx.bodyNodes.whereType<PerformTaskNode>().first;
+      final tx = expanded as Transaction;
+      final taskNode = tx.children.whereType<Task>().first;
       expect(taskNode.task.promptText, contains('95%'));
       expect(taskNode.task.promptText, contains('NexusAPI'));
     });

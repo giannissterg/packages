@@ -34,12 +34,12 @@ void main() {
       const task = TaskDefinition(
         taskId: 'implement_auth',
         promptText: 'Implement the authentication service.',
-        outputVariable: 'auth_code',
+        output: 'auth_code',
       );
       final json = task.toJson();
       final restored = TaskDefinition.fromJson(json);
       expect(restored.taskId, equals('implement_auth'));
-      expect(restored.outputVariable, equals('auth_code'));
+      expect(restored.output, equals('auth_code'));
     });
 
     test('StorageMount JSON roundtrip for memory and disk types', () {

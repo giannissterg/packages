@@ -1,4 +1,4 @@
-/// WorkflowCompiler interface and BasicWorkflowCompiler translating vaster_ast PipelineNode trees
+/// WorkflowCompiler interface and BasicWorkflowCompiler translating vaster_ast Pipeline trees
 /// into low-level VasterProgram ISA bytecode.
 library;
 

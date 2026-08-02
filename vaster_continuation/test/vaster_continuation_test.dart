@@ -17,68 +17,67 @@ void main() {
     late ContinuationManager continuationManager;
 
     setUp(() async {
-      vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()),
-      );
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
       continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
     });
 
-    test('captures and restores execution continuation snapshot using ContinuationManager', () async {
-      const compiler = BasicWorkflowCompiler();
+    test(
+      'captures and restores execution continuation snapshot using ContinuationManager',
+      () async {
+        const compiler = BasicWorkflowCompiler();
 
-      final pipeline = PipelineNode(
-        spec: const PipelineSpec(name: 'continuation_pkg_pipeline'),
-        bodyNodes: [
-          WriteDocumentNode(path: '/mem/step1.txt', content: 'step_1_done'),
-          HumanApprovalComponent(
-            requestId: 'approval_pkg_001',
-            prompt: 'Approve continuation package test?',
-            onApprove: const [
-              WriteDocumentNode(path: '/mem/step2.txt', content: 'step_2_done'),
-            ],
-          ),
-        ],
-      );
+        final pipeline = Pipeline(
+          spec: const PipelineSpec(name: 'continuation_pkg_pipeline'),
+          children: [
+            WriteFile(path: '/mem/step1.txt', content: 'step_1_done'),
+            ApprovalGate(
+              requestId: 'approval_pkg_001',
+              prompt: 'Approve continuation package test?',
+              onApprove: const [WriteFile(path: '/mem/step2.txt', content: 'step_2_done')],
+            ),
+          ],
+        );
 
-      final program = compiler.compile(pipeline);
+        final program = compiler.compile(pipeline);
 
-      // 1. Execute program until HITL yield
-      final runtime1 = VasterRuntime(
-        vm: vm,
-        policy: ExecutionPolicy.unlimited,
-        budget: ExecutionBudget.unlimited(),
-        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
-      );
-      final state1 = await runtime1.executeProgram(program);
-      expect(state1.status, equals(RuntimeStatus.pausedForHuman));
+        // 1. Execute program until HITL yield
+        final runtime1 = VasterRuntime(
+          vm: vm,
+          policy: ExecutionPolicy.unlimited,
+          budget: ExecutionBudget.unlimited(),
+          scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+        );
+        final state1 = await runtime1.executeProgram(program);
+        expect(state1.status, equals(RuntimeStatus.pausedForHuman));
 
-      // 2. Capture continuation snapshot using dedicated ContinuationManager
-      final snapshot = await continuationManager.capture(runtime1, program.programName);
-      final jsonMap = snapshot.toJson();
+        // 2. Capture continuation snapshot using dedicated ContinuationManager
+        final snapshot = await continuationManager.capture(runtime1, program.programName);
+        final jsonMap = snapshot.toJson();
 
-      // 3. Reconstruct snapshot from JSON
-      final restoredSnapshot = VasterContinuation.fromJson(jsonMap);
-      expect(restoredSnapshot.programName, equals('continuation_pkg_pipeline'));
+        // 3. Reconstruct snapshot from JSON
+        final restoredSnapshot = VasterContinuation.fromJson(jsonMap);
+        expect(restoredSnapshot.programName, equals('continuation_pkg_pipeline'));
 
-      // 4. Restore execution on a fresh runtime instance
-      final runtime2 = VasterRuntime(
-        vm: vm,
-        policy: ExecutionPolicy.unlimited,
-        budget: ExecutionBudget.unlimited(),
-        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
-      );
-      final state2 = await continuationManager.restoreAndResume(
-        runtime2,
-        restoredSnapshot,
-        program,
-        humanResponse: HumanInteractionResponse.approve(requestId: 'approval_pkg_001'),
-      );
+        // 4. Restore execution on a fresh runtime instance
+        final runtime2 = VasterRuntime(
+          vm: vm,
+          policy: ExecutionPolicy.unlimited,
+          budget: ExecutionBudget.unlimited(),
+          scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+        );
+        final state2 = await continuationManager.restoreAndResume(
+          runtime2,
+          restoredSnapshot,
+          program,
+          humanResponse: HumanInteractionResponse.approve(requestId: 'approval_pkg_001'),
+        );
 
-      expect(state2.status, equals(RuntimeStatus.halted));
-      final step2Content = await vm.fileSystemManager
-          .resolveFileSystem('/mem/step2.txt')
-          .readText('/mem/step2.txt');
-      expect(step2Content, equals('step_2_done'));
-    });
+        expect(state2.status, equals(RuntimeStatus.halted));
+        final step2Content = await vm.fileSystemManager
+            .resolveFileSystem('/mem/step2.txt')
+            .readText('/mem/step2.txt');
+        expect(step2Content, equals('step_2_done'));
+      },
+    );
   });
 }

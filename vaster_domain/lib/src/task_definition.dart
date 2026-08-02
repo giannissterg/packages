@@ -7,25 +7,21 @@ class TaskDefinition {
   final String promptText;
 
   /// Optional register variable name where the agent output is stored.
-  final String? outputVariable;
+  final String? output;
 
-  const TaskDefinition({
-    required this.taskId,
-    required this.promptText,
-    this.outputVariable,
-  });
+  const TaskDefinition({required this.taskId, required this.promptText, this.output});
 
   Map<String, dynamic> toJson() => {
-        'taskId': taskId,
-        'promptText': promptText,
-        if (outputVariable != null) 'outputVariable': outputVariable,
-      };
+    'taskId': taskId,
+    'promptText': promptText,
+    if (output != null) 'outputVariable': output,
+  };
 
   factory TaskDefinition.fromJson(Map<String, dynamic> json) {
     return TaskDefinition(
       taskId: json['taskId'] as String? ?? '',
       promptText: json['promptText'] as String? ?? '',
-      outputVariable: json['outputVariable'] as String?,
+      output: json['outputVariable'] as String?,
     );
   }
 

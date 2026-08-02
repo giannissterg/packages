@@ -18,22 +18,20 @@ void main() async {
   print('================================================================\n');
 
   // 1. Bootstrap VM & Compiler
-  final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(defaultModel: FakeVasterModel()),
-  );
+  final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
   const compiler = BasicWorkflowCompiler();
   final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
 
   // 2. Build AST with Human Approval Gate
-  final pipeline = PipelineNode(
+  final pipeline = Pipeline(
     spec: const PipelineSpec(name: 'production_deployment_pipeline'),
-    bodyNodes: [
-      WriteDocumentNode(path: '/mem/build.log', content: 'Build succeeded.'),
-      HumanApprovalComponent(
+    children: [
+      WriteFile(path: '/mem/build.log', content: 'Build succeeded.'),
+      ApprovalGate(
         requestId: 'deploy_to_prod',
         prompt: 'Deploy release v1.2.0 to production?',
         onApprove: const [
-          WriteDocumentNode(path: '/mem/release.log', content: 'v1.2.0 Live in Prod.'),
+          WriteFile(path: '/mem/release.log', content: 'v1.2.0 Live in Prod.'),
         ],
       ),
     ],
@@ -77,7 +75,9 @@ void main() async {
   );
 
   print('   Status: ${finalState.status.name}');
-  final log = await vm.fileSystemManager.resolveFileSystem('/mem/release.log').readText('/mem/release.log');
+  final log = await vm.fileSystemManager
+      .resolveFileSystem('/mem/release.log')
+      .readText('/mem/release.log');
   print('   Release Log: "$log"');
   print('✅ Pipeline completed successfully!');
 }

@@ -17,9 +17,7 @@ void main() {
     late VasterVirtualMachine vm;
 
     setUp(() async {
-      vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()),
-      );
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     });
 
     test('yields execution and pauses at YieldHumanInteractionOp', () async {
@@ -70,18 +68,14 @@ void main() {
     test('HumanApprovalComponent branches based on human response', () async {
       const compiler = BasicWorkflowCompiler();
 
-      final pipeline = PipelineNode(
+      final pipeline = Pipeline(
         spec: const PipelineSpec(name: 'approval_pipeline'),
-        bodyNodes: [
-          HumanApprovalComponent(
+        children: [
+          ApprovalGate(
             requestId: 'prod_deploy',
             prompt: 'Approve deployment?',
-            onApprove: const [
-              WriteDocumentNode(path: '/mem/deploy.txt', content: 'DEPLOYED'),
-            ],
-            onReject: const [
-              WriteDocumentNode(path: '/mem/deploy.txt', content: 'REJECTED'),
-            ],
+            onApprove: const [WriteFile(path: '/mem/deploy.txt', content: 'DEPLOYED')],
+            onReject: const [WriteFile(path: '/mem/deploy.txt', content: 'REJECTED')],
           ),
         ],
       );
@@ -106,7 +100,9 @@ void main() {
       expect(state2.status, equals(RuntimeStatus.halted));
 
       // Read file content from VFS
-      final content = await vm.fileSystemManager.resolveFileSystem('/mem/deploy.txt').readText('/mem/deploy.txt');
+      final content = await vm.fileSystemManager
+          .resolveFileSystem('/mem/deploy.txt')
+          .readText('/mem/deploy.txt');
       expect(content, equals('DEPLOYED'));
     });
 
@@ -114,16 +110,14 @@ void main() {
       const compiler = BasicWorkflowCompiler();
       final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
 
-      final pipeline = PipelineNode(
+      final pipeline = Pipeline(
         spec: const PipelineSpec(name: 'snapshot_pipeline'),
-        bodyNodes: [
-          WriteDocumentNode(path: '/mem/before.txt', content: 'hello'),
-          HumanApprovalComponent(
+        children: [
+          WriteFile(path: '/mem/before.txt', content: 'hello'),
+          ApprovalGate(
             requestId: 'approval_001',
             prompt: 'Approve continuation snapshot test?',
-            onApprove: const [
-              WriteDocumentNode(path: '/mem/after.txt', content: 'world'),
-            ],
+            onApprove: const [WriteFile(path: '/mem/after.txt', content: 'world')],
           ),
         ],
       );
@@ -163,7 +157,9 @@ void main() {
       );
 
       expect(state2.status, equals(RuntimeStatus.halted));
-      final afterContent = await vm.fileSystemManager.resolveFileSystem('/mem/after.txt').readText('/mem/after.txt');
+      final afterContent = await vm.fileSystemManager
+          .resolveFileSystem('/mem/after.txt')
+          .readText('/mem/after.txt');
       expect(afterContent, equals('world'));
     });
   });

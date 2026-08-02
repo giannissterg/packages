@@ -4,9 +4,9 @@ part of '../vaster_ast.dart';
 ///
 /// Analogous to Flutter's `StatelessWidget`. Subclass [ComposableNode] to define
 /// a reusable pipeline component. The compiler will call [build] with the current
-/// [BuildContext] and recursively compile the returned [WorkflowAstNode] sub-tree.
+/// [BuildContext] and recursively compile the returned [VasterNode] sub-tree.
 ///
-/// Because [ComposableNode] is abstract and part of the sealed [WorkflowAstNode]
+/// Because [ComposableNode] is abstract and part of the sealed [VasterNode]
 /// hierarchy, the compiler handles it in an exhaustive switch by calling [build].
 ///
 /// Example:
@@ -21,26 +21,26 @@ part of '../vaster_ast.dart';
 ///   });
 ///
 ///   @override
-///   WorkflowAstNode build(BuildContext context) {
+///   VasterNode build(BuildContext context) {
 ///     final cfg = context.tryRead<ReviewConfig>();
-///     return StepTransactionNode(bodyNodes: [
-///       PerformTaskNode(
+///     return Transaction(children: [
+///       Task(
 ///         agentRoleId: reviewerRoleId,
 ///         task: TaskDefinition(
 ///           taskId: 'review',
 ///           promptText: 'Review $filePath',
-///           outputVariable: 'review_result',
+///           output: 'review_result',
 ///         ),
 ///       ),
 ///     ]);
 ///   }
 /// }
 /// ```
-abstract class ComposableNode extends WorkflowAstNode {
+abstract class ComposableNode extends VasterNode {
   const ComposableNode();
 
   /// Builds and returns the resolved AST sub-tree for this node.
   ///
-  /// Use [context.read<T>()] to access typed values injected by ancestor [ProviderNode]s.
-  WorkflowAstNode build(BuildContext context);
+  /// Use [context.read<T>()] to access typed values injected by ancestor [Provider]s.
+  VasterNode build(BuildContext context);
 }

@@ -3,8 +3,8 @@ part of '../vaster_ast.dart';
 /// Context passed during AST expansion and compilation.
 ///
 /// Carries pipeline-level configuration, environment properties, and typed
-/// values injected by [ProviderNode]s. Use [read<T>()] or [tryRead<T>()] to
-/// retrieve typed values injected by ancestor [ProviderNode]s.
+/// values injected by [Provider]s. Use [read<T>()] or [tryRead<T>()] to
+/// retrieve typed values injected by ancestor [Provider]s.
 class BuildContext {
   /// The top-level pipeline specification.
   final PipelineSpec pipelineSpec;
@@ -21,7 +21,7 @@ class BuildContext {
   /// Untyped string-keyed properties.
   final Map<String, dynamic> properties;
 
-  /// Typed values injected by ancestor [ProviderNode]s.
+  /// Typed values injected by ancestor [Provider]s.
   final Map<Type, dynamic> typedValues;
 
   const BuildContext({
@@ -37,7 +37,7 @@ class BuildContext {
   // Typed Provider API
   // ──────────────────────────────────────────────
 
-  /// Reads a typed value of [T] injected by an ancestor [ProviderNode].
+  /// Reads a typed value of [T] injected by an ancestor [Provider].
   ///
   /// Throws [StateError] if no value of type [T] has been provided.
   T read<T>() {
@@ -45,7 +45,7 @@ class BuildContext {
     if (value == null) {
       throw StateError(
         'No value of type $T found in BuildContext. '
-        'Wrap the node tree with ProviderNode<$T>(...) to inject it.',
+        'Wrap the node tree with Provider<$T>(...) to inject it.',
       );
     }
     return value as T;

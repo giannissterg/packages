@@ -2,25 +2,21 @@
 class ParallelTaskEntry {
   final String agentRoleId;
   final String promptText;
-  final String? outputVariable;
+  final String? output;
 
-  const ParallelTaskEntry({
-    required this.agentRoleId,
-    required this.promptText,
-    this.outputVariable,
-  });
+  const ParallelTaskEntry({required this.agentRoleId, required this.promptText, this.output});
 
   Map<String, dynamic> toJson() => {
-        'agentRoleId': agentRoleId,
-        'promptText': promptText,
-        if (outputVariable != null) 'outputVariable': outputVariable,
-      };
+    'agentRoleId': agentRoleId,
+    'promptText': promptText,
+    if (output != null) 'outputVariable': output,
+  };
 
   factory ParallelTaskEntry.fromJson(Map<String, dynamic> json) {
     return ParallelTaskEntry(
       agentRoleId: json['agentRoleId'] as String? ?? '',
       promptText: json['promptText'] as String? ?? '',
-      outputVariable: json['outputVariable'] as String?,
+      output: json['outputVariable'] as String?,
     );
   }
 }

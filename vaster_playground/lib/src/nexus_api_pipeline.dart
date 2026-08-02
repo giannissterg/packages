@@ -1,11 +1,12 @@
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_domain/vaster_domain.dart';
+
 import 'playground_config.dart';
 import 'playground_components.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // The full multi-agent software delivery pipeline assembled from
-// ComposableNode components and ProviderNode<T> typed context injection.
+// ComposableNode components and Provider<T> typed context injection.
 // ══════════════════════════════════════════════════════════════════════════════
 
 /// Typed configuration bundle injected at the pipeline root.
@@ -44,7 +45,7 @@ const _qualityGate = QualityGate(
 ///   ProjectConfig    — consumed by all agent components
 ///   SecurityPolicy   — consumed by SecurityAuditComponent
 ///   QualityGate      — consumed by TechLeadReviewComponent + TestSuiteComponent
-const nexusApiPipeline = PipelineNode(
+const nexusApiPipeline = Pipeline(
   spec: PipelineSpec(
     name: 'nexus_api_delivery_pipeline',
     version: '1.0.0',
@@ -55,12 +56,12 @@ const nexusApiPipeline = PipelineNode(
       'stage': 'production-delivery',
     },
   ),
-  bodyNodes: [
+  children: [
     // ── Phase 0: Bootstrap ────────────────────────────────────────────────────
-    MountStorageNode(mount: StorageMount(mountPrefix: '/workspace')),
+    Mount(mount: StorageMount(mountPrefix: '/workspace')),
 
     // Write the project brief to VFS — the single source of truth
-    WriteDocumentNode(
+    WriteFile(
       path: '/workspace/brief.md',
       content: '''
 # Nexus API — Project Brief
@@ -92,9 +93,9 @@ The platform exposes a unified gateway for downstream microservices.
     ),
 
     // ── Typed context injection ───────────────────────────────────────────────
-    // Wrap entire pipeline in ProviderNode<ProjectConfig> so every ComposableNode
+    // Wrap entire pipeline in Provider<ProjectConfig> so every ComposableNode
     // can call context.read<ProjectConfig>() down the tree.
-    ProviderNode<ProjectConfig>(
+    Provider<ProjectConfig>(
       value: _projectConfig,
       children: [
         // Provision the full agent team (reads ProjectConfig for role instructions)
@@ -107,12 +108,10 @@ The platform exposes a unified gateway for downstream microservices.
         ),
 
         // ── Phase 2: Parallel Implementation ─────────────────────────────────
-        ParallelImplementationComponent(
-          architecturePath: '/workspace/docs/architecture.md',
-        ),
+        ParallelImplementationComponent(architecturePath: '/workspace/docs/architecture.md'),
 
         // ── Phase 3: Security Audit (with SecurityPolicy) ─────────────────────
-        ProviderNode<SecurityPolicy>(
+        Provider<SecurityPolicy>(
           value: _securityPolicy,
           children: [
             SecurityAuditComponent(
@@ -123,7 +122,7 @@ The platform exposes a unified gateway for downstream microservices.
         ),
 
         // ── Phase 4 + 5 + 6: Review, Testing, Docs (with QualityGate) ─────────
-        ProviderNode<QualityGate>(
+        Provider<QualityGate>(
           value: _qualityGate,
           children: [
             // Tech lead cross-reviews all implementation + security findings
@@ -138,14 +137,12 @@ The platform exposes a unified gateway for downstream microservices.
         DocumentationComponent(),
 
         // ── Phase 7: Human Approval Gate & Delivery Subroutine ───────────────
-        HumanApprovalComponent(
+        ApprovalGate(
           requestId: 'nexus_release_approval',
           prompt: 'Approve production deployment of Nexus API release v1.0.0?',
-          onApprove: [
-            CallFunctionNode(functionName: 'deploy_nexus_subroutine'),
-          ],
+          onApprove: [Call(name: 'deploy_nexus_subroutine')],
           onReject: [
-            WriteDocumentNode(
+            WriteFile(
               path: '/workspace/reports/delivery_report.md',
               content: 'Deployment rejected by human approval gate.',
             ),
@@ -153,19 +150,19 @@ The platform exposes a unified gateway for downstream microservices.
         ),
 
         // Reusable subroutine definition compiled into jump-isolated program memory
-        DefineFunctionNode(
-          functionName: 'deploy_nexus_subroutine',
-          bodyNodes: [
+        Subroutine(
+          name: 'deploy_nexus_subroutine',
+          children: [
             DeliveryReportComponent(),
-            WriteDocumentNode(
+            WriteFile(
               path: '/workspace/reports/delivery_report.md',
               content: '\${delivery_report}',
             ),
-            ReturnNode(returnVariable: 'delivery_report'),
+            Return(value: 'delivery_report'),
           ],
         ),
 
-        OutputNode(outputVariable: 'delivery_report'),
+        Output(output: 'delivery_report'),
       ],
     ),
   ],

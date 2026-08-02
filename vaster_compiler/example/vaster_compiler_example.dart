@@ -7,25 +7,24 @@ class CodeReviewComponent extends ComposableNode {
   final String filePath;
   final String reviewerRoleId;
 
-  const CodeReviewComponent({
-    required this.filePath,
-    required this.reviewerRoleId,
-  });
+  const CodeReviewComponent({required this.filePath, required this.reviewerRoleId});
 
   @override
-  WorkflowAstNode build(BuildContext context) {
-    return StepTransactionNode(bodyNodes: [
-      ReadDocumentNode(path: filePath, outputVariable: 'source_code'),
-      PerformTaskNode(
-        agentRoleId: reviewerRoleId,
-        task: TaskDefinition(
-          taskId: 'review_code',
-          promptText: 'Review the code at $filePath for quality and security issues.',
-          outputVariable: 'review_report',
+  VasterNode build(BuildContext context) {
+    return Transaction(
+      children: [
+        ReadFile(path: filePath, output: 'source_code'),
+        Task(
+          agentRoleId: reviewerRoleId,
+          task: TaskDefinition(
+            taskId: 'review_code',
+            promptText: 'Review the code at $filePath for quality and security issues.',
+            output: 'review_report',
+          ),
         ),
-      ),
-      OutputNode(outputVariable: 'review_report'),
-    ]);
+        Output(output: 'review_report'),
+      ],
+    );
   }
 }
 
@@ -34,18 +33,18 @@ void main() {
   print('          Vaster Compiler Ecosystem Demo                       ');
   print('================================================================\n');
 
-  const pipeline = PipelineNode(
+  const pipeline = Pipeline(
     spec: PipelineSpec(
       name: 'multi_agent_auth_pipeline',
       version: '1.0.0',
       rootStoragePath: '/workspace',
     ),
-    bodyNodes: [
+    children: [
       // Mount storage
-      MountStorageNode(mount: StorageMount(mountPrefix: '/workspace')),
+      Mount(mount: StorageMount(mountPrefix: '/workspace')),
 
       // Define agent roles
-      DefineRoleNode(
+      Agent(
         role: AgentRole(
           roleId: 'architect',
           name: 'Lead Architect',
@@ -53,7 +52,7 @@ void main() {
           instruction: 'You design scalable, production-ready system architectures.',
         ),
       ),
-      DefineRoleNode(
+      Agent(
         role: AgentRole(
           roleId: 'developer',
           name: 'Backend Developer',
@@ -63,41 +62,40 @@ void main() {
       ),
 
       // Write spec document
-      WriteDocumentNode(
+      WriteFile(
         path: '/workspace/spec.md',
         content: '# Auth Service Spec\nImplement JWT-based authentication.',
       ),
 
       // Architect designs the system
-      PerformTaskNode(
+      Task(
         agentRoleId: 'architect',
         task: TaskDefinition(
           taskId: 'design_system',
           promptText: 'Design an Auth Service from /workspace/spec.md.',
-          outputVariable: 'design',
+          output: 'design',
         ),
       ),
 
       // Developer implements it inside a transaction
-      StepTransactionNode(bodyNodes: [
-        PerformTaskNode(
-          agentRoleId: 'developer',
-          task: TaskDefinition(
-            taskId: 'implement_auth',
-            promptText: 'Implement the Auth Service based on the design.',
-            outputVariable: 'implementation',
+      Transaction(
+        children: [
+          Task(
+            agentRoleId: 'developer',
+            task: TaskDefinition(
+              taskId: 'implement_auth',
+              promptText: 'Implement the Auth Service based on the design.',
+              output: 'implementation',
+            ),
           ),
-        ),
-        WriteDocumentNode(path: '/workspace/auth.dart', content: '// Auth implementation'),
-      ]),
-
-      // Use custom ComposableNode — code review component
-      CodeReviewComponent(
-        filePath: '/workspace/auth.dart',
-        reviewerRoleId: 'architect',
+          WriteFile(path: '/workspace/auth.dart', content: '// Auth implementation'),
+        ],
       ),
 
-      OutputNode(outputVariable: 'review_report'),
+      // Use custom ComposableNode — code review component
+      CodeReviewComponent(filePath: '/workspace/auth.dart', reviewerRoleId: 'architect'),
+
+      Output(output: 'review_report'),
     ],
   );
 

@@ -1,146 +1,189 @@
 part of '../vaster_ast.dart';
 
-/// Top-level pipeline container node.
-final class PipelineNode extends WorkflowAstNode {
-  final PipelineSpec spec;
-  final List<WorkflowAstNode> bodyNodes;
+// ══════════════════════════════════════════════════════════════════════════════
+// Vaster AST Nodes
+//
+// All node types follow Flutter naming conventions: short, declarative names
+// without the "Node" suffix. Container nodes use `children` for their body.
+// ══════════════════════════════════════════════════════════════════════════════
 
-  const PipelineNode({required this.spec, this.bodyNodes = const []});
+/// Top-level pipeline container.
+///
+/// The root of every Vaster workflow. Holds the [PipelineSpec] metadata and
+/// the list of [children] nodes that make up the pipeline body.
+///
+/// Example:
+/// ```dart
+/// Pipeline(
+///   spec: PipelineSpec(name: 'my_pipeline'),
+///   children: [
+///     Mount(mount: StorageMount(mountPrefix: '/workspace')),
+///     Prompt(promptText: 'Hello', output: 'r0'),
+///     Output(output: 'r0'),
+///   ],
+/// )
+/// ```
+final class Pipeline extends VasterNode {
+  final PipelineSpec spec;
+  final List<VasterNode> children;
+
+  const Pipeline({required this.spec, this.children = const []});
 }
 
-/// Mounts virtual or disk-backed storage.
-final class MountStorageNode extends WorkflowAstNode {
+/// Mounts virtual or disk-backed storage into the pipeline's VFS.
+final class Mount extends VasterNode {
   final StorageMount mount;
 
-  const MountStorageNode({required this.mount});
+  const Mount({required this.mount});
 }
 
 /// Provisions an agent role into the pipeline.
-final class DefineRoleNode extends WorkflowAstNode {
+///
+/// Creates an agent with the given [role] and an associated session.
+final class Agent extends VasterNode {
   final AgentRole role;
 
-  const DefineRoleNode({required this.role});
+  const Agent({required this.role});
 }
 
-/// Asks a specific agent role to perform a task.
-final class PerformTaskNode extends WorkflowAstNode {
+/// Dispatches a task to a specific agent role.
+///
+/// The agent identified by [agentRoleId] receives [task] and produces
+/// output into the task's [outputVariable].
+final class Task extends VasterNode {
   final String agentRoleId;
   final TaskDefinition task;
 
-  const PerformTaskNode({required this.agentRoleId, required this.task});
+  const Task({required this.agentRoleId, required this.task});
 }
 
-/// Concurrently performs tasks across multiple agent roles.
-final class PerformParallelTasksNode extends WorkflowAstNode {
+/// Concurrently dispatches tasks across multiple agent roles.
+///
+/// All [entries] execute in parallel. Each [ParallelTaskEntry] targets
+/// a specific agent role with its own prompt and output variable.
+final class ParallelTasks extends VasterNode {
   final List<ParallelTaskEntry> entries;
 
-  const PerformParallelTasksNode({required this.entries});
+  const ParallelTasks({required this.entries});
 }
 
 /// Sends a direct prompt turn to the model.
-final class PromptModelNode extends WorkflowAstNode {
+///
+/// The [promptText] is sent as-is to the current model session.
+/// If [output] is provided, the response is stored in that register.
+final class Prompt extends VasterNode {
   final String promptText;
-  final String? outputVariable;
+  final String? output;
 
-  const PromptModelNode({required this.promptText, this.outputVariable});
+  const Prompt({required this.promptText, this.output});
 }
 
 /// Writes document content to a VFS path.
-final class WriteDocumentNode extends WorkflowAstNode {
+final class WriteFile extends VasterNode {
   final String path;
   final String content;
 
-  const WriteDocumentNode({required this.path, required this.content});
+  const WriteFile({required this.path, required this.content});
 }
 
-/// Reads a document from a VFS path into an output variable.
-final class ReadDocumentNode extends WorkflowAstNode {
+/// Reads a document from a VFS path into an output register.
+final class ReadFile extends VasterNode {
   final String path;
-  final String? outputVariable;
+  final String? output;
 
-  const ReadDocumentNode({required this.path, this.outputVariable});
+  const ReadFile({required this.path, this.output});
 }
 
-/// Registers a code execution environment in the pipeline.
-final class RegisterCodeEnvironmentNode extends WorkflowAstNode {
+/// Registers a code execution sandbox environment in the pipeline.
+final class Sandbox extends VasterNode {
   final CodeEnvironment env;
 
-  const RegisterCodeEnvironmentNode({required this.env});
+  const Sandbox({required this.env});
 }
 
-/// Executes code in a registered code environment.
-final class ExecuteCodeNode extends WorkflowAstNode {
+/// Executes code in a registered sandbox environment.
+final class Execute extends VasterNode {
   final String envId;
   final String code;
-  final String? outputVariable;
+  final String? output;
 
-  const ExecuteCodeNode({
+  const Execute({
     required this.envId,
     required this.code,
-    this.outputVariable,
+    this.output,
   });
 }
 
 /// Conditional branch node.
 ///
-/// Evaluates [conditionVariable] at runtime and executes [thenNodes] if truthy,
-/// or [elseNodes] if falsy.
-final class WhenConditionNode extends WorkflowAstNode {
-  final String conditionVariable;
-  final List<WorkflowAstNode> thenNodes;
-  final List<WorkflowAstNode> elseNodes;
+/// Evaluates [condition] at runtime and executes [then] children if truthy,
+/// or [otherwise] children if falsy.
+final class When extends VasterNode {
+  final String condition;
+  final List<VasterNode> then;
+  final List<VasterNode> otherwise;
 
-  const WhenConditionNode({
-    required this.conditionVariable,
-    required this.thenNodes,
-    this.elseNodes = const [],
+  const When({
+    required this.condition,
+    required this.then,
+    this.otherwise = const [],
   });
 }
 
 /// Transactional step boundary — automatically rolls back VFS state on failure.
-final class StepTransactionNode extends WorkflowAstNode {
-  final List<WorkflowAstNode> bodyNodes;
+///
+/// All [children] execute within a transaction. If any child fails,
+/// the VFS state is rolled back to the point before the transaction began.
+final class Transaction extends VasterNode {
+  final List<VasterNode> children;
 
-  const StepTransactionNode({required this.bodyNodes});
+  const Transaction({required this.children});
 }
 
 /// Selects the active LLM model descriptor for subsequent pipeline execution.
-final class SelectModelNode extends WorkflowAstNode {
+final class SelectModel extends VasterNode {
   final ModelDescriptor model;
 
-  const SelectModelNode({required this.model});
+  const SelectModel({required this.model});
 }
 
-/// AST node yielding execution to request human interaction.
-final class YieldHumanInteractionNode extends WorkflowAstNode {
+/// Yields execution to request human interaction.
+final class YieldHuman extends VasterNode {
   final HumanInteractionRequest request;
 
-  const YieldHumanInteractionNode({required this.request});
+  const YieldHuman({required this.request});
 }
 
-/// AST node asking a human user a question or presenting a list of options.
-final class AskHumanQuestionNode extends WorkflowAstNode {
+/// Asks a human user a question or presents a list of options.
+///
+/// The response is stored in [output] as a string matching one of [options].
+final class AskHuman extends VasterNode {
   final String requestId;
   final String prompt;
   final List<String> options;
-  final String outputVariable;
+  final String output;
 
-  const AskHumanQuestionNode({
+  const AskHuman({
     required this.requestId,
     required this.prompt,
     this.options = const [],
-    required this.outputVariable,
+    required this.output,
   });
 }
 
-/// ComposableNode providing a Flutter-style human approval gate with approve/reject branches.
-class HumanApprovalComponent extends ComposableNode {
+/// ComposableNode providing a Flutter-style human approval gate with
+/// approve/reject branches.
+///
+/// Yields a human interaction request of type [HumanInteractionType.approval].
+/// If approved, [onApprove] children execute. If rejected, [onReject] children
+/// execute instead.
+class ApprovalGate extends ComposableNode {
   final String requestId;
   final String prompt;
-  final List<WorkflowAstNode> onApprove;
-  final List<WorkflowAstNode> onReject;
+  final List<VasterNode> onApprove;
+  final List<VasterNode> onReject;
 
-  const HumanApprovalComponent({
+  const ApprovalGate({
     required this.requestId,
     required this.prompt,
     required this.onApprove,
@@ -148,9 +191,9 @@ class HumanApprovalComponent extends ComposableNode {
   });
 
   @override
-  WorkflowAstNode build(BuildContext context) {
-    return StepTransactionNode(bodyNodes: [
-      YieldHumanInteractionNode(
+  VasterNode build(BuildContext context) {
+    return Transaction(children: [
+      YieldHuman(
         request: HumanInteractionRequest(
           requestId: requestId,
           type: HumanInteractionType.approval,
@@ -159,53 +202,59 @@ class HumanApprovalComponent extends ComposableNode {
           outputVar: requestId,
         ),
       ),
-      WhenConditionNode(
-        conditionVariable: '${requestId}_status',
-        thenNodes: onApprove,
-        elseNodes: onReject,
+      When(
+        condition: '${requestId}_status',
+        then: onApprove,
+        otherwise: onReject,
       ),
     ]);
   }
 }
 
-/// Defines a reusable subroutine function in the workflow AST.
-final class DefineFunctionNode extends WorkflowAstNode {
-  final String functionName;
-  final List<String> parameters;
-  final List<WorkflowAstNode> bodyNodes;
+/// Defines a reusable subroutine function in the workflow.
+///
+/// Subroutines are compiled into jump-isolated program memory blocks.
+/// They can be invoked via [Call] nodes and may return a value via [Return].
+final class Subroutine extends VasterNode {
+  final String name;
+  final List<String> params;
+  final List<VasterNode> children;
 
-  const DefineFunctionNode({
-    required this.functionName,
-    this.parameters = const [],
-    required this.bodyNodes,
+  const Subroutine({
+    required this.name,
+    this.params = const [],
+    required this.children,
   });
 }
 
-/// Returns execution from a subroutine function, optionally returning [returnVariable].
-final class ReturnNode extends WorkflowAstNode {
-  final String? returnVariable;
+/// Returns execution from a subroutine, optionally returning [value].
+final class Return extends VasterNode {
+  final String? value;
 
-  const ReturnNode({this.returnVariable});
+  const Return({this.value});
 }
 
-/// Invokes a defined subroutine function by [functionName].
-final class CallFunctionNode extends WorkflowAstNode {
-  final String functionName;
+/// Invokes a defined subroutine function by [name].
+///
+/// Arguments are passed as a map of register names. If [output] is provided,
+/// the subroutine's return value is stored in that register.
+final class Call extends VasterNode {
+  final String name;
   final Map<String, String> arguments;
-  final String? outputVariable;
+  final String? output;
 
-  const CallFunctionNode({
-    required this.functionName,
+  const Call({
+    required this.name,
     this.arguments = const {},
-    this.outputVariable,
+    this.output,
   });
 }
 
 /// Returns a pipeline output register variable as the final result.
-final class OutputNode extends WorkflowAstNode {
-  final String outputVariable;
+final class Output extends VasterNode {
+  final String output;
 
-  const OutputNode({required this.outputVariable});
+  const Output({required this.output});
 }
 
 /// Injects a typed value [T] into [BuildContext] for all [children].
@@ -217,19 +266,19 @@ final class OutputNode extends WorkflowAstNode {
 ///
 /// Example:
 /// ```dart
-/// ProviderNode<DatabaseConfig>(
+/// Provider<DatabaseConfig>(
 ///   value: DatabaseConfig(host: 'localhost', port: 5432),
 ///   children: [
-///     DefineRoleNode(...),
-///     PerformTaskNode(...), // ComposableNodes here can call context.read<DatabaseConfig>()
+///     Agent(...),
+///     Task(...), // ComposableNodes here can call context.read<DatabaseConfig>()
 ///   ],
 /// )
 /// ```
-final class ProviderNode<T> extends WorkflowAstNode {
+final class Provider<T> extends VasterNode {
   final T value;
-  final List<WorkflowAstNode> children;
+  final List<VasterNode> children;
 
-  const ProviderNode({required this.value, required this.children});
+  const Provider({required this.value, required this.children});
 
   /// Injects [value] into [context] preserving the type parameter [T].
   ///

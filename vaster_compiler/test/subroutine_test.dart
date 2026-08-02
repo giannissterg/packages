@@ -15,26 +15,21 @@ void main() {
     late VasterVirtualMachine vm;
 
     setUp(() async {
-      vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()),
-      );
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     });
 
-    test('compiles DefineFunctionNode and CallFunctionNode into CallOp and ReturnSubroutineOp', () {
+    test('compiles Subroutine and CallFunctionNode into CallOp and ReturnSubroutineOp', () {
       const compiler = BasicWorkflowCompiler();
 
-      final pipeline = PipelineNode(
+      final pipeline = Pipeline(
         spec: const PipelineSpec(name: 'subroutine_compiler_test'),
-        bodyNodes: [
-          const CallFunctionNode(
-            functionName: 'generate_docs',
-            outputVariable: 'doc_output',
-          ),
-          const DefineFunctionNode(
-            functionName: 'generate_docs',
-            bodyNodes: [
-              WriteDocumentNode(path: '/mem/doc.md', content: '# Documentation'),
-              ReturnNode(returnVariable: 'doc_output'),
+        children: [
+          const Call(name: 'generate_docs', output: 'doc_output'),
+          const Subroutine(
+            name: 'generate_docs',
+            children: [
+              WriteFile(path: '/mem/doc.md', content: '# Documentation'),
+              Return(value: 'doc_output'),
             ],
           ),
         ],
@@ -54,17 +49,23 @@ void main() {
     test('executes subroutine function call and returns execution to caller PC', () async {
       const compiler = BasicWorkflowCompiler();
 
-      final pipeline = PipelineNode(
+      final pipeline = Pipeline(
         spec: const PipelineSpec(name: 'subroutine_e2e_test'),
-        bodyNodes: [
-          const WriteDocumentNode(path: '/mem/start.txt', content: 'START'),
-          const CallFunctionNode(functionName: 'helper_func'),
-          const WriteDocumentNode(path: '/mem/end.txt', content: 'END'),
-          const DefineFunctionNode(
-            functionName: 'helper_func',
-            bodyNodes: [
-              WriteDocumentNode(path: '/mem/subroutine.txt', content: 'SUBROUTINE_EXECUTED'),
-              ReturnNode(),
+        children: [
+          const WriteFile(path: '/mem/start.txt', content: 'START'),
+          const Subroutine(
+            name: 'helper_func',
+            children: [
+              WriteFile(path: '/mem/subroutine.txt', content: 'SUBROUTINE_EXECUTED'),
+              Return(),
+            ],
+          ),
+          const WriteFile(path: '/mem/end.txt', content: 'END'),
+          const Subroutine(
+            name: 'helper_func',
+            children: [
+              WriteFile(path: '/mem/subroutine.txt', content: 'SUBROUTINE_EXECUTED'),
+              Return(),
             ],
           ),
         ],
@@ -82,9 +83,15 @@ void main() {
 
       expect(state.status, equals(RuntimeStatus.halted));
 
-      final startTxt = await vm.fileSystemManager.resolveFileSystem('/mem/start.txt').readText('/mem/start.txt');
-      final subTxt = await vm.fileSystemManager.resolveFileSystem('/mem/subroutine.txt').readText('/mem/subroutine.txt');
-      final endTxt = await vm.fileSystemManager.resolveFileSystem('/mem/end.txt').readText('/mem/end.txt');
+      final startTxt = await vm.fileSystemManager
+          .resolveFileSystem('/mem/start.txt')
+          .readText('/mem/start.txt');
+      final subTxt = await vm.fileSystemManager
+          .resolveFileSystem('/mem/subroutine.txt')
+          .readText('/mem/subroutine.txt');
+      final endTxt = await vm.fileSystemManager
+          .resolveFileSystem('/mem/end.txt')
+          .readText('/mem/end.txt');
 
       expect(startTxt, equals('START'));
       expect(subTxt, equals('SUBROUTINE_EXECUTED'));

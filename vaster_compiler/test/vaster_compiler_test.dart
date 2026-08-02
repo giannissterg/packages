@@ -25,14 +25,13 @@ class BootstrapStorageComponent extends ComposableNode {
   const BootstrapStorageComponent({required this.prefix});
 
   @override
-  WorkflowAstNode build(BuildContext context) {
-    return StepTransactionNode(bodyNodes: [
-      MountStorageNode(mount: StorageMount(mountPrefix: prefix)),
-      WriteDocumentNode(
-        path: '$prefix/readme.md',
-        content: 'Pipeline: ${context.pipelineSpec.name}',
-      ),
-    ]);
+  VasterNode build(BuildContext context) {
+    return Transaction(
+      children: [
+        Mount(mount: StorageMount(mountPrefix: prefix)),
+        WriteFile(path: '$prefix/readme.md', content: 'Pipeline: ${context.pipelineSpec.name}'),
+      ],
+    );
   }
 }
 
@@ -41,21 +40,18 @@ class PolicyAwareReviewComponent extends ComposableNode {
   final String filePath;
   final String auditorRoleId;
 
-  const PolicyAwareReviewComponent({
-    required this.filePath,
-    required this.auditorRoleId,
-  });
+  const PolicyAwareReviewComponent({required this.filePath, required this.auditorRoleId});
 
   @override
-  WorkflowAstNode build(BuildContext context) {
+  VasterNode build(BuildContext context) {
     final policy = context.read<ReviewPolicy>();
     final modeLabel = policy.strictMode ? '[STRICT]' : '[LENIENT]';
-    return PerformTaskNode(
+    return Task(
       agentRoleId: auditorRoleId,
       task: TaskDefinition(
         taskId: 'policy_review',
         promptText: '$modeLabel Review $filePath (max issues: ${policy.maxIssues})',
-        outputVariable: 'policy_review_result',
+        output: 'policy_review_result',
       ),
     );
   }
@@ -67,12 +63,12 @@ void main() {
   const compiler = BasicWorkflowCompiler();
 
   group('BasicWorkflowCompiler - exhaustive switch', () {
-    test('compiles PipelineNode into VasterProgram with correct ISA opcodes', () {
-      const pipeline = PipelineNode(
+    test('compiles Pipeline into VasterProgram with correct ISA opcodes', () {
+      const pipeline = Pipeline(
         spec: PipelineSpec(name: 'auth_pipeline', rootStoragePath: '/workspace'),
-        bodyNodes: [
-          MountStorageNode(mount: StorageMount(mountPrefix: '/workspace')),
-          DefineRoleNode(
+        children: [
+          Mount(mount: StorageMount(mountPrefix: '/workspace')),
+          Agent(
             role: AgentRole(
               roleId: 'architect',
               name: 'Architect',
@@ -80,15 +76,15 @@ void main() {
               instruction: 'Design the auth system.',
             ),
           ),
-          PerformTaskNode(
+          Task(
             agentRoleId: 'architect',
             task: TaskDefinition(
               taskId: 'design_auth',
               promptText: 'Design the Auth Service API.',
-              outputVariable: 'design_output',
+              output: 'design_output',
             ),
           ),
-          OutputNode(outputVariable: 'design_output'),
+          Output(output: 'design_output'),
         ],
       );
 
@@ -104,11 +100,11 @@ void main() {
     });
 
     test('expands ComposableNode recursively during compilation', () {
-      const pipeline = PipelineNode(
+      const pipeline = Pipeline(
         spec: PipelineSpec(name: 'composable_pipeline'),
-        bodyNodes: [
+        children: [
           BootstrapStorageComponent(prefix: '/mem'),
-          PromptModelNode(promptText: 'Summarize', outputVariable: 'summary'),
+          Prompt(promptText: 'Summarize', output: 'summary'),
         ],
       );
 
@@ -126,11 +122,9 @@ void main() {
     test('compiles SelectModelNode into SelectModelOp ISA opcode', () {
       const spec = PipelineSpec(name: 'select_model_pipeline');
       const descriptor = ModelDescriptor.geminiCli(modelId: 'gemini-2.5-flash');
-      final pipeline = PipelineNode(
+      final pipeline = Pipeline(
         spec: spec,
-        bodyNodes: const [
-          SelectModelNode(model: descriptor),
-        ],
+        children: const [SelectModel(model: descriptor)],
       );
 
       final program = compiler.compile(pipeline);
@@ -141,13 +135,11 @@ void main() {
     });
 
     test('compiles StepTransactionNode with BeginTransaction / Commit boundary', () {
-      const pipeline = PipelineNode(
+      const pipeline = Pipeline(
         spec: PipelineSpec(name: 'tx_pipeline'),
-        bodyNodes: [
-          StepTransactionNode(
-            bodyNodes: [
-              WriteDocumentNode(path: '/mem/spec.md', content: 'v1'),
-            ],
+        children: [
+          Transaction(
+            children: [WriteFile(path: '/mem/spec.md', content: 'v1')],
           ),
         ],
       );
@@ -161,20 +153,17 @@ void main() {
     });
   });
 
-  group('BasicWorkflowCompiler - ProviderNode<T> context injection', () {
+  group('BasicWorkflowCompiler - Provider<T> context injection', () {
     test('ProviderNode injects typed value into BuildContext for ComposableNode children', () {
       const policy = ReviewPolicy(strictMode: true, maxIssues: 5);
 
-      const pipeline = PipelineNode(
+      const pipeline = Pipeline(
         spec: PipelineSpec(name: 'provider_pipeline'),
-        bodyNodes: [
-          ProviderNode<ReviewPolicy>(
+        children: [
+          Provider<ReviewPolicy>(
             value: policy,
             children: [
-              PolicyAwareReviewComponent(
-                filePath: '/src/auth.dart',
-                auditorRoleId: 'auditor',
-              ),
+              PolicyAwareReviewComponent(filePath: '/src/auth.dart', auditorRoleId: 'auditor'),
             ],
           ),
         ],
@@ -183,9 +172,7 @@ void main() {
       final program = compiler.compile(pipeline);
 
       // ProviderNode emits no ISA instructions; only the inner PerformTaskNode does
-      final dispatchOp = program.instructions
-          .whereType<DispatchAgentTaskOp>()
-          .first;
+      final dispatchOp = program.instructions.whereType<DispatchAgentTaskOp>().first;
 
       expect(dispatchOp.taskPrompt, contains('[STRICT]'));
       expect(dispatchOp.taskPrompt, contains('max issues: 5'));
@@ -196,19 +183,16 @@ void main() {
       const policy = ReviewPolicy(strictMode: false, maxIssues: 20);
 
       // ComposableNode outside ProviderNode should NOT see the typed value
-      const pipeline = PipelineNode(
+      const pipeline = Pipeline(
         spec: PipelineSpec(name: 'scoped_provider_pipeline'),
-        bodyNodes: [
-          ProviderNode<ReviewPolicy>(
+        children: [
+          Provider<ReviewPolicy>(
             value: policy,
             children: [
-              PolicyAwareReviewComponent(
-                filePath: '/src/db.dart',
-                auditorRoleId: 'db_auditor',
-              ),
+              PolicyAwareReviewComponent(filePath: '/src/db.dart', auditorRoleId: 'db_auditor'),
             ],
           ),
-          PromptModelNode(promptText: 'End of pipeline', outputVariable: 'end'),
+          Prompt(promptText: 'End of pipeline', output: 'end'),
         ],
       );
 
@@ -233,22 +217,22 @@ void main() {
         scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
       );
 
-      const pipeline = PipelineNode(
+      const pipeline = Pipeline(
         spec: PipelineSpec(name: 'e2e_pipeline'),
-        bodyNodes: [
-          MountStorageNode(mount: StorageMount(mountPrefix: '/mem')),
-          WriteDocumentNode(path: '/mem/brief.txt', content: 'Build a REST API'),
-          ReadDocumentNode(path: '/mem/brief.txt', outputVariable: 'brief'),
-          PromptModelNode(promptText: 'Analyze the brief', outputVariable: 'analysis'),
-          OutputNode(outputVariable: 'analysis'),
+        children: [
+          Mount(mount: StorageMount(mountPrefix: '/mem')),
+          WriteFile(path: '/mem/brief.txt', content: 'Build a REST API'),
+          ReadFile(path: '/mem/brief.txt', output: 'brief'),
+          Prompt(promptText: 'Analyze the brief', output: 'analysis'),
+          Output(output: 'analysis'),
         ],
       );
 
       final program = compiler.compile(pipeline);
       expect(
         program.instructions.whereType<ConcatRegisterOp>().any(
-              (op) => op.targetVar == '__output__' && op.sourceVars.contains('analysis'),
-            ),
+          (op) => op.targetVar == '__output__' && op.sourceVars.contains('analysis'),
+        ),
         isTrue,
       );
 
