@@ -19,6 +19,8 @@ export 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 export 'package:vaster_instruction/vaster_instruction.dart';
 export 'package:vaster_model/vaster_model.dart';
 export 'package:vaster_model_fake/vaster_model_fake.dart';
+export 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
+export 'package:vaster_model_claude_cli/vaster_model_claude_cli.dart';
 export 'package:vaster_model_gemini_cli/vaster_model_gemini_cli.dart';
 export 'package:vaster_model_google_ai/vaster_model_google_ai.dart';
 export 'package:vaster_model_rpc/vaster_model_rpc.dart';

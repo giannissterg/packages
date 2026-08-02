@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
+import 'package:vaster_model_claude_cli/vaster_model_claude_cli.dart';
 import 'package:vaster_model_google_ai/vaster_model_google_ai.dart';
 import 'package:vaster_model_rpc_server/vaster_model_rpc_server.dart';
 
@@ -25,10 +28,24 @@ class ServeCommand extends VasterCommand {
       help: 'Target Unix Domain Socket file path.',
     );
     parser.addOption(
+      'backend',
+      abbr: 'b',
+      defaultsTo: 'gemini',
+      allowed: const ['gemini', 'claude', 'claude-api'],
+      help: 'Model backend to expose over the sidecar. '
+          '"claude-api" talks to the Claude Messages API directly (typed tools, '
+          'caching, exact usage); "claude" shells out to the local claude CLI.',
+    );
+    parser.addOption(
       'model',
       abbr: 'm',
-      defaultsTo: 'gemini-2.0-flash',
-      help: 'Target Gemini model name.',
+      help: 'Backend model name (e.g. gemini-2.0-flash, or sonnet/opus for claude). '
+          'Defaults per backend.',
+    );
+    parser.addOption(
+      'claude-bin',
+      help: 'Path to the Claude CLI binary (claude backend only).',
+      defaultsTo: 'claude',
     );
   }
 
@@ -39,19 +56,34 @@ class ServeCommand extends VasterCommand {
 
     final customSocket = results['socket'] as String?;
     final socketPath = customSocket ?? context.socketPath;
-    final modelName = results['model'] as String? ?? 'gemini-2.0-flash';
+    final backend = results['backend'] as String? ?? 'gemini';
+    final modelName = results['model'] as String? ??
+        switch (backend) {
+          'claude' => 'default',
+          'claude-api' => 'claude-opus-5',
+          _ => 'gemini-2.0-flash',
+        };
+
+    final VasterModel model;
+    if (backend == 'claude-api') {
+      model = ClaudeApiVasterModel(targetModel: modelName);
+    } else if (backend == 'claude') {
+      model = ClaudeCliVasterModel(
+        executablePath: results['claude-bin'] as String? ?? 'claude',
+        selectedModel: results['model'] as String?,
+      );
+    } else {
+      final apiKey =
+          Platform.environment['GEMINI_API_KEY'] ?? Platform.environment['GOOGLE_AI_API_KEY'];
+      model = GoogleAiVasterModel(apiKey: apiKey, targetModel: modelName);
+    }
 
     out.writeln('======================================================================');
     out.writeln('  VASTER MODEL SIDECAR RPC SERVER                                      ');
-    out.writeln('  Target Socket: $socketPath                                           ');
-    out.writeln('  Target Model : $modelName                                            ');
+    out.writeln('  Target Socket : $socketPath                                          ');
+    out.writeln('  Backend       : $backend                                            ');
+    out.writeln('  Target Model  : $modelName                                           ');
     out.writeln('======================================================================\n');
-
-    final apiKey = Platform.environment['GEMINI_API_KEY'] ?? Platform.environment['GOOGLE_AI_API_KEY'];
-    final model = GoogleAiVasterModel(
-      apiKey: apiKey,
-      targetModel: modelName,
-    );
 
     final server = VasterModelSidecarServer(
       underlyingModel: model,
