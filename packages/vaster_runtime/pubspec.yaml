@@ -10,7 +10,6 @@ environment:
 dependencies:
   vaster_agent:
   vaster_budget:
-  vaster_domain:
   vaster_events:
   vaster_instruction:
   vaster_model:

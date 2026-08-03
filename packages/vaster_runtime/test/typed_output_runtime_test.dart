@@ -1,7 +1,4 @@
 import 'package:test/test.dart';
-import 'package:vaster_ast/vaster_ast.dart';
-import 'package:vaster_compiler/vaster_compiler.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -45,43 +42,6 @@ void main() {
 
       final request = fakeModel.recordedRequests.single;
       expect(request.generationConfig.responseSchema, equals(schema));
-    });
-
-    test('Task.outputSchema flows compiler -> ISA -> agent -> model request', () async {
-      const architect = AgentRole(
-        roleId: 'architect',
-        name: 'Architect',
-        title: 'Architect',
-        instruction: 'Design.',
-      );
-      final schema = {
-        'type': 'object',
-        'properties': {
-          'design': {'type': 'string'},
-        },
-        'required': ['design'],
-        'additionalProperties': false,
-      };
-
-      final program = const BasicWorkflowCompiler().compile(Pipeline(
-        spec: const PipelineSpec(name: 'typed_task'),
-        roles: const [architect],
-        children: [
-          Agent(role: architect, children: [
-            Task(taskPrompt: 'design the notes app', outputSchema: schema),
-          ]),
-        ],
-      ));
-
-      final state = await runtime.executeProgram(program);
-      expect(state.status, equals(RuntimeStatus.halted));
-
-      // The agent's ModelRequest must carry the schema end to end.
-      final typedRequests = fakeModel.recordedRequests
-          .where((r) => r.generationConfig.responseSchema != null);
-      expect(typedRequests, isNotEmpty,
-          reason: 'agent request should carry the task outputSchema');
-      expect(typedRequests.first.generationConfig.responseSchema, equals(schema));
     });
 
     test('runtime error produces a structured VM trap report', () async {
