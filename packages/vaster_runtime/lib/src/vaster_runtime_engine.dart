@@ -154,8 +154,23 @@ class VasterRuntime {
   // Internal fetch-decode loop
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<RuntimeState> _runLoop(VasterProgram program) async {
-    while (_pc < program.instructions.length && _status == RuntimeStatus.running) {
+  Future<RuntimeState> _runLoop(VasterProgram program) => _execute(program);
+
+  /// The machine's single fetch-decode-dispatch driver.
+  ///
+  /// [maxSteps] bounds how many instructions retire before the loop returns
+  /// with the machine still `running` — the preemption quantum used by
+  /// [executeStep]. When null the loop runs until halt, trap, or pause.
+  ///
+  /// Run-to-completion and time-sliced execution share this one body on
+  /// purpose: budget checks, opcode scheduling, observer dispatch, and trap
+  /// handling are per-instruction behavior, and a second copy of the loop is a
+  /// second place for them to drift apart.
+  Future<RuntimeState> _execute(VasterProgram program, {int? maxSteps}) async {
+    var executed = 0;
+    while (_pc < program.instructions.length &&
+        _status == RuntimeStatus.running &&
+        (maxSteps == null || executed < maxSteps)) {
       if (budget.isExpired) {
         _status = RuntimeStatus.timedOut;
         _lastError = 'Execution budget or deadline expired at PC $_pc';
@@ -178,16 +193,31 @@ class VasterRuntime {
         stepObserver?.call(executingPc, instruction, _registers.snapshot());
 
         if (_status == RuntimeStatus.running) _pc++;
+        executed++;
       } catch (e, st) {
-        if (_handleProgramError(e)) continue; // recovered by TryCatch handler
+        if (_handleProgramError(e)) {
+          executed++; // recovery consumed a step
+          continue;
+        }
         _status = RuntimeStatus.error;
         _lastError = _formatTrap(instruction, e, st);
         break;
       }
     }
-    if (_status == RuntimeStatus.running) _status = RuntimeStatus.halted;
+    return _finalize(program);
+  }
+
+  /// Program-boundary bookkeeping, shared by every execution entry point.
+  ///
+  /// Reaching the end of the instruction stream halts the machine, and halting
+  /// expires ephemeral + step-scoped context regions. This runs for time-sliced
+  /// execution too: a scheduled job that halts mid-quantum must release its
+  /// context regions exactly like one that ran to completion.
+  RuntimeState _finalize(VasterProgram program) {
+    if (_pc >= program.instructions.length && _status == RuntimeStatus.running) {
+      _status = RuntimeStatus.halted;
+    }
     if (_status == RuntimeStatus.halted) {
-      // Program boundary: expire ephemeral + step-scoped context regions.
       vm.contextManager
           .pruneLifetimes({ContextLifetime.ephemeral, ContextLifetime.step});
     }
@@ -265,51 +295,17 @@ class VasterRuntime {
     return '$a' == '$b';
   }
 
-  /// Executes up to [stepCount] instructions of [program] and returns the resulting [RuntimeState].
-  Future<RuntimeState> executeStep(VasterProgram program, {int stepCount = 5}) async {
+  /// Executes up to [stepCount] instructions of [program] — one scheduling
+  /// quantum — and returns the resulting [RuntimeState].
+  ///
+  /// The machine is left `running` when the quantum expires mid-program, so the
+  /// scheduler can re-dispatch it later from the preserved PC.
+  Future<RuntimeState> executeStep(VasterProgram program, {int stepCount = 5}) {
     if (_status == RuntimeStatus.idle) {
       _status = RuntimeStatus.running;
     }
-    int executed = 0;
-    while (_pc < program.instructions.length &&
-        _status == RuntimeStatus.running &&
-        executed < stepCount) {
-      if (budget.isExpired) {
-        _status = RuntimeStatus.timedOut;
-        _lastError = 'Execution budget or deadline expired at PC $_pc';
-        break;
-      }
-      final instruction = program.instructions[_pc];
-      // Capture the executing PC before dispatch (control-flow ops mutate _pc).
-      final executingPc = _pc;
-      try {
-        final stopwatch = Stopwatch()..start();
-        await scheduler.scheduleOpcode(
-          taskName: 'op_${instruction.runtimeType}_$_pc',
-          budget: budget,
-          action: () => _executeInstruction(instruction),
-        );
-        stopwatch.stop();
-        budget.consumeTime(stopwatch.elapsed);
-
-        stepObserver?.call(executingPc, instruction, _registers.snapshot());
-
-        if (_status == RuntimeStatus.running) _pc++;
-        executed++;
-      } catch (e, st) {
-        if (_handleProgramError(e)) {
-          executed++; // recovery consumed a step
-          continue;
-        }
-        _status = RuntimeStatus.error;
-        _lastError = _formatTrap(instruction, e, st);
-        break;
-      }
-    }
-    if (_pc >= program.instructions.length && _status == RuntimeStatus.running) {
-      _status = RuntimeStatus.halted;
-    }
-    return state;
+    _currentProgram = program;
+    return _execute(program, maxSteps: stepCount);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
