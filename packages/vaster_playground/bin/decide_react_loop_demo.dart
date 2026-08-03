@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -31,7 +30,7 @@ Future<void> main() async {
   });
 
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'iterative_refactor'),
+    name: 'iterative_refactor',
     children: const [
       Provider<DecisionPolicy>(
         value: DecisionPolicy(maxIterations: 5),

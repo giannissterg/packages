@@ -63,28 +63,3 @@ class CowFileSnapshot {
   }
 }
 
-/// Tracks nested Copy-on-Write transaction state in the virtual filesystem manager.
-class CowTransactionState {
-  final int transactionId;
-  final CowFileSnapshot initialSnapshot;
-  CowFileSnapshot currentSnapshot;
-
-  CowTransactionState({
-    required this.transactionId,
-    required this.initialSnapshot,
-  }) : currentSnapshot = CowFileSnapshot.fork(initialSnapshot);
-
-  /// Records a Copy-on-Write page write for [vfsPath].
-  void recordWrite(String vfsPath, Uint8List bytes) {
-    currentSnapshot.pages[vfsPath] = bytes;
-    currentSnapshot.dirtyPaths.add(vfsPath);
-    currentSnapshot.deletedPaths.remove(vfsPath);
-  }
-
-  /// Records a Copy-on-Write file deletion for [vfsPath].
-  void recordDelete(String vfsPath) {
-    currentSnapshot.pages.remove(vfsPath);
-    currentSnapshot.deletedPaths.add(vfsPath);
-    currentSnapshot.dirtyPaths.remove(vfsPath);
-  }
-}

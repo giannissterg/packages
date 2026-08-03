@@ -424,8 +424,8 @@ class SendMessage extends ComposableNode {
         context.tryRead<AgentRole>()?.roleId ??
         'anonymous';
     return SendMessageExecution(
-      senderAgentId: senderId,
-      recipientAgentId: to?.roleId ?? toId!,
+      fromId: senderId,
+      toId: to?.roleId ?? toId!,
       payload: payload,
     );
   }
@@ -655,9 +655,9 @@ final class Provider<T> extends VasterNode {
 // knowledge in the tree IS how long it lives (declare at the Pipeline root
 // for run-long knowledge, inside a phase for phase-long).
 //
-// The nodes below Knowledge (AddContext, EvictContext, PinContext,
-// UnpinContext, ContextPolicy, CompressContext) are the LOW-LEVEL heap tier —
-// direct region operations for advanced control. Prefer [Knowledge].
+// The nodes below (AddContext, EvictContext, CompressContext) are the
+// LOW-LEVEL heap tier — the lowering targets of Knowledge and ContextBudget.
+// Prefer the declarative scopes.
 // ══════════════════════════════════════════════════════════════════════════════
 
 /// Declares knowledge the model sees while [child] runs — the declarative
@@ -955,13 +955,13 @@ final class ExecuteExecution extends VasterNode {
 
 /// Lowering header: a resolved [SendMessage].
 final class SendMessageExecution extends VasterNode {
-  final String senderAgentId;
-  final String recipientAgentId;
+  final String fromId;
+  final String toId;
   final Map<String, dynamic> payload;
 
   const SendMessageExecution({
-    required this.senderAgentId,
-    required this.recipientAgentId,
+    required this.fromId,
+    required this.toId,
     required this.payload,
   });
 }

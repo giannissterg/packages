@@ -12,24 +12,12 @@ executables:
 
 dependencies:
   args: ^2.6.0
-  vaster_ast:
-    path: ../vaster_ast
-  vaster_budget:
-    path: ../vaster_budget
   vaster_compiler:
     path: ../vaster_compiler
-  vaster_continuation:
-    path: ../vaster_continuation
-  vaster_continuation_manager:
-    path: ../vaster_continuation_manager
   vaster_instruction:
     path: ../vaster_instruction
   vaster_dis:
     path: ../vaster_dis
-  vaster_domain:
-    path: ../vaster_domain
-  vaster_filesystem_local:
-    path: ../vaster_filesystem_local
   vaster_model:
     path: ../vaster_model
   vaster_model_claude_api:
@@ -46,14 +34,8 @@ dependencies:
     path: ../vaster_model_rpc
   vaster_model_rpc_server:
     path: ../vaster_model_rpc_server
-  vaster_policy:
-    path: ../vaster_policy
   vaster_replay:
     path: ../vaster_replay
-  vaster_runtime:
-    path: ../vaster_runtime
-  vaster_scheduler:
-    path: ../vaster_scheduler
   vaster_vm:
     path: ../vaster_vm
 

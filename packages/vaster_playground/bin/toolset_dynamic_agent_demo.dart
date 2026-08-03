@@ -46,7 +46,7 @@ void main() async {
 
   // 1. Build AST with ToolSet scope provider
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'toolset_dynamic_demo_pipeline'),
+    name: 'toolset_dynamic_demo_pipeline',
     roles: const [engineerRole],
     children: [
       // ToolSet Scope Provider wrapping sub-tree

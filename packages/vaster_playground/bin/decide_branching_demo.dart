@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_dis/vaster_dis.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -26,7 +25,7 @@ Future<void> main() async {
   });
 
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'incident_triage'),
+    name: 'incident_triage',
     children: const [
       Decide(
         prompt: 'An alert fired for elevated error rates on the payments '

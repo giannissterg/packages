@@ -587,8 +587,8 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       case SendMessageExecution n:
         ir.emit(
           SendMessageOp(
-            senderId: n.senderAgentId,
-            recipientId: n.recipientAgentId,
+            senderId: n.fromId,
+            recipientId: n.toId,
             payload: n.payload,
           ),
         );

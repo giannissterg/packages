@@ -1,4 +1,4 @@
-part of '../vaster_ast.dart';
+import 'package:vaster_ast/vaster_ast.dart';
 
 /// Specialized Flutter design system component generating theme tokens, color palettes,
 /// and typography definitions.
@@ -13,13 +13,15 @@ class FlutterDesignSystemComponent extends ComposableNode {
 
   @override
   VasterNode build(BuildContext context) {
+    final primary = primaryColorHex.replaceFirst('#', '0xFF');
+    final accent = accentColorHex.replaceFirst('#', '0xFF');
     final colorsContent = '''
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const Color primary = Color(0xFF6750A4);
+  static const Color primary = Color($primary);
   static const Color onPrimary = Color(0xFFFFFFFF);
-  static const Color secondary = Color(0xFF625B71);
+  static const Color secondary = Color($accent);
   static const Color background = Color(0xFFFEF7FF);
   static const Color surface = Color(0xFFF7F2FA);
   static const Color cardBorder = Color(0xFFE7E0EC);
@@ -361,12 +363,10 @@ class ${pascalFeature}Page extends StatelessWidget {
 class FlutterWidgetTestComponent extends ComposableNode {
   final String featureName;
   final String pageTitle;
-  final String blocName;
 
   const FlutterWidgetTestComponent({
     required this.featureName,
     required this.pageTitle,
-    required this.blocName,
   });
 
   @override

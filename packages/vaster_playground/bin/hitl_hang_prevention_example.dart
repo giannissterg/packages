@@ -26,7 +26,7 @@ void main() async {
 
   // 1. Build AST with ApprovalGate
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'hitl_hang_prevention_pipeline'),
+    name: 'hitl_hang_prevention_pipeline',
     roles: const [engineerRole],
     children: [
       Agent(

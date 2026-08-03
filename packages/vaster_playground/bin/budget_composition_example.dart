@@ -24,7 +24,7 @@ void main() async {
   final rootBudget1 = ExecutionBudget(maxTokens: 1000, maxDuration: const Duration(minutes: 5));
 
   final pipeline1 = Pipeline(
-    spec: const PipelineSpec(name: 'normal_budget_pipeline'),
+    name: 'normal_budget_pipeline',
     roles: const [analystRole],
     children: [
       const BudgetScope(
@@ -67,7 +67,7 @@ void main() async {
   final strictChildBudget = ExecutionBudget(maxTokens: 5); // 5 tokens max (turn uses ~20 tokens)
 
   final pipeline2 = Pipeline(
-    spec: const PipelineSpec(name: 'exceeded_budget_pipeline'),
+    name: 'exceeded_budget_pipeline',
     roles: const [analystRole],
     children: [
       const BudgetScope(

@@ -39,7 +39,7 @@ void main(List<String> args) async {
 
   // Build Tree-Structured Provider AST
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'real_google_ai_pipeline'),
+    name: 'real_google_ai_pipeline',
     mounts: const [StorageMount(mountPrefix: '/workspace')],
     roles: const [researcherRole],
     children: [

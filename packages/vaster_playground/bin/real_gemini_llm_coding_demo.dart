@@ -11,11 +11,12 @@ import 'package:vaster_vm/vaster_vm.dart';
 void main() async {
   print('======================================================================');
   print('  VASTER REAL GEMINI AUTONOMOUS LLM CODING DEMO                        ');
-  print('  Target Project: /Users/giannissterg/programming/dart/vaster/packages/flutter_test_app');
+  print('  Target Project: (temp dir, printed below)');
   print('  Model Backend : GoogleAiVasterModel (gemini-2.0-flash)');
   print('======================================================================\n');
 
-  final flutterProjectPath = '/Users/giannissterg/programming/dart/vaster/packages/flutter_test_app';
+  final flutterProjectPath =
+      Directory.systemTemp.createTempSync('vaster_flutter_target_').path;
 
   // Define LLM Agent Roles
   const architectRole = AgentRole(
@@ -59,7 +60,7 @@ void main() async {
 
   // 1. Build AST pipeline with ToolSet scope, Agent roles, and Human Approval Gate
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'real_gemini_flutter_coding_pipeline'),
+    name: 'real_gemini_flutter_coding_pipeline',
     roles: const [architectRole, developerRole],
     children: [
       ToolSet(

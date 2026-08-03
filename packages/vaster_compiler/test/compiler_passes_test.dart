@@ -5,7 +5,7 @@ import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 
 Pipeline _pipeline(List<VasterNode> children) => Pipeline(
-      spec: const PipelineSpec(name: 'test_pipeline'),
+      name: 'test_pipeline',
       roles: const [],
       children: children,
     );
@@ -108,7 +108,7 @@ void main() {
       );
       final result = const BasicWorkflowCompiler().compileWithDiagnostics(
         Pipeline(
-          spec: const PipelineSpec(name: 'clean'),
+          name: 'clean',
           roles: const [architect],
           children: const [
             Agent(role: architect, child: Task(prompt: 'design the app')),
@@ -164,7 +164,7 @@ void main() {
       };
       final program = const BasicWorkflowCompiler().compile(
         Pipeline(
-          spec: const PipelineSpec(name: 'typed'),
+          name: 'typed',
           roles: const [architect],
           children: [
             Agent(

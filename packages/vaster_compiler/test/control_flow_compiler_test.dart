@@ -1,14 +1,13 @@
 import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 
 void main() {
   const compiler = BasicWorkflowCompiler();
 
   Pipeline pipeline(List<VasterNode> children) => Pipeline(
-        spec: const PipelineSpec(name: 'control_flow_test'),
+        name: 'control_flow_test',
         children: children,
       );
 

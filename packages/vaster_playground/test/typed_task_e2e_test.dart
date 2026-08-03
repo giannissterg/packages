@@ -47,7 +47,7 @@ void main() {
       };
 
       final program = const BasicWorkflowCompiler().compile(Pipeline(
-        spec: const PipelineSpec(name: 'typed_task'),
+        name: 'typed_task',
         roles: const [architect],
         children: [
           Agent(

@@ -1,7 +1,6 @@
 import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -26,7 +25,7 @@ void main() {
     test('AST ApprovalGate node compiles and executes end-to-end with approve and reject branches', () async {
       final compiler = BasicWorkflowCompiler();
       final pipeline = Pipeline(
-        spec: const PipelineSpec(name: 'ast_approval_gate_pipeline'),
+        name: 'ast_approval_gate_pipeline',
         children: const [
           ApprovalGate(
             requestId: 'ast_gate_001',

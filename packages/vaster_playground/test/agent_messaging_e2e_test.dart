@@ -43,7 +43,7 @@ void main() {
       const compiler = BasicWorkflowCompiler();
 
       final pipeline = Pipeline(
-        spec: const PipelineSpec(name: 'agent_messaging_pipeline'),
+        name: 'agent_messaging_pipeline',
         roles: const [aliceRole, bobRole],
         children: [
           // Alice sends a message to Bob

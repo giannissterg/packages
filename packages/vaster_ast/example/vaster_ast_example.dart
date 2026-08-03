@@ -37,12 +37,14 @@ void main() {
 
   // Declarative Functional AST Tree
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'declarative_ast_demo'),
+    name: 'declarative_ast_demo',
     mounts: const [StorageMount(mountPrefix: '/workspace')],
     roles: const [architectRole],
     children: [
       const WriteFile(path: '/workspace/brief.md', content: 'Build a cloud REST API.'),
-      const ReadFile(path: '/workspace/brief.md'),
+
+      // `output:` binds a step's value; later steps consume it with ${...}.
+      const ReadFile(path: '/workspace/brief.md', output: 'brief'),
 
       // Inject typed configuration into context tree using Provider<T>
       Provider<ProjectConfig>(
@@ -55,14 +57,19 @@ void main() {
               // Declarative Functional Component
               SecurityAuditComponent(),
 
-              // Task automatically inherits architectRole from BuildContext!
-              Task(prompt: 'Produce final system architecture document.'),
+              // Task inherits architectRole from BuildContext, and its prompt
+              // interpolates the bound brief at runtime.
+              Task(
+                prompt: 'Produce the final system architecture document for '
+                    'this brief:\n\${brief}',
+                output: 'architecture',
+              ),
             ]),
           ),
         ],
       ),
 
-      const Output(),
+      const Output(from: 'architecture'),
     ],
   );
 

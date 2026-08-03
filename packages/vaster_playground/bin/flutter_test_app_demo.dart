@@ -3,21 +3,22 @@ import 'dart:io';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_dis/vaster_dis.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_playground/vaster_playground.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 void main() async {
   print('======================================================================');
   print('  VASTER FLUTTER COMPOSABLE NODES & REAL DISK MOUNT DEMO              ');
-  print('  Target Project: /Users/giannissterg/programming/dart/vaster/packages/flutter_test_app');
+  print('  Target Project: (temp dir, printed below)');
   print('======================================================================\n');
 
-  final flutterProjectPath = '/Users/giannissterg/programming/dart/vaster/packages/flutter_test_app';
+  final flutterProjectPath =
+      Directory.systemTemp.createTempSync('vaster_flutter_target_').path;
 
   // 1. Assemble complete Flutter application workflow using specialized composable nodes
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'flutter_test_app_pipeline'),
+    name: 'flutter_test_app_pipeline',
     children: const [
       // Step 1: Design system tokens & typography
       FlutterDesignSystemComponent(
@@ -55,7 +56,6 @@ void main() async {
       FlutterWidgetTestComponent(
         featureName: 'task_manager',
         pageTitle: 'Task Manager Dashboard',
-        blocName: 'TaskManager',
       ),
     ],
   );

@@ -209,7 +209,7 @@ void main() {
     test('compiles and executes a 3-agent pipeline with parallel tasks and HITL', () async {
       // ── Build a custom 3-agent pipeline: Researcher, Reviewer, Approver ──
       final pipeline = Pipeline(
-        spec: const PipelineSpec(name: 'research_review_pipeline'),
+        name: 'research_review_pipeline',
         children: [
           // Provision 3 agents
           Agent(

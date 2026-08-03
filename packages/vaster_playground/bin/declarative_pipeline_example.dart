@@ -58,7 +58,7 @@ void main() async {
 
   // 2. Build Tree-Structured Provider AST (Flutter MaterialApp-style Provider Tree)
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'declarative_functional_pipeline'),
+    name: 'declarative_functional_pipeline',
     mounts: const [StorageMount(mountPrefix: '/workspace')],
     roles: const [secAuditorRole],
     children: [

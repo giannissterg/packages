@@ -52,7 +52,7 @@ void main() async {
   );
 
   final pipeline = Pipeline(
-    spec: const PipelineSpec(name: 'rpc_sidecar_pipeline'),
+    name: 'rpc_sidecar_pipeline',
     roles: const [devRole],
     children: const [
       Agent(

@@ -19,7 +19,7 @@ class DartProjectBootstrapComponent extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     return Pipeline(
-      spec: const PipelineSpec(name: 'bootstrap_step'),
+      name: 'bootstrap_step',
       children: [
         WriteFile(
           path: '/pubspec.yaml',

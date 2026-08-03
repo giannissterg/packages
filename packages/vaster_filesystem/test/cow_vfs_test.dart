@@ -21,28 +21,5 @@ void main() {
       expect(child.deletedPaths, isEmpty);
     });
 
-    test('CowTransactionState records Copy-on-Write page modifications and deletions', () {
-      final initialBytes = Uint8List.fromList([10, 20]);
-      final initial = CowFileSnapshot(
-        pages: {'/workspace/file1.txt': initialBytes},
-        dirtyPaths: {},
-        deletedPaths: {},
-      );
-
-      final state = CowTransactionState(
-        transactionId: 1,
-        initialSnapshot: initial,
-      );
-
-      final newBytes = Uint8List.fromList([99, 100]);
-      state.recordWrite('/workspace/file2.txt', newBytes);
-
-      expect(state.currentSnapshot.dirtyPaths, contains('/workspace/file2.txt'));
-      expect(state.currentSnapshot.pages['/workspace/file2.txt'], equals(newBytes));
-
-      state.recordDelete('/workspace/file1.txt');
-      expect(state.currentSnapshot.deletedPaths, contains('/workspace/file1.txt'));
-      expect(state.currentSnapshot.pages.containsKey('/workspace/file1.txt'), isFalse);
-    });
   });
 }

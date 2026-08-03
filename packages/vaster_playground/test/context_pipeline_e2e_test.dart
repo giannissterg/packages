@@ -33,7 +33,7 @@ void main() {
       );
 
       final pipeline = Pipeline(
-        spec: const PipelineSpec(name: 'ctx_managed'),
+        name: 'ctx_managed',
         roles: const [architect],
         children: [
           const AddContext(
