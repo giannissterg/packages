@@ -19,15 +19,37 @@ import 'package:vaster_model/vaster_model.dart';
 final class ModelTape {
   final List<ModelTapeEntry> entries;
 
-  ModelTape({List<ModelTapeEntry>? entries}) : entries = entries ?? [];
+  /// The recorded backend's identity and capabilities.
+  ///
+  /// Capabilities are part of the recording because they *shape the requests
+  /// themselves*: a session sizes its context compilation from the model's
+  /// context/output token limits, so replaying under different capabilities
+  /// produces different messages — and therefore different fingerprints.
+  /// A faithful replay presents what was recorded.
+  String? recordedModelName;
+  ModelCapabilities? recordedCapabilities;
+
+  ModelTape({
+    List<ModelTapeEntry>? entries,
+    this.recordedModelName,
+    this.recordedCapabilities,
+  }) : entries = entries ?? [];
 
   int get length => entries.length;
 
   Map<String, dynamic> toJson() => {
+        if (recordedModelName != null) 'recordedModelName': recordedModelName,
+        if (recordedCapabilities != null)
+          'recordedCapabilities': recordedCapabilities!.toJson(),
         'entries': [for (final e in entries) e.toJson()],
       };
 
   factory ModelTape.fromJson(Map<String, dynamic> json) => ModelTape(
+        recordedModelName: json['recordedModelName'] as String?,
+        recordedCapabilities: json['recordedCapabilities'] == null
+            ? null
+            : ModelCapabilities.fromJson(Map<String, dynamic>.from(
+                json['recordedCapabilities'] as Map)),
         entries: [
           for (final raw in (json['entries'] as List? ?? []))
             ModelTapeEntry.fromJson(Map<String, dynamic>.from(raw as Map)),
@@ -47,13 +69,15 @@ final class ModelTape {
       'tools': [for (final tool in request.tools) tool.name],
       'schema': request.generationConfig.responseSchema,
     });
-    // FNV-1a 64-bit — dependency-free, stable across runs and platforms.
+    // FNV-1a — dependency-free, stable across runs and platforms. Dart ints
+    // are signed 64-bit and wrap on overflow, so the final value is masked to
+    // 63 bits for a stable positive hex rendering.
     var hash = 0xcbf29ce484222325;
     for (final unit in canonical.codeUnits) {
       hash ^= unit;
-      hash = (hash * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF;
+      hash = hash * 0x100000001b3;
     }
-    return hash.toRadixString(16).padLeft(16, '0');
+    return (hash & 0x7FFFFFFFFFFFFFFF).toRadixString(16).padLeft(16, '0');
   }
 }
 
@@ -100,7 +124,12 @@ final class RecordingVasterModel implements VasterModel {
   final VasterModel inner;
   final ModelTape tape;
 
-  RecordingVasterModel({required this.inner, required this.tape});
+  RecordingVasterModel({required this.inner, required this.tape}) {
+    // Stamp the backend's identity + capabilities: replay must present them
+    // so requests are compiled identically.
+    tape.recordedModelName = inner.modelName;
+    tape.recordedCapabilities = inner.capabilities;
+  }
 
   @override
   String get modelName => inner.modelName;
@@ -137,12 +166,18 @@ final class ReplayVasterModel implements VasterModel {
   int get remaining => tape.entries.length - _consumed.length;
 
   @override
-  String get modelName => 'replay-tape';
+  String get modelName => 'replay:${tape.recordedModelName ?? 'tape'}';
 
+  /// The recorded backend's capabilities — replaying under different limits
+  /// would recompile contexts differently and diverge. Falls back to a
+  /// conservative profile for tapes recorded before capabilities were
+  /// captured.
   @override
-  ModelCapabilities get capabilities => const ModelCapabilities(
-        maxContextTokens: 1 << 20,
-        maxOutputTokens: 1 << 20,
+  ModelCapabilities get capabilities =>
+      tape.recordedCapabilities ??
+      const ModelCapabilities(
+        maxContextTokens: 128000,
+        maxOutputTokens: 8192,
         supportsStreaming: true,
         supportsFunctionCalling: true,
         supportsVision: false,

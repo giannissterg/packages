@@ -73,6 +73,48 @@ void main() {
     await vm2.shutdown();
   });
 
+  test('the tape carries the backend capabilities that shaped its requests',
+      () async {
+    // Regression: a session sizes its context compilation from the model's
+    // capabilities, so replaying under different limits compiles different
+    // messages and diverges. Found by a real claude-cli run — the fake-model
+    // tests never exercised the session/agent request path.
+    const recordedCaps = ModelCapabilities(
+      maxContextTokens: 200000,
+      maxOutputTokens: 8192,
+      supportsStreaming: true,
+      supportsFunctionCalling: false,
+      supportsVision: true,
+      supportsSystemInstruction: true,
+      supportsReasoning: true,
+    );
+    final live = FakeVasterModel(capabilities: recordedCaps);
+    final tape = ModelTape();
+    RecordingVasterModel(inner: live, tape: tape);
+
+    expect(tape.recordedCapabilities?.maxContextTokens, equals(200000));
+    expect(tape.recordedCapabilities?.maxOutputTokens, equals(8192));
+    expect(tape.recordedModelName, equals(live.modelName));
+
+    // Survives serialization and is what replay presents.
+    final rehydrated = ModelTape.fromJson(
+        jsonDecode(jsonEncode(tape.toJson())) as Map<String, dynamic>);
+    final replay = ReplayVasterModel(tape: rehydrated);
+    expect(replay.capabilities.maxContextTokens, equals(200000));
+    expect(replay.capabilities.maxOutputTokens, equals(8192));
+    expect(replay.capabilities.maxContextTokens,
+        greaterThan(replay.capabilities.maxOutputTokens),
+        reason: 'output reservation must never consume the whole window — '
+            'that starves context compilation to zero messages');
+    expect(replay.modelName, contains(live.modelName));
+  });
+
+  test('fingerprints render as stable positive hex', () {
+    final fingerprint = ModelTape.fingerprintOf(
+        ModelRequest(messages: [ChatMessage.user('any request')]));
+    expect(fingerprint, matches(RegExp(r'^[0-9a-f]{16}$')));
+  });
+
   test('identical fingerprints replay in recorded order (FIFO)', () async {
     // The same request made twice must return the two recorded responses in
     // order — the loop-iteration case.
