@@ -223,45 +223,74 @@ class VasterVMEngine implements VasterVirtualMachine {
       lastState: const RuntimeState(pc: 0, status: RuntimeStatus.idle),
     );
 
-    scheduler.taskQueue.enqueue(
-      ScheduledTask(
-        taskId: jobId,
-        taskName: program.programName,
-        priority: priority,
-        budget: jobBudget,
-        action: () async => job.runtime.executeProgram(program),
-      ),
-    );
-
     _jobs[jobId] = job;
+    _enqueueQuantum(job);
     return job;
   }
 
+  /// Enqueues the next scheduling quantum of [job] as a [ScheduledTask].
+  ///
+  /// A quantum is the dispatchable unit of program execution: its action
+  /// advances the job's runtime by [_stepQuantum] instructions, and the
+  /// scheduler's [VasterScheduler.runNext] owns its full lifecycle — budget
+  /// pre-check, `running` → `completed`/`failed`/`timedOut` transitions, and
+  /// completer resolution. A job still running after its quantum re-enqueues
+  /// the next one, competing again on priority/deadline order.
+  void _enqueueQuantum(ProgramExecutionJob job) {
+    final task = ScheduledTask<RuntimeState>(
+      taskId: job.jobId,
+      taskName: job.program.programName,
+      priority: job.priority,
+      budget: job.budget,
+      action: () => _runJobQuantum(job),
+    );
+    // Quantum outcomes are read off job.lastState rather than awaited per
+    // task, so a budget-expiry completeError from runNext must not surface as
+    // an unhandled async error.
+    task.completer.future.ignore();
+    scheduler.taskQueue.enqueue(task);
+  }
+
+  Future<RuntimeState> _runJobQuantum(ProgramExecutionJob job) async {
+    final state =
+        await job.runtime.executeStep(job.program, stepCount: _stepQuantum);
+    job.lastState = state;
+    _quantumResults?[job.jobId] = state;
+    if (!job.isDone && !job.isPausedForHuman) _enqueueQuantum(job);
+    return state;
+  }
+
+  /// Instruction quantum applied to job tasks dispatched via the scheduler.
+  int _stepQuantum = 5;
+
+  /// Per-run sink recording each job's latest state while [runScheduledJobs]
+  /// drains the queue; null outside a run.
+  Map<String, RuntimeState>? _quantumResults;
+
   @override
   Future<Map<String, RuntimeState>> runScheduledJobs({int stepQuantum = 5}) async {
-    final results = <String, RuntimeState>{};
+    _stepQuantum = stepQuantum;
+    final results = _quantumResults = <String, RuntimeState>{};
+    try {
+      while (scheduler.taskQueue.isNotEmpty) {
+        await scheduler.runNext();
+      }
+    } finally {
+      _quantumResults = null;
+    }
 
-    while (scheduler.taskQueue.isNotEmpty) {
-      final task = scheduler.taskQueue.dequeue();
-      if (task == null) break;
-
-      final job = _jobs[task.taskId];
-      if (job == null || job.isDone || job.isPausedForHuman) continue;
-
-      final state = await job.runtime.executeStep(job.program, stepCount: stepQuantum);
-      job.lastState = state;
-      results[job.jobId] = state;
-
-      if (!job.isDone && !job.isPausedForHuman) {
-        scheduler.taskQueue.enqueue(
-          ScheduledTask(
-            taskId: job.jobId,
-            taskName: job.program.programName,
-            priority: job.priority,
-            budget: job.budget,
-            action: () async => job.runtime.executeProgram(job.program),
-          ),
+    // A quantum the scheduler refused to dispatch (budget already expired at
+    // pre-check) never runs its action, leaving the job stranded mid-flight.
+    // Land it as timedOut — the same verdict executeStep reaches when it
+    // performs the budget check itself.
+    for (final job in _jobs.values) {
+      if (!job.isDone && !job.isPausedForHuman && job.budget.isExpired) {
+        job.lastState = job.lastState.copyWith(
+          status: RuntimeStatus.timedOut,
+          errorDetails:
+              'Execution budget or deadline expired before quantum dispatch',
         );
+        results[job.jobId] = job.lastState;
       }
     }
 

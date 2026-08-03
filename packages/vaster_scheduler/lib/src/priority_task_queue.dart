@@ -1,3 +1,4 @@
+import 'execution_state.dart';
 import 'scheduled_task.dart';
 
 /// Deadline-aware priority queue for ordering tasks.
@@ -15,6 +16,7 @@ class PriorityTaskQueue {
 
   /// Enqueues a task and maintains priority-deadline ordering.
   void enqueue(ScheduledTask<dynamic> task) {
+    task.state = ExecutionState.queued;
     _queue.add(task);
     _sort();
   }
