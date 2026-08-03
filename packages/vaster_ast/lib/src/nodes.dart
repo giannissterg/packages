@@ -725,6 +725,31 @@ class Knowledge extends ComposableNode {
   }
 }
 
+/// Declares a token budget for the context heap while [child] runs: the heap
+/// is compacted toward [maxTokens] on scope entry (summarizing/truncating
+/// regions per their declared compressibility).
+///
+/// ```dart
+/// ContextBudget(
+///   maxTokens: 12000,
+///   child: Sequence([...long-running work...]),
+/// )
+/// ```
+class ContextBudget extends ComposableNode {
+  final int maxTokens;
+  final VasterNode child;
+
+  const ContextBudget({required this.maxTokens, required this.child});
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Sequence([
+      CompressContext(targetTokens: maxTokens),
+      child,
+    ]);
+  }
+}
+
 // ── Low-level context heap tier ───────────────────────────────────────────────
 
 /// Adds a context region to the VM context heap. Content is [text] (which
@@ -760,9 +785,10 @@ final class EvictContext extends VasterNode {
   const EvictContext({required this.regionId, this.force = false});
 }
 
-/// Compresses context toward a token target. Null [regionId] compacts the
-/// whole heap; null [targetTokens] derives from the active model budget.
-/// The freed-token count binds to [output].
+/// Low-level: compresses context toward a token target — the lowering target
+/// of [ContextBudget], which is the declarative surface. Null [regionId]
+/// compacts the whole heap; null [targetTokens] derives from the active
+/// model budget. The freed-token count binds to [output].
 final class CompressContext extends VasterNode {
   final String? regionId;
   final int? targetTokens;

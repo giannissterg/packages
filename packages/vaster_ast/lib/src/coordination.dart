@@ -190,6 +190,62 @@ class Router extends ComposableNode {
   }
 }
 
+/// Produces a schema-typed deliverable in one node: the agent's response is
+/// constrained by [schema], bound to [output], optionally persisted to
+/// [artifact], and destructured field-by-field via [extract]
+/// (`{'jsonField': 'bindingName'}`).
+///
+/// Expands to: `Task(outputSchema: schema, output:)` →
+/// `Extract(field → binding)*` → `WriteFile(artifact, '${output}')?`.
+///
+/// ```dart
+/// Produce(
+///   agent: architect,
+///   prompt: 'Design the storage layer.',
+///   schema: {'type': 'object', 'properties': {'summary': ..., 'risks': ...}},
+///   output: 'design',
+///   artifact: '/workspace/design.json',
+///   extract: {'summary': 'design_summary', 'risks': 'design_risks'},
+/// )
+/// ```
+class Produce extends ComposableNode {
+  final AgentRole? agent;
+  final String? agentId;
+  final String prompt;
+  final Map<String, dynamic> schema;
+  final String output;
+  final String? artifact;
+  final Map<String, String> extract;
+
+  const Produce({
+    this.agent,
+    this.agentId,
+    required this.prompt,
+    required this.schema,
+    required this.output,
+    this.artifact,
+    this.extract = const {},
+  }) : assert(agent == null || agentId == null,
+            'Provide at most one of agent/agentId');
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Sequence([
+      Task(
+        agent: agent,
+        agentId: agentId,
+        prompt: prompt,
+        outputSchema: schema,
+        output: output,
+      ),
+      for (final entry in extract.entries)
+        Extract(from: output, field: entry.key, output: entry.value),
+      if (artifact != null)
+        WriteFile(path: artifact!, content: '\${$output}'),
+    ]);
+  }
+}
+
 /// Retries [child] up to `attempts` times (node field, else
 /// `Provider<RetryPolicy>` — the shared retry vocabulary from
 /// `vaster_model` — else 3): the first successful attempt continues

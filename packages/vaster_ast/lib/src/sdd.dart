@@ -39,17 +39,148 @@ class SddConventions {
   final String specFile;
   final String planFile;
   final String reviewFile;
+  final String verifyFile;
 
   const SddConventions({
     this.root = '/workspace',
     this.specFile = 'spec.md',
     this.planFile = 'plan.md',
     this.reviewFile = 'review.md',
+    this.verifyFile = 'verification.md',
   });
 
   String get specPath => '$root/$specFile';
   String get planPath => '$root/$planFile';
   String get reviewPath => '$root/$reviewFile';
+  String get verifyPath => '$root/$verifyFile';
+}
+
+/// Phase 0 — gather requirements from a human before specifying: the model
+/// asks one question per round and decides when it knows enough. The
+/// accumulated Q&A notes bind to [output] (default `clarifications`) for
+/// [Specify] to interpolate (`Goal: ... ${clarifications}`).
+///
+/// Expands to a [DecideLoop] whose body is: generate the next question →
+/// [AskHuman] → fold the answer into the running notes. [maxQuestions]
+/// bounds the loop (else `DecisionPolicy.maxIterations`, else 8).
+class Clarify extends ComposableNode {
+  final String topic;
+  final AgentRole? agent;
+  final String? agentId;
+  final int? maxQuestions;
+  final String output;
+
+  const Clarify({
+    required this.topic,
+    this.agent,
+    this.agentId,
+    this.maxQuestions,
+    this.output = 'clarifications',
+  }) : assert(agent == null || agentId == null,
+            'Provide at most one of agent/agentId');
+
+  @override
+  VasterNode build(BuildContext context) {
+    return Sequence([
+      InputsHeader(values: {output: '(nothing gathered yet)'}),
+      DecideLoop(
+        prompt: 'You are gathering requirements about: $topic\n\n'
+            'Clarifications so far:\n\${$output}\n\n'
+            'Do you have enough information to write a specification, or '
+            'should you ask another question?',
+        continueLabel: 'ask',
+        continueDescription: 'important information is still missing',
+        maxIterations: maxQuestions,
+        body: [
+          Task(
+            agent: agent,
+            agentId: agentId,
+            output: 'clarify_question',
+            prompt: 'You are gathering requirements about: $topic\n'
+                'Clarifications so far:\n\${$output}\n\n'
+                'Ask the single most important unanswered question. Reply '
+                'with only the question.',
+          ),
+          const AskHuman(
+            requestId: 'clarify',
+            prompt: r'${clarify_question}',
+            output: 'clarify_answer',
+          ),
+          Task(
+            agent: agent,
+            agentId: agentId,
+            output: output,
+            prompt: 'Update the clarification notes with the new exchange.\n\n'
+                'Notes so far:\n\${$output}\n\n'
+                'Q: \${clarify_question}\nA: \${clarify_answer}\n\n'
+                'Reply with the complete updated notes in Markdown.',
+          ),
+        ],
+        exits: const [
+          DecisionPath(
+            label: 'ready',
+            description: 'enough information has been gathered to specify',
+          ),
+        ],
+        defaultPath: 'ready',
+      ),
+    ]);
+  }
+}
+
+/// Verification phase — run [run] in a sandbox, write the output as the
+/// verification artifact, and let the model judge it: [onPass] nests the
+/// verified continuation, [onFail] the remediation path (typically a revise
+/// loop back into implementation). An unresolvable judgment defaults to
+/// FAIL — verification is the one gate that must not pass on ambiguity.
+///
+/// Expands to: `Execute(run, output: 'verification')` →
+/// `WriteFile(verifyPath, '${verification}')` → `Decide(pass/fail,
+/// output: 'verification_verdict', defaultPath: 'fail')`.
+class Verify extends ComposableNode {
+  /// Code or command to execute in the sandbox (supports `${...}`).
+  final String run;
+
+  /// Sandbox environment id; omit to inherit the enclosing [Sandbox] scope.
+  final String? envId;
+
+  final List<VasterNode> onPass;
+  final List<VasterNode> onFail;
+
+  const Verify({
+    required this.run,
+    this.envId,
+    this.onPass = const [],
+    this.onFail = const [],
+  });
+
+  @override
+  VasterNode build(BuildContext context) {
+    final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
+    return Sequence([
+      Execute(envId: envId, code: run, output: 'verification'),
+      WriteFile(path: conventions.verifyPath, content: r'${verification}'),
+      Decide(
+        prompt: 'Below is the output of the verification run. Did '
+            'verification pass — no failures, errors, or unmet '
+            'expectations?\n\nOutput:\n\${verification}',
+        output: 'verification_verdict',
+        defaultPath: 'fail',
+        paths: [
+          DecisionPath(
+            label: 'pass',
+            description: 'the output shows verification succeeded',
+            children: onPass,
+          ),
+          DecisionPath(
+            label: 'fail',
+            description: 'the output shows failures or is inconclusive',
+            children: onFail,
+          ),
+        ],
+      ),
+    ]);
+  }
 }
 
 /// Phase 1 — turn a [goal] into a written specification: after this phase,

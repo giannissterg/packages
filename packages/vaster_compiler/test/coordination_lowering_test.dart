@@ -237,6 +237,108 @@ void main() {
           reason: 'scope exit unmounts even pinned regions');
     });
 
+    test('ContextBudget compacts the heap on scope entry, before its child', () {
+      final program = compiler.compile(pipeline(const [
+        ContextBudget(
+          maxTokens: 12000,
+          child: Prompt('long-running work'),
+        ),
+      ]));
+      final compressPc =
+          program.instructions.indexWhere((op) => op is CompressContextOp);
+      final promptPc =
+          program.instructions.indexWhere((op) => op is PromptOp);
+      expect(compressPc, lessThan(promptPc));
+      expect(
+          (program.instructions[compressPc] as CompressContextOp).targetTokens,
+          equals(12000));
+    });
+
+    test('Produce fuses typed task, extraction, and artifact write', () {
+      final program = compiler.compile(pipeline([
+        AgentTeam(roles: [role('architect')], children: const [
+          Produce(
+            agentId: 'architect',
+            prompt: 'Design the storage layer.',
+            schema: {
+              'type': 'object',
+              'properties': {
+                'summary': {'type': 'string'},
+              },
+            },
+            output: 'design',
+            artifact: '/workspace/design.json',
+            extract: {'summary': 'design_summary'},
+          ),
+        ]),
+      ]));
+
+      final task = program.instructions.whereType<DispatchAgentTaskOp>().single;
+      expect(task.outputVar, equals('design'));
+      expect(task.responseSchema, isNotNull);
+      final extract = program.instructions.whereType<JsonExtractOp>().single;
+      expect(extract.sourceVar, equals('design'));
+      expect(extract.jsonKey, equals('summary'));
+      expect(extract.targetVar, equals('design_summary'));
+      final write = program.instructions.whereType<WriteFileOp>().single;
+      expect(write.content, equals(r'${design}'));
+    });
+
+    test('Clarify seeds its notes and loops question → human → fold', () {
+      final program = compiler.compile(pipeline([
+        AgentTeam(roles: [role('analyst')], children: const [
+          Clarify(topic: 'billing requirements', agentId: 'analyst',
+              maxQuestions: 3),
+        ]),
+      ]));
+      final instructions = program.instructions;
+
+      // Seeded notes register so round one interpolates cleanly.
+      final seed = instructions
+          .whereType<SetRegisterOp>()
+          .firstWhere((op) => op.registerName == 'clarifications');
+      expect('${seed.value}', contains('nothing gathered'));
+
+      // The loop: a HITL question per round, bounded by maxQuestions.
+      expect(instructions.whereType<YieldHumanInteractionOp>(), hasLength(1));
+      final guard = instructions
+          .whereType<CompareRegisterOp>()
+          .where((op) => op.rightValue == 3);
+      expect(guard, hasLength(1));
+      final decide = instructions.whereType<DecideOp>().single;
+      expect(decide.branches.map((b) => b.label), equals(['ask', 'ready']));
+      expect(decide.defaultLabel, equals('ready'));
+    });
+
+    test('Verify judges sandbox output with fail as the safe default', () {
+      final program = compiler.compile(pipeline(const [
+        Verify(
+          run: 'dart test',
+          envId: 'ci_box',
+          onPass: [Prompt('ship it')],
+          onFail: [Prompt('open a fix task')],
+        ),
+      ]));
+      final instructions = program.instructions;
+
+      final exec = instructions.whereType<ExecSandboxOp>().single;
+      expect(exec.sandboxId, equals('ci_box'));
+      expect(exec.outputVar, equals('verification'));
+      final write = instructions.whereType<WriteFileOp>().single;
+      expect(write.vfsPath, equals('/workspace/verification.md'));
+      final decide = instructions.whereType<DecideOp>().single;
+      expect(decide.branches.map((b) => b.label), equals(['pass', 'fail']));
+      expect(decide.defaultLabel, equals('fail'),
+          reason: 'verification must not pass on ambiguity');
+      expect(decide.outputVar, equals('verification_verdict'));
+
+      // Each verdict branch contains its continuation.
+      final passTarget = instructions[decide.branches[0].targetPc];
+      expect((passTarget as PromptOp).promptText, equals('ship it'));
+      final failTarget = instructions[decide.branches[1].targetPc];
+      expect((failTarget as PromptOp).promptText, equals('open a fix task'));
+    });
+
     test('id override disambiguates same-label scopes; from binds content', () {
       final program = compiler.compile(pipeline(const [
         Prompt('produce the notes', output: 'notes'),
