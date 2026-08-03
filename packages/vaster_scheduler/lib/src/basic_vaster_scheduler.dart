@@ -45,11 +45,27 @@ class BasicVasterScheduler implements VasterScheduler {
   @override
   final PriorityTaskQueue taskQueue;
 
-  ScheduledTask<dynamic>? _currentRunningTask;
+  /// Number of tasks this scheduler dispatches concurrently — the machine's
+  /// virtual core count. With one core, dispatch is strictly serial. More
+  /// cores let CPU-cheap, I/O-heavy tasks (model calls dominate this VM's
+  /// latency) overlap on the event loop while the priority queue still
+  /// decides dispatch order.
+  final int cores;
 
-  BasicVasterScheduler({required this.taskQueue});
+  /// Tasks currently being executed, across all cores.
+  final Set<ScheduledTask<dynamic>> _running = {};
 
-  ScheduledTask<dynamic>? get currentRunningTask => _currentRunningTask;
+  BasicVasterScheduler({required this.taskQueue, this.cores = 1})
+      : assert(cores >= 1, 'cores must be >= 1');
+
+  /// Unmodifiable snapshot of the tasks currently in flight.
+  List<ScheduledTask<dynamic>> get runningTasks => List.unmodifiable(_running);
+
+  /// The single in-flight task when running serially; with multiple cores,
+  /// an arbitrary in-flight task (kept for backward compatibility — prefer
+  /// [runningTasks]).
+  ScheduledTask<dynamic>? get currentRunningTask =>
+      _running.isEmpty ? null : _running.first;
 
   @override
   Future<ScheduledTask<T>> submitTask<T>({
@@ -92,13 +108,13 @@ class BasicVasterScheduler implements VasterScheduler {
     final task = taskQueue.dequeue();
     if (task == null) return false;
 
-    _currentRunningTask = task;
+    _running.add(task);
     task.state = ExecutionState.running;
 
     if (task.budget.isExpired) {
       task.state = ExecutionState.timedOut;
       task.completer.completeError(TimeoutException('Execution budget expired for task ${task.taskId}'));
-      _currentRunningTask = null;
+      _running.remove(task);
       return true;
     }
 
@@ -110,7 +126,7 @@ class BasicVasterScheduler implements VasterScheduler {
       task.state = ExecutionState.failed;
       task.completer.completeError(e, st);
     } finally {
-      _currentRunningTask = null;
+      _running.remove(task);
     }
 
     return true;
@@ -118,14 +134,33 @@ class BasicVasterScheduler implements VasterScheduler {
 
   @override
   Future<void> runAll() async {
-    while (await runNext()) {}
+    // A pool of [cores] workers drains the queue cooperatively. Each worker
+    // pulls the next task in priority order; while one worker's task awaits
+    // I/O, the event loop runs the others. A worker that finds the queue
+    // empty may not exit while tasks are still in flight — a running task
+    // (e.g. a job quantum) can enqueue follow-up work — so it sleeps until
+    // any in-flight task settles, then re-checks.
+    Future<void> worker() async {
+      while (true) {
+        final dispatched = await runNext();
+        if (dispatched) continue;
+        final inFlight = _running.toList();
+        if (inFlight.isEmpty) return;
+        await Future.any(inFlight.map((t) => t.completer.future))
+            .then<void>((_) {}, onError: (Object _) {});
+      }
+    }
+
+    await Future.wait([for (var i = 0; i < cores; i++) worker()]);
   }
 
   @override
   bool pauseTask(String taskId) {
-    if (_currentRunningTask?.taskId == taskId) {
-      _currentRunningTask!.state = ExecutionState.paused;
-      return true;
+    for (final task in _running) {
+      if (task.taskId == taskId) {
+        task.state = ExecutionState.paused;
+        return true;
+      }
     }
     final task = taskQueue.remove(taskId);
     if (task != null) {

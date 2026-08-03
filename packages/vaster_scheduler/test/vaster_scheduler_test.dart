@@ -127,4 +127,96 @@ void main() {
       expect(task.state, equals(ExecutionState.timedOut));
     });
   });
+
+  group('BasicVasterScheduler — virtual cores', () {
+    test('runAll overlaps I/O-bound tasks up to the core count', () async {
+      final scheduler = BasicVasterScheduler(
+        taskQueue: PriorityTaskQueue(),
+        cores: 2,
+      );
+
+      var inFlight = 0;
+      var maxInFlight = 0;
+      Future<String> ioBoundTask(String id) async {
+        inFlight++;
+        maxInFlight = inFlight > maxInFlight ? inFlight : maxInFlight;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        inFlight--;
+        return id;
+      }
+
+      for (var i = 0; i < 4; i++) {
+        await scheduler.submitTask(
+          taskId: 't_$i',
+          taskName: 'io_$i',
+          action: () => ioBoundTask('t_$i'),
+        );
+      }
+
+      await scheduler.runAll();
+
+      expect(maxInFlight, equals(2),
+          reason: 'two cores must overlap exactly two tasks at a time');
+      expect(scheduler.runningTasks, isEmpty);
+      expect(scheduler.taskQueue.isEmpty, isTrue);
+    });
+
+    test('an idle worker waits for in-flight tasks that enqueue follow-ups',
+        () async {
+      final scheduler = BasicVasterScheduler(
+        taskQueue: PriorityTaskQueue(),
+        cores: 2,
+      );
+
+      final executed = <String>[];
+      await scheduler.submitTask(
+        taskId: 'parent',
+        taskName: 'parent',
+        action: () async {
+          // The queue is empty while this runs; the second worker must not
+          // exit, because this task enqueues a follow-up before finishing.
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await scheduler.submitTask(
+            taskId: 'child',
+            taskName: 'child',
+            action: () async {
+              executed.add('child');
+              return 'child';
+            },
+          );
+          executed.add('parent');
+          return 'parent';
+        },
+      );
+
+      await scheduler.runAll();
+
+      expect(executed, containsAll(['parent', 'child']),
+          reason: 'follow-up work enqueued mid-flight must still be drained');
+      expect(scheduler.taskQueue.isEmpty, isTrue);
+    });
+
+    test('single core keeps dispatch strictly serial', () async {
+      final scheduler = BasicVasterScheduler(taskQueue: PriorityTaskQueue());
+
+      var inFlight = 0;
+      var maxInFlight = 0;
+      for (var i = 0; i < 3; i++) {
+        await scheduler.submitTask(
+          taskId: 's_$i',
+          taskName: 'serial_$i',
+          action: () async {
+            inFlight++;
+            maxInFlight = inFlight > maxInFlight ? inFlight : maxInFlight;
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+            inFlight--;
+            return i;
+          },
+        );
+      }
+
+      await scheduler.runAll();
+      expect(maxInFlight, equals(1));
+    });
+  });
 }

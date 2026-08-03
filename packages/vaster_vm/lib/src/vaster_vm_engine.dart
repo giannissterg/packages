@@ -115,7 +115,8 @@ class VasterVMEngine implements VasterVirtualMachine {
     final toolManager = BasicToolManager(tools: initialTools);
     final sandboxManager = BasicSandboxManager(sandboxes: initialSandboxes);
     final activePolicyEngine = policyEngine ?? BasicPolicyEngine(eventBus: eventBus);
-    final activeScheduler = scheduler ?? BasicVasterScheduler(taskQueue: PriorityTaskQueue());
+    final activeScheduler = scheduler ??
+        BasicVasterScheduler(taskQueue: PriorityTaskQueue(), cores: config.cores);
     final activeRootBudget = rootBudget ?? ExecutionBudget.unlimited();
 
     final agentManager = AdvancedAgentManager(
@@ -272,9 +273,10 @@ class VasterVMEngine implements VasterVirtualMachine {
     _stepQuantum = stepQuantum;
     final results = _quantumResults = <String, RuntimeState>{};
     try {
-      while (scheduler.taskQueue.isNotEmpty) {
-        await scheduler.runNext();
-      }
+      // The scheduler owns the drain: its worker pool dispatches up to
+      // `cores` quanta concurrently, so one job's model I/O overlaps another
+      // job's execution while priority order still governs dispatch.
+      await scheduler.runAll();
     } finally {
       _quantumResults = null;
     }

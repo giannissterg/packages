@@ -12,6 +12,12 @@ class VMConfig {
   /// Default root mount path prefix for memory filesystems.
   final String rootMountPath;
 
+  /// Virtual core count for the VM's default scheduler: how many scheduled
+  /// quanta may be in flight concurrently. Model I/O dominates this VM's
+  /// latency, so cores > 1 lets one job's model call overlap another job's
+  /// execution. Ignored when a custom scheduler is supplied at bootstrap.
+  final int cores;
+
   /// Metadata attributes.
   final Map<String, dynamic> metadata;
 
@@ -19,6 +25,7 @@ class VMConfig {
     required this.defaultModel,
     this.defaultQuota = ResourceQuota.unlimited,
     this.rootMountPath = '/mem',
+    this.cores = 1,
     this.metadata = const {},
   });
 

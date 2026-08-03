@@ -116,6 +116,41 @@ void main() {
           reason: 'budget expiry at dispatch must terminate the job');
     });
 
+    test('with cores > 1, one job\'s model I/O overlaps another job\'s call',
+        () async {
+      // Model whose calls take real wall-clock time, recording start/end
+      // stamps so the test can assert true overlap rather than racy timings.
+      final spans = <({DateTime start, DateTime end})>[];
+      final slowModel = _SlowModel(
+        delay: const Duration(milliseconds: 60),
+        onSpan: spans.add,
+      );
+      final smpVm = await VasterVMEngine.bootstrap(
+        config: VMConfig(defaultModel: slowModel, cores: 2),
+      );
+
+      final jobA = smpVm.submitProgram(const VasterProgram(
+        programName: 'io_a',
+        instructions: [PromptOp(promptText: 'A turn'), HaltOp()],
+      ));
+      final jobB = smpVm.submitProgram(const VasterProgram(
+        programName: 'io_b',
+        instructions: [PromptOp(promptText: 'B turn'), HaltOp()],
+      ));
+
+      final results = await smpVm.runScheduledJobs(stepQuantum: 4);
+
+      expect(results[jobA.jobId]!.status, equals(RuntimeStatus.halted));
+      expect(results[jobB.jobId]!.status, equals(RuntimeStatus.halted));
+      expect(spans, hasLength(2));
+      // True concurrency: the second model call starts before the first ends.
+      // Under serial dispatch (cores: 1) span 2 would start after span 1 ends.
+      expect(spans[1].start.isBefore(spans[0].end), isTrue,
+          reason: 'model calls must overlap across jobs when cores > 1');
+
+      await smpVm.shutdown();
+    });
+
     test('a HITL pause parks the job without re-enqueueing quanta', () async {
       final program = VasterProgram(
         programName: 'parked',
@@ -142,4 +177,33 @@ void main() {
           reason: 'a parked job must not spin in the run queue');
     });
   });
+}
+
+/// Model backend whose generate calls take real wall-clock time and report
+/// their start/end spans — used to prove genuine I/O overlap across cores.
+class _SlowModel implements VasterModel {
+  final Duration delay;
+  final void Function(({DateTime start, DateTime end}) span) onSpan;
+  final FakeVasterModel _inner = FakeVasterModel();
+
+  _SlowModel({required this.delay, required this.onSpan});
+
+  @override
+  String get modelName => 'slow-model';
+
+  @override
+  ModelCapabilities get capabilities => _inner.capabilities;
+
+  @override
+  Future<ModelResponse> generate(ModelRequest request) async {
+    final start = DateTime.now();
+    await Future<void>.delayed(delay);
+    final response = await _inner.generate(request);
+    onSpan((start: start, end: DateTime.now()));
+    return response;
+  }
+
+  @override
+  Stream<ModelResponseChunk> generateStream(ModelRequest request) =>
+      _inner.generateStream(request);
 }
