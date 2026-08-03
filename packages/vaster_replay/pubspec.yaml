@@ -8,8 +8,6 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
-  vaster_continuation:
-    path: ../vaster_continuation
   vaster_filesystem:
     path: ../vaster_filesystem
   vaster_instruction:

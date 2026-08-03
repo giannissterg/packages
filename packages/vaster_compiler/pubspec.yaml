@@ -14,7 +14,6 @@ dependencies:
   vaster_instruction:
   vaster_model:
   vaster_resources:
-  vaster_sandbox:
 
 dev_dependencies:
   lints: ^6.0.0

@@ -10,7 +10,6 @@ environment:
 dependencies:
   vaster_context:
   vaster_filesystem:
-  vaster_model:
 
 dev_dependencies:
   lints: ^6.0.0
