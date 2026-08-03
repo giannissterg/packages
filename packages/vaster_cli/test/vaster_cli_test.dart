@@ -178,22 +178,70 @@ void main() {
       if (await tempDir.exists()) await tempDir.delete(recursive: true);
     });
 
-    test('--record writes a replayable execution journal', () async {
+    test('--record writes a replay envelope (journal + model tape)', () async {
       final out = StringBuffer();
-      final journalPath = '${tempDir.path}/journal.json';
+      final envelopePath = '${tempDir.path}/envelope.json';
       final exitCode = await runner.run(
-        ['run', '--record', journalPath, '${tempDir.path}/prog.json'],
+        ['run', '--record', envelopePath, '${tempDir.path}/prog.json'],
         stdoutSink: out,
       );
 
       expect(exitCode, equals(0));
       expect(out.toString(), contains('[record] 3 steps'));
 
+      final envelope = jsonDecode(File(envelopePath).readAsStringSync())
+          as Map<String, dynamic>;
       final journal = VasterExecutionJournal.fromJson(
-          jsonDecode(File(journalPath).readAsStringSync())
-              as Map<String, dynamic>);
+          Map<String, dynamic>.from(envelope['journal'] as Map));
       expect(journal.length, equals(3));
       expect(journal.frames.map((f) => f.pc), equals([0, 1, 2]));
+      expect(envelope['modelTape'], isNotNull);
+    });
+
+    test('--replay reproduces a recorded run with zero live model calls',
+        () async {
+      // A program whose outcome depends on a model response.
+      const modelProgram =
+          VasterProgram(programName: 'taped_run', instructions: [
+        PromptOp(promptText: 'name the flagship product', outputVar: 'answer'),
+        ConcatRegisterOp(targetVar: '__output__', sourceVars: ['answer']),
+        HaltOp(),
+      ]);
+      File('${tempDir.path}/model_prog.json')
+          .writeAsStringSync(jsonEncode(modelProgram.toJson()));
+      final envelopePath = '${tempDir.path}/envelope.json';
+
+      // Record against the fake backend.
+      final recordOut = StringBuffer();
+      expect(
+        await runner.run(
+          ['run', '--record', envelopePath, '${tempDir.path}/model_prog.json'],
+          stdoutSink: recordOut,
+        ),
+        equals(0),
+      );
+      expect(recordOut.toString(), contains('1 model calls'));
+      final recordedOutput = RegExp(r'output :\n(.*)')
+          .firstMatch(recordOut.toString())!
+          .group(1)!;
+
+      // Replay from the envelope — --backend is irrelevant now.
+      final replayOut = StringBuffer();
+      expect(
+        await runner.run(
+          [
+            'run',
+            '--replay', envelopePath,
+            '--backend', 'claude-api', // must be ignored: no network in replay
+            '${tempDir.path}/model_prog.json',
+          ],
+          stdoutSink: replayOut,
+        ),
+        equals(0),
+      );
+      expect(replayOut.toString(), contains('replay tape'));
+      expect(replayOut.toString(), contains(recordedOutput),
+          reason: 'the replayed run reproduces the recorded model output');
     });
 
     test('--events prints the runtime event stream as JSON lines', () async {

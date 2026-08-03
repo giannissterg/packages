@@ -126,8 +126,12 @@ vaster compile pipelines/my_pipeline.json
 vaster audit my_pipeline.vbc
 
 # Run a compiled program (.vbc/.json) with a live execution trace,
-# an event stream, and a time-travel replay journal
-vaster run my_pipeline.vbc --trace --events --record journal.json
+# an event stream, and a replay envelope (step journal + model I/O tape)
+vaster run my_pipeline.vbc --trace --events --record envelope.json
+
+# Deterministically re-execute a recorded run: model calls are answered
+# from the tape — zero tokens, zero network. Agent regression tests in CI.
+vaster run my_pipeline.vbc --replay envelope.json
 
 # Disassemble compiled ISA bytecode
 vaster disassemble my_pipeline.vbc

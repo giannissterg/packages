@@ -64,8 +64,14 @@ class RunCommand extends VasterCommand {
     parser.addOption(
       'record',
       abbr: 'r',
-      help: 'Record an execution journal to the given file for time-travel '
-          'replay (compiled programs only).',
+      help: 'Record a replay envelope (execution journal + model I/O tape) '
+          'to the given file (compiled programs only).',
+    );
+    parser.addOption(
+      'replay',
+      help: 'Deterministically re-execute from a recorded envelope: model '
+          'calls are answered from its tape — zero tokens, zero network. '
+          'Overrides --backend.',
     );
   }
 
@@ -153,7 +159,7 @@ class RunCommand extends VasterCommand {
           onRetry: (event) => err.writeln('  [retry] $event'),
         );
 
-    final VasterModel model = switch (backend) {
+    VasterModel model = switch (backend) {
       'claude-api' => resilient(ClaudeApiVasterModel(
           targetModel: results['model'] as String? ?? 'claude-opus-5')),
       'claude-cli' => resilient(ClaudeCliVasterModel(
@@ -170,10 +176,28 @@ class RunCommand extends VasterCommand {
       _ => FakeVasterModel(),
     };
 
+    // Deterministic replay: answer every model call from a recorded tape.
+    final replayPath = results['replay'] as String?;
+    if (replayPath != null) {
+      final envelope = jsonDecode(File(replayPath).readAsStringSync())
+          as Map<String, dynamic>;
+      model = ReplayVasterModel(
+          tape: ModelTape.fromJson(
+              Map<String, dynamic>.from(envelope['modelTape'] as Map? ?? {})));
+    }
+
+    // Recording: capture model I/O onto a tape alongside the step journal.
+    final recordPath = results['record'] as String?;
+    ModelTape? recordingTape;
+    if (recordPath != null) {
+      recordingTape = ModelTape();
+      model = RecordingVasterModel(inner: model, tape: recordingTape);
+    }
+
     out.writeln('======================================================================');
     out.writeln('  VASTER VM — COMPILED PROGRAM EXECUTION                               ');
     out.writeln('  Program : ${program.programName} (${program.instructions.length} instructions)');
-    out.writeln('  Backend : $backend (${model.modelName})');
+    out.writeln('  Backend : ${replayPath != null ? 'replay tape ($replayPath)' : '$backend (${model.modelName})'}');
     out.writeln('======================================================================\n');
 
     // 3. Bootstrap and execute.
@@ -194,7 +218,6 @@ class RunCommand extends VasterCommand {
 
     // Journal recording chains with the tracer through the step observer.
     VasterExecutionRecorder? recorder;
-    final recordPath = results['record'] as String?;
     if (recordPath != null) {
       recorder = VasterExecutionRecorder()..attach(runtime);
     }
@@ -242,9 +265,15 @@ class RunCommand extends VasterCommand {
 
     if (recorder != null && recordPath != null) {
       recorder.detach();
+      // The replay envelope: step journal + model I/O tape together are a
+      // complete, deterministic re-execution recipe (`--replay <file>`).
       File(recordPath).writeAsStringSync(
-          const JsonEncoder.withIndent('  ').convert(recorder.journal.toJson()));
-      out.writeln('\n[record] ${recorder.recordedSteps} steps → $recordPath');
+          const JsonEncoder.withIndent('  ').convert({
+        'journal': recorder.journal.toJson(),
+        'modelTape': recordingTape?.toJson() ?? ModelTape().toJson(),
+      }));
+      out.writeln('\n[record] ${recorder.recordedSteps} steps + '
+          '${recordingTape?.length ?? 0} model calls → $recordPath');
     }
     if (eventSub != null) {
       // Let the broadcast stream flush events published this turn.
