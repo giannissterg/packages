@@ -250,10 +250,10 @@ final class HumanInteractionRequiredEvent extends RuntimeEvent {
 
   HumanInteractionRequiredEvent({
     required super.eventId,
-    required this.request,
+    required Map<String, dynamic> request,
     super.timestamp,
     super.metadata,
-  });
+  }) : request = Map.unmodifiable(request);
 
   @override
   Map<String, dynamic> toJson() => {

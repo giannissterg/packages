@@ -57,17 +57,22 @@ class VasterContinuation {
   final HumanInteractionRequest? pendingRequest;
   final DateTime suspendedAt;
 
+  /// Snapshots are deeply immutable: [registers] and [callStack] are wrapped
+  /// in unmodifiable views so a captured continuation can never drift from
+  /// what was (or will be) persisted.
   VasterContinuation({
     required this.continuationId,
     required this.programName,
     this.sessionId,
     this.activeModelDescriptor,
     required this.resumePc,
-    required this.registers,
-    this.callStack = const [],
+    required Map<String, dynamic> registers,
+    List<StackFrame> callStack = const [],
     this.pendingRequest,
     DateTime? suspendedAt,
-  }) : suspendedAt = suspendedAt ?? DateTime.now();
+  })  : registers = Map.unmodifiable(registers),
+        callStack = List.unmodifiable(callStack),
+        suspendedAt = suspendedAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
         'continuationId': continuationId,
