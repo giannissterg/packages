@@ -9,8 +9,11 @@ environment:
 
 dependencies:
   vaster_context:
+  vaster_events:
   vaster_model:
 
 dev_dependencies:
+  vaster_model_fake:
+    path: ../vaster_model_fake
   lints: ^6.0.0
   test: ^1.25.6

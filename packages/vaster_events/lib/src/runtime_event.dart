@@ -203,6 +203,39 @@ final class ContextEvictedEvent extends RuntimeEvent {
       };
 }
 
+/// Emitted when a context region is compressed under budget pressure or by
+/// explicit compaction.
+final class ContextCompressedEvent extends RuntimeEvent {
+  final String regionId;
+  final int tokensBefore;
+  final int tokensAfter;
+  final String compressorId;
+  final bool lossy;
+
+  ContextCompressedEvent({
+    required super.eventId,
+    required this.regionId,
+    required this.tokensBefore,
+    required this.tokensAfter,
+    required this.compressorId,
+    required this.lossy,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'context_compressed',
+        'eventId': eventId,
+        'regionId': regionId,
+        'tokensBefore': tokensBefore,
+        'tokensAfter': tokensAfter,
+        'compressorId': compressorId,
+        'lossy': lossy,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
 /// Emitted when an isolated code sandbox completes execution.
 final class SandboxExecutedEvent extends RuntimeEvent {
   final String sandboxId;

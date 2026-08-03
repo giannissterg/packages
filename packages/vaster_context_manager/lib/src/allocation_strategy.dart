@@ -30,6 +30,7 @@ class PriorityAllocationStrategy implements AllocationStrategy {
 
     final included = <ContextRegion>[];
     final evicted = <ContextRegion>[];
+    final evictionRecords = <EvictionRecord>[];
     var currentTokens = 0;
     final maxInputTokens = budget.availableInputBudget;
 
@@ -49,12 +50,26 @@ class PriorityAllocationStrategy implements AllocationStrategy {
         currentTokens += region.estimatedTokens;
       } else {
         evicted.add(region);
+        evictionRecords.add(EvictionRecord(
+          regionId: region.id,
+          reason: EvictionReason.budgetExceeded,
+          regionTokens: region.estimatedTokens,
+          tokensAvailableAtDecision:
+              (maxInputTokens - currentTokens).clamp(0, maxInputTokens),
+        ));
       }
     }
 
-    // Flatten compiled messages
+    // Flatten compiled messages. Selection above is priority-driven, but
+    // RENDERING follows each region's `order` hint (stable sort — regions
+    // with equal order keep their selection sequence). History chunks use
+    // large order values so conversation turns always render last,
+    // chronologically.
+    final renderOrder = List<ContextRegion>.of(included);
+    _stableSortByOrder(renderOrder);
+
     final compiledMessages = <ChatMessage>[];
-    for (final region in included) {
+    for (final region in renderOrder) {
       for (final msg in region.messages) {
         if (msg.role != Role.system) {
           compiledMessages.add(msg);
@@ -69,6 +84,20 @@ class PriorityAllocationStrategy implements AllocationStrategy {
       budget: budget,
       includedRegions: included,
       evictedRegions: evicted,
+      evictionRecords: evictionRecords,
     );
+  }
+
+  /// Insertion sort by `order` — stable, and lists here are small.
+  static void _stableSortByOrder(List<ContextRegion> regions) {
+    for (var i = 1; i < regions.length; i++) {
+      final current = regions[i];
+      var j = i - 1;
+      while (j >= 0 && regions[j].order > current.order) {
+        regions[j + 1] = regions[j];
+        j--;
+      }
+      regions[j + 1] = current;
+    }
   }
 }

@@ -1,27 +1,82 @@
 import 'dart:async';
 import 'package:vaster_context/vaster_context.dart';
+
 import 'allocation_strategy.dart';
+import 'compression/context_compactor.dart';
+import 'compression/context_compressor.dart';
 import 'context_manager_interface.dart';
 
 /// A composite implementation of [ContextManager] that combines multiple child
 /// context managers into a single unified context management engine.
+///
+/// Region-level operations route to the **owning child** (the first child
+/// whose heap holds the region); additions go to the first child.
 class CompositeContextManager implements ContextManager {
   final List<ContextManager> children;
   AllocationStrategy allocationStrategy;
 
+  /// Compressors used for composite-level compaction. When empty, children's
+  /// own compaction can still be invoked individually.
+  final List<ContextCompressor> compressors;
+
+  CompiledContext? _lastCompiled;
+
   CompositeContextManager({
     this.children = const [],
     this.allocationStrategy = const PriorityAllocationStrategy(),
+    this.compressors = const [],
   });
 
+  /// A merged **snapshot** of all children's regions. Mutating this heap has
+  /// no effect on any child — use the region-level methods instead.
+  @Deprecated('Snapshot only; mutations are lost. '
+      'Use regions/getRegion/addRegion/removeRegion/updateRegion.')
   @override
   ContextHeap get heap {
     final mergedHeap = ContextHeap();
     for (final child in children) {
-      mergedHeap.addAll(child.heap.regions);
+      mergedHeap.addAll(child.regions);
     }
     return mergedHeap;
   }
+
+  @override
+  List<ContextRegion> get regions =>
+      [for (final child in children) ...child.regions];
+
+  ContextManager? _ownerOf(String regionId) {
+    for (final child in children) {
+      if (child.getRegion(regionId) != null) return child;
+    }
+    return null;
+  }
+
+  @override
+  ContextRegion? getRegion(String regionId) =>
+      _ownerOf(regionId)?.getRegion(regionId);
+
+  @override
+  void addRegion(ContextRegion region) {
+    final owner = _ownerOf(region.id);
+    if (owner != null) {
+      owner.addRegion(region);
+      return;
+    }
+    if (children.isEmpty) {
+      throw StateError(
+          'Cannot add region: CompositeContextManager has no children.');
+    }
+    children.first.addRegion(region);
+  }
+
+  @override
+  bool removeRegion(String regionId, {bool force = false}) =>
+      _ownerOf(regionId)?.removeRegion(regionId, force: force) ?? false;
+
+  @override
+  bool updateRegion(
+          String regionId, ContextRegion Function(ContextRegion) update) =>
+      _ownerOf(regionId)?.updateRegion(regionId, update) ?? false;
 
   @override
   List<ContextSource> get sources {
@@ -37,7 +92,8 @@ class CompositeContextManager implements ContextManager {
     if (children.isNotEmpty) {
       children.first.registerSource(source);
     } else {
-      throw StateError('Cannot register source: CompositeContextManager has no children.');
+      throw StateError(
+          'Cannot register source: CompositeContextManager has no children.');
     }
   }
 
@@ -54,26 +110,17 @@ class CompositeContextManager implements ContextManager {
 
   @override
   void pinRegion(String regionId) {
-    for (final child in children) {
-      child.pinRegion(regionId);
-    }
+    _ownerOf(regionId)?.pinRegion(regionId);
   }
 
   @override
   void unpinRegion(String regionId) {
-    for (final child in children) {
-      child.unpinRegion(regionId);
-    }
+    _ownerOf(regionId)?.unpinRegion(regionId);
   }
 
   @override
-  ContextCacheDescriptor? getCacheDescriptor(String regionId) {
-    for (final child in children) {
-      final descriptor = child.getCacheDescriptor(regionId);
-      if (descriptor != null) return descriptor;
-    }
-    return null;
-  }
+  ContextCacheDescriptor? getCacheDescriptor(String regionId) =>
+      _ownerOf(regionId)?.getCacheDescriptor(regionId);
 
   @override
   List<ContextCacheDescriptor> getPinnedCacheDescriptors() {
@@ -93,26 +140,55 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
-  Future<CompiledContext> compileContext({
-    required TokenBudget budget,
+  Future<CompactionReport> compact({
+    required int targetTokens,
+    String? regionId,
+    bool includePinned = false,
   }) async {
-    await syncSources();
-
-    final allRegions = <ContextRegion>[];
-    for (final child in children) {
-      allRegions.addAll(child.heap.regions);
-    }
-
-    return allocationStrategy.allocate(
-      regions: allRegions,
-      budget: budget,
+    final compactor = ContextCompactor(compressors: compressors);
+    // apply routes each compressed region back to the child that owns it —
+    // mutations land in real heaps, not the throwaway merge.
+    return compactor.compact(
+      regions: regions,
+      targetTokens: targetTokens,
+      includePinned: includePinned,
+      onlyRegionId: regionId,
+      apply: (compressed) {
+        _ownerOf(compressed.id)?.updateRegion(compressed.id, (_) => compressed);
+      },
     );
   }
 
   @override
-  void pruneLifetimes(Set<ContextLifetime> expiredLifetimes) {
+  Future<CompiledContext> compileContext({
+    required TokenBudget budget,
+    bool allowCompression = true,
+  }) async {
+    await syncSources();
+
+    if (allowCompression &&
+        compressors.isNotEmpty &&
+        regions.fold(0, (s, r) => s + r.estimatedTokens) >
+            budget.availableInputBudget) {
+      await compact(targetTokens: (budget.availableInputBudget * 0.9).floor());
+    }
+
+    final compiled = allocationStrategy.allocate(
+      regions: regions,
+      budget: budget,
+    );
+    _lastCompiled = compiled;
+    return compiled;
+  }
+
+  @override
+  CompiledContext? get lastCompiled => _lastCompiled;
+
+  @override
+  void pruneLifetimes(Set<ContextLifetime> expiredLifetimes,
+      {bool force = false}) {
     for (final child in children) {
-      child.pruneLifetimes(expiredLifetimes);
+      child.pruneLifetimes(expiredLifetimes, force: force);
     }
   }
 }
