@@ -524,6 +524,12 @@ final class DecideLoop extends VasterNode {
   final String? defaultPath;
   final int? maxIterations;
 
+  /// Nodes run on the continue edge — between the decision to keep going and
+  /// the next pass of [body]. With an empty [body], this turns the loop
+  /// decide-first: evaluate → exit, or run [onContinue] and re-evaluate
+  /// (the review-then-revise shape).
+  final List<VasterNode> onContinue;
+
   /// Binding name for the final decision label; auto-allocated when omitted.
   final String? output;
 
@@ -535,6 +541,7 @@ final class DecideLoop extends VasterNode {
     required this.exits,
     this.defaultPath,
     this.maxIterations,
+    this.onContinue = const [],
     this.output,
   });
 }

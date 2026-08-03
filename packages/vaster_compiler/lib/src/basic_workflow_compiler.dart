@@ -288,6 +288,12 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
           if (n.exits[i].label == loopDefault) exhaustIndex = i;
         }
 
+        // The continue edge: straight back to the loop start, or through the
+        // onContinue block first (the review-then-revise shape).
+        final continueTarget = n.onContinue.isEmpty
+            ? loopStart
+            : ir.newLabel('decide_loop_continue');
+
         ir.emit(SetRegisterOp(registerName: counterReg, value: 0));
         ir.bind(loopStart);
         _lowerNodes(n.body, ir, context, state);
@@ -304,7 +310,8 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.decide(
           n.prompt,
           [
-            IrDecideBranch(n.continueLabel, n.continueDescription, loopStart),
+            IrDecideBranch(
+                n.continueLabel, n.continueDescription, continueTarget),
             for (var i = 0; i < n.exits.length; i++)
               IrDecideBranch(
                   n.exits[i].label, n.exits[i].description, exitLabels[i]),
@@ -312,6 +319,11 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
           outputVar: chosenReg,
           defaultLabel: loopDefault,
         );
+        if (n.onContinue.isNotEmpty) {
+          ir.bind(continueTarget);
+          _lowerNodes(n.onContinue, ir, context, state);
+          ir.jump(loopStart);
+        }
         for (var i = 0; i < n.exits.length; i++) {
           ir.bind(exitLabels[i]);
           _lowerNodes(n.exits[i].children, ir, context, state);

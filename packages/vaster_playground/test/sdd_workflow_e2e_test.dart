@@ -144,6 +144,83 @@ void main() {
     await vm.shutdown();
   });
 
+  test('Review(revise:) loops — reject, replan against the critique, approve',
+      () async {
+    var planRuns = 0;
+    var verdicts = 0;
+    final model = FakeVasterModel(handler: (request) {
+      final text = request.messages.last.text;
+      if (text.contains('Choose exactly one')) {
+        verdicts++;
+        return ModelResponse(
+            message: ChatMessage.model(
+                jsonEncode({'choice': verdicts == 1 ? 'revise' : 'approve'})));
+      }
+      String reply;
+      if (text.contains('Produce a concrete implementation plan')) {
+        planRuns++;
+        reply = '# Plan v$planRuns';
+      } else if (text.contains('Review the artifact')) {
+        reply = planRuns == 1
+            ? '# Review\nMilestone order is contradictory. REVISE.'
+            : '# Review\nContradiction resolved. APPROVE.';
+      } else if (text.contains('reviewable specification')) {
+        reply = '# Spec\nThe thing.';
+      } else {
+        reply = 'ack';
+      }
+      return ModelResponse(message: ChatMessage.model(reply));
+    });
+
+    final vm = await VasterVMEngine.bootstrap(
+        config: VMConfig(defaultModel: model, rootMountPath: '/workspace'));
+    final runtime = VasterRuntime(
+      vm: vm,
+      policy: ExecutionPolicy.unlimited,
+      budget: ExecutionBudget.unlimited(),
+      scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+    );
+
+    final program = const BasicWorkflowCompiler().compile(Pipeline(
+      name: 'review_loop_e2e',
+      roles: const [architect, lead, reviewer],
+      children: const [
+        Specify(goal: 'the thing', agent: architect),
+        Plan(agent: lead),
+        Review(
+          agent: reviewer,
+          revise: Plan(agent: lead, addressing: 'review'),
+          maxRounds: 3,
+          onApprove: [Prompt('kick off implementation')],
+        ),
+      ],
+    ));
+
+    final state = await runtime.executeProgram(program);
+    expect(state.status, RuntimeStatus.halted);
+
+    expect(planRuns, equals(2), reason: 'initial plan + one revision');
+    expect(verdicts, equals(2), reason: 'revise, then approve');
+    expect(state.registers['review_verdict'], equals('approve'));
+
+    // The revising planner saw the first review's critique.
+    final revisionRequest = model.recordedRequests.firstWhere((r) =>
+        r.messages.last.text.contains('address every blocking issue'));
+    expect(revisionRequest.messages.last.text,
+        contains('Milestone order is contradictory'));
+
+    // The approved continuation ran; the artifact is the revised plan.
+    expect(
+        model.recordedRequests
+            .any((r) => r.messages.last.text.contains('kick off implementation')),
+        isTrue);
+    final plan = await vm.fileSystemManager
+        .resolveFileSystem('/workspace/plan.md')
+        .readText('/workspace/plan.md');
+    expect(plan, equals('# Plan v2'));
+    await vm.shutdown();
+  });
+
   test('a revise verdict takes the rework branch, not the workstreams',
       () async {
     final model = FakeVasterModel(handler: (request) {

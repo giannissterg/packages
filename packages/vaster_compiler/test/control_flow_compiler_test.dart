@@ -1,6 +1,7 @@
 import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
+import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 
 void main() {
@@ -323,6 +324,80 @@ void main() {
       // No analyzer errors, and no unreachable_code on the exit path.
       final diagnostics = const ProgramAnalyzer().analyze(program);
       expect(diagnostics.where((d) => d.severity == CompileSeverity.error), isEmpty);
+      expect(diagnostics.map((d) => d.code), isNot(contains('unreachable_code')));
+    });
+
+    test('onContinue lowers on the continue edge, before the back-jump', () {
+      final program = compiler.compile(pipeline(const [
+        DecideLoop(
+          prompt: 'good enough?',
+          body: [],
+          continueLabel: 'revise',
+          continueDescription: 'fix it first',
+          onContinue: [Prompt('apply the fixes')],
+          exits: [DecisionPath(label: 'approve', description: 'ship it')],
+          defaultPath: 'approve',
+          maxIterations: 3,
+        ),
+      ]));
+      final instructions = program.instructions;
+      final decideIndex = instructions.indexWhere((op) => op is DecideOp);
+      final decide = instructions[decideIndex] as DecideOp;
+
+      // The continue branch lands on the onContinue block, not the loop start.
+      final continueTarget =
+          decide.branches.firstWhere((b) => b.label == 'revise').targetPc;
+      expect(continueTarget, greaterThan(decideIndex),
+          reason: 'continue routes forward through onContinue');
+      expect((instructions[continueTarget] as PromptOp).promptText,
+          equals('apply the fixes'));
+
+      // ...and onContinue jumps back into the loop (a backward jump).
+      final backJump =
+          instructions.skip(continueTarget).whereType<JumpOp>().first;
+      expect(backJump.targetPc, lessThan(decideIndex),
+          reason: 'after revising, control re-enters the loop');
+    });
+
+    test('Review(revise:) closes the loop: decide-first with regeneration', () {
+      AgentRole role(String id) =>
+          AgentRole(roleId: id, name: id, title: id, instruction: 'You: $id');
+      final program = compiler.compile(Pipeline(
+        name: 'review_loop',
+        roles: [role('lead'), role('reviewer')],
+        children: const [
+          Specify(goal: 'a thing', agentId: 'lead'),
+          Plan(agentId: 'lead'),
+          Review(
+            agentId: 'reviewer',
+            revise: Plan(agentId: 'lead', addressing: 'review'),
+            maxRounds: 2,
+            onApprove: [Prompt('proceed to implementation')],
+          ),
+        ],
+      ));
+      final instructions = program.instructions;
+
+      // Initial plan + in-loop revision plan, the latter embedding the
+      // critique binding.
+      final planPrompts = instructions
+          .whereType<DispatchAgentTaskOp>()
+          .where((op) => op.taskPrompt.contains('implementation plan'))
+          .toList();
+      expect(planPrompts, hasLength(2));
+      expect(planPrompts.last.taskPrompt, contains(r'${review}'));
+
+      // One decide with revise (continue) and approve (exit) branches,
+      // approving by default.
+      final decide = instructions.whereType<DecideOp>().single;
+      expect(decide.branches.map((b) => b.label),
+          containsAll(['revise', 'approve']));
+      expect(decide.defaultLabel, equals('approve'));
+
+      // No unreachable code, no errors — the loop is well-formed.
+      final diagnostics = const ProgramAnalyzer().analyze(program);
+      expect(diagnostics.where((d) => d.severity == CompileSeverity.error),
+          isEmpty);
       expect(diagnostics.map((d) => d.code), isNot(contains('unreachable_code')));
     });
 

@@ -32,6 +32,13 @@ part of '../vaster_ast.dart';
 // and its verdict in `review_verdict`.
 // ══════════════════════════════════════════════════════════════════════════════
 
+/// Shared suffix for every artifact-producing phase prompt: real models
+/// open with conversational scaffolding ("I'll review this plan…") that
+/// then leaks into the written artifact. Documents must be documents.
+const String _documentOnly =
+    '\n\nOutput only the document itself, starting with its first Markdown '
+    'heading — no preamble, no commentary, no closing remarks.';
+
 /// Artifact-path conventions for the SDD kit, injected via
 /// `Provider<SddConventions>`.
 class SddConventions {
@@ -113,7 +120,8 @@ class Clarify extends ComposableNode {
             prompt: 'Update the clarification notes with the new exchange.\n\n'
                 'Notes so far:\n\${$output}\n\n'
                 'Q: \${clarify_question}\nA: \${clarify_answer}\n\n'
-                'Reply with the complete updated notes in Markdown.',
+                'Reply with the complete updated notes in Markdown.'
+                '$_documentOnly',
           ),
         ],
         exits: const [
@@ -214,7 +222,7 @@ class Specify extends ComposableNode {
         output: 'spec',
         prompt: 'Write a complete, reviewable specification in Markdown for '
             'the following goal. Cover scope, requirements, non-goals, and '
-            'acceptance criteria.\n\nGoal: $goal',
+            'acceptance criteria.\n\nGoal: $goal$_documentOnly',
       ),
       WriteFile(path: artifact ?? conventions.specPath, content: r'${spec}'),
     ]);
@@ -235,17 +243,27 @@ class Plan extends ComposableNode {
   /// Plan artifact to write (default: the conventions' plan path).
   final String? artifact;
 
+  /// Binding name of a critique to address (e.g. `'review'` inside a
+  /// `Review(revise: Plan(...))` loop). When set, the bound review is
+  /// embedded and the planner is instructed to fix every blocking issue.
+  final String? addressing;
+
   const Plan({
     this.agent,
     this.agentId,
     this.from,
     this.artifact,
+    this.addressing,
   }) : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
+    final addressingClause = addressing == null
+        ? ''
+        : '\n\nA review of the previous version follows — address every '
+            'blocking issue it names:\n\${$addressing}';
     return Sequence([
       ReadFile(path: from ?? conventions.specPath, output: 'spec_doc'),
       Task(
@@ -255,7 +273,7 @@ class Plan extends ComposableNode {
         prompt: 'Produce a concrete implementation plan in Markdown for the '
             'specification below: ordered milestones, workstreams with clear '
             'boundaries, file-level changes, and verification steps.\n\n'
-            'Specification:\n\${spec_doc}',
+            'Specification:\n\${spec_doc}$addressingClause$_documentOnly',
       ),
       WriteFile(path: artifact ?? conventions.planPath, content: r'${plan}'),
     ]);
@@ -319,7 +337,7 @@ class Implement extends ComposableNode {
               prompt: 'Execute your workstream of the implementation plan '
                   'below. Own it end to end and produce the deliverable in '
                   'Markdown.\n\nYour workstream: ${ws.focus}\n\n'
-                  'Plan:\n\${plan_doc}',
+                  'Plan:\n\${plan_doc}$_documentOnly',
             ),
         ],
       ),
@@ -332,14 +350,25 @@ class Implement extends ComposableNode {
 }
 
 /// Review phase — a critic reads an artifact, writes a review artifact, and
-/// the verdict steers the tree: the approved continuation nests under
-/// [onApprove], the rework path under [onRevise]. Model-decided by default;
-/// a human [ApprovalGate] when [gate] is true.
+/// the verdict steers the tree. Model-decided by default; a human
+/// [ApprovalGate] when [gate] is true.
 ///
-/// Expands to: `ReadFile(of)` → `Task(output: 'review')` →
-/// `WriteFile(reviewPath, '${review}')` → `Decide(approve/revise)` (or an
-/// ApprovalGate over the same review when gated). The decision label binds
-/// to `review_verdict`.
+/// The verdict standard is **blocking issues only**: an artifact with minor
+/// improvements still gets approved (with notes) — revision is reserved for
+/// issues that genuinely block the goal. Real reviewers otherwise reject
+/// everything and the pipeline never ships.
+///
+/// Three continuation shapes:
+/// - `onApprove` nests the approved continuation.
+/// - `onRevise` (with no [revise] slot) is a terminal rework path.
+/// - **[revise] closes the loop**: a node that regenerates the artifact
+///   (typically the same `Plan(...)` that produced it). On a revise verdict
+///   the artifact is regenerated — with `${review}` bound, so the producer
+///   can interpolate the critique — then re-reviewed, up to [maxRounds]
+///   (else `DecisionPolicy.maxIterations`). Exhaustion approves and
+///   proceeds: an endless review cycle must not hang the pipeline.
+///
+/// The decision label binds to `review_verdict`.
 class Review extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
@@ -359,6 +388,13 @@ class Review extends ComposableNode {
   final List<VasterNode> onApprove;
   final List<VasterNode> onRevise;
 
+  /// Regenerates the reviewed artifact on a revise verdict, closing the
+  /// review loop. Mutually exclusive with [onRevise] and [gate].
+  final VasterNode? revise;
+
+  /// Review-round bound when [revise] is set.
+  final int? maxRounds;
+
   const Review({
     this.agent,
     this.agentId,
@@ -368,11 +404,17 @@ class Review extends ComposableNode {
     this.requestId = 'sdd_review',
     this.onApprove = const [],
     this.onRevise = const [],
-  }) : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+    this.revise,
+    this.maxRounds,
+  })  : assert(agent == null || agentId == null,
+            'Provide at most one of agent/agentId'),
+        assert(revise == null || !gate,
+            'The revise loop is model-decided; combine gate with onRevise');
 
   @override
   VasterNode build(BuildContext context) {
+    assert(revise == null || onRevise.isEmpty,
+        'Provide either revise (loop) or onRevise (terminal), not both');
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
     final target = of ?? conventions.planPath;
     final reviewSteps = <VasterNode>[
@@ -381,13 +423,24 @@ class Review extends ComposableNode {
         agent: agent,
         agentId: agentId,
         output: 'review',
-        prompt: 'Review the artifact below rigorously: correctness, '
-            'completeness, risks, and whether it meets its stated goal. '
-            'End with a clear APPROVE or REVISE recommendation.\n\n'
-            'Artifact ($target):\n\${review_target}',
+        prompt: 'Review the artifact below: correctness, completeness, '
+            'risks, and whether it meets its stated goal. Hold it to a '
+            'shipping standard, not a perfection standard — note minor '
+            'improvements, but recommend revision only for issues that '
+            'genuinely block the goal. End with a clear APPROVE or REVISE '
+            'recommendation.\n\n'
+            'Artifact ($target):\n\${review_target}$_documentOnly',
       ),
       WriteFile(path: artifact ?? conventions.reviewPath, content: r'${review}'),
     ];
+    const decidePrompt =
+        'Based on this review, should the artifact be approved or sent back '
+        'for revision? Approve unless the review names blocking issues.'
+        '\n\nReview:\n\${review}';
+    const approveDescription =
+        'no blocking issues — minor notes can ride along';
+    const reviseDescription = 'blocking issues must be fixed first';
+
     if (gate) {
       return Sequence([
         ...reviewSteps,
@@ -399,22 +452,46 @@ class Review extends ComposableNode {
         ),
       ]);
     }
+    if (revise != null) {
+      // Decide-first loop (empty body): judge the existing review; a revise
+      // verdict regenerates the artifact and re-reviews on the continue
+      // edge; exhaustion falls through to approve.
+      return Sequence([
+        ...reviewSteps,
+        DecideLoop(
+          prompt: decidePrompt,
+          output: 'review_verdict',
+          body: const [],
+          continueLabel: 'revise',
+          continueDescription: reviseDescription,
+          onContinue: [revise!, ...reviewSteps],
+          exits: [
+            DecisionPath(
+              label: 'approve',
+              description: approveDescription,
+              children: onApprove,
+            ),
+          ],
+          defaultPath: 'approve',
+          maxIterations: maxRounds,
+        ),
+      ]);
+    }
     return Sequence([
       ...reviewSteps,
       Decide(
-        prompt: 'Based on this review, should the artifact be approved or '
-            'sent back for revision?\n\nReview:\n\${review}',
+        prompt: decidePrompt,
         output: 'review_verdict',
         defaultPath: 'approve',
         paths: [
           DecisionPath(
             label: 'approve',
-            description: 'the review recommends approval',
+            description: approveDescription,
             children: onApprove,
           ),
           DecisionPath(
             label: 'revise',
-            description: 'the review found issues that must be addressed',
+            description: reviseDescription,
             children: onRevise,
           ),
         ],
