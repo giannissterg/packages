@@ -69,6 +69,9 @@ class VasterVMEngine implements VasterVirtualMachine {
 
   final Map<String, ProgramExecutionJob> _jobs = {};
 
+  @override
+  ContextWorkspace get contextWorkspace => ContextWorkspace(contextManager);
+
   VasterVMEngine._({
     required this.config,
     required this.sessionManager,
@@ -101,7 +104,13 @@ class VasterVMEngine implements VasterVirtualMachine {
     final resourceTracker = ResourceTracker(quota: config.defaultQuota);
 
     final sessionManager = BasicSessionManager();
-    final contextManager = BasicContextManager();
+    final contextManager = BasicContextManager(
+      eventBus: eventBus,
+      compressors: [
+        SummarizingCompressor(model: config.defaultModel),
+        const TruncatingCompressor(),
+      ],
+    );
     final fileSystemManager = BasicFileSystemManager();
     final toolManager = BasicToolManager(tools: initialTools);
     final sandboxManager = BasicSandboxManager(sandboxes: initialSandboxes);
@@ -274,7 +283,13 @@ class VasterVMEngine implements VasterVirtualMachine {
     final session = await sessionManager.createSession(
       sessionId: sessionId,
       model: model,
-      contextManager: BasicContextManager(),
+      contextManager: BasicContextManager(
+        eventBus: eventBus,
+        compressors: [
+          SummarizingCompressor(model: model),
+          const TruncatingCompressor(),
+        ],
+      ),
     );
 
     eventBus.publish(SessionCreatedEvent(
@@ -458,7 +473,27 @@ class VasterVMEngine implements VasterVirtualMachine {
     return await agentManager.createAgent(
       descriptor: descriptor,
       model: activeModel,
-      contextManager: contextManager,
+      // Layered context: the agent session's private manager (children.first
+      // — receives its history source and session-local regions) over the
+      // shared VM-wide manager (ambient regions remain visible). This keeps
+      // per-session history isolated instead of projecting every session's
+      // turns into one shared heap.
+      contextManager: CompositeContextManager(
+        children: [
+          BasicContextManager(
+            eventBus: eventBus,
+            compressors: [
+              SummarizingCompressor(model: activeModel),
+              const TruncatingCompressor(),
+            ],
+          ),
+          contextManager,
+        ],
+        compressors: [
+          SummarizingCompressor(model: activeModel),
+          const TruncatingCompressor(),
+        ],
+      ),
       toolManager: toolManager,
     );
   }

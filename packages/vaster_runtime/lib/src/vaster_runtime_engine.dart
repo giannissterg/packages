@@ -189,6 +189,11 @@ class VasterRuntime {
       }
     }
     if (_status == RuntimeStatus.running) _status = RuntimeStatus.halted;
+    if (_status == RuntimeStatus.halted) {
+      // Program boundary: expire ephemeral + step-scoped context regions.
+      vm.contextManager
+          .pruneLifetimes({ContextLifetime.ephemeral, ContextLifetime.step});
+    }
     return state;
   }
 
@@ -415,6 +420,75 @@ class VasterRuntime {
       case PinContextOp op:
         vm.contextManager.pinRegion(op.regionId);
         _cacheHints.onRegionPinned(op.regionId, vm.contextManager);
+
+      case AddContextOp op:
+        final content = op.sourceVar != null
+            ? (_registers.read(op.sourceVar!)?.toString() ?? '')
+            : op.text;
+        vm.contextManager.addRegion(ContextRegion.text(
+          id: op.regionId,
+          label: op.label,
+          role: Role.user,
+          text: content,
+          priority: ContextPriority.parse(op.priority),
+          lifetime: ContextLifetime.parse(op.lifetime),
+          compressibility: ContextCompressibility.parse(op.compressibility),
+          isPinned: op.pinned,
+        ));
+        if (op.pinned) {
+          _cacheHints.onRegionPinned(op.regionId, vm.contextManager);
+        }
+
+      case EvictContextOp op:
+        final removed =
+            vm.contextManager.removeRegion(op.regionId, force: op.force);
+        if (removed) _cacheHints.removeHint(op.regionId);
+
+      case UnpinContextOp op:
+        vm.contextManager.unpinRegion(op.regionId);
+        _cacheHints.removeHint(op.regionId);
+
+      case SetContextPolicyOp op:
+        vm.contextManager.updateRegion(
+          op.regionId,
+          (r) => r.copyWith(
+            priority:
+                op.priority != null ? ContextPriority.parse(op.priority) : null,
+            isPinned: op.pinned,
+            compressibility: op.compressibility != null
+                ? ContextCompressibility.parse(op.compressibility)
+                : null,
+            utility: op.utility,
+          ),
+        );
+        if (op.pinned == true) {
+          _cacheHints.onRegionPinned(op.regionId, vm.contextManager);
+        } else if (op.pinned == false) {
+          _cacheHints.removeHint(op.regionId);
+        }
+
+      case CompressContextOp op:
+        final target = op.targetTokens ??
+            (_activeModel ?? vm.config.defaultModel)
+                    .capabilities.maxContextTokens *
+                9 ~/
+                10;
+        final report = await vm.contextManager.compact(
+          targetTokens: target,
+          regionId: op.regionId,
+          includePinned: true,
+        );
+        // Compressed pinned regions changed content: refresh their hints so
+        // prompt-cache/KV lowering never serves stale fingerprints.
+        for (final entry in report.entries) {
+          final region = vm.contextManager.getRegion(entry.regionId);
+          if (region != null && region.isPinned) {
+            _cacheHints.onRegionPinned(entry.regionId, vm.contextManager);
+          }
+        }
+        if (op.outputVar != null) {
+          _registers.write(op.outputVar!, report.tokensFreed.toString());
+        }
 
       case RegisterToolSetOp op:
         _activeToolSet = op.tools;

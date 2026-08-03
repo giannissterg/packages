@@ -30,6 +30,10 @@ abstract interface class VasterVirtualMachine {
   /// Active Context Manager.
   ContextManager get contextManager;
 
+  /// Ergonomic context-management facade over [contextManager]:
+  /// inspect, add, remove, update, prioritize, pin, compress, expand.
+  ContextWorkspace get contextWorkspace;
+
   /// Active Virtual Filesystem Manager.
   FileSystemManager get fileSystemManager;
 
