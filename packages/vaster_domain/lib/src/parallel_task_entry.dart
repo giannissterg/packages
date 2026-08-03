@@ -1,4 +1,4 @@
-/// Describes a parallel task dispatch entry for [PerformParallelTasksNode].
+/// Describes a parallel task dispatch entry for the `ParallelTasks` AST node.
 class ParallelTaskEntry {
   final String agentRoleId;
   final String promptText;

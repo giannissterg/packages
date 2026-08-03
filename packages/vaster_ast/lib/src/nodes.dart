@@ -602,21 +602,4 @@ final class CallSubroutine extends VasterNode {
   const CallSubroutine({required this.name, this.arguments = const {}});
 }
 
-typedef PipelineNode = Pipeline;
-typedef MountStorageNode = Mount;
-typedef DefineRoleNode = Agent;
-typedef PerformTaskNode = Task;
-typedef PerformParallelTasksNode = ParallelTasks;
-typedef PromptModelNode = Prompt;
-typedef WriteDocumentNode = WriteFile;
-typedef ReadDocumentNode = ReadFile;
-typedef RegisterCodeEnvironmentNode = Sandbox;
-typedef ExecuteCodeNode = Execute;
-typedef WhenConditionNode = When;
-typedef StepTransactionNode = Transaction;
-typedef SelectModelNode = SelectModel;
-typedef YieldHumanInteractionNode = YieldHuman;
-typedef AskHumanQuestionNode = AskHuman;
-typedef HumanApprovalComponent = ApprovalGate;
-typedef OutputNode = Output;
 typedef ProviderNode<T> = Provider<T>;
