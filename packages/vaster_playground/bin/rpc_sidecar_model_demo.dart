@@ -57,10 +57,10 @@ void main() async {
     children: const [
       Agent(
         role: devRole,
-        children: [
+        child: Sequence([
           Task(prompt: 'Analyze the system architecture'),
           Task(prompt: 'Generate production code'),
-        ],
+        ]),
       ),
     ],
   );

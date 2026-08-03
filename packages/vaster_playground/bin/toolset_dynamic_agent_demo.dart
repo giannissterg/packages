@@ -55,9 +55,9 @@ void main() async {
         children: const [
           Agent(
             role: engineerRole,
-            children: [
-              Task(prompt: 'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
-            ],
+            child: Task(
+                prompt:
+                    'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
           ),
         ],
       ),

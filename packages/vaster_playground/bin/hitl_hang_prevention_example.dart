@@ -31,13 +31,13 @@ void main() async {
     children: [
       Agent(
         role: engineerRole,
-        children: const [
+        child: const Sequence([
           WriteFile(
             path: '/workspace/prod_config.json',
             content: '{"db": "production_cluster", "replicas": 5}',
           ),
           Task(prompt: 'Prepare deployment configuration.'),
-        ],
+        ]),
       ),
 
       // Human Approval Gate

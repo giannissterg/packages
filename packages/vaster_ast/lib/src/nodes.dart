@@ -8,6 +8,19 @@ part of '../vaster_ast.dart';
 // Provider<T> nodes. Value-producing nodes accept an optional `output:`
 // binding name; downstream nodes consume bound values with `${name}`
 // interpolation in prompts/content or by name in `When`/`While` conditions.
+//
+// NEST vs SEQUENCE — the tree's design rule. A node nests children only when
+// it changes what they MEAN:
+//   * who executes them            → Agent(child:)
+//   * their environment            → SelectModel / ToolSet / BudgetScope /
+//                                    Sandbox / Mount / Provider
+//   * their failure semantics      → Transaction / TryCatch / Resilient
+//   * whether they run at all      → When / Decide paths / Review branches /
+//                                    loop bodies
+// Peer steps that merely run one after another are SIBLINGS — in
+// Pipeline.children or an explicit Sequence. Data dependency alone never
+// forces nesting: bindings and ${...} interpolation cross sibling
+// boundaries freely.
 // ══════════════════════════════════════════════════════════════════════════════
 
 /// Top-level pipeline container.
@@ -118,12 +131,17 @@ final class PipelineInputs {
   Object? operator [](String name) => values[name];
 }
 
-/// Provisions an agent role scope provider.
+/// Provisions an agent and scopes a single wrapped subtree to it — a true
+/// provider node: descendants of [child] inherit this role (e.g. a [Task]
+/// with no agent reference dispatches here).
+///
+/// For multiple steps under one agent, wrap them deliberately:
+/// `Agent(role: architect, child: Sequence([...]))`.
 class Agent extends ComposableNode {
   final AgentRole role;
-  final List<VasterNode> children;
+  final VasterNode? child;
 
-  const Agent({required this.role, this.children = const []});
+  const Agent({required this.role, this.child});
 
   @override
   VasterNode build(BuildContext context) {
@@ -131,7 +149,7 @@ class Agent extends ComposableNode {
       value: role,
       children: [
         AgentProvisionHeader(role: role),
-        ...children,
+        ?child,
       ],
     );
   }

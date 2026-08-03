@@ -54,7 +54,8 @@ Future<void> main() async {
     return ModelResponse(message: ChatMessage.model(reply));
   });
 
-  // The phase tree — nesting is the workflow's dependency structure.
+  // Phases are siblings — the pipeline reads as the SDD checklist itself;
+  // only conditionality nests (Implement exists only when approved).
   final pipeline = Pipeline(
     name: 'sdd_data_export',
     roles: const [architect, lead, backend, frontend, reviewer],
@@ -62,44 +63,36 @@ Future<void> main() async {
       Specify(
         goal: 'Let users export their data as CSV or JSON.',
         agent: architect,
-        children: [
-          Plan(
-            agent: lead,
-            children: [
-              Review(
-                agent: reviewer,
-                onApprove: [
-                  Implement(
-                    workstreams: [
-                      Workstream(
-                          agent: backend,
-                          focus: 'the export API service',
-                          output: 'backend_result',
-                          artifact: '/workspace/deliverables/backend.md'),
-                      Workstream(
-                          agent: frontend,
-                          focus: 'the export dialog UI',
-                          output: 'frontend_result',
-                          artifact: '/workspace/deliverables/frontend.md'),
-                    ],
-                    children: [
-                      Task(
-                        agent: lead,
-                        prompt: 'Write the release notes.\n'
-                            r'Backend: ${backend_result}'
-                            '\n'
-                            r'Frontend: ${frontend_result}',
-                        output: 'release_notes',
-                      ),
-                      Output(from: 'release_notes'),
-                    ],
-                  ),
-                ],
-                onRevise: [Prompt('Log: plan sent back for revision.')],
-              ),
+      ),
+      Plan(agent: lead),
+      Review(
+        agent: reviewer,
+        onApprove: [
+          Implement(
+            workstreams: [
+              Workstream(
+                  agent: backend,
+                  focus: 'the export API service',
+                  output: 'backend_result',
+                  artifact: '/workspace/deliverables/backend.md'),
+              Workstream(
+                  agent: frontend,
+                  focus: 'the export dialog UI',
+                  output: 'frontend_result',
+                  artifact: '/workspace/deliverables/frontend.md'),
             ],
+            integrate: Task(
+              agent: lead,
+              prompt: 'Write the release notes.\n'
+                  r'Backend: ${backend_result}'
+                  '\n'
+                  r'Frontend: ${frontend_result}',
+              output: 'release_notes',
+            ),
           ),
+          Output(from: 'release_notes'),
         ],
+        onRevise: [Prompt('Log: plan sent back for revision.')],
       ),
     ],
   );

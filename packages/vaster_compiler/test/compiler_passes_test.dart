@@ -111,7 +111,7 @@ void main() {
           spec: const PipelineSpec(name: 'clean'),
           roles: const [architect],
           children: const [
-            Agent(role: architect, children: [Task(prompt: 'design the app')]),
+            Agent(role: architect, child: Task(prompt: 'design the app')),
           ],
         ),
       );
@@ -167,9 +167,9 @@ void main() {
           spec: const PipelineSpec(name: 'typed'),
           roles: const [architect],
           children: [
-            Agent(role: architect, children: [
-              Task(prompt: 'design it', outputSchema: schema),
-            ]),
+            Agent(
+                role: architect,
+                child: Task(prompt: 'design it', outputSchema: schema)),
           ],
         ),
       );

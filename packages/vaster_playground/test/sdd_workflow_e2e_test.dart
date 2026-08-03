@@ -65,7 +65,8 @@ void main() {
       scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
     );
 
-    // The phase tree: nesting IS the dependency structure.
+    // Phases are siblings — the pipeline reads as the SDD checklist itself;
+    // only conditionality nests (Implement exists only when approved).
     final pipeline = Pipeline(
       name: 'sdd_flagship',
       roles: const [architect, lead, backend, frontend, reviewer],
@@ -73,44 +74,36 @@ void main() {
         Specify(
           goal: 'Let users sync their tasks across devices.',
           agent: architect,
-          children: [
-            Plan(
-              agent: lead,
-              children: [
-                Review(
-                  agent: reviewer,
-                  onApprove: [
-                    Implement(
-                      workstreams: [
-                        Workstream(
-                            agent: backend,
-                            focus: 'the sync API service',
-                            output: 'backend_result',
-                            artifact: '/workspace/backend.md'),
-                        Workstream(
-                            agent: frontend,
-                            focus: 'the sync UI client',
-                            output: 'frontend_result',
-                            artifact: '/workspace/frontend.md'),
-                      ],
-                      children: [
-                        Task(
-                          agent: lead,
-                          prompt: 'Write the release notes.\n'
-                              r'Backend: ${backend_result}'
-                              '\n'
-                              r'Frontend: ${frontend_result}',
-                          output: 'release_notes',
-                        ),
-                        Output(from: 'release_notes'),
-                      ],
-                    ),
-                  ],
-                  onRevise: [Prompt('Log: the plan needs revision.')],
-                ),
+        ),
+        Plan(agent: lead),
+        Review(
+          agent: reviewer,
+          onApprove: [
+            Implement(
+              workstreams: [
+                Workstream(
+                    agent: backend,
+                    focus: 'the sync API service',
+                    output: 'backend_result',
+                    artifact: '/workspace/backend.md'),
+                Workstream(
+                    agent: frontend,
+                    focus: 'the sync UI client',
+                    output: 'frontend_result',
+                    artifact: '/workspace/frontend.md'),
               ],
+              integrate: Task(
+                agent: lead,
+                prompt: 'Write the release notes.\n'
+                    r'Backend: ${backend_result}'
+                    '\n'
+                    r'Frontend: ${frontend_result}',
+                output: 'release_notes',
+              ),
             ),
+            Output(from: 'release_notes'),
           ],
+          onRevise: [Prompt('Log: the plan needs revision.')],
         ),
       ],
     );
@@ -174,19 +167,17 @@ void main() {
       name: 'sdd_revise',
       roles: const [architect, lead, reviewer, backend],
       children: const [
-        Specify(goal: 'a goal', agent: architect, children: [
-          Plan(agent: lead, children: [
-            Review(
-              agent: reviewer,
-              onApprove: [
-                Implement(workstreams: [
-                  Workstream(agent: backend, focus: 'build it', output: 'built'),
-                ]),
-              ],
-              onRevise: [Prompt('Log: revision requested.')],
-            ),
-          ]),
-        ]),
+        Specify(goal: 'a goal', agent: architect),
+        Plan(agent: lead),
+        Review(
+          agent: reviewer,
+          onApprove: [
+            Implement(workstreams: [
+              Workstream(agent: backend, focus: 'build it', output: 'built'),
+            ]),
+          ],
+          onRevise: [Prompt('Log: revision requested.')],
+        ),
       ],
     ));
 

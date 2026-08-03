@@ -75,9 +75,8 @@ void main() async {
               // Agent Scope Provider wrapping its child sub-tree
               Agent(
                 role: secAuditorRole,
-                children: [
-                  // ToolSet Scope Provider
-                  ToolSet(
+                // ToolSet Scope Provider
+                child: ToolSet(
                     tools: const [
                       ToolDefinition(
                         name: 'static_analyzer',
@@ -92,7 +91,6 @@ void main() async {
                       const Task(prompt: 'Produce final compliance report.'),
                     ],
                   ),
-                ],
               ),
 
               // Inline Functional Component Builder

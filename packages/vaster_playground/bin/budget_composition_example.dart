@@ -33,9 +33,7 @@ void main() async {
         children: [
           Agent(
             role: analystRole,
-            children: [
-              Task(prompt: 'Analyze sales data and summarize findings.'),
-            ],
+            child: Task(prompt: 'Analyze sales data and summarize findings.'),
           ),
         ],
       ),
@@ -77,9 +75,7 @@ void main() async {
         children: [
           Agent(
             role: analystRole,
-            children: [
-              Task(prompt: 'Analyze sales data and summarize findings.'),
-            ],
+            child: Task(prompt: 'Analyze sales data and summarize findings.'),
           ),
         ],
       ),

@@ -58,30 +58,24 @@ void main() {
       // Architect Agent Scope
       Agent(
         role: architectRole,
-        children: [
-          const Task(prompt: 'Design an Auth Service from /workspace/spec.md.'),
-        ],
+        child: const Task(prompt: 'Design an Auth Service from /workspace/spec.md.'),
       ),
 
       // Developer Agent Scope
       Agent(
         role: developerRole,
-        children: [
-          Transaction(
-            children: [
-              const Task(prompt: 'Implement the Auth Service based on the design.'),
-              const WriteFile(path: '/workspace/auth.dart', content: '// Auth implementation'),
-            ],
-          ),
-        ],
+        child: Transaction(
+          children: [
+            const Task(prompt: 'Implement the Auth Service based on the design.'),
+            const WriteFile(path: '/workspace/auth.dart', content: '// Auth implementation'),
+          ],
+        ),
       ),
 
       // Architect Code Review Scope
       Agent(
         role: architectRole,
-        children: [
-          const CodeReviewComponent(filePath: '/workspace/auth.dart'),
-        ],
+        child: const CodeReviewComponent(filePath: '/workspace/auth.dart'),
       ),
 
       const Output(),

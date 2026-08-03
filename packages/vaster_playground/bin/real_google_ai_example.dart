@@ -52,9 +52,9 @@ void main(List<String> args) async {
       // Agent Scope Provider wrapping Task
       Agent(
         role: researcherRole,
-        children: const [
-          Task(prompt: 'Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.'),
-        ],
+        child: const Task(
+            prompt:
+                'Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.'),
       ),
 
       const Output(),

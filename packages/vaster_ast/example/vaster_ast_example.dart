@@ -51,13 +51,13 @@ void main() {
           // Agent Scope Provider wrapping its child sub-tree
           Agent(
             role: architectRole,
-            children: [
+            child: const Sequence([
               // Declarative Functional Component
-              const SecurityAuditComponent(),
+              SecurityAuditComponent(),
 
               // Task automatically inherits architectRole from BuildContext!
-              const Task(prompt: 'Produce final system architecture document.'),
-            ],
+              Task(prompt: 'Produce final system architecture document.'),
+            ]),
           ),
         ],
       ),

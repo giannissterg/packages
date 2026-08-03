@@ -68,12 +68,10 @@ void main() async {
           // Phase 1: Architecture & Project Analysis
           const Agent(
             role: architectRole,
-            children: [
-              Task(
-                prompt:
-                    'Analyze the Flutter project structure and propose a design for a new Notes feature.',
-              ),
-            ],
+            child: Task(
+              prompt:
+                  'Analyze the Flutter project structure and propose a design for a new Notes feature.',
+            ),
           ),
 
           // Phase 2: Human Approval Gate
@@ -84,12 +82,10 @@ void main() async {
               // Phase 3: Autonomous LLM Coding by Senior Flutter Developer
               Agent(
                 role: developerRole,
-                children: [
-                  Task(
-                    prompt:
-                        'Write a Flutter notes feature in /workspace/lib/features/notes_feature/ domain entity note_item.dart.',
-                  ),
-                ],
+                child: Task(
+                  prompt:
+                      'Write a Flutter notes feature in /workspace/lib/features/notes_feature/ domain entity note_item.dart.',
+                ),
               ),
               WriteFile(
                 path: '/workspace/lib/features/notes_feature/domain/note_item.dart',

@@ -9,19 +9,23 @@ part of '../vaster_ast.dart';
 // coordination medium between agents: every phase reads its predecessor's
 // artifact (ReadFile + `${...}` interpolation) and writes its own (WriteFile).
 //
-// Phases are scope nodes that NEST — the tree structure is the workflow's
-// dependency structure, not a flat step list:
+// Nest vs sequence — the tree's design rule: a node NESTS children only
+// when it changes what they mean (who executes them, their environment,
+// their failure semantics, or whether they run at all); peer steps that
+// merely run one after another are SIBLINGS in sequence. Data dependency
+// alone never forces nesting — bindings and `${...}` interpolation cross
+// sibling boundaries. So the phases read as the SDD checklist itself, and
+// only conditionality nests:
 //
-//   Specify(goal: ..., agent: architect, children: [
-//     Plan(agent: lead, children: [
-//       Review(gate: true, onApprove: [
-//         Implement(workstreams: [...], children: [ ...ship... ]),
-//       ], onRevise: [ ... ]),
-//     ]),
+//   Pipeline(children: [
+//     Specify(goal: ..., agent: architect),
+//     Plan(agent: lead),
+//     Review(agent: reviewer, onApprove: [
+//       Implement(workstreams: [...]),       // exists only when approved
+//     ], onRevise: [ ... ]),
 //   ])
 //
-// A child runs inside its parent phase's scope: the parent's artifact exists
-// and its binding (`spec`, `plan`, ...) is in force. Conventions flow
+// Conventions flow
 // Theme-style via Provider<SddConventions>; node-level fields override.
 // Bindings produced: Specify → `spec`; Plan → `plan` (reads `spec_doc`);
 // Implement → each Workstream.output (reads `plan_doc`); Review → `review`
@@ -48,11 +52,11 @@ class SddConventions {
   String get reviewPath => '$root/$reviewFile';
 }
 
-/// Phase 1 — turn a [goal] into a written specification, then run [children]
-/// inside the specified scope (the spec artifact exists and `spec` is bound).
+/// Phase 1 — turn a [goal] into a written specification: after this phase,
+/// the spec artifact exists and `spec` is bound for every later sibling.
 ///
-/// Expands to: `Task(output: 'spec')` → `WriteFile(specPath, '${spec}')` →
-/// children. The goal may interpolate pipeline [Inputs].
+/// Expands to: `Task(output: 'spec')` → `WriteFile(specPath, '${spec}')`.
+/// The goal may interpolate pipeline [Inputs].
 class Specify extends ComposableNode {
   final String goal;
   final AgentRole? agent;
@@ -61,14 +65,11 @@ class Specify extends ComposableNode {
   /// Artifact path override (default: the conventions' spec path).
   final String? artifact;
 
-  final List<VasterNode> children;
-
   const Specify({
     required this.goal,
     this.agent,
     this.agentId,
     this.artifact,
-    this.children = const [],
   }) : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId');
 
@@ -85,16 +86,14 @@ class Specify extends ComposableNode {
             'acceptance criteria.\n\nGoal: $goal',
       ),
       WriteFile(path: artifact ?? conventions.specPath, content: r'${spec}'),
-      ...children,
     ]);
   }
 }
 
-/// Phase 2 — derive an implementation plan from the specification artifact,
-/// then run [children] inside the planned scope.
+/// Phase 2 — derive an implementation plan from the specification artifact.
 ///
 /// Expands to: `ReadFile(specPath, output: 'spec_doc')` →
-/// `Task(output: 'plan')` → `WriteFile(planPath, '${plan}')` → children.
+/// `Task(output: 'plan')` → `WriteFile(planPath, '${plan}')`.
 class Plan extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
@@ -105,14 +104,11 @@ class Plan extends ComposableNode {
   /// Plan artifact to write (default: the conventions' plan path).
   final String? artifact;
 
-  final List<VasterNode> children;
-
   const Plan({
     this.agent,
     this.agentId,
     this.from,
     this.artifact,
-    this.children = const [],
   }) : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId');
 
@@ -131,7 +127,6 @@ class Plan extends ComposableNode {
             'Specification:\n\${spec_doc}',
       ),
       WriteFile(path: artifact ?? conventions.planPath, content: r'${plan}'),
-      ...children,
     ]);
   }
 }
@@ -161,25 +156,23 @@ class Workstream {
 }
 
 /// Phase 3 — execute the plan as concurrent [workstreams], each grounded in
-/// the plan artifact, then run [children] with every workstream output bound
-/// (a child [Task] typically integrates them via interpolation).
+/// the plan artifact. [integrate] is the phase's fan-in slot (typically a
+/// [Task] interpolating the workstream outputs) — it belongs to the phase
+/// because a fan-out's join is part of its meaning.
 ///
 /// Expands to: `ReadFile(planPath, output: 'plan_doc')` → `FanOut` (one entry
 /// per workstream, prompts embedding the plan) → per-workstream artifact
-/// writes → children.
+/// writes → integrate.
 class Implement extends ComposableNode {
   final List<Workstream> workstreams;
 
   /// Plan artifact to read (default: the conventions' plan path).
   final String? from;
 
-  final List<VasterNode> children;
+  /// Fan-in step run with every workstream output bound.
+  final VasterNode? integrate;
 
-  const Implement({
-    required this.workstreams,
-    this.from,
-    this.children = const [],
-  });
+  const Implement({required this.workstreams, this.from, this.integrate});
 
   @override
   VasterNode build(BuildContext context) {
@@ -202,7 +195,7 @@ class Implement extends ComposableNode {
       for (final ws in workstreams)
         if (ws.artifact != null)
           WriteFile(path: ws.artifact!, content: '\${${ws.output}}'),
-      ...children,
+      ?integrate,
     ]);
   }
 }

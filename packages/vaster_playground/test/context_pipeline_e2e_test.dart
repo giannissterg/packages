@@ -49,9 +49,9 @@ void main() {
             text: 'Long meeting transcript...',
             compressibility: ContextCompressibility.truncate,
           ),
-          const Agent(role: architect, children: [
-            Task(prompt: 'Design the notes app architecture'),
-          ]),
+          const Agent(
+              role: architect,
+              child: Task(prompt: 'Design the notes app architecture')),
           const CompressContext(targetTokens: 100000),
           const EvictContext(regionId: 'meeting_log'),
           const Output(),

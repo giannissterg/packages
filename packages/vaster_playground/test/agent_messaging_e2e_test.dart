@@ -49,20 +49,16 @@ void main() {
           // Alice sends a message to Bob
           Agent(
             role: aliceRole,
-            children: const [
-              SendMessage(
-                toId: 'bob',
-                payload: {'text': 'Alice completed initial research.'},
-              ),
-            ],
+            child: const SendMessage(
+              toId: 'bob',
+              payload: {'text': 'Alice completed initial research.'},
+            ),
           ),
 
           // Bob receives the message from inbox
           Agent(
             role: bobRole,
-            children: const [
-              ReceiveMessage(),
-            ],
+            child: const ReceiveMessage(),
           ),
 
           const Output(),

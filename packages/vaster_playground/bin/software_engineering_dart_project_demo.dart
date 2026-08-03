@@ -73,7 +73,7 @@ class FeatureImplementationComponent extends ComposableNode {
 
     return Agent(
       role: devRole,
-      children: const [
+      child: const Sequence([
         WriteFile(
           path: '/lib/calculator.dart',
           content: '''
@@ -115,7 +115,7 @@ void main() {
 }
 ''',
         ),
-      ],
+      ]),
     );
   }
 }
@@ -135,8 +135,7 @@ class UnitTestingComponent extends ComposableNode {
 
     return Agent(
       role: qaRole,
-      children: const [
-        WriteFile(
+      child: const WriteFile(
           path: '/test/calculator_test.dart',
           content: '''
 import 'package:smart_calculator/calculator.dart';
@@ -173,7 +172,6 @@ void main() {
 }
 ''',
         ),
-      ],
     );
   }
 }

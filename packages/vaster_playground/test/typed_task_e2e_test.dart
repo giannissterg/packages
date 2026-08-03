@@ -50,9 +50,9 @@ void main() {
         spec: const PipelineSpec(name: 'typed_task'),
         roles: const [architect],
         children: [
-          Agent(role: architect, children: [
-            Task(prompt: 'design the notes app', outputSchema: schema),
-          ]),
+          Agent(
+              role: architect,
+              child: Task(prompt: 'design the notes app', outputSchema: schema)),
         ],
       ));
 
