@@ -14,5 +14,9 @@ enum ContextPriority {
   high,
 
   /// Critical context (system prompt, mandatory tools, explicit user prompt). Never evicted.
-  critical,
+  critical;
+
+  /// Parses a name, defaulting to [medium] for unknown values.
+  static ContextPriority parse(String? value) => ContextPriority.values
+      .firstWhere((p) => p.name == value, orElse: () => ContextPriority.medium);
 }

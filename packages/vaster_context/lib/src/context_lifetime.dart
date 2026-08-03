@@ -10,5 +10,9 @@ enum ContextLifetime {
   session,
 
   /// Static / permanent context (e.g. workspace system instructions).
-  persistent,
+  persistent;
+
+  /// Parses a name, defaulting to [session] for unknown values.
+  static ContextLifetime parse(String? value) => ContextLifetime.values
+      .firstWhere((l) => l.name == value, orElse: () => ContextLifetime.session);
 }

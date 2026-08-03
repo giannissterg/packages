@@ -1,5 +1,6 @@
 import 'package:vaster_model/vaster_model.dart';
 import 'context_region.dart';
+import 'eviction_record.dart';
 import 'token_budget.dart';
 
 /// Immutable payload produced when a virtual context heap is compiled for model execution.
@@ -22,6 +23,9 @@ class CompiledContext {
   /// List of context regions evicted during compilation to fit budget constraints.
   final List<ContextRegion> evictedRegions;
 
+  /// Per-region attribution explaining each eviction decision.
+  final List<EvictionRecord> evictionRecords;
+
   const CompiledContext({
     required this.messages,
     required this.totalEstimatedTokens,
@@ -29,6 +33,7 @@ class CompiledContext {
     this.systemInstruction,
     this.includedRegions = const [],
     this.evictedRegions = const [],
+    this.evictionRecords = const [],
   });
 
   @override

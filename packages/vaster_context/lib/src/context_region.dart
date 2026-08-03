@@ -1,6 +1,23 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'compression_info.dart';
+import 'context_compressibility.dart';
 import 'context_lifetime.dart';
 import 'context_priority.dart';
+
+/// Canonical textual content of a region — the single source of truth for
+/// content fingerprints (newline-joined text parts). Used by cache
+/// descriptors, the KV MMU, and source-sync shadowing; all three MUST agree.
+String regionContentOf(ContextRegion region) => region.messages
+    .expand((m) => m.parts)
+    .map((p) => p is TextPart ? p.text : p.toString())
+    .join('\n');
+
+/// Canonical SHA-256 hex fingerprint of a region's content.
+String regionFingerprintOf(ContextRegion region) =>
+    sha256.convert(utf8.encode(regionContentOf(region))).toString();
 
 /// A discrete region of virtual context inside the [ContextHeap].
 class ContextRegion {
@@ -31,6 +48,22 @@ class ContextRegion {
   /// Custom metadata tags.
   final Map<String, dynamic> metadata;
 
+  /// The strongest transformation this region may undergo under budget
+  /// pressure. Defaults to [ContextCompressibility.none] (never altered).
+  final ContextCompressibility compressibility;
+
+  /// Flattening sequence hint: allocation *selection* is priority-driven, but
+  /// included regions render into messages sorted by [order] (stable).
+  /// Default 0 preserves legacy ordering; history chunks use large values so
+  /// conversation turns always render chronologically last.
+  final int order;
+
+  /// Compression provenance — null when the region has never been compressed.
+  final CompressionInfo? compression;
+
+  /// Whether this region currently holds compressed content.
+  bool get isCompressed => compression != null;
+
   const ContextRegion({
     required this.id,
     required this.label,
@@ -41,6 +74,9 @@ class ContextRegion {
     this.isPinned = false,
     this.utility = 1.0,
     this.metadata = const {},
+    this.compressibility = ContextCompressibility.none,
+    this.order = 0,
+    this.compression,
   });
 
   /// Factory to construct a region from text content.
@@ -55,6 +91,8 @@ class ContextRegion {
     bool isPinned = false,
     double utility = 1.0,
     Map<String, dynamic> metadata = const {},
+    ContextCompressibility compressibility = ContextCompressibility.none,
+    int order = 0,
   }) {
     final msg = ChatMessage(role: role, parts: [TextPart(text)]);
     final tokens = estimatedTokens ?? (text.length / 4).ceil();
@@ -68,6 +106,8 @@ class ContextRegion {
       isPinned: isPinned,
       utility: utility,
       metadata: metadata,
+      compressibility: compressibility,
+      order: order,
     );
   }
 
@@ -81,6 +121,10 @@ class ContextRegion {
     bool? isPinned,
     double? utility,
     Map<String, dynamic>? metadata,
+    ContextCompressibility? compressibility,
+    int? order,
+    CompressionInfo? compression,
+    bool clearCompression = false,
   }) {
     return ContextRegion(
       id: id ?? this.id,
@@ -92,6 +136,9 @@ class ContextRegion {
       isPinned: isPinned ?? this.isPinned,
       utility: utility ?? this.utility,
       metadata: metadata ?? Map.from(this.metadata),
+      compressibility: compressibility ?? this.compressibility,
+      order: order ?? this.order,
+      compression: clearCompression ? null : (compression ?? this.compression),
     );
   }
 
