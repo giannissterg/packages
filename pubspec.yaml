@@ -26,7 +26,6 @@ workspace:
   - packages/vaster_agent
   - packages/vaster_agent_basic
   - packages/vaster_agent_manager
-  - packages/vaster_agent_manager_basic
   - packages/vaster_agent_manager_advanced
   - packages/vaster_agent_messaging
   - packages/vaster_resources

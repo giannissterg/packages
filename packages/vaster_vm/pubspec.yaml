@@ -12,7 +12,6 @@ dependencies:
   vaster_agent_basic:
   vaster_agent_manager:
   vaster_agent_manager_advanced:
-  vaster_agent_manager_basic:
   vaster_agent_messaging:
   vaster_budget:
   vaster_context:
