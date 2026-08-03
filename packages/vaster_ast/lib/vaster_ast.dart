@@ -6,9 +6,11 @@ import 'package:vaster_model/vaster_model.dart';
 
 export 'package:vaster_context/vaster_context.dart'
     show ContextPriority, ContextLifetime, ContextCompressibility;
+export 'package:vaster_model/vaster_model.dart' show RetryPolicy;
 
 part 'src/build_context.dart';
 part 'src/vaster_node.dart';
 part 'src/composable_node.dart';
 part 'src/nodes.dart';
+part 'src/coordination.dart';
 part 'src/flutter_nodes.dart';

@@ -89,11 +89,11 @@ void main() {
         );
 
         final expanded = component.build(context);
-        final roles = (expanded as Pipeline).children.whereType<Agent>().toList();
+        final team = expanded as AgentTeam;
 
-        expect(roles, hasLength(7));
-        expect(roles.first.role.instruction, contains('MyApp'));
-        expect(roles.first.role.instruction, contains('Go'));
+        expect(team.roles, hasLength(7));
+        expect(team.roles.first.instruction, contains('MyApp'));
+        expect(team.roles.first.instruction, contains('Go'));
       },
     );
 

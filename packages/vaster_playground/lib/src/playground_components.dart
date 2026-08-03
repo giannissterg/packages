@@ -8,95 +8,79 @@ import 'playground_config.dart';
 // Each component reads typed configuration from BuildContext via context.read<T>().
 // ══════════════════════════════════════════════════════════════════════════════
 
-/// Provisions a full agent team: Architect, Tech Lead, Backend Dev,
-/// Frontend Dev, Security Auditor, QA Engineer, and Technical Writer.
+/// Provisions the full delivery team in one [AgentTeam]: Architect, Tech
+/// Lead, Backend Dev, Frontend Dev, Security Auditor, QA Engineer, and
+/// Technical Writer.
 class ProvisionAgentTeamComponent extends ComposableNode {
   const ProvisionAgentTeamComponent();
 
   @override
   VasterNode build(BuildContext context) {
     final project = context.read<ProjectConfig>();
-    return Pipeline(
-      spec: context.pipelineSpec,
-      children: [
-        Agent(
-          role: AgentRole(
-            roleId: 'architect',
-            name: 'Lead Architect',
-            title: 'Principal Software Architect',
-            instruction:
-                'You design scalable, production-ready system architectures for ${project.projectName}. '
-                'You enforce clean boundaries, SOLID principles, and ${project.language} idioms. '
-                'Always output structured Markdown design documents.',
-          ),
-        ),
-        Agent(
-          role: AgentRole(
-            roleId: 'tech_lead',
-            name: 'Tech Lead',
-            title: 'Technical Lead Engineer',
-            instruction:
-                'You review implementation plans, enforce code standards, and ensure the team '
-                'stays aligned with the architectural decisions for ${project.projectName}. '
-                'You provide concrete, actionable feedback.',
-          ),
-        ),
-        Agent(
-          role: AgentRole(
-            roleId: 'backend_dev',
-            name: 'Backend Developer',
-            title: 'Senior ${project.language} Backend Engineer',
-            instruction:
-                'You implement production-quality backend services using ${project.language}. '
-                'You follow the architect\'s design documents and write clean, well-documented code. '
-                'You target the ${project.targetDeploymentEnv} environment.',
-          ),
-        ),
-        Agent(
-          role: AgentRole(
-            roleId: 'frontend_dev',
-            name: 'Frontend Developer',
-            title: 'Senior Frontend Engineer',
-            instruction:
-                'You build responsive, accessible frontend interfaces that consume the backend APIs '
-                'for ${project.projectName}. You write clean component-based code.',
-          ),
-        ),
-        Agent(
-          role: AgentRole(
-            roleId: 'security_auditor',
-            name: 'Security Auditor',
-            title: 'Application Security Engineer',
-            instruction:
-                'You perform thorough security audits of code and architecture for ${project.projectName}. '
-                'You identify vulnerabilities (OWASP Top 10, injection attacks, auth flaws, etc.) '
-                'and provide remediation guidance with severity scores.',
-          ),
-        ),
-        Agent(
-          role: AgentRole(
-            roleId: 'qa_engineer',
-            name: 'QA Engineer',
-            title: 'Senior Quality Assurance Engineer',
-            instruction:
-                'You write comprehensive unit, integration, and E2E tests for ${project.projectName}. '
-                'You use ${project.language}-idiomatic testing frameworks and ensure test coverage '
-                'meets the quality gate.',
-          ),
-        ),
-        Agent(
-          role: AgentRole(
-            roleId: 'tech_writer',
-            name: 'Technical Writer',
-            title: 'Senior Technical Documentation Engineer',
-            instruction:
-                'You produce clear, comprehensive API documentation, developer guides, and '
-                'operational runbooks for ${project.projectName}. '
-                'You use OpenAPI 3.0 spec for REST APIs.',
-          ),
-        ),
-      ],
-    );
+    return AgentTeam(roles: [
+      AgentRole(
+        roleId: 'architect',
+        name: 'Lead Architect',
+        title: 'Principal Software Architect',
+        instruction:
+            'You design scalable, production-ready system architectures for ${project.projectName}. '
+            'You enforce clean boundaries, SOLID principles, and ${project.language} idioms. '
+            'Always output structured Markdown design documents.',
+      ),
+      AgentRole(
+        roleId: 'tech_lead',
+        name: 'Tech Lead',
+        title: 'Technical Lead Engineer',
+        instruction:
+            'You review implementation plans, enforce code standards, and ensure the team '
+            'stays aligned with the architectural decisions for ${project.projectName}. '
+            'You provide concrete, actionable feedback.',
+      ),
+      AgentRole(
+        roleId: 'backend_dev',
+        name: 'Backend Developer',
+        title: 'Senior ${project.language} Backend Engineer',
+        instruction:
+            'You implement production-quality backend services using ${project.language}. '
+            'You follow the architect\'s design documents and write clean, well-documented code. '
+            'You target the ${project.targetDeploymentEnv} environment.',
+      ),
+      AgentRole(
+        roleId: 'frontend_dev',
+        name: 'Frontend Developer',
+        title: 'Senior Frontend Engineer',
+        instruction:
+            'You build responsive, accessible frontend interfaces that consume the backend APIs '
+            'for ${project.projectName}. You write clean component-based code.',
+      ),
+      AgentRole(
+        roleId: 'security_auditor',
+        name: 'Security Auditor',
+        title: 'Application Security Engineer',
+        instruction:
+            'You perform thorough security audits of code and architecture for ${project.projectName}. '
+            'You identify vulnerabilities (OWASP Top 10, injection attacks, auth flaws, etc.) '
+            'and provide remediation guidance with severity scores.',
+      ),
+      AgentRole(
+        roleId: 'qa_engineer',
+        name: 'QA Engineer',
+        title: 'Senior Quality Assurance Engineer',
+        instruction:
+            'You write comprehensive unit, integration, and E2E tests for ${project.projectName}. '
+            'You use ${project.language}-idiomatic testing frameworks and ensure test coverage '
+            'meets the quality gate.',
+      ),
+      AgentRole(
+        roleId: 'tech_writer',
+        name: 'Technical Writer',
+        title: 'Senior Technical Documentation Engineer',
+        instruction:
+            'You produce clear, comprehensive API documentation, developer guides, and '
+            'operational runbooks for ${project.projectName}. '
+            'You use OpenAPI 3.0 spec for REST APIs.',
+      ),
+    ]);
   }
 }
 
