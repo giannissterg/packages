@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
 import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 

@@ -10,7 +10,6 @@ environment:
 dependencies:
   crypto: ^3.0.3
   vaster_agent:
-  vaster_domain:
   vaster_model:
   vaster_policy:
   vaster_resources:

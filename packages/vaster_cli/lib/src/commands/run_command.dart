@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_model_google_ai/vaster_model_google_ai.dart';

@@ -350,7 +350,16 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         state.lastOutputRegister = reg;
 
       case YieldHuman n:
-        ir.emit(YieldHumanInteractionOp(request: n.request));
+        ir.emit(YieldHumanInteractionOp(
+          request: HumanInteractionRequest(
+            requestId: n.requestId,
+            type: HumanInteractionType.parse(n.interactionType),
+            prompt: n.prompt,
+            options: n.options,
+            outputVar: n.outputVar,
+            timeoutMs: n.timeoutMs,
+          ),
+        ));
 
       case AskHuman n:
         final reg = state.nextAutoRegister();

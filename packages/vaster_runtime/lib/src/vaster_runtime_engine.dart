@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 /// Observer invoked after each instruction is executed by a [VasterRuntime].

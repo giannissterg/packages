@@ -1,5 +1,4 @@
 import 'package:test/test.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 

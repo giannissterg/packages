@@ -1,4 +1,3 @@
-import 'package:vaster_domain/vaster_domain.dart';
 import 'file_operation_type.dart';
 
 /// Abstract sealed class representing an event generated during LLM VM runtime execution.
@@ -244,7 +243,10 @@ final class SandboxExecutedEvent extends RuntimeEvent {
 
 /// Emitted when runtime execution yields and pauses waiting for human interaction.
 final class HumanInteractionRequiredEvent extends RuntimeEvent {
-  final HumanInteractionRequest request;
+  /// JSON payload of the interaction request (`HumanInteractionRequest.toJson`
+  /// shape). Telemetry is passive and broadcast-only, so it carries the
+  /// serialized form rather than a typed reference into the ISA layer.
+  final Map<String, dynamic> request;
 
   HumanInteractionRequiredEvent({
     required super.eventId,
@@ -257,7 +259,7 @@ final class HumanInteractionRequiredEvent extends RuntimeEvent {
   Map<String, dynamic> toJson() => {
         'type': 'human_interaction_required',
         'eventId': eventId,
-        'request': request.toJson(),
+        'request': request,
         'timestamp': timestamp.toIso8601String(),
       };
 }

@@ -9,7 +9,6 @@ environment:
 
 dependencies:
   vaster_continuation:
-  vaster_domain:
   vaster_instruction:
   vaster_model:
   vaster_runtime:

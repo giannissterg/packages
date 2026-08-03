@@ -1,4 +1,4 @@
-import 'package:vaster_domain/vaster_domain.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'register_file.dart';
 import 'runtime_status.dart';
@@ -35,7 +35,7 @@ class HitlController {
     _pendingRequest = request;
     eventBus.publish(HumanInteractionRequiredEvent(
       eventId: 'evt_hitl_$currentPc',
-      request: request,
+      request: request.toJson(),
     ));
     return RuntimeStatus.pausedForHuman;
   }

@@ -1,5 +1,4 @@
 import 'package:vaster_continuation/vaster_continuation.dart';
-import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';

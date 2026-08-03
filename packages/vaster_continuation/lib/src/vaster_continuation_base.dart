@@ -1,4 +1,4 @@
-import 'package:vaster_domain/vaster_domain.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model/vaster_model.dart';
 
 /// Single activation record / stack frame on the Vaster VM call stack.

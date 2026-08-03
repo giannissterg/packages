@@ -383,10 +383,26 @@ final class _ReceiveMessageExecution extends VasterNode {
 }
 
 /// Yields execution to request human interaction.
+///
+/// Declarative fields only — the compiler materializes the ISA-level
+/// interaction request when lowering. [interactionType] is the
+/// `HumanInteractionType` name (`approval`, `question`, `input`, `review`).
 final class YieldHuman extends VasterNode {
-  final HumanInteractionRequest request;
+  final String requestId;
+  final String interactionType;
+  final String prompt;
+  final List<String> options;
+  final String? outputVar;
+  final int? timeoutMs;
 
-  const YieldHuman({required this.request});
+  const YieldHuman({
+    required this.requestId,
+    this.interactionType = 'question',
+    required this.prompt,
+    this.options = const [],
+    this.outputVar,
+    this.timeoutMs,
+  });
 }
 
 /// Asks a human user a question or presents a list of options.
@@ -421,13 +437,11 @@ class ApprovalGate extends ComposableNode {
   VasterNode build(BuildContext context) {
     return Transaction(children: [
       YieldHuman(
-        request: HumanInteractionRequest(
-          requestId: requestId,
-          type: HumanInteractionType.approval,
-          prompt: prompt,
-          options: const ['approve', 'reject'],
-          outputVar: requestId,
-        ),
+        requestId: requestId,
+        interactionType: 'approval',
+        prompt: prompt,
+        options: const ['approve', 'reject'],
+        outputVar: requestId,
       ),
       When(
         condition: '${requestId}_status',

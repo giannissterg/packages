@@ -8,7 +8,6 @@ environment:
   sdk: ^3.13.0-282.1.beta
 
 dependencies:
-  vaster_domain:
   vaster_instruction:
   vaster_model:
   vaster_runtime:
