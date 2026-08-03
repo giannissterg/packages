@@ -13,4 +13,5 @@ part 'src/vaster_node.dart';
 part 'src/composable_node.dart';
 part 'src/nodes.dart';
 part 'src/coordination.dart';
+part 'src/sdd.dart';
 part 'src/flutter_nodes.dart';
