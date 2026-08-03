@@ -22,6 +22,8 @@ dependencies:
     path: ../vaster_continuation
   vaster_continuation_manager:
     path: ../vaster_continuation_manager
+  vaster_instruction:
+    path: ../vaster_instruction
   vaster_dis:
     path: ../vaster_dis
   vaster_domain:

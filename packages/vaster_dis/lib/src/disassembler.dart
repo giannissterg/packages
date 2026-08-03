@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:vaster_instruction/vaster_instruction.dart';
 
 /// Options controlling disassembly formatting.
@@ -67,6 +69,16 @@ class VasterDisassembler {
   }) {
     final json = jsonDecode(jsonString) as Map<String, dynamic>;
     final program = VasterProgram.fromJson(json);
+    return disassemble(program, options: options);
+  }
+
+  /// Disassembles a `.vbc` binary program payload (magic-, version-, and
+  /// checksum-validated by the codec).
+  String disassembleBytes(
+    Uint8List bytes, {
+    DisassemblerOptions options = const DisassemblerOptions(),
+  }) {
+    final program = VasterProgramBinary.fromBytes(bytes);
     return disassemble(program, options: options);
   }
 

@@ -1,6 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:args/args.dart';
+import 'package:vaster_budget/vaster_budget.dart';
+import 'package:vaster_domain/vaster_domain.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
+import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_model_google_ai/vaster_model_google_ai.dart';
+import 'package:vaster_policy/vaster_policy.dart';
+import 'package:vaster_runtime/vaster_runtime.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
+import 'package:vaster_vm/vaster_vm.dart';
+
 import '../vaster_command.dart';
 
 class RunCommand extends VasterCommand {
@@ -11,7 +23,32 @@ class RunCommand extends VasterCommand {
   List<String> get aliases => const [];
 
   @override
-  String get description => 'Compiles and executes a Vaster AST pipeline script.';
+  String get description =>
+      'Executes a compiled Vaster program (.vbc/.json) on the VM, '
+      'or compiles and runs an AST pipeline script (.dart).';
+
+  @override
+  void configureArgs(ArgParser parser) {
+    parser.addOption(
+      'backend',
+      abbr: 'b',
+      defaultsTo: 'fake',
+      allowed: const ['fake', 'claude-api', 'gemini'],
+      help: 'Model backend for compiled program execution '
+          '(fake = offline echo model).',
+    );
+    parser.addOption(
+      'model',
+      abbr: 'm',
+      help: 'Backend model id (e.g. claude-opus-5, gemini-2.0-flash).',
+    );
+    parser.addFlag(
+      'trace',
+      abbr: 't',
+      help: 'Live disassembly-style execution trace (compiled programs only).',
+      negatable: false,
+    );
+  }
 
   @override
   Future<int> execute(CommandContext context) async {
@@ -20,8 +57,9 @@ class RunCommand extends VasterCommand {
     final err = context.stderrSink;
 
     if (args.isEmpty) {
-      err.writeln('Error: Missing pipeline script path.');
-      err.writeln('Usage: vaster run <script.dart>');
+      err.writeln('Error: Missing program path.');
+      err.writeln('Usage: vaster run <program.vbc | program.json | script.dart> '
+          '[--backend fake|claude-api|gemini] [--trace]');
       return 1;
     }
 
@@ -29,10 +67,16 @@ class RunCommand extends VasterCommand {
     final file = File(targetPath);
 
     if (!file.existsSync()) {
-      err.writeln('Error: Pipeline script file not found at $targetPath');
+      err.writeln('Error: File not found at $targetPath');
       return 1;
     }
 
+    // Compiled program artifacts execute in-process on the VM.
+    if (targetPath.endsWith('.vbc') || targetPath.endsWith('.json')) {
+      return _executeCompiledProgram(context, file);
+    }
+
+    // AST pipeline scripts run through the Dart VM as before.
     out.writeln('======================================================================');
     out.writeln('  VASTER PIPELINE EXECUTION ENGINE                                     ');
     out.writeln('  Executing: $targetPath                                               ');
@@ -52,5 +96,110 @@ class RunCommand extends VasterCommand {
     await stderrSub.cancel();
 
     return exitCode;
+  }
+
+  Future<int> _executeCompiledProgram(CommandContext context, File file) async {
+    final out = context.stdoutSink;
+    final err = context.stderrSink;
+    final results = context.parsedResults;
+    final backend = results['backend'] as String? ?? 'fake';
+    final trace = results['trace'] as bool? ?? false;
+
+    // 1. Load the program (binary or JSON).
+    final VasterProgram program;
+    try {
+      if (file.path.endsWith('.vbc')) {
+        program = VasterProgramBinary.fromBytes(file.readAsBytesSync());
+      } else {
+        program = VasterProgram.fromJson(
+            jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+      }
+    } on VbcDecodeException catch (e) {
+      err.writeln('Error: $e');
+      return 1;
+    } on FormatException catch (e) {
+      err.writeln('Error: invalid program JSON: ${e.message}');
+      return 1;
+    }
+
+    // 2. Resolve the model backend.
+    final VasterModel model = switch (backend) {
+      'claude-api' => ClaudeApiVasterModel(
+          targetModel: results['model'] as String? ?? 'claude-opus-5'),
+      'gemini' => GoogleAiVasterModel(
+          apiKey: Platform.environment['GEMINI_API_KEY'] ??
+              Platform.environment['GOOGLE_AI_API_KEY'],
+          targetModel: results['model'] as String? ?? 'gemini-2.0-flash'),
+      _ => FakeVasterModel(),
+    };
+
+    out.writeln('======================================================================');
+    out.writeln('  VASTER VM — COMPILED PROGRAM EXECUTION                               ');
+    out.writeln('  Program : ${program.programName} (${program.instructions.length} instructions)');
+    out.writeln('  Backend : $backend (${model.modelName})');
+    out.writeln('======================================================================\n');
+
+    // 3. Bootstrap and execute.
+    final vm = await VasterVMEngine.bootstrap(
+        config: VMConfig(defaultModel: model));
+    final budget = ExecutionBudget.unlimited();
+    final runtime = VasterRuntime(
+      vm: vm,
+      policy: ExecutionPolicy.unlimited,
+      budget: budget,
+      scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+    );
+
+    ExecutionTracer? tracer;
+    if (trace) {
+      tracer = ExecutionTracer(runtime, sink: out.writeln)..attach();
+    }
+
+    var state = await runtime.executeProgram(program);
+
+    // 4. Interactive human-in-the-loop resume.
+    while (state.status == RuntimeStatus.pausedForHuman) {
+      final request = runtime.pendingHumanRequest;
+      if (request == null) break;
+      out.writeln('\n── HUMAN INTERACTION REQUIRED ──────────────────────────');
+      out.writeln('  ${request.prompt}');
+      if (request.options.isNotEmpty) {
+        out.writeln('  options: ${request.options.join(' / ')}');
+      }
+      out.write('> ');
+      final answer = stdin.readLineSync()?.trim();
+      if (answer == null || answer.isEmpty) {
+        err.writeln('No input available — leaving program paused.');
+        tracer?.detach();
+        await vm.shutdown();
+        return 2;
+      }
+      final response = switch (answer.toLowerCase()) {
+        'yes' || 'y' || 'approve' =>
+          HumanInteractionResponse.approve(requestId: request.requestId),
+        'no' || 'n' || 'reject' => HumanInteractionResponse.reject(
+            requestId: request.requestId, reason: 'Rejected by user.'),
+        _ => HumanInteractionResponse.answer(
+            requestId: request.requestId, answerText: answer),
+      };
+      state = await runtime.resumeWithHumanResponse(response);
+    }
+
+    tracer?.detach();
+
+    // 5. Report.
+    out.writeln('\n── EXECUTION COMPLETE ─────────────────────────────────');
+    out.writeln('  status : ${state.status.name}');
+    out.writeln('  tokens : ${budget.consumedTokens}');
+    if (state.registers.containsKey('__output__')) {
+      out.writeln('  output :');
+      out.writeln('${state.registers['__output__']}');
+    }
+    if (state.status == RuntimeStatus.error) {
+      err.writeln('\n${state.errorDetails}');
+    }
+
+    await vm.shutdown();
+    return state.status == RuntimeStatus.halted ? 0 : 1;
   }
 }

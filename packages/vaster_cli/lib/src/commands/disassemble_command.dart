@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:vaster_dis/vaster_dis.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
 
 import '../vaster_command.dart';
 
@@ -48,6 +50,31 @@ class DisassembleCommand extends VasterCommand {
     out.writeln('  VASTER ISA DISASSEMBLER                                              ');
     out.writeln('  Target Script: $targetPath                                           ');
     out.writeln('======================================================================\n');
+
+    // Binary bytecode: disassemble directly, no script execution.
+    if (targetPath.endsWith('.vbc')) {
+      try {
+        final listing = const VasterDisassembler().disassembleBytes(
+          file.readAsBytesSync(),
+          options: DisassemblerOptions(
+            showStats: true,
+          ),
+        );
+        out.writeln(listing);
+        return 0;
+      } on VbcDecodeException catch (e) {
+        err.writeln('Error: $e');
+        return 1;
+      }
+    }
+
+    // JSON program payloads: disassemble directly as well.
+    if (targetPath.endsWith('.vaster.json') || targetPath.endsWith('.json')) {
+      final listing = const VasterDisassembler()
+          .disassembleJson(file.readAsStringSync());
+      out.writeln(listing);
+      return 0;
+    }
 
     final result = await Process.run(
       'dart',
