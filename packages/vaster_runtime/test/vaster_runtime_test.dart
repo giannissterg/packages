@@ -1,4 +1,5 @@
 import 'package:test/test.dart';
+import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -161,6 +162,125 @@ void main() {
       expect(state.errorDetails, contains('Policy violation'));
 
       await restrictedVm.shutdown();
+    });
+
+    test('executeStep halting a program prunes step-scoped context regions',
+        () async {
+      const program = VasterProgram(programName: 'sliced_ctx', instructions: [
+        AddContextOp(regionId: 'step_region', label: 'step', text: 'x', lifetime: 'step'),
+        HaltOp(),
+      ]);
+
+      // Drive to halt through the time-sliced entry point, one instruction at
+      // a time, never touching executeProgram.
+      var state = await runtime.executeStep(program, stepCount: 1);
+      expect(state.status, equals(RuntimeStatus.running));
+      expect(vm.contextManager.getRegion('step_region'), isNotNull);
+
+      state = await runtime.executeStep(program, stepCount: 1);
+      expect(state.status, equals(RuntimeStatus.halted));
+      expect(vm.contextManager.getRegion('step_region'), isNull,
+          reason: 'halting via a quantum must expire step-scoped regions '
+              'exactly like a run to completion');
+    });
+
+    test('emits tool and sandbox telemetry on the event bus', () async {
+      // Model: first turn calls the tool, continuation answers with text.
+      final toolModel = FakeVasterModel(handler: (request) {
+        final answered = request.messages
+            .where((m) => m.role == Role.tool)
+            .expand((m) => m.parts)
+            .whereType<FunctionResponsePart>()
+            .isNotEmpty;
+        if (!answered) {
+          return const ModelResponse(
+            message: ChatMessage(role: Role.model, parts: [
+              FunctionCallPart(callId: 'call_ping', name: 'ping', arguments: {}),
+            ]),
+            finishReason: FinishReason.toolCalls,
+          );
+        }
+        return ModelResponse(message: ChatMessage.model('done'));
+      });
+      final vm = await VasterVMEngine.bootstrap(
+          config: VMConfig(defaultModel: toolModel));
+      final runtime = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+
+      final toolCalled = <ToolCalledEvent>[];
+      final toolFinished = <ToolFinishedEvent>[];
+      final sandboxExecuted = <SandboxExecutedEvent>[];
+      vm.eventBus.on<ToolCalledEvent>().listen(toolCalled.add);
+      vm.eventBus.on<ToolFinishedEvent>().listen(toolFinished.add);
+      vm.eventBus.on<SandboxExecutedEvent>().listen(sandboxExecuted.add);
+
+      vm.registerTool(FunctionTool.define(
+        name: 'ping',
+        description: 'Ping',
+        parametersSchema: const {'type': 'object', 'properties': {}},
+        handler: (_) => {'pong': true},
+      ));
+      vm.registerSandbox(IsolateCodeSandbox(
+        descriptor: const SandboxDescriptor(
+          sandboxId: 'iso_events',
+          type: 'isolate',
+          description: 'Event telemetry sandbox',
+        ),
+        evaluator: (code, inputs) => 'evaluated',
+      ));
+
+      const program = VasterProgram(programName: 'telemetry', instructions: [
+        PromptOp(promptText: 'ping the tool', outputVar: 'r0'),
+        ExecSandboxOp(sandboxId: 'iso_events', code: '1 + 1', outputVar: 's0'),
+        HaltOp(),
+      ]);
+
+      final state = await runtime.executeProgram(program);
+      expect(state.status, equals(RuntimeStatus.halted));
+      await Future<void>.delayed(Duration.zero); // flush the broadcast stream
+
+      expect(toolCalled, hasLength(1));
+      expect(toolCalled.single.toolName, equals('ping'));
+      expect(toolCalled.single.callId, equals('call_ping'));
+
+      expect(toolFinished, hasLength(1));
+      expect(toolFinished.single.callId, equals('call_ping'));
+      expect(toolFinished.single.isError, isFalse);
+
+      expect(sandboxExecuted, hasLength(1));
+      expect(sandboxExecuted.single.sandboxId, equals('iso_events'));
+      expect(sandboxExecuted.single.exitCode, equals(0));
+
+      await vm.shutdown();
+    });
+
+    test('HITL pause inside a scheduled quantum can be resumed', () async {
+      const program = VasterProgram(programName: 'sliced_hitl', instructions: [
+        YieldHumanInteractionOp(
+          request: HumanInteractionRequest(
+            requestId: 'req_q',
+            type: HumanInteractionType.approval,
+            prompt: 'Continue?',
+            options: ['approve', 'reject'],
+            outputVar: 'answer',
+          ),
+        ),
+        SetRegisterOp(registerName: 'after', value: 'resumed'),
+        HaltOp(),
+      ]);
+
+      final paused = await runtime.executeStep(program, stepCount: 5);
+      expect(paused.status, equals(RuntimeStatus.pausedForHuman));
+
+      final resumed = await runtime.resumeWithHumanResponse(
+        HumanInteractionResponse.approve(requestId: 'req_q'),
+      );
+      expect(resumed.status, equals(RuntimeStatus.halted));
+      expect(resumed.registers['after'], equals('resumed'));
     });
   });
 }

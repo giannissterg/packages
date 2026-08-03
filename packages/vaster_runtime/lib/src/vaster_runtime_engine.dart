@@ -407,10 +407,22 @@ class VasterRuntime {
 
       case ExecSandboxOp op:
         _checkPolicy(PolicyAction.sandboxExec, op.sandboxId);
+        final sandboxClock = Stopwatch()..start();
         final result = await vm.sandboxManager.runCode(
           sandboxId: op.sandboxId,
           codeOrCommand: op.code,
         );
+        sandboxClock.stop();
+        final languages =
+            vm.sandboxManager.getSandbox(op.sandboxId)?.descriptor.supportedLanguages;
+        vm.eventBus.publish(SandboxExecutedEvent(
+          eventId: 'evt_sandbox_exec_${op.sandboxId}_$_pc',
+          sandboxId: op.sandboxId,
+          language:
+              (languages == null || languages.isEmpty) ? 'unknown' : languages.first.name,
+          exitCode: result.exitCode,
+          executionDuration: sandboxClock.elapsed,
+        ));
         if (op.outputVar != null) _registers.write(op.outputVar!, result.stdout);
 
       // ── Agents ────────────────────────────────────────────────────────────
@@ -704,10 +716,26 @@ class VasterRuntime {
       final results = <ContentPart>[];
       for (final call in response.functionCalls) {
         _checkPolicy(PolicyAction.toolCall, call.name);
+        vm.eventBus.publish(ToolCalledEvent(
+          eventId: 'evt_tool_call_${call.callId}',
+          callId: call.callId,
+          toolName: call.name,
+          arguments: call.arguments,
+        ));
+        final toolClock = Stopwatch()..start();
+        final toolResponse = await _dispatchToolCall(call);
+        toolClock.stop();
+        vm.eventBus.publish(ToolFinishedEvent(
+          eventId: 'evt_tool_done_${call.callId}',
+          callId: call.callId,
+          toolName: call.name,
+          isError: toolResponse.containsKey('error'),
+          executionDuration: toolClock.elapsed,
+        ));
         results.add(FunctionResponsePart(
           callId: call.callId,
           name: call.name,
-          response: await _dispatchToolCall(call),
+          response: toolResponse,
         ));
       }
       transcript.add(ChatMessage(role: Role.tool, parts: results));
