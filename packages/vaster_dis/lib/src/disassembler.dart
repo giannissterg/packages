@@ -141,6 +141,32 @@ class VasterDisassembler {
       case PinContextOp op:
         return 'region=${op.regionId}';
 
+      case AddContextOp op:
+        return 'region=${op.regionId} '
+            '${op.sourceVar != null ? 'from=r[${op.sourceVar}]' : 'text="${_truncate(op.text, 30)}"'} '
+            'prio=${op.priority} zip=${op.compressibility}'
+            '${op.pinned ? ' PIN' : ''}';
+
+      case EvictContextOp op:
+        return 'region=${op.regionId}${op.force ? ' FORCE' : ''}';
+
+      case UnpinContextOp op:
+        return 'region=${op.regionId}';
+
+      case SetContextPolicyOp op:
+        final fields = [
+          if (op.priority != null) 'prio=${op.priority}',
+          if (op.pinned != null) 'pin=${op.pinned}',
+          if (op.compressibility != null) 'zip=${op.compressibility}',
+          if (op.utility != null) 'util=${op.utility}',
+        ].join(' ');
+        return 'region=${op.regionId} $fields';
+
+      case CompressContextOp op:
+        return '${op.regionId != null ? 'region=${op.regionId}' : 'heap'} '
+            '${op.targetTokens != null ? 'target=${op.targetTokens}tok' : 'target=auto'}'
+            '${op.outputVar != null ? ' -> r[${op.outputVar}]' : ''}';
+
       case RegisterToolSetOp op:
         final toolNames = op.tools.map((t) => t.name).join(', ');
         return 'tools [${op.tools.length}]: $toolNames';

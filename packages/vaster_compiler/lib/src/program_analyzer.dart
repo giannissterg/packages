@@ -85,6 +85,12 @@ class ProgramAnalyzer {
         case ReturnSubroutineOp(:final returnRegister):
           if (returnRegister != null) checkRead(pc, returnRegister);
 
+        // Context ops: register reads/writes + region reference tracking.
+        case AddContextOp(:final sourceVar):
+          if (sourceVar != null) checkRead(pc, sourceVar);
+        case CompressContextOp(:final outputVar):
+          if (outputVar != null) written.add(outputVar);
+
         // Pure writes.
         case SetRegisterOp(:final registerName):
           written.add(registerName);
@@ -136,6 +142,41 @@ class ProgramAnalyzer {
               pc: pc,
             ));
           }
+        default:
+          break;
+      }
+    }
+
+    // ── Context region references (info only: regions are routinely
+    //    provisioned outside the program — sources, sessions, host code) ──
+    final declaredRegions = <String>{
+      for (final inst in instructions)
+        if (inst is AddContextOp) inst.regionId,
+    };
+    void checkRegionRef(int pc, String opName, String regionId) {
+      if (!declaredRegions.contains(regionId)) {
+        diagnostics.add(CompileDiagnostic(
+          severity: CompileSeverity.info,
+          code: 'ctx_unknown_region',
+          message: '$opName references region "$regionId" with no preceding '
+              'AddContextOp in this program (may be provisioned externally).',
+          pc: pc,
+        ));
+      }
+    }
+
+    for (var pc = 0; pc < instructions.length; pc++) {
+      switch (instructions[pc]) {
+        case EvictContextOp(:final regionId):
+          checkRegionRef(pc, 'EvictContext', regionId);
+        case PinContextOp(:final regionId):
+          checkRegionRef(pc, 'PinContext', regionId);
+        case UnpinContextOp(:final regionId):
+          checkRegionRef(pc, 'UnpinContext', regionId);
+        case SetContextPolicyOp(:final regionId):
+          checkRegionRef(pc, 'SetContextPolicy', regionId);
+        case CompressContextOp(:final regionId):
+          if (regionId != null) checkRegionRef(pc, 'CompressContext', regionId);
         default:
           break;
       }

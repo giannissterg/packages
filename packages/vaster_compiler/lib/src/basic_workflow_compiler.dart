@@ -165,6 +165,46 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         _lowerNodes(n.children, ir, context, state);
         ir.emit(const CommitOp());
 
+      // ── Context management nodes ──────────────────────────────────────
+      case AddContext n:
+        ir.emit(AddContextOp(
+          regionId: n.regionId,
+          label: n.label,
+          text: n.text,
+          sourceVar: n.sourceVar,
+          priority: n.priority.name,
+          lifetime: n.lifetime.name,
+          compressibility: n.compressibility.name,
+          pinned: n.pinned,
+        ));
+
+      case EvictContext n:
+        ir.emit(EvictContextOp(regionId: n.regionId, force: n.force));
+
+      case PinContext n:
+        ir.emit(PinContextOp(regionId: n.regionId));
+
+      case UnpinContext n:
+        ir.emit(UnpinContextOp(regionId: n.regionId));
+
+      case ContextPolicy n:
+        ir.emit(SetContextPolicyOp(
+          regionId: n.regionId,
+          priority: n.priority?.name,
+          pinned: n.pinned,
+          compressibility: n.compressibility?.name,
+          utility: n.utility,
+        ));
+
+      case CompressContext n:
+        final reg = state.nextAutoRegister();
+        ir.emit(CompressContextOp(
+          regionId: n.regionId,
+          targetTokens: n.targetTokens,
+          outputVar: reg,
+        ));
+        state.lastOutputRegister = reg;
+
       case YieldHuman n:
         ir.emit(YieldHumanInteractionOp(request: n.request));
 
