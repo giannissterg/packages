@@ -459,6 +459,83 @@ final class Provider<T> extends VasterNode {
 // ══════════════════════════════════════════════════════════════════════════════
 // Backwards Compatibility Node Aliases
 // ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+// Context management nodes — declarative control over the VM context heap.
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Adds a context region to the VM context heap. Content is [text], or the
+/// value of register [sourceVar] at runtime when set.
+final class AddContext extends VasterNode {
+  final String regionId;
+  final String label;
+  final String text;
+  final String? sourceVar;
+  final ContextPriority priority;
+  final ContextLifetime lifetime;
+  final ContextCompressibility compressibility;
+  final bool pinned;
+
+  const AddContext({
+    required this.regionId,
+    required this.label,
+    this.text = '',
+    this.sourceVar,
+    this.priority = ContextPriority.medium,
+    this.lifetime = ContextLifetime.session,
+    this.compressibility = ContextCompressibility.none,
+    this.pinned = false,
+  });
+}
+
+/// Removes a context region from the VM context heap.
+final class EvictContext extends VasterNode {
+  final String regionId;
+  final bool force;
+
+  const EvictContext({required this.regionId, this.force = false});
+}
+
+/// Pins a context region (never evicted; eligible for provider-side caching
+/// and physical KV materialization).
+final class PinContext extends VasterNode {
+  final String regionId;
+
+  const PinContext({required this.regionId});
+}
+
+/// Unpins a context region.
+final class UnpinContext extends VasterNode {
+  final String regionId;
+
+  const UnpinContext({required this.regionId});
+}
+
+/// Updates a region's management policy in place (only provided fields apply).
+final class ContextPolicy extends VasterNode {
+  final String regionId;
+  final ContextPriority? priority;
+  final bool? pinned;
+  final ContextCompressibility? compressibility;
+  final double? utility;
+
+  const ContextPolicy({
+    required this.regionId,
+    this.priority,
+    this.pinned,
+    this.compressibility,
+    this.utility,
+  });
+}
+
+/// Compresses context toward a token target. Null [regionId] compacts the
+/// whole heap; null [targetTokens] derives from the active model budget.
+final class CompressContext extends VasterNode {
+  final String? regionId;
+  final int? targetTokens;
+
+  const CompressContext({this.regionId, this.targetTokens});
+}
+
 typedef PipelineNode = Pipeline;
 typedef MountStorageNode = Mount;
 typedef DefineRoleNode = Agent;
