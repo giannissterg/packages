@@ -104,6 +104,35 @@ sealed class VasterInstruction {
           sourceSessionId: json['sourceSessionId'] as String? ?? '',
           targetSessionId: json['targetSessionId'] as String? ?? '',
         ),
+      InstructionOpcode.addContext => AddContextOp(
+          regionId: json['regionId'] as String? ?? '',
+          label: json['label'] as String? ?? '',
+          text: json['text'] as String? ?? '',
+          sourceVar: json['sourceVar'] as String?,
+          priority: json['priority'] as String? ?? 'medium',
+          lifetime: json['lifetime'] as String? ?? 'session',
+          compressibility: json['compressibility'] as String? ?? 'none',
+          pinned: json['pinned'] as bool? ?? false,
+        ),
+      InstructionOpcode.evictContext => EvictContextOp(
+          regionId: json['regionId'] as String? ?? '',
+          force: json['force'] as bool? ?? false,
+        ),
+      InstructionOpcode.unpinContext => UnpinContextOp(
+          regionId: json['regionId'] as String? ?? '',
+        ),
+      InstructionOpcode.setContextPolicy => SetContextPolicyOp(
+          regionId: json['regionId'] as String? ?? '',
+          priority: json['priority'] as String?,
+          pinned: json['pinned'] as bool?,
+          compressibility: json['compressibility'] as String?,
+          utility: (json['utility'] as num?)?.toDouble(),
+        ),
+      InstructionOpcode.compressContext => CompressContextOp(
+          regionId: json['regionId'] as String?,
+          targetTokens: json['targetTokens'] as int?,
+          outputVar: json['outputVar'] as String?,
+        ),
       InstructionOpcode.pinContext => PinContextOp(
           regionId: json['regionId'] as String? ?? '',
         ),
@@ -397,6 +426,122 @@ final class PinContextOp extends VasterInstruction {
   Map<String, dynamic> toJson() => {
         'opcode': opcode.name,
         'regionId': regionId,
+      };
+}
+
+/// Adds a context region to the VM context heap. Content comes from [text]
+/// or, when [sourceVar] is set, from that register at runtime.
+final class AddContextOp extends VasterInstruction {
+  final String regionId;
+  final String label;
+  final String text;
+  final String? sourceVar;
+  final String priority; // ContextPriority name
+  final String lifetime; // ContextLifetime name
+  final String compressibility; // ContextCompressibility name
+  final bool pinned;
+
+  const AddContextOp({
+    required this.regionId,
+    required this.label,
+    this.text = '',
+    this.sourceVar,
+    this.priority = 'medium',
+    this.lifetime = 'session',
+    this.compressibility = 'none',
+    this.pinned = false,
+  }) : super(InstructionOpcode.addContext);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'regionId': regionId,
+        'label': label,
+        if (text.isNotEmpty) 'text': text,
+        if (sourceVar != null) 'sourceVar': sourceVar,
+        'priority': priority,
+        'lifetime': lifetime,
+        'compressibility': compressibility,
+        'pinned': pinned,
+      };
+}
+
+/// Removes a context region from the VM context heap.
+final class EvictContextOp extends VasterInstruction {
+  final String regionId;
+
+  /// Evict even when the region is pinned.
+  final bool force;
+
+  const EvictContextOp({required this.regionId, this.force = false})
+      : super(InstructionOpcode.evictContext);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'regionId': regionId,
+        'force': force,
+      };
+}
+
+/// Unpins a context region (and releases its cache hint).
+final class UnpinContextOp extends VasterInstruction {
+  final String regionId;
+
+  const UnpinContextOp({required this.regionId})
+      : super(InstructionOpcode.unpinContext);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'regionId': regionId,
+      };
+}
+
+/// Updates a region's management policy in place (only non-null fields apply).
+final class SetContextPolicyOp extends VasterInstruction {
+  final String regionId;
+  final String? priority; // ContextPriority name
+  final bool? pinned;
+  final String? compressibility; // ContextCompressibility name
+  final double? utility;
+
+  const SetContextPolicyOp({
+    required this.regionId,
+    this.priority,
+    this.pinned,
+    this.compressibility,
+    this.utility,
+  }) : super(InstructionOpcode.setContextPolicy);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'regionId': regionId,
+        if (priority != null) 'priority': priority,
+        if (pinned != null) 'pinned': pinned,
+        if (compressibility != null) 'compressibility': compressibility,
+        if (utility != null) 'utility': utility,
+      };
+}
+
+/// Compresses context toward a token target. Null [regionId] compacts the
+/// whole heap; null [targetTokens] uses 90% of the active model input budget.
+/// [outputVar] receives the number of tokens freed.
+final class CompressContextOp extends VasterInstruction {
+  final String? regionId;
+  final int? targetTokens;
+  final String? outputVar;
+
+  const CompressContextOp({this.regionId, this.targetTokens, this.outputVar})
+      : super(InstructionOpcode.compressContext);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        if (regionId != null) 'regionId': regionId,
+        if (targetTokens != null) 'targetTokens': targetTokens,
+        if (outputVar != null) 'outputVar': outputVar,
       };
 }
 
