@@ -325,5 +325,78 @@ void main() {
         ));
       expect(() => engine.resume(runtime), throwsStateError);
     });
+
+    test('recorder chains a previously attached observer instead of clobbering it',
+        () async {
+      final observed = <int>[];
+      runtime.stepObserver = (pc, inst, regs) => observed.add(pc);
+
+      const program = VasterProgram(programName: 'chain', instructions: [
+        SetRegisterOp(registerName: 'x', value: 1),
+        HaltOp(),
+      ]);
+
+      final recorder = VasterExecutionRecorder()..attach(runtime);
+      await runtime.executeProgram(program);
+
+      expect(recorder.journal.length, equals(2));
+      expect(observed, equals([0, 1]), reason: 'chained observer still fires');
+
+      recorder.detach();
+      expect(runtime.stepObserver, isNotNull,
+          reason: 'detach restores the prior observer');
+    });
+
+    test('recorder and tracer compose in either attach order', () async {
+      const program = VasterProgram(programName: 'compose', instructions: [
+        SetRegisterOp(registerName: 'x', value: 1),
+        HaltOp(),
+      ]);
+
+      final lines = <String>[];
+      final tracer = ExecutionTracer(runtime, sink: lines.add)..attach();
+      final recorder = VasterExecutionRecorder()..attach(runtime);
+
+      await runtime.executeProgram(program);
+
+      // Both observers saw every instruction.
+      expect(recorder.journal.frames.map((f) => f.pc), equals([0, 1]));
+      expect(lines.where((l) => l.startsWith('[')), hasLength(2));
+
+      // Unwinding in reverse attach order leaves the slot empty again.
+      recorder.detach();
+      expect(runtime.stepObserver, isNotNull, reason: 'tracer still attached');
+      tracer.detach();
+      expect(runtime.stepObserver, isNull);
+    });
+
+    test('re-attaching to another runtime releases the first one', () async {
+      final other = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+
+      final recorder = VasterExecutionRecorder()..attach(runtime);
+      recorder.attach(other);
+
+      expect(runtime.stepObserver, isNull,
+          reason: 'the first runtime was released on re-attach');
+      expect(other.stepObserver, isNotNull);
+
+      // Re-attaching to the same runtime must not chain the recorder to itself.
+      recorder.attach(other);
+      const program = VasterProgram(programName: 'idempotent', instructions: [
+        SetRegisterOp(registerName: 'x', value: 1),
+        HaltOp(),
+      ]);
+      await other.executeProgram(program);
+      expect(recorder.journal.length, equals(2),
+          reason: 'each instruction recorded exactly once');
+
+      recorder.detach();
+      expect(other.stepObserver, isNull);
+    });
   });
 }

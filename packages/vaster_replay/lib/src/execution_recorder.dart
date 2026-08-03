@@ -12,6 +12,9 @@ import 'execution_step_frame.dart';
 /// The resulting journal can then be driven by a [VasterReplayEngine] for
 /// time-travel debugging.
 ///
+/// Composes with other observers (e.g. the execution tracer): [attach] chains
+/// any observer already installed, and [detach] restores it.
+///
 /// ```dart
 /// final recorder = VasterExecutionRecorder()..attach(runtime);
 /// await runtime.executeProgram(program);
@@ -31,6 +34,7 @@ class VasterExecutionRecorder {
 
   int _stepCounter = 0;
   VasterRuntime? _attached;
+  RuntimeStepObserver? _previousObserver;
 
   /// Single stable closure instance so [attach]/[detach] identity checks hold.
   late final RuntimeStepObserver _observer = _onStep;
@@ -48,19 +52,25 @@ class VasterExecutionRecorder {
 
   /// Attaches to [runtime] and begins recording subsequent instructions.
   ///
-  /// Replaces any existing step observer on [runtime]. Detaching from a prior
-  /// runtime first is the caller's responsibility if that matters.
+  /// Any observer already installed keeps firing (chained after the recorder)
+  /// and is restored by [detach]. Re-attaching while already attached to
+  /// another runtime detaches from that one first; re-attaching to the same
+  /// runtime is a no-op.
   void attach(VasterRuntime runtime) {
+    if (identical(_attached, runtime)) return;
+    if (_attached != null) detach();
     _attached = runtime;
+    _previousObserver = runtime.stepObserver;
     runtime.stepObserver = _observer;
   }
 
-  /// Stops recording and clears the observer from the attached runtime.
+  /// Stops recording and restores the previously installed observer.
   void detach() {
     final runtime = _attached;
     if (runtime != null && identical(runtime.stepObserver, _observer)) {
-      runtime.stepObserver = null;
+      runtime.stepObserver = _previousObserver;
     }
+    _previousObserver = null;
     _attached = null;
   }
 
@@ -80,5 +90,7 @@ class VasterExecutionRecorder {
         vfsSnapshot: vfsSnapshotProvider?.call() ?? CowFileSnapshot.empty(),
       ),
     );
+
+    _previousObserver?.call(pc, instruction, registers);
   }
 }
