@@ -81,6 +81,23 @@ class VasterRuntime {
   late final DecisionArbiter _decisionArbiter =
       DecisionArbiter(vm: vm, budget: budget);
 
+  /// ISA `${name}` register interpolation (see RegisterInterpolation spec).
+  late final RegisterInterpolator _interpolator =
+      RegisterInterpolator(registers: _registers);
+
+  /// Resolves an interpolated instruction field, surfacing unresolvable
+  /// references as runtime warnings instead of failing.
+  String _interp(String template) => _interpolator.resolve(
+        template,
+        onMissing: (name) => vm.eventBus.publish(RuntimeWarningEvent(
+          eventId: 'evt_warn_interp_$_pc',
+          code: 'unresolved_interpolation',
+          message:
+              'Register "$name" referenced by \${...} is unset at PC $_pc.',
+          pc: _pc,
+        )),
+      );
+
   VasterRuntime({
     required this.vm,
     required ExecutionPolicy policy,
@@ -355,23 +372,24 @@ class VasterRuntime {
         final promptConfig = op.responseSchema == null
             ? null
             : GenerationConfig(responseSchema: op.responseSchema);
+        final promptText = _interp(op.promptText);
         var response = _activeSessionId != null
             ? await vm.promptInSession(
                 _activeSessionId!,
-                op.promptText,
+                promptText,
                 model: _activeModel,
                 config: promptConfig,
                 cacheHints: _cacheHints.activeHints,
               )
             : await vm.prompt(
-                op.promptText,
+                promptText,
                 model: _activeModel,
                 config: promptConfig,
                 cacheHints: _cacheHints.activeHints,
               );
         if (response.functionCalls.isNotEmpty) {
           response = await _toolOrchestrator.resolve(
-            prompt: op.promptText,
+            prompt: promptText,
             initialResponse: response,
             programToolSet: _activeToolSet,
             model: _activeModel,
@@ -382,7 +400,7 @@ class VasterRuntime {
         // fallback for backends that don't report tokens.
         final tokens = response.usage.totalTokenCount > 0
             ? response.usage.totalTokenCount
-            : (op.promptText.length ~/ 4) + (response.text.length ~/ 4);
+            : (promptText.length ~/ 4) + (response.text.length ~/ 4);
         budget.consumeTokens(tokens);
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
@@ -403,17 +421,28 @@ class VasterRuntime {
 
       // ── Filesystem ────────────────────────────────────────────────────────
       case MountFsOp op:
-        vm.mountFileSystem(op.mountPrefix, MemoryVasterFileSystem());
+        // Declared disk mounts get a real local filesystem — a memory mount
+        // silently standing in for a declared diskPath is a fidelity bug.
+        vm.mountFileSystem(
+          op.mountPrefix,
+          op.diskPath != null
+              ? LocalVasterFileSystem(op.diskPath!, mountPrefix: op.mountPrefix)
+              : MemoryVasterFileSystem(),
+        );
 
       case WriteFileOp op:
-        _checkPolicy(PolicyAction.fileWrite, op.vfsPath);
-        final fs = vm.fileSystemManager.resolveFileSystem(op.vfsPath);
-        await fs.writeText(op.vfsPath, op.content);
+        // Paths interpolate before the policy check: policy evaluates the
+        // resolved path (RegisterInterpolation spec).
+        final writePath = _interp(op.vfsPath);
+        _checkPolicy(PolicyAction.fileWrite, writePath);
+        final fs = vm.fileSystemManager.resolveFileSystem(writePath);
+        await fs.writeText(writePath, _interp(op.content));
 
       case ReadFileOp op:
-        _checkPolicy(PolicyAction.fileRead, op.vfsPath);
-        final fs = vm.fileSystemManager.resolveFileSystem(op.vfsPath);
-        final content = await fs.readText(op.vfsPath);
+        final readPath = _interp(op.vfsPath);
+        _checkPolicy(PolicyAction.fileRead, readPath);
+        final fs = vm.fileSystemManager.resolveFileSystem(readPath);
+        final content = await fs.readText(readPath);
         if (op.outputVar != null) _registers.write(op.outputVar!, content);
 
       case BeginTransactionOp _:
@@ -427,14 +456,20 @@ class VasterRuntime {
 
       // ── Sandbox ───────────────────────────────────────────────────────────
       case RegisterSandboxOp op:
-        vm.mountSandbox(op.sandboxId, op.language);
+        vm.mountSandbox(
+          op.sandboxId,
+          op.language,
+          timeout: op.timeoutMs == null
+              ? null
+              : Duration(milliseconds: op.timeoutMs!),
+        );
 
       case ExecSandboxOp op:
         _checkPolicy(PolicyAction.sandboxExec, op.sandboxId);
         final sandboxClock = Stopwatch()..start();
         final result = await vm.sandboxManager.runCode(
           sandboxId: op.sandboxId,
-          codeOrCommand: op.code,
+          codeOrCommand: _interp(op.code),
         );
         sandboxClock.stop();
         final languages =
@@ -460,11 +495,12 @@ class VasterRuntime {
           // Typed invocation: forwarded to the agent's ModelRequest.
           if (op.responseSchema != null) 'responseSchema': op.responseSchema,
         };
+        final taskPrompt = _interp(op.taskPrompt);
         final output = await vm.runAgentTask(
-          AgentTask(taskId: 'isa_task_$_pc', inputPrompt: op.taskPrompt, metadata: meta),
+          AgentTask(taskId: 'isa_task_$_pc', inputPrompt: taskPrompt, metadata: meta),
           agentId: op.agentId,
         );
-        final tokens = (op.taskPrompt.length ~/ 4) + (output.outputText.length ~/ 4);
+        final tokens = (taskPrompt.length ~/ 4) + (output.outputText.length ~/ 4);
         budget.consumeTokens(tokens);
         if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
@@ -474,7 +510,9 @@ class VasterRuntime {
           final dispatches = op.dispatches
               .map((d) => (
                     agentId: d.agentId,
-                    task: AgentTask(taskId: 'parallel_$_pc', inputPrompt: d.taskPrompt),
+                    task: AgentTask(
+                        taskId: 'parallel_$_pc',
+                        inputPrompt: _interp(d.taskPrompt)),
                   ))
               .toList();
           final outputs = await manager.dispatchParallelTasks(dispatches);
@@ -489,7 +527,14 @@ class VasterRuntime {
           messageId: 'isa_msg_$_pc',
           senderAgentId: op.senderId,
           recipientAgentId: op.recipientId,
-          payload: op.payload,
+          payload: _interpolator.resolveMap(op.payload,
+              onMissing: (name) => vm.eventBus.publish(RuntimeWarningEvent(
+                    eventId: 'evt_warn_interp_$_pc',
+                    code: 'unresolved_interpolation',
+                    message: 'Register "$name" referenced by \${...} is '
+                        'unset at PC $_pc.',
+                    pc: _pc,
+                  ))),
         ));
 
       case PopMessageOp op:
@@ -514,7 +559,7 @@ class VasterRuntime {
       case AddContextOp op:
         final content = op.sourceVar != null
             ? (_registers.read(op.sourceVar!)?.toString() ?? '')
-            : op.text;
+            : _interp(op.text);
         vm.contextManager.addRegion(ContextRegion.text(
           id: op.regionId,
           label: op.label,
@@ -629,7 +674,18 @@ class VasterRuntime {
 
       // ── HITL ─────────────────────────────────────────────────────────────
       case YieldHumanInteractionOp op:
-      _status = _hitl.pause(request: op.request, eventBus: vm.eventBus, currentPc: _pc);
+        final request = RegisterInterpolation.mentions(op.request.prompt)
+            ? HumanInteractionRequest(
+                requestId: op.request.requestId,
+                type: op.request.type,
+                prompt: _interp(op.request.prompt),
+                options: op.request.options,
+                outputVar: op.request.outputVar,
+                timeoutMs: op.request.timeoutMs,
+              )
+            : op.request;
+        _status = _hitl.pause(
+            request: request, eventBus: vm.eventBus, currentPc: _pc);
 
       // ── Control flow ──────────────────────────────────────────────────────
       case CallOp op:
@@ -669,7 +725,7 @@ class VasterRuntime {
           throw StateError('DecideOp at PC $_pc has no branches.');
         }
         final outcome = await _decisionArbiter.decide(
-          prompt: op.prompt,
+          prompt: _interp(op.prompt),
           branches: [
             for (final b in op.branches)
               (label: b.label, description: b.description),

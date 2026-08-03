@@ -488,13 +488,17 @@ class VasterVMEngine implements VasterVirtualMachine {
   }
 
   @override
-  void mountSandbox(String sandboxId, SandboxLanguage language) {
+  void mountSandbox(String sandboxId, SandboxLanguage language,
+      {Duration? timeout}) {
     registerSandbox(IsolateCodeSandbox(
       descriptor: SandboxDescriptor(
         sandboxId: sandboxId,
         type: 'isolate',
         description: 'ISA Isolate Sandbox',
         supportedLanguages: [language],
+      ),
+      defaultPolicy: SandboxSecurityPolicy(
+        maxTimeout: timeout ?? const Duration(seconds: 10),
       ),
     ));
   }

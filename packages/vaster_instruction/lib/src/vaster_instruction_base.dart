@@ -96,6 +96,7 @@ sealed class VasterInstruction {
       InstructionOpcode.registerSandbox => RegisterSandboxOp(
           sandboxId: json['sandboxId'] as String? ?? '',
           language: SandboxLanguage.parse(json['language'] as String? ?? 'dart'),
+          timeoutMs: json['timeoutMs'] as int?,
         ),
       InstructionOpcode.execSandbox => ExecSandboxOp(
           sandboxId: json['sandboxId'] as String? ?? '',
@@ -328,14 +329,21 @@ final class RegisterSandboxOp extends VasterInstruction {
   final String sandboxId;
   final SandboxLanguage language;
 
-  const RegisterSandboxOp({required this.sandboxId, this.language = SandboxLanguage.dart})
-      : super(InstructionOpcode.registerSandbox);
+  /// Per-execution wall-clock limit enforced by the sandbox, when set.
+  final int? timeoutMs;
+
+  const RegisterSandboxOp({
+    required this.sandboxId,
+    this.language = SandboxLanguage.dart,
+    this.timeoutMs,
+  }) : super(InstructionOpcode.registerSandbox);
 
   @override
   Map<String, dynamic> toJson() => {
         'opcode': opcode.name,
         'sandboxId': sandboxId,
         'language': language.name,
+        if (timeoutMs != null) 'timeoutMs': timeoutMs,
       };
 }
 

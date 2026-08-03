@@ -12,11 +12,15 @@ class ResourceQuota {
   /// Maximum subagent spawn depth. Null = unlimited.
   final int? maxSubagentDepth;
 
+  /// Maximum cumulative monetary cost allowed. Null = unlimited.
+  final double? maxCostBudget;
+
   const ResourceQuota({
     this.maxTokenBudget,
     this.maxToolCallsPerTask,
     this.timeDeadline,
     this.maxSubagentDepth,
+    this.maxCostBudget,
   });
 
   /// Unlimited resource quota.
@@ -27,6 +31,7 @@ class ResourceQuota {
         if (maxToolCallsPerTask != null) 'maxToolCallsPerTask': maxToolCallsPerTask,
         if (timeDeadline != null) 'timeDeadlineMs': timeDeadline!.inMilliseconds,
         if (maxSubagentDepth != null) 'maxSubagentDepth': maxSubagentDepth,
+        if (maxCostBudget != null) 'maxCostBudget': maxCostBudget,
       };
 
   factory ResourceQuota.fromJson(Map<String, dynamic> json) {
@@ -37,6 +42,7 @@ class ResourceQuota {
           ? Duration(milliseconds: json['timeDeadlineMs'] as int)
           : null,
       maxSubagentDepth: json['maxSubagentDepth'] as int?,
+      maxCostBudget: (json['maxCostBudget'] as num?)?.toDouble(),
     );
   }
 

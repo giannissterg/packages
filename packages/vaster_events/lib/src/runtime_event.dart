@@ -241,6 +241,34 @@ final class SandboxExecutedEvent extends RuntimeEvent {
       };
 }
 
+/// Emitted for non-fatal runtime conditions worth surfacing (e.g. an
+/// unresolved `${...}` interpolation reference left verbatim).
+final class RuntimeWarningEvent extends RuntimeEvent {
+  /// Stable machine-readable code (e.g. `unresolved_interpolation`).
+  final String code;
+  final String message;
+  final int pc;
+
+  RuntimeWarningEvent({
+    required super.eventId,
+    required this.code,
+    required this.message,
+    required this.pc,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'runtime_warning',
+        'eventId': eventId,
+        'code': code,
+        'message': message,
+        'pc': pc,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
 /// Emitted when the model resolves a DecideOp — the audit trail of every
 /// point where the model steered control flow.
 final class DecisionMadeEvent extends RuntimeEvent {

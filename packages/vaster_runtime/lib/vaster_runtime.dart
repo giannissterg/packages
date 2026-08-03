@@ -8,6 +8,7 @@ export 'src/execution_tracer.dart';
 export 'src/hitl_controller.dart';
 export 'src/policy_guard.dart';
 export 'src/register_file.dart';
+export 'src/register_interpolator.dart';
 export 'src/runtime_state.dart';
 export 'src/runtime_status.dart';
 export 'src/tool_call_orchestrator.dart';

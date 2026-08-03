@@ -139,7 +139,8 @@ abstract interface class VasterVirtualMachine {
   /// Constructs and registers a default isolate-backed [CodeSandbox] for [sandboxId]
   /// supporting [language]. This is a factory convenience so the runtime does not
   /// need to depend on concrete sandbox implementations.
-  void mountSandbox(String sandboxId, SandboxLanguage language);
+  void mountSandbox(String sandboxId, SandboxLanguage language,
+      {Duration? timeout});
 
   /// Creates and registers an autonomous agent in [agentManager].
   Future<VasterAgent> createAgent({
