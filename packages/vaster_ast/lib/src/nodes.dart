@@ -760,38 +760,6 @@ final class EvictContext extends VasterNode {
   const EvictContext({required this.regionId, this.force = false});
 }
 
-/// Pins a context region (never evicted; eligible for provider-side caching
-/// and physical KV materialization).
-final class PinContext extends VasterNode {
-  final String regionId;
-
-  const PinContext({required this.regionId});
-}
-
-/// Unpins a context region.
-final class UnpinContext extends VasterNode {
-  final String regionId;
-
-  const UnpinContext({required this.regionId});
-}
-
-/// Updates a region's management policy in place (only provided fields apply).
-final class ContextPolicy extends VasterNode {
-  final String regionId;
-  final ContextPriority? priority;
-  final bool? pinned;
-  final ContextCompressibility? compressibility;
-  final double? utility;
-
-  const ContextPolicy({
-    required this.regionId,
-    this.priority,
-    this.pinned,
-    this.compressibility,
-    this.utility,
-  });
-}
-
 /// Compresses context toward a token target. Null [regionId] compacts the
 /// whole heap; null [targetTokens] derives from the active model budget.
 /// The freed-token count binds to [output].

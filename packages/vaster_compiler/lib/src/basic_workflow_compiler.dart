@@ -438,21 +438,6 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       case EvictContext n:
         ir.emit(EvictContextOp(regionId: n.regionId, force: n.force));
 
-      case PinContext n:
-        ir.emit(PinContextOp(regionId: n.regionId));
-
-      case UnpinContext n:
-        ir.emit(UnpinContextOp(regionId: n.regionId));
-
-      case ContextPolicy n:
-        ir.emit(SetContextPolicyOp(
-          regionId: n.regionId,
-          priority: n.priority?.name,
-          pinned: n.pinned,
-          compressibility: n.compressibility?.name,
-          utility: n.utility,
-        ));
-
       case CompressContext n:
         final reg = _binding(n.output, state);
         ir.emit(CompressContextOp(
