@@ -77,7 +77,9 @@ class BasicVasterAgent implements VasterAgent {
         );
         final compiled = await session.contextManager.compileContext(budget: budget);
         final systemInstruction = compiled.systemInstruction;
-        final messages = [...compiled.messages, ...session.history];
+        // History arrives through the heap (SessionHistorySource projects it);
+        // concatenating session.history again would duplicate every turn.
+        final messages = compiled.messages;
 
         // b. Build ModelRequest — agent owns this, not the session.
         // A responseSchema forwarded via task metadata becomes a structured-
@@ -127,7 +129,14 @@ class BasicVasterAgent implements VasterAgent {
           parts: results.map((r) => r.toResponsePart()).toList(),
         );
         session.appendMessage(toolMessage);
+
+        // Loop-iteration boundary: expire ephemeral scratch context.
+        session.contextManager.pruneLifetimes({ContextLifetime.ephemeral});
       }
+
+      // Task (step) boundary: expire ephemeral + step-scoped context.
+      session.contextManager
+          .pruneLifetimes({ContextLifetime.ephemeral, ContextLifetime.step});
 
       watch.stop();
       return AgentOutput(

@@ -46,8 +46,10 @@ abstract interface class ModelSession {
   /// responsible for correct turn ordering.
   void appendMessage(ChatMessage message);
 
-  /// Forks current session into a new isolated session thread with deep-copied turn history.
-  ModelSession fork({String? newSessionId});
+  /// Forks current session into a new isolated session thread with deep-copied
+  /// turn history. By default the fork shares this session's context manager
+  /// (histories share one heap/budget); pass [contextManager] to isolate it.
+  ModelSession fork({String? newSessionId, ContextManager? contextManager});
 
   /// Clears turn history from this session.
   void clearHistory();

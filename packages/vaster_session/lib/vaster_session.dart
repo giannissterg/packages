@@ -4,3 +4,4 @@ library;
 export 'src/basic_model_session.dart';
 export 'src/model_session_interface.dart';
 export 'src/session_descriptor.dart';
+export 'src/session_history_source.dart';

@@ -4,8 +4,15 @@ import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'model_session_interface.dart';
 import 'session_descriptor.dart';
+import 'session_history_source.dart';
 
 /// Standard implementation of [ModelSession] supporting dynamic model switching and thread forking.
+///
+/// Conversation history is projected into the [contextManager]'s heap via a
+/// [SessionHistorySource], so it is budgeted, compressible, prioritized, and
+/// inspectable like every other context region. The prompt sent to the model
+/// is exactly `compileContext(...).messages` — history is never concatenated
+/// separately.
 class BasicModelSession implements ModelSession {
   @override
   final SessionDescriptor descriptor;
@@ -32,6 +39,10 @@ class BasicModelSession implements ModelSession {
     if (initialHistory.isNotEmpty) {
       _history.addAll(initialHistory);
     }
+    contextManager.registerSource(SessionHistorySource(
+      sessionId: sessionId,
+      historyProvider: () => _history,
+    ));
   }
 
   @override
@@ -52,26 +63,29 @@ class BasicModelSession implements ModelSession {
     final activeModel = targetModel ?? model;
     _history.add(userMessage);
 
+    // The user message is already in _history, so the history tail region
+    // carries it — compiled.messages IS the complete prompt. Appending it
+    // again would double-send.
     final compiled = await contextManager.compileContext(
       budget: TokenBudget(
         maxContextTokens: activeModel.capabilities.maxContextTokens,
         reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
       ),
     );
-    final systemInstruction = compiled.systemInstruction;
-    final compiledMessages = [...compiled.messages, userMessage];
 
     cancelToken?.throwIfCancelled();
 
     final request = ModelRequest(
-      systemInstruction: systemInstruction,
-      messages: compiledMessages,
+      systemInstruction: compiled.systemInstruction,
+      messages: compiled.messages,
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
     );
 
     final response = await activeModel.generate(request);
     _history.add(response.message);
+    // Turn boundary: expire ephemeral-lifetime scratch regions.
+    contextManager.pruneLifetimes({ContextLifetime.ephemeral});
     return response;
   }
 
@@ -87,18 +101,17 @@ class BasicModelSession implements ModelSession {
     final activeModel = targetModel ?? model;
     _history.add(userMessage);
 
+    // History (including the just-added user message) arrives via the heap.
     final compiled = await contextManager.compileContext(
       budget: TokenBudget(
         maxContextTokens: activeModel.capabilities.maxContextTokens,
         reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
       ),
     );
-    final systemInstruction = compiled.systemInstruction;
-    final compiledMessages = [...compiled.messages, userMessage];
 
     final request = ModelRequest(
-      systemInstruction: systemInstruction,
-      messages: compiledMessages,
+      systemInstruction: compiled.systemInstruction,
+      messages: compiled.messages,
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
     );
@@ -119,15 +132,19 @@ class BasicModelSession implements ModelSession {
 
     final fullParts = parts.isNotEmpty ? parts : [TextPart(textBuffer.toString())];
     _history.add(ChatMessage(role: Role.model, parts: fullParts));
+    contextManager.pruneLifetimes({ContextLifetime.ephemeral});
   }
 
+  /// Forks the session. By default the fork SHARES this session's
+  /// [contextManager] (both histories project into one heap and share its
+  /// budget); pass a fresh [contextManager] to isolate the fork.
   @override
-  ModelSession fork({String? newSessionId}) {
+  ModelSession fork({String? newSessionId, ContextManager? contextManager}) {
     final forkId = newSessionId ?? '${sessionId}_fork_${DateTime.now().millisecondsSinceEpoch}';
     return BasicModelSession(
       sessionId: forkId,
       model: model,
-      contextManager: contextManager,
+      contextManager: contextManager ?? this.contextManager,
       initialHistory: List.from(_history),
     );
   }
@@ -138,5 +155,11 @@ class BasicModelSession implements ModelSession {
   @override
   void clearHistory() {
     _history.clear();
+    // Remove projected history regions so the heap doesn't serve stale turns.
+    for (final region in List<ContextRegion>.from(contextManager.regions)) {
+      if (region.id.startsWith('session:$sessionId:history')) {
+        contextManager.removeRegion(region.id, force: true);
+      }
+    }
   }
 }
