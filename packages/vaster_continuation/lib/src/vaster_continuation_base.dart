@@ -2,20 +2,31 @@ import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model/vaster_model.dart';
 
 /// Single activation record / stack frame on the Vaster VM call stack.
+///
+/// Mirrors the runtime's live activation record field-for-field so that a
+/// suspended machine round-trips faithfully: [returnPc] is where control
+/// resumes when the subroutine returns, and [outputVar] is the register its
+/// return value lands in.
 class StackFrame {
   final String functionName;
   final int returnPc;
+
+  /// Register the subroutine's return value is written into, if any.
+  final String? outputVar;
+
   final Map<String, dynamic> localRegisters;
 
   const StackFrame({
     required this.functionName,
     required this.returnPc,
+    this.outputVar,
     this.localRegisters = const {},
   });
 
   Map<String, dynamic> toJson() => {
         'functionName': functionName,
         'returnPc': returnPc,
+        if (outputVar != null) 'outputVar': outputVar,
         if (localRegisters.isNotEmpty) 'localRegisters': localRegisters,
       };
 
@@ -23,6 +34,7 @@ class StackFrame {
     return StackFrame(
       functionName: json['functionName'] as String? ?? 'anonymous',
       returnPc: json['returnPc'] as int? ?? 0,
+      outputVar: json['outputVar'] as String?,
       localRegisters: Map<String, dynamic>.from(json['localRegisters'] as Map? ?? {}),
     );
   }

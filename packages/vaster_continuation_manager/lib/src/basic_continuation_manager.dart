@@ -59,6 +59,14 @@ class BasicContinuationManager implements ContinuationManager {
       activeModelDescriptor: activeModelDescriptor,
       resumePc: state.pc,
       registers: Map<String, dynamic>.from(state.registers),
+      callStack: [
+        for (final frame in runtime.callStackSnapshot)
+          StackFrame(
+            functionName: frame.functionName,
+            returnPc: frame.returnPc,
+            outputVar: frame.outputVar,
+          ),
+      ],
       pendingRequest: runtime.pendingHumanRequest,
     );
     await store.saveContinuation(continuation);
@@ -76,6 +84,14 @@ class BasicContinuationManager implements ContinuationManager {
       continuation.resumePc,
       program,
       registers: continuation.registers,
+      callStack: [
+        for (final frame in continuation.callStack)
+          ActivationRecord(
+            functionName: frame.functionName,
+            returnPc: frame.returnPc,
+            outputVar: frame.outputVar,
+          ),
+      ],
       pendingRequest: continuation.pendingRequest,
       humanResponse: humanResponse,
     );

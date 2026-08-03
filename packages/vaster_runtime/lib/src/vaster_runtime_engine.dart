@@ -80,6 +80,12 @@ class VasterRuntime {
   /// Currently active [VasterProgram] being executed.
   VasterProgram? get currentProgram => _currentProgram;
 
+  /// Immutable snapshot of the live subroutine activation records, outermost
+  /// first. Continuation capture must persist this alongside PC and registers:
+  /// a machine paused inside a subroutine is defined by *where it will return
+  /// to*, not just where it stopped.
+  List<ActivationRecord> get callStackSnapshot => _callStack.snapshot();
+
   /// Sets/writes a register value in the active register file.
   void setRegister(String registerName, Object? value) {
     _registers.write(registerName, value);
@@ -129,16 +135,22 @@ class VasterRuntime {
   }
 
   /// Restores execution from a continuation snapshot and resumes the program.
+  ///
+  /// [callStack] restores the subroutine activation records captured at
+  /// suspension (outermost first); omitting it resumes with an empty stack,
+  /// which is only correct for a machine suspended at top level.
   Future<RuntimeState> restoreAndResume(
     int resumePc,
     VasterProgram program, {
     Map<String, dynamic>? registers,
+    List<ActivationRecord>? callStack,
     HumanInteractionRequest? pendingRequest,
     HumanInteractionResponse? humanResponse,
   }) async {
     _currentProgram = program;
     _pc = resumePc;
     if (registers != null) _registers.restore(registers);
+    if (callStack != null) _callStack.restore(callStack);
     _hitl.restorePending(pendingRequest);
 
     if (humanResponse != null) {

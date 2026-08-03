@@ -172,5 +172,78 @@ void main() {
       expect(resumedState.status, equals(RuntimeStatus.halted));
       expect(resumedState.registers['after_restore'], equals('resumed_durable'));
     });
+
+    test('HITL pause inside a subroutine restores the call stack and returns through it', () async {
+      final store = FileContinuationStore(storageDirectory: tempDir);
+      final manager = BasicContinuationManager(store: store);
+
+      // main:                          subroutine 'audited_step':
+      //   0: call audited_step @3        3: yield (HITL approval gate)
+      //   1: main_after = 'returned'     4: sub_result = 'approved_by_human'
+      //   2: halt                        5: return sub_result -> verdict
+      const program = VasterProgram(
+        programName: 'subroutine_hitl',
+        instructions: [
+          CallOp(functionName: 'audited_step', targetPc: 3, outputVar: 'verdict'),
+          SetRegisterOp(registerName: 'main_after', value: 'returned'),
+          HaltOp(),
+          YieldHumanInteractionOp(
+            request: HumanInteractionRequest(
+              requestId: 'sub_req',
+              type: HumanInteractionType.approval,
+              prompt: 'Approve the audited step?',
+            ),
+          ),
+          SetRegisterOp(registerName: 'sub_result', value: 'approved_by_human'),
+          ReturnSubroutineOp(returnRegister: 'sub_result'),
+        ],
+      );
+
+      final runtime1 = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+      final paused = await runtime1.executeProgram(program);
+      expect(paused.status, equals(RuntimeStatus.pausedForHuman));
+      expect(paused.pc, equals(3), reason: 'suspended inside the subroutine');
+
+      // The captured snapshot carries the activation record.
+      final captured = await manager.capture(runtime1, program.programName);
+      expect(captured.callStack, hasLength(1));
+      expect(captured.callStack.single.functionName, equals('audited_step'));
+      expect(captured.callStack.single.returnPc, equals(1));
+      expect(captured.callStack.single.outputVar, equals('verdict'));
+
+      // Process restart: reload from disk (full JSON round-trip) onto a fresh
+      // runtime whose call stack starts empty.
+      final manager2 = BasicContinuationManager(
+        store: FileContinuationStore(storageDirectory: tempDir),
+      );
+      final reloaded = await manager2.getContinuation(captured.continuationId);
+      expect(reloaded!.callStack.single.outputVar, equals('verdict'),
+          reason: 'activation record survives serialization');
+
+      final runtime2 = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+      final resumed = await manager2.restoreAndResume(
+        runtime2,
+        reloaded,
+        program,
+        humanResponse: HumanInteractionResponse.approve(requestId: 'sub_req'),
+      );
+
+      // The subroutine finished AND control returned through the restored
+      // frame: the return value landed in the caller's output register and
+      // the instruction after the call site executed.
+      expect(resumed.status, equals(RuntimeStatus.halted));
+      expect(resumed.registers['verdict'], equals('approved_by_human'));
+      expect(resumed.registers['main_after'], equals('returned'));
+    });
   });
 }

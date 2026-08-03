@@ -47,6 +47,18 @@ class CallStack {
     return _frames.removeLast();
   }
 
+  /// Immutable snapshot of the active frames, outermost first — the machine
+  /// word for continuation capture.
+  List<ActivationRecord> snapshot() => List.unmodifiable(_frames);
+
+  /// Replaces the active frames with [frames] (outermost first), restoring a
+  /// previously captured snapshot.
+  void restore(Iterable<ActivationRecord> frames) {
+    _frames
+      ..clear()
+      ..addAll(frames);
+  }
+
   /// Clears all frames (e.g. on program start).
   void clear() => _frames.clear();
 }
