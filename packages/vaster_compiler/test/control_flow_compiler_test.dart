@@ -169,4 +169,191 @@ void main() {
       );
     });
   });
+
+  group('Decide lowering', () {
+    test('branch targets land on each path; paths rejoin after the node', () {
+      final program = compiler.compile(pipeline(const [
+        Decide(
+          prompt: 'Ship it?',
+          paths: [
+            DecisionPath(label: 'ship', description: 'ready to go',
+                children: [Prompt('announce release')]),
+            DecisionPath(label: 'hold', description: 'not yet',
+                children: [Prompt('file blockers')]),
+          ],
+        ),
+        Prompt('after join'),
+      ]));
+      final instructions = program.instructions;
+
+      final decide = instructions.whereType<DecideOp>().single;
+      expect(decide.prompt, 'Ship it?');
+      expect(decide.branches.map((b) => b.label), equals(['ship', 'hold']));
+      expect(decide.outputVar, isNotNull,
+          reason: 'the chosen label is captured in a compiler-internal register');
+
+      // Each branch target is that path's first instruction.
+      final shipTarget = instructions[decide.branches[0].targetPc];
+      expect((shipTarget as PromptOp).promptText, 'announce release');
+      final holdTarget = instructions[decide.branches[1].targetPc];
+      expect((holdTarget as PromptOp).promptText, 'file blockers');
+
+      // Both paths flow to the join; the post-join prompt is present once.
+      expect(
+        instructions.whereType<PromptOp>().where((p) => p.promptText == 'after join'),
+        hasLength(1),
+      );
+    });
+
+    test('the chosen label flows to Output() positionally', () {
+      final program = compiler.compile(pipeline(const [
+        Decide(prompt: 'pick', paths: [
+          DecisionPath(label: 'a', description: 'first'),
+          DecisionPath(label: 'b', description: 'second'),
+        ]),
+        Output(),
+      ]));
+      final decide = program.instructions.whereType<DecideOp>().single;
+      final concat = program.instructions.whereType<ConcatRegisterOp>().single;
+      expect(concat.sourceVars, equals([decide.outputVar]));
+    });
+
+    test('optimize:true preserves every decide path block', () {
+      const optimizing =
+          BasicWorkflowCompiler(options: CompilerOptions(optimize: true));
+      final program = optimizing.compile(pipeline(const [
+        Decide(prompt: 'pick', paths: [
+          DecisionPath(label: 'a', description: 'first',
+              children: [Prompt('path a body')]),
+          DecisionPath(label: 'b', description: 'second',
+              children: [Prompt('path b body')]),
+        ]),
+      ]));
+
+      final prompts =
+          program.instructions.whereType<PromptOp>().map((p) => p.promptText);
+      expect(prompts, containsAll(['path a body', 'path b body']),
+          reason: 'branch blocks are only reachable through the decide — '
+              'dead-code elimination must treat its targets as referenced');
+    });
+
+    test('defaultPath comes from Provider<DecisionPolicy> when unset on the node',
+        () {
+      final program = compiler.compile(pipeline(const [
+        Provider<DecisionPolicy>(
+          value: DecisionPolicy(defaultPath: 'b'),
+          children: [
+            Decide(prompt: 'pick', paths: [
+              DecisionPath(label: 'a', description: 'first'),
+              DecisionPath(label: 'b', description: 'second'),
+            ]),
+          ],
+        ),
+      ]));
+      expect(program.instructions.whereType<DecideOp>().single.defaultLabel, 'b');
+    });
+
+    test('analyzer rejects duplicate labels and unknown defaults', () {
+      const analyzer = ProgramAnalyzer();
+
+      final duplicate = analyzer.analyze(const VasterProgram(
+        programName: 'dup',
+        instructions: [
+          DecideOp(prompt: 'p', branches: [
+            DecisionBranch(label: 'x', description: 'a', targetPc: 1),
+            DecisionBranch(label: 'x', description: 'b', targetPc: 1),
+          ]),
+          HaltOp(),
+        ],
+      ));
+      expect(duplicate.map((d) => d.code), contains('decide_duplicate_label'));
+
+      final unknownDefault = analyzer.analyze(const VasterProgram(
+        programName: 'unk',
+        instructions: [
+          DecideOp(prompt: 'p', defaultLabel: 'ghost', branches: [
+            DecisionBranch(label: 'x', description: 'a', targetPc: 1),
+          ]),
+          HaltOp(),
+        ],
+      ));
+      expect(unknownDefault.map((d) => d.code), contains('decide_unknown_default'));
+
+      final empty = analyzer.analyze(const VasterProgram(
+        programName: 'empty',
+        instructions: [DecideOp(prompt: 'p', branches: []), HaltOp()],
+      ));
+      expect(empty.map((d) => d.code), contains('decide_no_branches'));
+    });
+  });
+
+  group('DecideLoop lowering', () {
+    test('continue branch is a back-edge; exhaustion routes to an exit', () {
+      final program = compiler.compile(pipeline(const [
+        DecideLoop(
+          prompt: 'Keep going?',
+          body: [Prompt('work step')],
+          maxIterations: 3,
+          exits: [
+            DecisionPath(label: 'done', description: 'complete',
+                children: [Prompt('wrap up')]),
+          ],
+        ),
+      ]));
+      final instructions = program.instructions;
+      final decideIndex =
+          instructions.indexWhere((inst) => inst is DecideOp);
+      final decide = instructions[decideIndex] as DecideOp;
+
+      expect(decide.branches.first.label, 'continue');
+      expect(decide.branches.first.targetPc, lessThan(decideIndex),
+          reason: 'continue is the loop back-edge');
+      final doneBranch = decide.branches[1];
+      expect(doneBranch.label, 'done');
+      expect((instructions[doneBranch.targetPc] as PromptOp).promptText, 'wrap up');
+
+      // The exhaustion guard: counter compare against maxIterations, and the
+      // forced exit jumps to the first exit path, never back into the loop.
+      final compare = instructions.whereType<CompareRegisterOp>().single;
+      expect(compare.rightValue, 3);
+      final forcedExit = instructions
+          .whereType<JumpOp>()
+          .any((j) => j.targetPc == doneBranch.targetPc);
+      expect(forcedExit, isTrue);
+
+      // No analyzer errors, and no unreachable_code on the exit path.
+      final diagnostics = const ProgramAnalyzer().analyze(program);
+      expect(diagnostics.where((d) => d.severity == CompileSeverity.error), isEmpty);
+      expect(diagnostics.map((d) => d.code), isNot(contains('unreachable_code')));
+    });
+
+    test('Provider<DecisionPolicy> supplies maxIterations; node field wins',
+        () {
+      Pipeline loopWith({int? nodeMax}) => pipeline([
+            Provider<DecisionPolicy>(
+              value: const DecisionPolicy(maxIterations: 5),
+              children: [
+                DecideLoop(
+                  prompt: 'go?',
+                  body: const [Prompt('step')],
+                  maxIterations: nodeMax,
+                  exits: const [
+                    DecisionPath(label: 'done', description: 'complete'),
+                  ],
+                ),
+              ],
+            ),
+          ]);
+
+      final fromPolicy = compiler.compile(loopWith());
+      expect(
+          fromPolicy.instructions.whereType<CompareRegisterOp>().single.rightValue,
+          5);
+
+      final fromNode = compiler.compile(loopWith(nodeMax: 2));
+      expect(
+          fromNode.instructions.whereType<CompareRegisterOp>().single.rightValue,
+          2);
+    });
+  });
 }

@@ -241,6 +241,42 @@ final class SandboxExecutedEvent extends RuntimeEvent {
       };
 }
 
+/// Emitted when the model resolves a DecideOp — the audit trail of every
+/// point where the model steered control flow.
+final class DecisionMadeEvent extends RuntimeEvent {
+  final String chosenLabel;
+  final String? rationale;
+  final int branchCount;
+  final int targetPc;
+
+  /// True when the model's answer did not resolve to a branch label and the
+  /// instruction's default branch was taken instead.
+  final bool usedDefault;
+
+  DecisionMadeEvent({
+    required super.eventId,
+    required this.chosenLabel,
+    this.rationale,
+    required this.branchCount,
+    required this.targetPc,
+    required this.usedDefault,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'decision_made',
+        'eventId': eventId,
+        'chosenLabel': chosenLabel,
+        if (rationale != null) 'rationale': rationale,
+        'branchCount': branchCount,
+        'targetPc': targetPc,
+        'usedDefault': usedDefault,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
 /// Emitted when runtime execution yields and pauses waiting for human interaction.
 final class HumanInteractionRequiredEvent extends RuntimeEvent {
   /// JSON payload of the interaction request (`HumanInteractionRequest.toJson`

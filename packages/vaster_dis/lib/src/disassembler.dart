@@ -100,6 +100,10 @@ class VasterDisassembler {
         targets.add(inst.targetPc);
       } else if (inst is PushErrorHandlerOp) {
         targets.add(inst.targetPc);
+      } else if (inst is DecideOp) {
+        for (final branch in inst.branches) {
+          targets.add(branch.targetPc);
+        }
       }
     }
     return targets;
@@ -195,6 +199,16 @@ class VasterDisassembler {
       case JumpIfOp op:
         final label = 'L_${op.targetPc.toString().padLeft(4, '0')}';
         return 'if r[${op.conditionVar}] -> PC:${op.targetPc.toString().padLeft(4, '0')} ($label)';
+
+      case DecideOp op:
+        final menu = op.branches
+            .map((b) => '${b.label}->PC:${b.targetPc.toString().padLeft(4, '0')}')
+            .join(', ');
+        final suffix = [
+          if (op.defaultLabel != null) 'default=${op.defaultLabel}',
+          if (op.outputVar != null) '-> r[${op.outputVar}]',
+        ].join(' ');
+        return '"${_truncate(op.prompt, 32)}" {$menu}${suffix.isEmpty ? '' : ' $suffix'}';
 
       case SetRegisterOp op:
         return 'r[${op.registerName}] = "${_truncate(op.value.toString(), 40)}"';

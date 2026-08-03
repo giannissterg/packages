@@ -207,6 +207,106 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         _lowerNodes(n.children, ir, context, state);
         ir.emit(const CommitOp());
 
+      case Decide n:
+        // Model-steered pattern-match. Layout:
+        //   decide {label_i -> PATH_i}
+        // PATH_i:
+        //   <path children>
+        //   jump -> JOIN
+        // JOIN:
+        final policy = context.tryRead<DecisionPolicy>();
+        final chosenReg = state.nextAutoRegister();
+        final joinLabel = ir.newLabel('decide_join');
+        final pathLabels = [
+          for (final path in n.paths) ir.newLabel('decide_${path.label}'),
+        ];
+
+        ir.decide(
+          n.prompt,
+          [
+            for (var i = 0; i < n.paths.length; i++)
+              IrDecideBranch(
+                  n.paths[i].label, n.paths[i].description, pathLabels[i]),
+          ],
+          outputVar: chosenReg,
+          defaultLabel: n.defaultPath ?? policy?.defaultPath,
+        );
+        for (var i = 0; i < n.paths.length; i++) {
+          ir.bind(pathLabels[i]);
+          _lowerNodes(n.paths[i].children, ir, context, state);
+          ir.jump(joinLabel);
+        }
+        ir.bind(joinLabel);
+        state.lastOutputRegister = chosenReg;
+
+      case DecideLoop n:
+        // Model-driven iteration; all machinery internal. Layout:
+        //   setRegister counter = 0
+        // START:
+        //   <body>
+        //   increment counter
+        //   compare counter < maxIterations -> guardOk
+        //   jumpIf guardOk -> DECIDE
+        //   jump -> EXHAUST_EXIT      (forced termination)
+        // DECIDE:
+        //   decide {continue -> START, exit_i -> EXIT_i}
+        // EXIT_i:
+        //   <exit children>
+        //   jump -> JOIN
+        // JOIN:
+        final loopPolicy = context.tryRead<DecisionPolicy>();
+        final maxIterations =
+            n.maxIterations ?? loopPolicy?.maxIterations ?? 8;
+        final loopDefault = n.defaultPath ?? loopPolicy?.defaultPath;
+        final counterReg = state.nextAutoRegister();
+        final guardOkReg = state.nextAutoRegister();
+        final chosenReg = state.nextAutoRegister();
+        final loopStart = ir.newLabel('decide_loop_start');
+        final decideLabel = ir.newLabel('decide_loop_decide');
+        final joinLabel = ir.newLabel('decide_loop_join');
+        final exitLabels = [
+          for (final exit in n.exits) ir.newLabel('decide_loop_${exit.label}'),
+        ];
+
+        // Exhaustion must terminate: route to defaultPath's exit when it
+        // names one, else the first exit — never back to the loop.
+        var exhaustIndex = 0;
+        for (var i = 0; i < n.exits.length; i++) {
+          if (n.exits[i].label == loopDefault) exhaustIndex = i;
+        }
+
+        ir.emit(SetRegisterOp(registerName: counterReg, value: 0));
+        ir.bind(loopStart);
+        _lowerNodes(n.body, ir, context, state);
+        ir.emit(IncrementRegisterOp(registerName: counterReg));
+        ir.emit(CompareRegisterOp(
+          leftVar: counterReg,
+          operator: 'lt',
+          rightValue: maxIterations,
+          targetVar: guardOkReg,
+        ));
+        ir.jumpIf(guardOkReg, decideLabel);
+        ir.jump(exitLabels[exhaustIndex]);
+        ir.bind(decideLabel);
+        ir.decide(
+          n.prompt,
+          [
+            IrDecideBranch(n.continueLabel, n.continueDescription, loopStart),
+            for (var i = 0; i < n.exits.length; i++)
+              IrDecideBranch(
+                  n.exits[i].label, n.exits[i].description, exitLabels[i]),
+          ],
+          outputVar: chosenReg,
+          defaultLabel: loopDefault,
+        );
+        for (var i = 0; i < n.exits.length; i++) {
+          ir.bind(exitLabels[i]);
+          _lowerNodes(n.exits[i].children, ir, context, state);
+          ir.jump(joinLabel);
+        }
+        ir.bind(joinLabel);
+        state.lastOutputRegister = chosenReg;
+
       // ── Control flow ──────────────────────────────────────────────────
       case While n:
         // Layout (guarded pre-test loop):

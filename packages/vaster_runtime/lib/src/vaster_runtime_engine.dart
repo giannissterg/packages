@@ -75,6 +75,12 @@ class VasterRuntime {
     maxIterations: maxToolIterations,
   );
 
+  /// Model-steered decision resolution for [DecideOp] — same separation as
+  /// the tool orchestrator: the arbiter handles the model conversation, the
+  /// engine keeps the control transfer.
+  late final DecisionArbiter _decisionArbiter =
+      DecisionArbiter(vm: vm, budget: budget);
+
   VasterRuntime({
     required this.vm,
     required ExecutionPolicy policy,
@@ -657,6 +663,50 @@ class VasterRuntime {
           _ => true,
         };
         if (isTrue) _pc = op.targetPc - 1;
+
+      case DecideOp op:
+        if (op.branches.isEmpty) {
+          throw StateError('DecideOp at PC $_pc has no branches.');
+        }
+        final outcome = await _decisionArbiter.decide(
+          prompt: op.prompt,
+          branches: [
+            for (final b in op.branches)
+              (label: b.label, description: b.description),
+          ],
+          model: _activeModel,
+          sessionId: _activeSessionId,
+          cacheHints: _cacheHints.activeHints,
+        );
+        final chosenLabel = outcome.label ?? op.defaultLabel;
+        DecisionBranch? branch;
+        for (final b in op.branches) {
+          if (b.label == chosenLabel) {
+            branch = b;
+            break;
+          }
+        }
+        if (branch == null) {
+          throw StateError(
+              'DecideOp at PC $_pc: model output did not resolve to a branch '
+              'label (${op.branches.map((b) => b.label).join(', ')}) and no '
+              'valid defaultLabel is set.');
+        }
+        if (op.outputVar != null) {
+          _registers.write(op.outputVar!, branch.label);
+          if (outcome.rationale != null) {
+            _registers.write('${op.outputVar!}_rationale', outcome.rationale);
+          }
+        }
+        vm.eventBus.publish(DecisionMadeEvent(
+          eventId: 'evt_decide_$_pc',
+          chosenLabel: branch.label,
+          rationale: outcome.rationale,
+          branchCount: op.branches.length,
+          targetPc: branch.targetPc,
+          usedDefault: outcome.label == null,
+        ));
+        _pc = branch.targetPc - 1;
 
       case PushErrorHandlerOp op:
         _errorHandlers.add((targetPc: op.targetPc, errorVar: op.errorVar));

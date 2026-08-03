@@ -33,6 +33,34 @@ class ParallelTaskDispatch {
   }
 }
 
+/// One labeled destination of a [DecideOp] — a statically-known branch the
+/// model may select.
+class DecisionBranch {
+  final String label;
+  final String description;
+  final int targetPc;
+
+  const DecisionBranch({
+    required this.label,
+    required this.description,
+    required this.targetPc,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'label': label,
+        'description': description,
+        'targetPc': targetPc,
+      };
+
+  factory DecisionBranch.fromJson(Map<String, dynamic> json) {
+    return DecisionBranch(
+      label: json['label'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      targetPc: json['targetPc'] as int? ?? 0,
+    );
+  }
+}
+
 /// Sealed abstract class representing a low-level Vaster ISA instruction opcode.
 sealed class VasterInstruction {
   final InstructionOpcode opcode;
@@ -210,6 +238,15 @@ sealed class VasterInstruction {
         ),
       InstructionOpcode.returnSubroutine => ReturnSubroutineOp(
           returnRegister: json['returnRegister'] as String?,
+        ),
+      InstructionOpcode.decide => DecideOp(
+          prompt: json['prompt'] as String? ?? '',
+          branches: (json['branches'] as List? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .map((b) => DecisionBranch.fromJson(b))
+              .toList(),
+          outputVar: json['outputVar'] as String?,
+          defaultLabel: json['defaultLabel'] as String?,
         ),
       InstructionOpcode.halt => const HaltOp(),
     };
@@ -615,6 +652,38 @@ final class JumpIfOp extends VasterInstruction {
         'opcode': opcode.name,
         'targetPc': targetPc,
         'conditionVar': conditionVar,
+      };
+}
+
+/// Model-steered branch: the LLM selects one of [branches] and control
+/// transfers to its `targetPc`. Always transfers — no fall-through.
+///
+/// Bounded agency: every destination is statically known, so analyzers can
+/// enumerate the full decision surface of a program. When the model's answer
+/// resolves to no branch label, [defaultLabel]'s branch is taken; with no
+/// default the instruction traps (catchable by program-level error handlers).
+/// The chosen label is written to [outputVar] and the model's rationale to
+/// `${outputVar}_rationale` when [outputVar] is set.
+final class DecideOp extends VasterInstruction {
+  final String prompt;
+  final List<DecisionBranch> branches;
+  final String? outputVar;
+  final String? defaultLabel;
+
+  const DecideOp({
+    required this.prompt,
+    required this.branches,
+    this.outputVar,
+    this.defaultLabel,
+  }) : super(InstructionOpcode.decide);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'prompt': prompt,
+        'branches': branches.map((b) => b.toJson()).toList(),
+        if (outputVar != null) 'outputVar': outputVar,
+        if (defaultLabel != null) 'defaultLabel': defaultLabel,
       };
 }
 

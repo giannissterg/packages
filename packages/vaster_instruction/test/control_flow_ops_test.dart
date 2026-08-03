@@ -46,6 +46,36 @@ void main() {
       expect(decoded.rightValue, isNull);
     });
 
+    test('DecideOp with branches, output, and default', () {
+      const op = DecideOp(
+        prompt: 'Continue or stop?',
+        branches: [
+          DecisionBranch(label: 'continue', description: 'keep going', targetPc: 2),
+          DecisionBranch(label: 'stop', description: 'halt now', targetPc: 9),
+        ],
+        outputVar: 'choice',
+        defaultLabel: 'stop',
+      );
+      final decoded = VasterInstruction.fromJson(op.toJson()) as DecideOp;
+      expect(decoded.prompt, 'Continue or stop?');
+      expect(decoded.branches, hasLength(2));
+      expect(decoded.branches[0].label, 'continue');
+      expect(decoded.branches[0].description, 'keep going');
+      expect(decoded.branches[0].targetPc, 2);
+      expect(decoded.branches[1].targetPc, 9);
+      expect(decoded.outputVar, 'choice');
+      expect(decoded.defaultLabel, 'stop');
+      expect(InstructionOpcode.parse('decide'), InstructionOpcode.decide);
+
+      // Nullable fields survive as nulls.
+      const bare = DecideOp(prompt: 'p', branches: [
+        DecisionBranch(label: 'a', description: 'd', targetPc: 1),
+      ]);
+      final decodedBare = VasterInstruction.fromJson(bare.toJson()) as DecideOp;
+      expect(decodedBare.outputVar, isNull);
+      expect(decodedBare.defaultLabel, isNull);
+    });
+
     test('PushErrorHandlerOp', () {
       const op = PushErrorHandlerOp(targetPc: 42, errorVar: 'my_err');
       final decoded =

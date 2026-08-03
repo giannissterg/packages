@@ -382,6 +382,85 @@ final class _ReceiveMessageExecution extends VasterNode {
   const _ReceiveMessageExecution({required this.agentId});
 }
 
+/// One labeled path of a [Decide] or a [DecideLoop] exit — the model selects
+/// it by [label], guided by [description].
+class DecisionPath {
+  final String label;
+  final String description;
+  final List<VasterNode> children;
+
+  const DecisionPath({
+    required this.label,
+    required this.description,
+    this.children = const [],
+  });
+}
+
+/// Declarative decision/iteration policy, injected Flutter-Theme-style via
+/// `Provider<DecisionPolicy>`. Node-level fields override the provided
+/// policy, which overrides library defaults.
+class DecisionPolicy {
+  /// Safety bound for [DecideLoop] iterations.
+  final int maxIterations;
+
+  /// Fallback path label taken when the model's answer resolves to no branch.
+  final String? defaultPath;
+
+  const DecisionPolicy({this.maxIterations = 8, this.defaultPath});
+}
+
+/// Model-steered branch: a pattern-match over model judgment.
+///
+/// The model is asked [prompt] and selects exactly one of [paths]; that
+/// path's children execute, then control rejoins after the node. Every
+/// destination is statically known — analyzers can enumerate the full
+/// decision surface. Like [Prompt], the chosen label becomes the node's
+/// produced value (consumable by [Output]); no registers or variables
+/// surface at this level.
+final class Decide extends VasterNode {
+  final String prompt;
+  final List<DecisionPath> paths;
+
+  /// Path taken when the model's answer is unresolvable; overrides
+  /// `DecisionPolicy.defaultPath` from context. With neither set, an
+  /// unresolvable answer traps at runtime.
+  final String? defaultPath;
+
+  const Decide({
+    required this.prompt,
+    required this.paths,
+    this.defaultPath,
+  });
+}
+
+/// Declarative model-driven iteration: run [body], then the model decides
+/// between continuing and the labeled [exits]. Iteration control *is* the
+/// decision — no condition variables. The loop counter, guard, and back-edge
+/// are compiler-internal, exactly like [While]/[Repeat] guards.
+///
+/// When [maxIterations] (node field, else `DecisionPolicy` from context,
+/// else 8) is exhausted, the loop is forced out through [defaultPath] when it
+/// names an exit, otherwise through the first exit.
+final class DecideLoop extends VasterNode {
+  final String prompt;
+  final List<VasterNode> body;
+  final String continueLabel;
+  final String continueDescription;
+  final List<DecisionPath> exits;
+  final String? defaultPath;
+  final int? maxIterations;
+
+  const DecideLoop({
+    required this.prompt,
+    required this.body,
+    this.continueLabel = 'continue',
+    this.continueDescription = 'another pass is needed',
+    required this.exits,
+    this.defaultPath,
+    this.maxIterations,
+  });
+}
+
 /// Yields execution to request human interaction.
 ///
 /// Declarative fields only — the compiler materializes the ISA-level

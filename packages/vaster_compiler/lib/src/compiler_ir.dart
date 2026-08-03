@@ -65,6 +65,24 @@ final class IrPushErrorHandler extends IrItem {
   const IrPushErrorHandler(this.target, {this.errorVar = '__error__'});
 }
 
+/// One labeled branch of an [IrDecide], targeting a symbolic label.
+final class IrDecideBranch {
+  final String label;
+  final String description;
+  final IrLabel target;
+  const IrDecideBranch(this.label, this.description, this.target);
+}
+
+/// Model-steered multi-way branch to symbolic labels (assembles to
+/// [DecideOp]).
+final class IrDecide extends IrItem {
+  final String prompt;
+  final List<IrDecideBranch> branches;
+  final String? outputVar;
+  final String? defaultLabel;
+  const IrDecide(this.prompt, this.branches, {this.outputVar, this.defaultLabel});
+}
+
 /// A growable IR stream with label allocation and two-pass assembly.
 class IrModule {
   final List<IrItem> items = [];
@@ -90,6 +108,11 @@ class IrModule {
 
   void bind(IrLabel label) => items.add(IrBindLabel(label));
 
+  void decide(String prompt, List<IrDecideBranch> branches,
+          {String? outputVar, String? defaultLabel}) =>
+      items.add(IrDecide(prompt, branches,
+          outputVar: outputVar, defaultLabel: defaultLabel));
+
   /// Assembles the IR into a flat instruction list (classic two-pass layout):
   /// pass 1 assigns each label its PC, pass 2 materializes symbolic jumps.
   ///
@@ -106,7 +129,8 @@ class IrModule {
               IrJump() ||
               IrJumpIf() ||
               IrCall() ||
-              IrPushErrorHandler():
+              IrPushErrorHandler() ||
+              IrDecide():
           pc++;
       }
     }
@@ -138,6 +162,20 @@ class IrModule {
           ));
         case IrPushErrorHandler(:final target, :final errorVar):
           out.add(PushErrorHandlerOp(targetPc: resolve(target), errorVar: errorVar));
+        case IrDecide(:final prompt, :final branches, :final outputVar, :final defaultLabel):
+          out.add(DecideOp(
+            prompt: prompt,
+            branches: [
+              for (final b in branches)
+                DecisionBranch(
+                  label: b.label,
+                  description: b.description,
+                  targetPc: resolve(b.target),
+                ),
+            ],
+            outputVar: outputVar,
+            defaultLabel: defaultLabel,
+          ));
         case IrBindLabel():
           break;
       }

@@ -28,6 +28,8 @@ class PeepholePass {
     final out = <IrItem>[];
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
+      // IrDecide is deliberately excluded: it is never a no-op even when a
+      // branch target binds immediately after (the model call is the point).
       final target = switch (item) {
         IrJump(:final target) => target,
         IrJumpIf(:final target) => target,
@@ -54,16 +56,23 @@ class PeepholePass {
   }
 
   List<IrItem> _eliminateDeadCode(List<IrItem> items) {
-    final referenced = <int>{
-      for (final item in items)
-        switch (item) {
-          IrJump(:final target) => target.id,
-          IrJumpIf(:final target) => target.id,
-          IrCall(:final target) => target.id,
-          IrPushErrorHandler(:final target) => target.id,
-          _ => -1,
-        },
-    }..remove(-1);
+    final referenced = <int>{};
+    for (final item in items) {
+      switch (item) {
+        case IrJump(:final target):
+          referenced.add(target.id);
+        case IrJumpIf(:final target):
+          referenced.add(target.id);
+        case IrCall(:final target):
+          referenced.add(target.id);
+        case IrPushErrorHandler(:final target):
+          referenced.add(target.id);
+        case IrDecide(:final branches):
+          referenced.addAll([for (final b in branches) b.target.id]);
+        case IrInstruction() || IrBindLabel():
+          break;
+      }
+    }
 
     final out = <IrItem>[];
     var reachable = true;
@@ -77,6 +86,12 @@ class PeepholePass {
           out.add(item);
           if (instruction is HaltOp) reachable = false;
         case IrJump():
+          if (!reachable) continue;
+          out.add(item);
+          reachable = false;
+        case IrDecide():
+          // Always transfers control to one of its branch labels — code
+          // between a decide and the next referenced label is unreachable.
           if (!reachable) continue;
           out.add(item);
           reachable = false;

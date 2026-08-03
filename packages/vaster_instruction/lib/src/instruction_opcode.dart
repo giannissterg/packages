@@ -39,6 +39,13 @@ enum InstructionOpcode {
   yieldHumanInteraction('yield_human_interaction'),
   call('call'),
   returnSubroutine('return_subroutine'),
+
+  /// Model-steered branch among statically-known labeled targets.
+  ///
+  /// Forward-compat note: runtimes older than this opcode decode it as an
+  /// empty `prompt` via [parse]'s unknown-name fallback — ship programs only
+  /// to runtimes that know `decide`.
+  decide('decide'),
   halt('halt');
 
   final String name;

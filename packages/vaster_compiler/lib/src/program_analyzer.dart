@@ -39,6 +39,38 @@ class ProgramAnalyzer {
         case PushErrorHandlerOp(:final targetPc):
           jumpTargets.add(targetPc); // catch blocks are reachable via handlers
           _checkJumpRange(diagnostics, pc, targetPc, instructions.length);
+        case DecideOp(:final branches, :final defaultLabel):
+          if (branches.isEmpty) {
+            diagnostics.add(CompileDiagnostic(
+              severity: CompileSeverity.error,
+              code: 'decide_no_branches',
+              message: 'DecideOp has no branches to choose from.',
+              pc: pc,
+            ));
+          }
+          final labels = <String>{};
+          for (final branch in branches) {
+            jumpTargets.add(branch.targetPc);
+            _checkJumpRange(diagnostics, pc, branch.targetPc, instructions.length);
+            if (!labels.add(branch.label)) {
+              diagnostics.add(CompileDiagnostic(
+                severity: CompileSeverity.error,
+                code: 'decide_duplicate_label',
+                message: 'DecideOp declares branch label "${branch.label}" '
+                    'more than once.',
+                pc: pc,
+              ));
+            }
+          }
+          if (defaultLabel != null && !labels.contains(defaultLabel)) {
+            diagnostics.add(CompileDiagnostic(
+              severity: CompileSeverity.error,
+              code: 'decide_unknown_default',
+              message: 'DecideOp defaultLabel "$defaultLabel" is not among '
+                  'its branch labels.',
+              pc: pc,
+            ));
+          }
         case CreateAgentOp(:final descriptor):
           if (!createdAgents.add(descriptor.agentId)) {
             diagnostics.add(CompileDiagnostic(
@@ -148,6 +180,12 @@ class ProgramAnalyzer {
             written.add(outputVar);
             written.add('${outputVar}_status');
           }
+        case DecideOp(:final outputVar):
+          // The engine writes the chosen label and the model's rationale.
+          if (outputVar != null) {
+            written.add(outputVar);
+            written.add('${outputVar}_rationale');
+          }
         case SetSessionOp(:final sessionId):
           if (!createdSessions.contains(sessionId)) {
             diagnostics.add(CompileDiagnostic(
@@ -200,7 +238,11 @@ class ProgramAnalyzer {
 
     // ── Unused registers (skip well-known sinks) ─────────────────────────
     for (final register in written.difference(read)) {
-      if (register == '__output__' || register.endsWith('_status')) continue;
+      if (register == '__output__' ||
+          register.endsWith('_status') ||
+          register.endsWith('_rationale')) {
+        continue;
+      }
       diagnostics.add(CompileDiagnostic(
         severity: CompileSeverity.info,
         code: 'unused_register',
@@ -227,7 +269,9 @@ class ProgramAnalyzer {
         continue;
       }
       final inst = instructions[pc];
-      if (inst is HaltOp || inst is JumpOp) reachable = false;
+      if (inst is HaltOp || inst is JumpOp || inst is DecideOp) {
+        reachable = false; // DecideOp always transfers — no fall-through
+      }
     }
 
     return diagnostics;

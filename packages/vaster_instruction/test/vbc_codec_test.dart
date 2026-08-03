@@ -46,6 +46,15 @@ VasterProgram _kitchenSinkProgram() => VasterProgram(
           ParallelTaskDispatch(agentId: 'a', taskPrompt: 'p1', outputVar: 'o1'),
           ParallelTaskDispatch(agentId: 'b', taskPrompt: 'p2', outputVar: 'o2'),
         ]),
+        const DecideOp(
+          prompt: 'Which path should we take?',
+          branches: [
+            DecisionBranch(label: 'approve', description: 'looks good', targetPc: 3),
+            DecisionBranch(label: 'reject', description: 'needs work', targetPc: 7),
+          ],
+          outputVar: 'verdict',
+          defaultLabel: 'reject',
+        ),
         RegisterToolSetOp(tools: [
           const ToolDefinition(
             name: 'read_file',
@@ -122,11 +131,18 @@ void main() {
         );
       }
       // And the decoded ops are real typed instances, not raw maps.
-      expect(decoded.instructions[3], isA<PromptOp>());
-      expect((decoded.instructions[3] as PromptOp).responseSchema, isNotNull);
-      expect(decoded.instructions[16], isA<SetContextPolicyOp>());
-      expect((decoded.instructions[16] as SetContextPolicyOp).utility,
-          equals(0.75), reason: 'doubles preserved exactly');
+      final typedPrompt = decoded.instructions
+          .whereType<PromptOp>()
+          .firstWhere((p) => p.responseSchema != null);
+      expect(typedPrompt.responseSchema, isNotNull);
+      final policyOp =
+          decoded.instructions.whereType<SetContextPolicyOp>().single;
+      expect(policyOp.utility, equals(0.75),
+          reason: 'doubles preserved exactly');
+      final decideOp = decoded.instructions.whereType<DecideOp>().single;
+      expect(decideOp.branches, hasLength(2));
+      expect(decideOp.branches[1].targetPc, equals(7));
+      expect(decideOp.defaultLabel, equals('reject'));
     });
 
     test('binary is substantially smaller than JSON text', () {
