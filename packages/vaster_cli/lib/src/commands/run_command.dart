@@ -1,10 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
+import 'package:vaster_model_claude_cli/vaster_model_claude_cli.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_model_gemini_cli/vaster_model_gemini_cli.dart';
 import 'package:vaster_model_google_ai/vaster_model_google_ai.dart';
+import 'package:vaster_model_rpc/vaster_model_rpc.dart';
+import 'package:vaster_replay/vaster_replay.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 import '../vaster_command.dart';
@@ -27,9 +32,16 @@ class RunCommand extends VasterCommand {
       'backend',
       abbr: 'b',
       defaultsTo: 'fake',
-      allowed: const ['fake', 'claude-api', 'gemini'],
+      allowed: const [
+        'fake',
+        'claude-api',
+        'claude-cli',
+        'gemini',
+        'gemini-cli',
+        'rpc',
+      ],
       help: 'Model backend for compiled program execution '
-          '(fake = offline echo model).',
+          '(fake = offline echo model, rpc = sidecar socket).',
     );
     parser.addOption(
       'model',
@@ -41,6 +53,19 @@ class RunCommand extends VasterCommand {
       abbr: 't',
       help: 'Live disassembly-style execution trace (compiled programs only).',
       negatable: false,
+    );
+    parser.addFlag(
+      'events',
+      abbr: 'e',
+      help: 'Print the VM runtime event stream as JSON lines '
+          '(compiled programs only).',
+      negatable: false,
+    );
+    parser.addOption(
+      'record',
+      abbr: 'r',
+      help: 'Record an execution journal to the given file for time-travel '
+          'replay (compiled programs only).',
     );
   }
 
@@ -131,10 +156,17 @@ class RunCommand extends VasterCommand {
     final VasterModel model = switch (backend) {
       'claude-api' => resilient(ClaudeApiVasterModel(
           targetModel: results['model'] as String? ?? 'claude-opus-5')),
+      'claude-cli' => resilient(ClaudeCliVasterModel(
+          selectedModel: results['model'] as String?,
+          workingDirectory: context.workingDirectory)),
       'gemini' => resilient(GoogleAiVasterModel(
           apiKey: Platform.environment['GEMINI_API_KEY'] ??
               Platform.environment['GOOGLE_AI_API_KEY'],
           targetModel: results['model'] as String? ?? 'gemini-2.0-flash')),
+      'gemini-cli' => resilient(GeminiCliVasterModel(
+          selectedModel: results['model'] as String?,
+          workingDirectory: context.workingDirectory)),
+      'rpc' => resilient(RpcVasterModel(socketPath: context.socketPath)),
       _ => FakeVasterModel(),
     };
 
@@ -160,6 +192,20 @@ class RunCommand extends VasterCommand {
       tracer = ExecutionTracer(runtime, sink: out.writeln)..attach();
     }
 
+    // Journal recording chains with the tracer through the step observer.
+    VasterExecutionRecorder? recorder;
+    final recordPath = results['record'] as String?;
+    if (recordPath != null) {
+      recorder = VasterExecutionRecorder()..attach(runtime);
+    }
+
+    // Runtime event stream as JSON lines — the telemetry bus made visible.
+    StreamSubscription<RuntimeEvent>? eventSub;
+    if (results['events'] as bool? ?? false) {
+      eventSub = vm.eventBus.stream
+          .listen((event) => out.writeln('[evt] ${jsonEncode(event.toJson())}'));
+    }
+
     var state = await runtime.executeProgram(program);
 
     // 4. Interactive human-in-the-loop resume.
@@ -176,6 +222,8 @@ class RunCommand extends VasterCommand {
       if (answer == null || answer.isEmpty) {
         err.writeln('No input available — leaving program paused.');
         tracer?.detach();
+        recorder?.detach();
+        await eventSub?.cancel();
         await vm.shutdown();
         return 2;
       }
@@ -191,6 +239,18 @@ class RunCommand extends VasterCommand {
     }
 
     tracer?.detach();
+
+    if (recorder != null && recordPath != null) {
+      recorder.detach();
+      File(recordPath).writeAsStringSync(
+          const JsonEncoder.withIndent('  ').convert(recorder.journal.toJson()));
+      out.writeln('\n[record] ${recorder.recordedSteps} steps → $recordPath');
+    }
+    if (eventSub != null) {
+      // Let the broadcast stream flush events published this turn.
+      await Future<void>.delayed(Duration.zero);
+      await eventSub.cancel();
+    }
 
     // 5. Report.
     out.writeln('\n── EXECUTION COMPLETE ─────────────────────────────────');

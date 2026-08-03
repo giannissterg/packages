@@ -48,6 +48,8 @@ dependencies:
     path: ../vaster_model_rpc_server
   vaster_policy:
     path: ../vaster_policy
+  vaster_replay:
+    path: ../vaster_replay
   vaster_runtime:
     path: ../vaster_runtime
   vaster_scheduler:
