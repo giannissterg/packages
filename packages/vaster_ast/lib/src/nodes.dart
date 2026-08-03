@@ -647,8 +647,85 @@ final class Provider<T> extends VasterNode {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Context management nodes — declarative control over the VM context heap.
+// Context — what the model knows.
+//
+// The declarative surface is [Knowledge]: a scope node declaring information
+// the model sees while its subtree runs. Lifetime is structural — the region
+// mounts on scope entry and unmounts on scope exit, so WHERE you declare
+// knowledge in the tree IS how long it lives (declare at the Pipeline root
+// for run-long knowledge, inside a phase for phase-long).
+//
+// The nodes below Knowledge (AddContext, EvictContext, PinContext,
+// UnpinContext, ContextPolicy, CompressContext) are the LOW-LEVEL heap tier —
+// direct region operations for advanced control. Prefer [Knowledge].
 // ══════════════════════════════════════════════════════════════════════════════
+
+/// Declares knowledge the model sees while [child] runs — the declarative
+/// context scope.
+///
+/// Content is [text] (supports `${name}` interpolation) or the value bound
+/// to [from]. The region mounts before [child] and unmounts after it; a
+/// [pinned] region is cache-hint eligible for its whole scope and is still
+/// removed at scope exit.
+///
+/// ```dart
+/// Knowledge(
+///   label: 'project brief',
+///   text: 'Build a notes app with offline sync.',
+///   pinned: true,
+///   child: Sequence([...the work grounded in the brief...]),
+/// )
+/// ```
+class Knowledge extends ComposableNode {
+  final String label;
+  final String text;
+  final String? from;
+  final ContextPriority priority;
+  final ContextCompressibility compressibility;
+  final bool pinned;
+  final VasterNode child;
+
+  /// Region id override; defaults to a slug derived from [label]. Set it when
+  /// two Knowledge scopes share a label.
+  final String? id;
+
+  const Knowledge({
+    required this.label,
+    this.text = '',
+    this.from,
+    this.priority = ContextPriority.medium,
+    this.compressibility = ContextCompressibility.none,
+    this.pinned = false,
+    required this.child,
+    this.id,
+  });
+
+  String get _regionId =>
+      id ?? 'knowledge_${label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}';
+
+  @override
+  VasterNode build(BuildContext context) {
+    final regionId = _regionId;
+    return Sequence([
+      AddContext(
+        regionId: regionId,
+        label: label,
+        text: text,
+        from: from,
+        priority: priority,
+        compressibility: compressibility,
+        pinned: pinned,
+      ),
+      child,
+      // Structural lifetime: the scope's end unmounts the region (force
+      // clears pinning — pinning protects against mid-scope eviction, not
+      // against the scope itself ending).
+      EvictContext(regionId: regionId, force: true),
+    ]);
+  }
+}
+
+// ── Low-level context heap tier ───────────────────────────────────────────────
 
 /// Adds a context region to the VM context heap. Content is [text] (which
 /// supports `${name}` interpolation), or the value bound to [from] at

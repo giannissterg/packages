@@ -92,4 +92,50 @@ void main() {
       expect(regionDiags.single.severity, equals(CompileSeverity.info));
     });
   });
+
+  group('Knowledge — declarative context scope', () {
+    test('the region exists during the scope and is gone after it', () async {
+      final fakeModel = FakeVasterModel();
+      final vm = await VasterVMEngine.bootstrap(
+          config: VMConfig(defaultModel: fakeModel));
+      final runtime = VasterRuntime(
+        vm: vm,
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget.unlimited(),
+        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      );
+
+      // Pause mid-scope via HITL to observe the mounted region, then resume
+      // to scope exit and observe the unmount.
+      final program = const BasicWorkflowCompiler().compile(Pipeline(
+        name: 'knowledge_lifetime',
+        children: const [
+          Knowledge(
+            label: 'house rules',
+            text: 'Answer tersely.',
+            pinned: true,
+            child: YieldHuman(
+              requestId: 'mid_scope',
+              prompt: 'pause here',
+            ),
+          ),
+        ],
+      ));
+
+      final paused = await runtime.executeProgram(program);
+      expect(paused.status, equals(RuntimeStatus.pausedForHuman));
+      final region = vm.contextManager.getRegion('knowledge_house_rules');
+      expect(region, isNotNull, reason: 'mounted for the scope');
+      expect(region!.isPinned, isTrue);
+
+      final done = await runtime.resumeWithHumanResponse(
+        HumanInteractionResponse.approve(requestId: 'mid_scope'),
+      );
+      expect(done.status, equals(RuntimeStatus.halted));
+      expect(vm.contextManager.getRegion('knowledge_house_rules'), isNull,
+          reason: 'scope exit unmounts the region, pinning notwithstanding');
+
+      await vm.shutdown();
+    });
+  });
 }

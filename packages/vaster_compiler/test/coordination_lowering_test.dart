@@ -204,4 +204,52 @@ void main() {
       expect(wrapped.instructions.length, equals(flat.instructions.length));
     });
   });
+
+  group('Knowledge', () {
+    test('mounts the region before its child and unmounts after it', () {
+      final program = compiler.compile(pipeline(const [
+        Knowledge(
+          label: 'Project Brief',
+          text: 'Build a notes app.',
+          pinned: true,
+          child: Prompt('design it'),
+        ),
+        Prompt('after the scope'),
+      ]));
+      final instructions = program.instructions;
+
+      final addPc = instructions.indexWhere((op) => op is AddContextOp);
+      final promptPc = instructions.indexWhere(
+          (op) => op is PromptOp && op.promptText == 'design it');
+      final evictPc = instructions.indexWhere((op) => op is EvictContextOp);
+
+      expect(addPc, lessThan(promptPc));
+      expect(promptPc, lessThan(evictPc),
+          reason: 'structural lifetime: mount → child → unmount');
+
+      final add = instructions[addPc] as AddContextOp;
+      expect(add.regionId, equals('knowledge_project_brief'),
+          reason: 'region id derives from the label slug');
+      expect(add.pinned, isTrue);
+      final evict = instructions[evictPc] as EvictContextOp;
+      expect(evict.regionId, equals(add.regionId));
+      expect(evict.force, isTrue,
+          reason: 'scope exit unmounts even pinned regions');
+    });
+
+    test('id override disambiguates same-label scopes; from binds content', () {
+      final program = compiler.compile(pipeline(const [
+        Prompt('produce the notes', output: 'notes'),
+        Knowledge(
+          label: 'notes',
+          from: 'notes',
+          id: 'k1',
+          child: Prompt('use them'),
+        ),
+      ]));
+      final add = program.instructions.whereType<AddContextOp>().single;
+      expect(add.regionId, equals('k1'));
+      expect(add.sourceVar, equals('notes'));
+    });
+  });
 }
