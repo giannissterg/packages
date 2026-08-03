@@ -121,6 +121,10 @@ vaster doctor
 # Compile a serialized program: static analysis + .vbc binary emission
 vaster compile pipelines/my_pipeline.json
 
+# Enumerate a program's capabilities BEFORE running it: file paths, tools,
+# models, sandboxes, the model's decision surface, human gates, budgets
+vaster audit my_pipeline.vbc
+
 # Run a compiled program (.vbc/.json) with a live execution trace,
 # an event stream, and a time-travel replay journal
 vaster run my_pipeline.vbc --trace --events --record journal.json

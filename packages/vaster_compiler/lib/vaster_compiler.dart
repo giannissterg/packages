@@ -3,6 +3,7 @@
 library;
 
 export 'src/basic_workflow_compiler.dart';
+export 'src/capability_audit.dart';
 export 'src/compile_diagnostics.dart';
 export 'src/compiler_interface.dart';
 export 'src/compiler_ir.dart';

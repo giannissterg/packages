@@ -103,6 +103,62 @@ void main() {
     });
   });
 
+  group('vaster audit', () {
+    late Directory tempDir;
+
+    const program = VasterProgram(programName: 'audit_target', instructions: [
+      MountFsOp(mountPrefix: '/mem'),
+      WriteFileOp(vfsPath: '/mem/report.md', content: 'x'),
+      DecideOp(prompt: 'Which way?', branches: [
+        DecisionBranch(label: 'left', description: 'go left', targetPc: 4),
+        DecisionBranch(label: 'right', description: 'go right', targetPc: 4),
+      ], defaultLabel: 'left'),
+      HaltOp(),
+      HaltOp(),
+    ]);
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('vaster_cli_audit_');
+      File('${tempDir.path}/prog.json')
+          .writeAsStringSync(jsonEncode(program.toJson()));
+    });
+
+    tearDown(() async {
+      if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    });
+
+    test('prints the capability report with the decision surface', () async {
+      final out = StringBuffer();
+      final exitCode = await runner.run(
+        ['audit', '${tempDir.path}/prog.json'],
+        stdoutSink: out,
+      );
+
+      expect(exitCode, equals(0));
+      final report = out.toString();
+      expect(report, contains('CAPABILITY AUDIT'));
+      expect(report, contains('/mem/report.md'));
+      expect(report, contains('Decision surface'));
+      expect(report, contains('left→PC:4'));
+      expect(report, contains('default=left'));
+    });
+
+    test('--json emits a machine-readable audit', () async {
+      final out = StringBuffer();
+      final exitCode = await runner.run(
+        ['audit', '--json', '${tempDir.path}/prog.json'],
+        stdoutSink: out,
+      );
+
+      expect(exitCode, equals(0));
+      final decoded = jsonDecode(out.toString()) as Map<String, dynamic>;
+      expect(decoded['programName'], equals('audit_target'));
+      expect((decoded['decisions'] as List), hasLength(1));
+      expect((decoded['files'] as Map)['staticWrites'],
+          contains('/mem/report.md'));
+    });
+  });
+
   group('vaster run — compiled artifacts', () {
     late Directory tempDir;
 

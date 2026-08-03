@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 
+import 'commands/audit_command.dart';
 import 'commands/compile_command.dart';
 import 'commands/disassemble_command.dart';
 import 'commands/doctor_command.dart';
@@ -20,6 +21,7 @@ class VasterCliRunner {
         [
           RunCommand(),
           CompileCommand(),
+          AuditCommand(),
           DisassembleCommand(),
           ServeCommand(),
           InspectCommand(),
