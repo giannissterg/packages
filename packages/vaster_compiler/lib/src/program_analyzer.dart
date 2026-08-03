@@ -36,6 +36,9 @@ class ProgramAnalyzer {
         case CallOp(:final targetPc):
           jumpTargets.add(targetPc);
           _checkJumpRange(diagnostics, pc, targetPc, instructions.length);
+        case PushErrorHandlerOp(:final targetPc):
+          jumpTargets.add(targetPc); // catch blocks are reachable via handlers
+          _checkJumpRange(diagnostics, pc, targetPc, instructions.length);
         case CreateAgentOp(:final descriptor):
           if (!createdAgents.add(descriptor.agentId)) {
             diagnostics.add(CompileDiagnostic(
@@ -90,6 +93,19 @@ class ProgramAnalyzer {
           if (sourceVar != null) checkRead(pc, sourceVar);
         case CompressContextOp(:final outputVar):
           if (outputVar != null) written.add(outputVar);
+
+        case CompareRegisterOp(:final leftVar, :final rightVar, :final targetVar):
+          checkRead(pc, leftVar);
+          if (rightVar != null) checkRead(pc, rightVar);
+          written.add(targetVar);
+        case IncrementRegisterOp(:final registerName):
+          // Read-modify-write, but a missing register is defined as 0 — a
+          // standalone increment is legal, so no read-before-write warning.
+          read.add(registerName);
+          written.add(registerName);
+        case PushErrorHandlerOp(:final errorVar):
+          // The runtime writes the error text when the handler fires.
+          written.add(errorVar);
 
         // Pure writes.
         case SetRegisterOp(:final registerName):

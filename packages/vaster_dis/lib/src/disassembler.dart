@@ -98,6 +98,8 @@ class VasterDisassembler {
         targets.add(inst.targetPc);
       } else if (inst is CallOp) {
         targets.add(inst.targetPc);
+      } else if (inst is PushErrorHandlerOp) {
+        targets.add(inst.targetPc);
       }
     }
     return targets;
@@ -196,6 +198,20 @@ class VasterDisassembler {
 
       case SetRegisterOp op:
         return 'r[${op.registerName}] = "${_truncate(op.value.toString(), 40)}"';
+
+      case IncrementRegisterOp op:
+        return 'r[${op.registerName}] += ${op.delta}';
+
+      case CompareRegisterOp op:
+        final rhs = op.rightVar != null ? 'r[${op.rightVar}]' : '${op.rightValue}';
+        return 'r[${op.targetVar}] = r[${op.leftVar}] ${op.operator} $rhs';
+
+      case PushErrorHandlerOp op:
+        final label = 'L_${op.targetPc.toString().padLeft(4, '0')}';
+        return 'catch -> PC:${op.targetPc.toString().padLeft(4, '0')} ($label) err=r[${op.errorVar}]';
+
+      case PopErrorHandlerOp _:
+        return '--- POP ERROR HANDLER ---';
 
       case JsonExtractOp op:
         return 'r[${op.targetVar}] = r[${op.sourceVar}].${op.jsonKey}';

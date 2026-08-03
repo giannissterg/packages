@@ -10,6 +10,8 @@ export 'src/model_capabilities.dart';
 export 'src/model_descriptor.dart';
 export 'src/model_request.dart';
 export 'src/model_response.dart';
+export 'src/resilient_vaster_model.dart';
+export 'src/retry_policy.dart';
 export 'src/role.dart';
 export 'src/tool_definition.dart';
 export 'src/usage_metadata.dart';

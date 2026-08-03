@@ -273,6 +273,12 @@ class VasterVMEngine implements VasterVirtualMachine {
     required String sessionId,
     ModelDescriptor? modelDescriptor,
   }) async {
+    // Get-or-create: ISA programs may provision the same session twice (e.g.
+    // CreateAgentOp followed by CreateSessionOp for the same role). The strict
+    // duplicate guard lives in BasicSessionManager.createSession.
+    final existing = sessionManager.getSession(sessionId);
+    if (existing != null) return existing;
+
     final model = (modelDescriptor != null
         ? modelRegistry.resolveModel(modelDescriptor)
         : config.defaultModel);

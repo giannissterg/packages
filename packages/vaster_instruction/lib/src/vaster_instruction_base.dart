@@ -133,6 +133,22 @@ sealed class VasterInstruction {
           targetTokens: json['targetTokens'] as int?,
           outputVar: json['outputVar'] as String?,
         ),
+      InstructionOpcode.incrementRegister => IncrementRegisterOp(
+          registerName: json['registerName'] as String? ?? '',
+          delta: json['delta'] as num? ?? 1,
+        ),
+      InstructionOpcode.compareRegister => CompareRegisterOp(
+          leftVar: json['leftVar'] as String? ?? '',
+          operator: json['operator'] as String? ?? 'eq',
+          rightVar: json['rightVar'] as String?,
+          rightValue: json['rightValue'],
+          targetVar: json['targetVar'] as String? ?? '',
+        ),
+      InstructionOpcode.pushErrorHandler => PushErrorHandlerOp(
+          targetPc: json['targetPc'] as int? ?? 0,
+          errorVar: json['errorVar'] as String? ?? '__error__',
+        ),
+      InstructionOpcode.popErrorHandler => const PopErrorHandlerOp(),
       InstructionOpcode.pinContext => PinContextOp(
           regionId: json['regionId'] as String? ?? '',
         ),
@@ -603,6 +619,79 @@ final class JumpIfOp extends VasterInstruction {
 }
 
 /// Sets [registerName] to primitive/JSON [value].
+/// Adds [delta] to a numeric register (missing/non-numeric treated as 0).
+final class IncrementRegisterOp extends VasterInstruction {
+  final String registerName;
+  final num delta;
+
+  const IncrementRegisterOp({required this.registerName, this.delta = 1})
+      : super(InstructionOpcode.incrementRegister);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'registerName': registerName,
+        'delta': delta,
+      };
+}
+
+/// Compares a register against another register or an immediate value and
+/// writes the boolean result into [targetVar]. Operators:
+/// `lt`, `le`, `gt`, `ge`, `eq`, `ne`. Numeric comparison when both sides
+/// parse as numbers, string comparison otherwise.
+final class CompareRegisterOp extends VasterInstruction {
+  final String leftVar;
+  final String operator;
+  final String? rightVar;
+  final dynamic rightValue;
+  final String targetVar;
+
+  const CompareRegisterOp({
+    required this.leftVar,
+    required this.operator,
+    this.rightVar,
+    this.rightValue,
+    required this.targetVar,
+  }) : super(InstructionOpcode.compareRegister);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'leftVar': leftVar,
+        'operator': operator,
+        if (rightVar != null) 'rightVar': rightVar,
+        if (rightValue != null) 'rightValue': rightValue,
+        'targetVar': targetVar,
+      };
+}
+
+/// Installs an error handler: if any instruction throws while this handler is
+/// the innermost one, the error message is written to [errorVar] and control
+/// transfers to [targetPc] instead of trapping. Policy violations are NOT
+/// catchable — they always trap.
+final class PushErrorHandlerOp extends VasterInstruction {
+  final int targetPc;
+  final String errorVar;
+
+  const PushErrorHandlerOp({required this.targetPc, this.errorVar = '__error__'})
+      : super(InstructionOpcode.pushErrorHandler);
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'opcode': opcode.name,
+        'targetPc': targetPc,
+        'errorVar': errorVar,
+      };
+}
+
+/// Uninstalls the innermost error handler (normal try-block exit).
+final class PopErrorHandlerOp extends VasterInstruction {
+  const PopErrorHandlerOp() : super(InstructionOpcode.popErrorHandler);
+
+  @override
+  Map<String, dynamic> toJson() => {'opcode': opcode.name};
+}
+
 final class SetRegisterOp extends VasterInstruction {
   final String registerName;
   final dynamic value;

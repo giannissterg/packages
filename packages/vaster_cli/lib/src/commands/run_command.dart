@@ -122,14 +122,25 @@ class RunCommand extends VasterCommand {
       return 1;
     }
 
-    // 2. Resolve the model backend.
+    // 2. Resolve the model backend. Real network backends are wrapped in the
+    //    resilience layer: transient failures (429/5xx/timeouts) retry with
+    //    exponential backoff instead of trapping the VM.
+    VasterModel resilient(VasterModel backend) => ResilientVasterModel(
+          primary: backend,
+          retryPolicy: const RetryPolicy(
+            maxAttempts: 3,
+            attemptTimeout: Duration(minutes: 2),
+          ),
+          onRetry: (event) => err.writeln('  [retry] $event'),
+        );
+
     final VasterModel model = switch (backend) {
-      'claude-api' => ClaudeApiVasterModel(
-          targetModel: results['model'] as String? ?? 'claude-opus-5'),
-      'gemini' => GoogleAiVasterModel(
+      'claude-api' => resilient(ClaudeApiVasterModel(
+          targetModel: results['model'] as String? ?? 'claude-opus-5')),
+      'gemini' => resilient(GoogleAiVasterModel(
           apiKey: Platform.environment['GEMINI_API_KEY'] ??
               Platform.environment['GOOGLE_AI_API_KEY'],
-          targetModel: results['model'] as String? ?? 'gemini-2.0-flash'),
+          targetModel: results['model'] as String? ?? 'gemini-2.0-flash')),
       _ => FakeVasterModel(),
     };
 

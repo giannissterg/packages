@@ -59,6 +59,8 @@ class PeepholePass {
         switch (item) {
           IrJump(:final target) => target.id,
           IrJumpIf(:final target) => target.id,
+          IrCall(:final target) => target.id,
+          IrPushErrorHandler(:final target) => target.id,
           _ => -1,
         },
     }..remove(-1);
@@ -78,7 +80,7 @@ class PeepholePass {
           if (!reachable) continue;
           out.add(item);
           reachable = false;
-        case IrJumpIf():
+        case IrJumpIf() || IrCall() || IrPushErrorHandler():
           if (!reachable) continue;
           out.add(item);
       }

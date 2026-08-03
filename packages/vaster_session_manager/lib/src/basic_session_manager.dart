@@ -23,7 +23,7 @@ class BasicSessionManager implements SessionManager {
     Map<String, dynamic> metadata = const {},
   }) async {
     if (_sessions.containsKey(sessionId)) {
-      return _sessions[sessionId]!;
+      throw StateError('Session with ID "$sessionId" already exists.');
     }
 
     final session = BasicModelSession(

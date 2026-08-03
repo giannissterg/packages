@@ -47,6 +47,24 @@ final class IrBindLabel extends IrItem {
   const IrBindLabel(this.label);
 }
 
+/// Subroutine call to a symbolic label (assembles to [CallOp]).
+final class IrCall extends IrItem {
+  final String functionName;
+  final IrLabel target;
+  final Map<String, String> arguments;
+  final String? outputVar;
+  const IrCall(this.functionName, this.target,
+      {this.arguments = const {}, this.outputVar});
+}
+
+/// Error-handler installation targeting a symbolic label (assembles to
+/// [PushErrorHandlerOp]).
+final class IrPushErrorHandler extends IrItem {
+  final IrLabel target;
+  final String errorVar;
+  const IrPushErrorHandler(this.target, {this.errorVar = '__error__'});
+}
+
 /// A growable IR stream with label allocation and two-pass assembly.
 class IrModule {
   final List<IrItem> items = [];
@@ -62,6 +80,14 @@ class IrModule {
   void jumpIf(String conditionVar, IrLabel target) =>
       items.add(IrJumpIf(conditionVar, target));
 
+  void call(String functionName, IrLabel target,
+          {Map<String, String> arguments = const {}, String? outputVar}) =>
+      items.add(IrCall(functionName, target,
+          arguments: arguments, outputVar: outputVar));
+
+  void pushErrorHandler(IrLabel target, {String errorVar = '__error__'}) =>
+      items.add(IrPushErrorHandler(target, errorVar: errorVar));
+
   void bind(IrLabel label) => items.add(IrBindLabel(label));
 
   /// Assembles the IR into a flat instruction list (classic two-pass layout):
@@ -76,7 +102,11 @@ class IrModule {
       switch (item) {
         case IrBindLabel(:final label):
           labelPcs[label.id] = pc;
-        case IrInstruction() || IrJump() || IrJumpIf():
+        case IrInstruction() ||
+              IrJump() ||
+              IrJumpIf() ||
+              IrCall() ||
+              IrPushErrorHandler():
           pc++;
       }
     }
@@ -99,6 +129,15 @@ class IrModule {
           out.add(JumpOp(targetPc: resolve(target)));
         case IrJumpIf(:final conditionVar, :final target):
           out.add(JumpIfOp(conditionVar: conditionVar, targetPc: resolve(target)));
+        case IrCall(:final functionName, :final target, :final arguments, :final outputVar):
+          out.add(CallOp(
+            functionName: functionName,
+            targetPc: resolve(target),
+            arguments: arguments,
+            outputVar: outputVar,
+          ));
+        case IrPushErrorHandler(:final target, :final errorVar):
+          out.add(PushErrorHandlerOp(targetPc: resolve(target), errorVar: errorVar));
         case IrBindLabel():
           break;
       }

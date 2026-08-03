@@ -49,6 +49,11 @@ class VasterRuntime {
   final CacheHintTracker _cacheHints = CacheHintTracker();
   final HitlController _hitl = HitlController();
 
+  /// Program-level error handlers installed by [PushErrorHandlerOp]
+  /// (innermost last). Consulted by both run loops when an instruction
+  /// throws; policy violations bypass this stack entirely.
+  final List<({int targetPc, String errorVar})> _errorHandlers = [];
+
   int _pc = 0;
   RuntimeStatus _status = RuntimeStatus.idle;
   String? _lastError;
@@ -117,6 +122,7 @@ class VasterRuntime {
       _callStack.clear();
       _cacheHints.clear();
       _hitl.clear();
+      _errorHandlers.clear();
     }
 
     return _runLoop(program);
@@ -183,6 +189,7 @@ class VasterRuntime {
 
         if (_status == RuntimeStatus.running) _pc++;
       } catch (e, st) {
+        if (_handleProgramError(e)) continue; // recovered by TryCatch handler
         _status = RuntimeStatus.error;
         _lastError = _formatTrap(instruction, e, st);
         break;
@@ -195,6 +202,23 @@ class VasterRuntime {
           .pruneLifetimes({ContextLifetime.ephemeral, ContextLifetime.step});
     }
     return state;
+  }
+
+  /// Consults the program-level error-handler stack after an instruction
+  /// throws. Returns `true` when a handler recovered: the error text lands in
+  /// the handler's register and control transfers to its catch block.
+  ///
+  /// Policy violations are a VM security boundary, not a program-level error —
+  /// they always trap regardless of installed handlers.
+  bool _handleProgramError(Object error) {
+    if (error is StateError && error.message.startsWith('Policy violation')) {
+      return false;
+    }
+    if (_errorHandlers.isEmpty) return false;
+    final handler = _errorHandlers.removeLast();
+    _registers.write(handler.errorVar, '$error');
+    _pc = handler.targetPc;
+    return true;
   }
 
   /// Formats a VM trap report: the faulting PC, disassembled instruction, and
@@ -222,6 +246,34 @@ class VasterRuntime {
 
   static String _truncate(String value, [int max = 200]) =>
       value.length <= max ? value : '${value.substring(0, max)}…';
+
+  /// Compare semantics for [CompareRegisterOp]: numeric when both sides parse
+  /// as numbers, lexicographic otherwise. `eq`/`ne` use loose equality so that
+  /// `5` and `'5'` (a register set from model text) compare equal.
+  static bool _compare(dynamic left, String operator, dynamic right) {
+    if (operator == 'eq') return _looseEquals(left, right);
+    if (operator == 'ne') return !_looseEquals(left, right);
+    final ln = left is num ? left : num.tryParse('$left');
+    final rn = right is num ? right : num.tryParse('$right');
+    final cmp =
+        (ln != null && rn != null) ? ln.compareTo(rn) : '$left'.compareTo('$right');
+    return switch (operator) {
+      'lt' => cmp < 0,
+      'le' => cmp <= 0,
+      'gt' => cmp > 0,
+      'ge' => cmp >= 0,
+      _ => throw StateError(
+          'Unknown compare operator "$operator" (expected lt/le/gt/ge/eq/ne).'),
+    };
+  }
+
+  static bool _looseEquals(dynamic a, dynamic b) {
+    if (a == b) return true;
+    final an = a is num ? a : num.tryParse('$a');
+    final bn = b is num ? b : num.tryParse('$b');
+    if (an != null && bn != null) return an == bn;
+    return '$a' == '$b';
+  }
 
   /// Executes up to [stepCount] instructions of [program] and returns the resulting [RuntimeState].
   Future<RuntimeState> executeStep(VasterProgram program, {int stepCount = 5}) async {
@@ -255,6 +307,10 @@ class VasterRuntime {
         if (_status == RuntimeStatus.running) _pc++;
         executed++;
       } catch (e, st) {
+        if (_handleProgramError(e)) {
+          executed++; // recovery consumed a step
+          continue;
+        }
         _status = RuntimeStatus.error;
         _lastError = _formatTrap(instruction, e, st);
         break;
@@ -574,9 +630,26 @@ class VasterRuntime {
         };
         if (isTrue) _pc = op.targetPc - 1;
 
+      case PushErrorHandlerOp op:
+        _errorHandlers.add((targetPc: op.targetPc, errorVar: op.errorVar));
+
+      case PopErrorHandlerOp _:
+        if (_errorHandlers.isNotEmpty) _errorHandlers.removeLast();
+
       // ── Register file ─────────────────────────────────────────────────────
       case SetRegisterOp op:
         _registers.write(op.registerName, op.value);
+
+      case IncrementRegisterOp op:
+        final current = _registers.read(op.registerName);
+        final base = current is num ? current : (num.tryParse('$current') ?? 0);
+        _registers.write(op.registerName, base + op.delta);
+
+      case CompareRegisterOp op:
+        final left = _registers.read(op.leftVar);
+        final right =
+            op.rightVar != null ? _registers.read(op.rightVar!) : op.rightValue;
+        _registers.write(op.targetVar, _compare(left, op.operator, right));
 
       case JsonExtractOp op:
         _registers.jsonExtract(

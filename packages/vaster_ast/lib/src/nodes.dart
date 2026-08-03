@@ -536,6 +536,72 @@ final class CompressContext extends VasterNode {
   const CompressContext({this.regionId, this.targetTokens});
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Control-flow nodes — loops, subroutines, and error handling.
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Repeats [children] while register [conditionVar] is truthy.
+///
+/// The condition is evaluated before each iteration (a standard while loop).
+/// [maxIterations] is a compiled-in runaway guard: when reached, the loop
+/// exits normally rather than spinning forever.
+final class While extends VasterNode {
+  final String conditionVar;
+  final List<VasterNode> children;
+  final int maxIterations;
+
+  const While({
+    required this.conditionVar,
+    required this.children,
+    this.maxIterations = 100,
+  });
+}
+
+/// Executes [children] exactly [times] times. When [counterVar] is set, the
+/// zero-based iteration index is available in that register inside the body.
+final class Repeat extends VasterNode {
+  final int times;
+  final List<VasterNode> children;
+  final String? counterVar;
+
+  const Repeat({required this.times, required this.children, this.counterVar});
+}
+
+/// Executes [tryChildren]; if any instruction inside throws, the error text
+/// lands in register [errorVar] and control transfers to [catchChildren]
+/// instead of trapping the VM. Policy violations are NOT catchable.
+final class TryCatch extends VasterNode {
+  final List<VasterNode> tryChildren;
+  final List<VasterNode> catchChildren;
+  final String errorVar;
+
+  const TryCatch({
+    required this.tryChildren,
+    this.catchChildren = const [],
+    this.errorVar = '__error__',
+  });
+}
+
+/// Defines a named subroutine. Bodies are emitted after the main program and
+/// are only reachable via [CallSubroutine]. The value of the body's last
+/// output-producing node becomes the subroutine's return value.
+final class DefineSubroutine extends VasterNode {
+  final String name;
+  final List<VasterNode> children;
+
+  const DefineSubroutine({required this.name, required this.children});
+}
+
+/// Calls a [DefineSubroutine] by name. [arguments] are written into registers
+/// before the jump; the subroutine's return value lands in the auto output
+/// register (retrievable via `Output` or downstream register reads).
+final class CallSubroutine extends VasterNode {
+  final String name;
+  final Map<String, dynamic> arguments;
+
+  const CallSubroutine({required this.name, this.arguments = const {}});
+}
+
 typedef PipelineNode = Pipeline;
 typedef MountStorageNode = Mount;
 typedef DefineRoleNode = Agent;

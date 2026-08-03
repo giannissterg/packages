@@ -59,6 +59,48 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     _lowerNode(expandedTree, ir, initialContext, state);
     ir.emit(const HaltOp());
 
+    // Pass 2b: subroutine bodies — emitted after the main halt, reachable
+    // only through CallOp. Bodies may define further subroutines, so drain
+    // to a fixed point.
+    final emittedSubs = <String>{};
+    while (true) {
+      final pending = state.subroutineBodies.keys
+          .where((name) => !emittedSubs.contains(name))
+          .toList();
+      if (pending.isEmpty) break;
+      for (final name in pending) {
+        emittedSubs.add(name);
+        ir.bind(state.subroutineLabel(ir, name));
+        state.lastOutputRegister = null;
+        _lowerNodes(state.subroutineBodies[name]!, ir, initialContext, state);
+        ir.emit(ReturnSubroutineOp(returnRegister: state.lastOutputRegister));
+      }
+    }
+
+    // Calls to subroutines that were never defined would surface as an
+    // unbound-label StateError deep in assembly; report them as proper
+    // compile errors instead.
+    final undefinedSubs = state.subroutineLabels.keys
+        .where((name) => !state.subroutineBodies.containsKey(name))
+        .toList();
+    if (undefinedSubs.isNotEmpty) {
+      return CompileResult(
+        program: VasterProgram(
+          programName: pipeline.spec.name,
+          instructions: const [HaltOp()],
+        ),
+        diagnostics: [
+          for (final name in undefinedSubs)
+            CompileDiagnostic(
+              severity: CompileSeverity.error,
+              code: 'undefined_subroutine',
+              message: 'CallSubroutine references "$name", '
+                  'but no DefineSubroutine with that name exists.',
+            ),
+        ],
+      );
+    }
+
     // Pass 3: optimization (opt-in).
     if (options.optimize) {
       final optimized = const PeepholePass().run(List.of(ir.items));
@@ -164,6 +206,108 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.emit(const BeginTransactionOp());
         _lowerNodes(n.children, ir, context, state);
         ir.emit(const CommitOp());
+
+      // ── Control flow ──────────────────────────────────────────────────
+      case While n:
+        // Layout (guarded pre-test loop):
+        //   setRegister guard = 0
+        // START:
+        //   compare guard < maxIterations -> guardOk
+        //   jumpIf guardOk -> CHECK
+        //   jump -> END              (runaway guard tripped)
+        // CHECK:
+        //   jumpIf cond -> BODY
+        //   jump -> END
+        // BODY:
+        //   <children>
+        //   increment guard
+        //   jump -> START
+        // END:
+        final guardReg = state.nextAutoRegister();
+        final guardOkReg = state.nextAutoRegister();
+        final whileStart = ir.newLabel('while_start');
+        final whileCheck = ir.newLabel('while_check');
+        final whileBody = ir.newLabel('while_body');
+        final whileEnd = ir.newLabel('while_end');
+
+        ir.emit(SetRegisterOp(registerName: guardReg, value: 0));
+        ir.bind(whileStart);
+        ir.emit(CompareRegisterOp(
+          leftVar: guardReg,
+          operator: 'lt',
+          rightValue: n.maxIterations,
+          targetVar: guardOkReg,
+        ));
+        ir.jumpIf(guardOkReg, whileCheck);
+        ir.jump(whileEnd);
+        ir.bind(whileCheck);
+        ir.jumpIf(n.conditionVar, whileBody);
+        ir.jump(whileEnd);
+        ir.bind(whileBody);
+        _lowerNodes(n.children, ir, context, state);
+        ir.emit(IncrementRegisterOp(registerName: guardReg));
+        ir.jump(whileStart);
+        ir.bind(whileEnd);
+
+      case Repeat n:
+        // Counted pre-test loop; the counter register doubles as the
+        // user-visible iteration index when [counterVar] is set.
+        final counterReg = n.counterVar ?? state.nextAutoRegister();
+        final cmpReg = state.nextAutoRegister();
+        final repeatStart = ir.newLabel('repeat_start');
+        final repeatBody = ir.newLabel('repeat_body');
+        final repeatEnd = ir.newLabel('repeat_end');
+
+        ir.emit(SetRegisterOp(registerName: counterReg, value: 0));
+        ir.bind(repeatStart);
+        ir.emit(CompareRegisterOp(
+          leftVar: counterReg,
+          operator: 'lt',
+          rightValue: n.times,
+          targetVar: cmpReg,
+        ));
+        ir.jumpIf(cmpReg, repeatBody);
+        ir.jump(repeatEnd);
+        ir.bind(repeatBody);
+        _lowerNodes(n.children, ir, context, state);
+        ir.emit(IncrementRegisterOp(registerName: counterReg));
+        ir.jump(repeatStart);
+        ir.bind(repeatEnd);
+
+      case TryCatch n:
+        // Layout:
+        //   pushErrorHandler -> CATCH
+        //   <try>
+        //   popErrorHandler
+        //   jump -> END
+        // CATCH:                     (runtime lands here with errorVar set)
+        //   <catch>
+        // END:
+        final catchLabel = ir.newLabel('catch');
+        final tryEnd = ir.newLabel('try_end');
+
+        ir.pushErrorHandler(catchLabel, errorVar: n.errorVar);
+        _lowerNodes(n.tryChildren, ir, context, state);
+        ir.emit(const PopErrorHandlerOp());
+        ir.jump(tryEnd);
+        ir.bind(catchLabel);
+        _lowerNodes(n.catchChildren, ir, context, state);
+        ir.bind(tryEnd);
+
+      case DefineSubroutine n:
+        // Bodies are emitted after the main halt (see compileWithDiagnostics)
+        // so definition order never affects fall-through execution.
+        state.subroutineBodies[n.name] = n.children;
+
+      case CallSubroutine n:
+        final callReg = state.nextAutoRegister();
+        ir.call(
+          n.name,
+          state.subroutineLabel(ir, n.name),
+          arguments: n.arguments.map((k, v) => MapEntry(k, v.toString())),
+          outputVar: callReg,
+        );
+        state.lastOutputRegister = callReg;
 
       // ── Context management nodes ──────────────────────────────────────
       case AddContext n:
@@ -330,7 +474,18 @@ class _CompilerState {
   int _regCounter = 0;
   String? lastOutputRegister;
 
+  /// Subroutine name -> entry label. Populated lazily on first reference
+  /// (call or definition) so forward calls resolve naturally.
+  final Map<String, IrLabel> subroutineLabels = {};
+
+  /// Subroutine name -> body nodes, collected during lowering and emitted
+  /// after the main program's halt.
+  final Map<String, List<VasterNode>> subroutineBodies = {};
+
   String nextAutoRegister() {
     return '__auto_reg_${_regCounter++}';
   }
+
+  IrLabel subroutineLabel(IrModule ir, String name) =>
+      subroutineLabels.putIfAbsent(name, () => ir.newLabel('sub_$name'));
 }
