@@ -56,7 +56,7 @@ void main() {
         'condition', () async {
       final program = compiler.compile(pipeline(const [
         While(
-          conditionVar: 'always',
+          condition: 'always',
           maxIterations: 3,
           children: [Prompt('while body')],
         ),
@@ -73,7 +73,7 @@ void main() {
 
     test('compiled While never runs the body on a falsy condition', () async {
       final program = compiler.compile(pipeline(const [
-        While(conditionVar: 'unset', children: [Prompt('never')]),
+        While(condition: 'unset', children: [Prompt('never')]),
       ]));
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
@@ -86,7 +86,7 @@ void main() {
         TryCatch(
           tryChildren: [ReadFile(path: '/not_mounted/missing.txt')],
           catchChildren: [Prompt('recovering from failure')],
-          errorVar: 'err',
+          error: 'err',
         ),
         Output(),
       ]));

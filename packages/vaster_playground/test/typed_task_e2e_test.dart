@@ -51,7 +51,7 @@ void main() {
         roles: const [architect],
         children: [
           Agent(role: architect, children: [
-            Task(taskPrompt: 'design the notes app', outputSchema: schema),
+            Task(prompt: 'design the notes app', outputSchema: schema),
           ]),
         ],
       ));

@@ -1,22 +1,28 @@
 /// Describes a parallel task dispatch entry for the `ParallelTasks` AST node.
 class ParallelTaskEntry {
-  final String agentRoleId;
-  final String promptText;
+  final String agentId;
+  final String prompt;
+
+  /// Binding name for this task's result; auto-allocated when omitted.
   final String? output;
 
-  const ParallelTaskEntry({required this.agentRoleId, required this.promptText, this.output});
+  const ParallelTaskEntry({
+    required this.agentId,
+    required this.prompt,
+    this.output,
+  });
 
   Map<String, dynamic> toJson() => {
-    'agentRoleId': agentRoleId,
-    'promptText': promptText,
-    if (output != null) 'outputVariable': output,
-  };
+        'agentId': agentId,
+        'prompt': prompt,
+        if (output != null) 'output': output,
+      };
 
   factory ParallelTaskEntry.fromJson(Map<String, dynamic> json) {
     return ParallelTaskEntry(
-      agentRoleId: json['agentRoleId'] as String? ?? '',
-      promptText: json['promptText'] as String? ?? '',
-      output: json['outputVariable'] as String?,
+      agentId: json['agentId'] as String? ?? '',
+      prompt: json['prompt'] as String? ?? '',
+      output: json['output'] as String?,
     );
   }
 }

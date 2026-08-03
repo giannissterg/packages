@@ -89,7 +89,7 @@ void main() async {
                       const SecurityAuditComponent(),
 
                       // Task automatically inherits secAuditorRole from context!
-                      const Task(taskPrompt: 'Produce final compliance report.'),
+                      const Task(prompt: 'Produce final compliance report.'),
                     ],
                   ),
                 ],

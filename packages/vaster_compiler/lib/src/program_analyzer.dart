@@ -103,8 +103,31 @@ class ProgramAnalyzer {
       }
     }
 
+    // `${name}` interpolation references are register reads — check the
+    // wiring at compile time (the runtime leaves unresolvable refs verbatim).
+    void checkInterpolationReads(int pc, VasterInstruction inst) {
+      for (final field in _interpolatedFields(inst)) {
+        for (final match in RegisterInterpolation.token.allMatches(field)) {
+          final name = match.group(1);
+          if (name == null) continue; // `$$` escape
+          read.add(name);
+          if (!written.contains(name)) {
+            diagnostics.add(CompileDiagnostic(
+              severity: CompileSeverity.warning,
+              code: 'unresolved_interpolation_ref',
+              message: 'Prompt/content interpolates "\${$name}" but no prior '
+                  'instruction binds it — the reference will be left verbatim '
+                  'at runtime unless seeded externally.',
+              pc: pc,
+            ));
+          }
+        }
+      }
+    }
+
     for (var pc = 0; pc < instructions.length; pc++) {
       final inst = instructions[pc];
+      checkInterpolationReads(pc, inst);
       switch (inst) {
         // Reads first (an op may read then write).
         case JumpIfOp(:final conditionVar):
@@ -276,6 +299,31 @@ class ProgramAnalyzer {
 
     return diagnostics;
   }
+
+  /// The interpolated string fields of [inst], per the RegisterInterpolation
+  /// spec in vaster_instruction.
+  List<String> _interpolatedFields(VasterInstruction inst) => switch (inst) {
+        PromptOp(:final promptText) => [promptText],
+        DispatchAgentTaskOp(:final taskPrompt) => [taskPrompt],
+        DispatchParallelTasksOp(:final dispatches) => [
+            for (final d in dispatches) d.taskPrompt,
+          ],
+        WriteFileOp(:final vfsPath, :final content) => [vfsPath, content],
+        ReadFileOp(:final vfsPath) => [vfsPath],
+        ExecSandboxOp(:final code) => [code],
+        AddContextOp(:final text) => [text],
+        DecideOp(:final prompt) => [prompt],
+        YieldHumanInteractionOp(:final request) => [request.prompt],
+        SendMessageOp(:final payload) => _stringLeaves(payload),
+        _ => const [],
+      };
+
+  List<String> _stringLeaves(Object? value) => switch (value) {
+        String s => [s],
+        Map m => [for (final v in m.values) ..._stringLeaves(v)],
+        List l => [for (final v in l) ..._stringLeaves(v)],
+        _ => const [],
+      };
 
   void _checkJumpRange(
     List<CompileDiagnostic> diagnostics,

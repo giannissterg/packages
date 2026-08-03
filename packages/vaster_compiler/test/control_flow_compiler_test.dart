@@ -15,7 +15,7 @@ void main() {
   group('Repeat lowering', () {
     test('emits counter init, compare, body, increment, and back-jump', () {
       final program = compiler.compile(pipeline(const [
-        Repeat(times: 3, counterVar: 'i', children: [Prompt('body')]),
+        Repeat(times: 3, counter: 'i', children: [Prompt('body')]),
       ]));
       final instructions = program.instructions;
 
@@ -44,7 +44,7 @@ void main() {
   group('While lowering', () {
     test('emits maxIterations guard compare and user-condition jumpIf', () {
       final program = compiler.compile(pipeline(const [
-        While(conditionVar: 'go', maxIterations: 7, children: [Prompt('body')]),
+        While(condition: 'go', maxIterations: 7, children: [Prompt('body')]),
       ]));
       final instructions = program.instructions;
 
@@ -68,7 +68,7 @@ void main() {
         TryCatch(
           tryChildren: [Prompt('try body')],
           catchChildren: [Prompt('catch body')],
-          errorVar: 'err',
+          error: 'err',
         ),
       ]));
       final instructions = program.instructions;

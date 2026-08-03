@@ -13,24 +13,22 @@ part of '../vaster_ast.dart';
 /// ```dart
 /// class CodeReviewComponent extends ComposableNode {
 ///   final String filePath;
-///   final String reviewerRoleId;
+///   final AgentRole reviewer;
 ///
 ///   const CodeReviewComponent({
 ///     required this.filePath,
-///     required this.reviewerRoleId,
+///     required this.reviewer,
 ///   });
 ///
 ///   @override
 ///   VasterNode build(BuildContext context) {
 ///     final cfg = context.tryRead<ReviewConfig>();
-///     return Transaction(children: [
+///     return Sequence([
+///       ReadFile(path: filePath, output: 'source'),
 ///       Task(
-///         agentRoleId: reviewerRoleId,
-///         task: TaskDefinition(
-///           taskId: 'review',
-///           promptText: 'Review $filePath',
-///           output: 'review_result',
-///         ),
+///         agent: reviewer,
+///         prompt: 'Review this file:\n\${source}',
+///         output: 'review_result',
 ///       ),
 ///     ]);
 ///   }

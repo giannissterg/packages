@@ -2,7 +2,6 @@ import 'package:vaster_agent/vaster_agent.dart';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
-import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 
 import 'compile_diagnostics.dart';
@@ -50,7 +49,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
   /// diagnostic gathered by the analysis passes.
   CompileResult compileWithDiagnostics(Pipeline pipeline) {
     // Pass 1: expansion.
-    final initialContext = BuildContext(pipelineSpec: pipeline.spec);
+    final initialContext = BuildContext(pipelineSpec: pipeline.effectiveSpec);
     final expandedTree = pipeline.build(initialContext);
 
     // Pass 2: lowering to label IR.
@@ -86,7 +85,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     if (undefinedSubs.isNotEmpty) {
       return CompileResult(
         program: VasterProgram(
-          programName: pipeline.spec.name,
+          programName: pipeline.effectiveSpec.name,
           instructions: const [HaltOp()],
         ),
         diagnostics: [
@@ -118,12 +117,15 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     }
 
     final program = VasterProgram(
-      programName: pipeline.spec.name,
+      programName: pipeline.effectiveSpec.name,
       instructions: instructions,
     );
 
-    // Pass 6: semantic analysis.
-    final diagnostics = const ProgramAnalyzer().analyze(program);
+    // Pass 6: semantic analysis (lowering-time diagnostics merged in).
+    final diagnostics = [
+      ...state.diagnostics,
+      ...const ProgramAnalyzer().analyze(program),
+    ];
 
     return CompileResult(program: program, diagnostics: diagnostics);
   }
@@ -147,9 +149,9 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
   ) {
     switch (node) {
       case Prompt n:
-        final reg = state.nextAutoRegister();
+        final reg = _binding(n.output, state);
         ir.emit(PromptOp(
-          promptText: n.promptText,
+          promptText: n.prompt,
           outputVar: reg,
           responseSchema: n.outputSchema,
         ));
@@ -159,18 +161,18 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.emit(WriteFileOp(vfsPath: n.path, content: n.content));
 
       case ReadFile n:
-        final reg = state.nextAutoRegister();
+        final reg = _binding(n.output, state);
         ir.emit(ReadFileOp(vfsPath: n.path, outputVar: reg));
         state.lastOutputRegister = reg;
 
       case ParallelTasks n:
         final dispatches = <ParallelTaskDispatch>[];
         for (final t in n.entries) {
-          final reg = state.nextAutoRegister();
+          final reg = _binding(t.output, state);
           dispatches.add(
             ParallelTaskDispatch(
-              agentId: t.agentRoleId,
-              taskPrompt: t.promptText,
+              agentId: t.agentId,
+              taskPrompt: t.prompt,
               outputVar: reg,
             ),
           );
@@ -178,10 +180,21 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         }
         ir.emit(DispatchParallelTasksOp(dispatches: dispatches));
 
-      case Execute n:
-        final reg = state.nextAutoRegister();
-        ir.emit(ExecSandboxOp(sandboxId: n.envId, code: n.code, outputVar: reg));
-        state.lastOutputRegister = reg;
+      case Extract n:
+        final source = n.from ?? state.lastOutputRegister;
+        if (source == null) {
+          state.diagnostics.add(const CompileDiagnostic(
+            severity: CompileSeverity.error,
+            code: 'extract_no_source',
+            message: 'Extract has no `from` binding and no value was '
+                'produced before it.',
+          ));
+          break;
+        }
+        final target = _binding(n.output, state);
+        ir.emit(JsonExtractOp(
+            sourceVar: source, jsonKey: n.field, targetVar: target));
+        state.lastOutputRegister = target;
 
       case When n:
         // Layout (unchanged from the single-pass emitter, now label-safe for
@@ -215,7 +228,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         //   jump -> JOIN
         // JOIN:
         final policy = context.tryRead<DecisionPolicy>();
-        final chosenReg = state.nextAutoRegister();
+        final chosenReg = _binding(n.output, state);
         final joinLabel = ir.newLabel('decide_join');
         final pathLabels = [
           for (final path in n.paths) ir.newLabel('decide_${path.label}'),
@@ -260,7 +273,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         final loopDefault = n.defaultPath ?? loopPolicy?.defaultPath;
         final counterReg = state.nextAutoRegister();
         final guardOkReg = state.nextAutoRegister();
-        final chosenReg = state.nextAutoRegister();
+        final chosenReg = _binding(n.output, state);
         final loopStart = ir.newLabel('decide_loop_start');
         final decideLabel = ir.newLabel('decide_loop_decide');
         final joinLabel = ir.newLabel('decide_loop_join');
@@ -341,7 +354,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.jumpIf(guardOkReg, whileCheck);
         ir.jump(whileEnd);
         ir.bind(whileCheck);
-        ir.jumpIf(n.conditionVar, whileBody);
+        ir.jumpIf(n.condition, whileBody);
         ir.jump(whileEnd);
         ir.bind(whileBody);
         _lowerNodes(n.children, ir, context, state);
@@ -351,8 +364,8 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
       case Repeat n:
         // Counted pre-test loop; the counter register doubles as the
-        // user-visible iteration index when [counterVar] is set.
-        final counterReg = n.counterVar ?? state.nextAutoRegister();
+        // user-visible iteration index when [counter] is set.
+        final counterReg = _binding(n.counter, state);
         final cmpReg = state.nextAutoRegister();
         final repeatStart = ir.newLabel('repeat_start');
         final repeatBody = ir.newLabel('repeat_body');
@@ -386,7 +399,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         final catchLabel = ir.newLabel('catch');
         final tryEnd = ir.newLabel('try_end');
 
-        ir.pushErrorHandler(catchLabel, errorVar: n.errorVar);
+        ir.pushErrorHandler(catchLabel, errorVar: n.error);
         _lowerNodes(n.tryChildren, ir, context, state);
         ir.emit(const PopErrorHandlerOp());
         ir.jump(tryEnd);
@@ -400,7 +413,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         state.subroutineBodies[n.name] = n.children;
 
       case CallSubroutine n:
-        final callReg = state.nextAutoRegister();
+        final callReg = _binding(n.output, state);
         ir.call(
           n.name,
           state.subroutineLabel(ir, n.name),
@@ -415,7 +428,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
           regionId: n.regionId,
           label: n.label,
           text: n.text,
-          sourceVar: n.sourceVar,
+          sourceVar: n.from,
           priority: n.priority.name,
           lifetime: n.lifetime.name,
           compressibility: n.compressibility.name,
@@ -441,7 +454,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ));
 
       case CompressContext n:
-        final reg = state.nextAutoRegister();
+        final reg = _binding(n.output, state);
         ir.emit(CompressContextOp(
           regionId: n.regionId,
           targetTokens: n.targetTokens,
@@ -456,7 +469,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
             type: HumanInteractionType.parse(n.interactionType),
             prompt: n.prompt,
             options: n.options,
-            outputVar: n.outputVar,
+            outputVar: n.output,
             timeoutMs: n.timeoutMs,
           ),
         ));
@@ -480,10 +493,13 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         if (n.child != null) {
           _lowerNode(n.child!, ir, context, state);
         }
-        final sourceReg = n.valueKey ?? state.lastOutputRegister;
+        final sourceReg = n.from ?? state.lastOutputRegister;
         if (sourceReg != null) {
           ir.emit(ConcatRegisterOp(targetVar: '__output__', sourceVars: [sourceReg]));
         }
+
+      case Sequence n:
+        _lowerNodes(n.children, ir, context, state);
 
       case Provider n:
         final childContext = n.applyToContext(context);
@@ -493,89 +509,124 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         final expanded = n.build(context);
         _lowerNode(expanded, ir, context, state);
 
-      // Private leaf execution nodes emitted by ComposableNode headers.
-      case dynamic n when n.runtimeType.toString() == '_PipelineBody':
-        _lowerNodes((n as dynamic).children as List<VasterNode>, ir, context, state);
+      // ── Lowering headers emitted by ComposableNode.build() ─────────────
+      case PipelineBody n:
+        _lowerNodes(n.children, ir, context, state);
 
-      case dynamic n when n.runtimeType.toString() == '_AgentProvisionHeader':
-        final role = (n as dynamic).role as AgentRole;
+      case InputsHeader n:
+        for (final entry in n.values.entries) {
+          final name = _binding(entry.key, state);
+          ir.emit(SetRegisterOp(registerName: name, value: entry.value));
+        }
+
+      case AgentProvisionHeader n:
+        // Dedup between Pipeline.roles provisioning and nested Agent scopes.
+        if (!state.provisionedAgents.add(n.role.roleId)) break;
         ir.emit(
           CreateAgentOp(
             descriptor: AgentDescriptor(
-              agentId: role.roleId,
-              name: role.name,
-              role: role.title,
-              systemInstruction: role.instruction,
+              agentId: n.role.roleId,
+              name: n.role.name,
+              role: n.role.title,
+              systemInstruction: n.role.instruction,
             ),
           ),
         );
-        ir.emit(CreateSessionOp(sessionId: 'sess_${role.roleId}'));
+        ir.emit(CreateSessionOp(sessionId: 'sess_${n.role.roleId}'));
 
-      case dynamic n when n.runtimeType.toString() == '_MountHeader':
-        final mount = (n as dynamic).mount as StorageMount;
-        ir.emit(MountFsOp(mountPrefix: mount.mountPrefix, diskPath: mount.diskPath));
+      case MountHeader n:
+        final mount = n.mount;
+        if (mount.type == StorageMountType.disk && mount.diskPath == null) {
+          state.diagnostics.add(CompileDiagnostic(
+            severity: CompileSeverity.error,
+            code: 'mount_missing_disk_path',
+            message: 'Disk mount "${mount.mountPrefix}" declares no diskPath.',
+          ));
+          break;
+        }
+        if (mount.type == StorageMountType.memory && mount.diskPath != null) {
+          state.diagnostics.add(CompileDiagnostic(
+            severity: CompileSeverity.warning,
+            code: 'mount_ignored_disk_path',
+            message: 'Memory mount "${mount.mountPrefix}" declares a diskPath '
+                'that will be ignored — set type: StorageMountType.disk.',
+          ));
+        }
+        ir.emit(MountFsOp(
+          mountPrefix: mount.mountPrefix,
+          diskPath: mount.type == StorageMountType.disk ? mount.diskPath : null,
+        ));
 
-      case dynamic n when n.runtimeType.toString() == '_ToolSetHeader':
-        final tools = (n as dynamic).tools as List<ToolDefinition>;
-        ir.emit(RegisterToolSetOp(tools: tools));
+      case ToolSetHeader n:
+        ir.emit(RegisterToolSetOp(tools: n.tools));
 
-      case dynamic n when n.runtimeType.toString() == '_BudgetHeader':
-        final maxTokens = (n as dynamic).maxTokens as int?;
-        final maxDuration = (n as dynamic).maxDuration as Duration?;
+      case BudgetHeader n:
         ir.emit(
           SetQuotaOp(
             quota: ResourceQuota(
-              maxTokenBudget: maxTokens,
-              timeDeadline: maxDuration,
+              maxTokenBudget: n.maxTokens,
+              timeDeadline: n.maxDuration,
+              maxCostBudget: n.maxCost,
             ),
           ),
         );
 
-      case dynamic n when n.runtimeType.toString() == '_SandboxHeader':
-        final env = (n as dynamic).env as CodeEnvironment;
-        ir.emit(RegisterSandboxOp(sandboxId: env.envId, language: env.language));
+      case SandboxHeader n:
+        ir.emit(RegisterSandboxOp(
+          sandboxId: n.env.envId,
+          language: n.env.language,
+          timeoutMs: n.env.timeoutMs,
+        ));
 
-      case dynamic n when n.runtimeType.toString() == '_SelectModelHeader':
-        final model = (n as dynamic).model as ModelDescriptor;
-        ir.emit(SelectModelOp(descriptor: model));
+      case SelectModelHeader n:
+        ir.emit(SelectModelOp(descriptor: n.model));
 
-      case dynamic n when n.runtimeType.toString() == '_TaskExecution':
-        final reg = state.nextAutoRegister();
-        final roleId = (n as dynamic).agentRoleId as String;
-        final prompt = (n as dynamic).taskPrompt as String;
-        final outputSchema = (n as dynamic).outputSchema as Map<String, dynamic>?;
-        ir.emit(SetSessionOp(sessionId: 'sess_$roleId'));
+      case TaskExecution n:
+        final reg = _binding(n.output, state);
+        ir.emit(SetSessionOp(sessionId: 'sess_${n.agentId}'));
         ir.emit(
           DispatchAgentTaskOp(
-            agentId: roleId,
-            taskPrompt: prompt,
+            agentId: n.agentId,
+            taskPrompt: n.prompt,
             outputVar: reg,
-            responseSchema: outputSchema,
+            responseSchema: n.outputSchema,
           ),
         );
         state.lastOutputRegister = reg;
 
-      case dynamic n when n.runtimeType.toString() == '_SendMessageExecution':
-        final senderId = (n as dynamic).senderAgentId as String;
-        final recipientId = (n as dynamic).recipientAgentId as String;
-        final payload = (n as dynamic).payload as Map<String, dynamic>;
+      case ExecuteExecution n:
+        final reg = _binding(n.output, state);
+        ir.emit(ExecSandboxOp(sandboxId: n.envId, code: n.code, outputVar: reg));
+        state.lastOutputRegister = reg;
+
+      case SendMessageExecution n:
         ir.emit(
           SendMessageOp(
-            senderId: senderId,
-            recipientId: recipientId,
-            payload: payload,
+            senderId: n.senderAgentId,
+            recipientId: n.recipientAgentId,
+            payload: n.payload,
           ),
         );
 
-      case dynamic n when n.runtimeType.toString() == '_ReceiveMessageExecution':
-        final reg = state.nextAutoRegister();
-        final agentId = (n as dynamic).agentId as String;
-        ir.emit(PopMessageOp(agentId: agentId, outputVar: reg));
+      case ReceiveMessageExecution n:
+        final reg = _binding(n.output, state);
+        ir.emit(PopMessageOp(agentId: n.agentId, outputVar: reg));
         state.lastOutputRegister = reg;
-
-      default:
-        break;
     }
+  }
+
+  /// Resolves an author-requested binding name, validating it against the
+  /// reserved `__` prefix, or allocates an auto register.
+  String _binding(String? requested, _CompilerState state) {
+    if (requested == null) return state.nextAutoRegister();
+    if (requested.startsWith('__')) {
+      state.diagnostics.add(CompileDiagnostic(
+        severity: CompileSeverity.error,
+        code: 'reserved_binding',
+        message: 'Binding name "$requested" uses the reserved "__" prefix.',
+      ));
+    }
+    return requested;
   }
 }
 
@@ -590,6 +641,13 @@ class _CompilerState {
   /// Subroutine name -> body nodes, collected during lowering and emitted
   /// after the main program's halt.
   final Map<String, List<VasterNode>> subroutineBodies = {};
+
+  /// Agent role ids already provisioned this compilation (dedup between
+  /// Pipeline.roles and nested Agent scopes).
+  final Set<String> provisionedAgents = {};
+
+  /// Diagnostics gathered during lowering, merged into the compile result.
+  final List<CompileDiagnostic> diagnostics = [];
 
   String nextAutoRegister() {
     return '__auto_reg_${_regCounter++}';

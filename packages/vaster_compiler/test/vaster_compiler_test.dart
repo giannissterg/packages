@@ -42,8 +42,8 @@ class PolicyAwareReviewComponent extends ComposableNode {
     final policy = context.read<ReviewPolicy>();
     final modeLabel = policy.strictMode ? '[STRICT]' : '[LENIENT]';
     return Task(
-      agentRoleId: auditorRoleId,
-      taskPrompt: '$modeLabel Review $filePath (max issues: ${policy.maxIssues})',
+      agentId: auditorRoleId,
+      prompt: '$modeLabel Review $filePath (max issues: ${policy.maxIssues})',
     );
   }
 }
@@ -68,8 +68,8 @@ void main() {
             ),
           ),
           Task(
-            agentRoleId: 'architect',
-            taskPrompt: 'Design the Auth Service API.',
+            agentId: 'architect',
+            prompt: 'Design the Auth Service API.',
           ),
           Output(),
         ],

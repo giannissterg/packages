@@ -70,7 +70,7 @@ void main() async {
             role: architectRole,
             children: [
               Task(
-                taskPrompt:
+                prompt:
                     'Analyze the Flutter project structure and propose a design for a new Notes feature.',
               ),
             ],
@@ -86,7 +86,7 @@ void main() async {
                 role: developerRole,
                 children: [
                   Task(
-                    taskPrompt:
+                    prompt:
                         'Write a Flutter notes feature in /workspace/lib/features/notes_feature/ domain entity note_item.dart.',
                   ),
                 ],

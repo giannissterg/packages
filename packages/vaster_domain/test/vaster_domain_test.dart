@@ -30,15 +30,15 @@ void main() {
       expect(restored.title, equals('Senior Dart Developer'));
     });
 
-    test('TaskDefinition JSON roundtrip', () {
-      const task = TaskDefinition(
-        taskId: 'implement_auth',
-        promptText: 'Implement the authentication service.',
+    test('ParallelTaskEntry JSON roundtrip', () {
+      const entry = ParallelTaskEntry(
+        agentId: 'backend_engineer',
+        prompt: 'Implement the authentication service.',
         output: 'auth_code',
       );
-      final json = task.toJson();
-      final restored = TaskDefinition.fromJson(json);
-      expect(restored.taskId, equals('implement_auth'));
+      final restored = ParallelTaskEntry.fromJson(entry.toJson());
+      expect(restored.agentId, equals('backend_engineer'));
+      expect(restored.prompt, equals('Implement the authentication service.'));
       expect(restored.output, equals('auth_code'));
     });
 

@@ -112,10 +112,11 @@ class ArchitectureDesignComponent extends ComposableNode {
     final project = context.read<ProjectConfig>();
     return Transaction(
       children: [
-        ReadFile(path: briefPath),
+        ReadFile(path: briefPath, output: 'project_brief'),
         Task(
-          agentRoleId: 'architect',
-          taskPrompt:
+          agentId: 'architect',
+          output: 'architecture_doc',
+          prompt:
               'Read the project brief below and produce a comprehensive system architecture '
               'document for ${project.projectName} using ${project.language}.\n\n'
               'Brief: \${project_brief}\n\n'
@@ -137,27 +138,27 @@ class ParallelImplementationComponent extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final project = context.read<ProjectConfig>();
-    return Pipeline(
-      spec: context.pipelineSpec,
-      children: [
-        ReadFile(path: architecturePath),
+    return Sequence([
+        ReadFile(path: architecturePath, output: 'architecture_doc'),
         ParallelTasks(
           entries: [
             ParallelTaskEntry(
-              agentRoleId: 'backend_dev',
-              promptText:
+              agentId: 'backend_dev',
+              output: 'backend_implementation',
+              prompt:
                   'Implement the backend service for ${project.projectName} based on the '
                   'architecture document below. Write production-quality ${project.language} code '
                   'with proper error handling, logging, and configuration management.\n\n'
-                  'Architecture: \${arch_doc}',
+                  'Architecture: \${architecture_doc}',
             ),
             ParallelTaskEntry(
-              agentRoleId: 'frontend_dev',
-              promptText:
+              agentId: 'frontend_dev',
+              output: 'frontend_implementation',
+              prompt:
                   'Implement the frontend client for ${project.projectName} based on the '
                   'architecture document below. Write clean, component-based UI code that '
                   'consumes the backend REST APIs.\n\n'
-                  'Architecture: \${arch_doc}',
+                  'Architecture: \${architecture_doc}',
             ),
           ],
         ),
@@ -169,8 +170,7 @@ class ParallelImplementationComponent extends ComposableNode {
           path: '/workspace/src/frontend/app.dart',
           content: '\${frontend_implementation}',
         ),
-      ],
-    );
+    ]);
   }
 }
 
@@ -189,16 +189,17 @@ class SecurityAuditComponent extends ComposableNode {
 
     return Transaction(
       children: [
-        ReadFile(path: backendPath),
-        ReadFile(path: architecturePath),
+        ReadFile(path: backendPath, output: 'backend_src'),
+        ReadFile(path: architecturePath, output: 'architecture_doc'),
         Task(
-          agentRoleId: 'security_auditor',
-          taskPrompt:
+          agentId: 'security_auditor',
+          output: 'security_report',
+          prompt:
               '$owaspClause$depClause'
               'Identify all vulnerabilities with CVSS scores. Flag anything above '
               '${policy.maxCvssScore} as CRITICAL. Provide remediation steps.\n\n'
               'Backend source:\n\${backend_src}\n\n'
-              'Architecture:\n\${arch_doc}',
+              'Architecture:\n\${architecture_doc}',
         ),
         const WriteFile(
           path: '/workspace/reports/security_audit.md',
@@ -219,8 +220,9 @@ class TechLeadReviewComponent extends ComposableNode {
     final reviewersClause = gate.requiredReviewers.join(', ');
 
     return Task(
-      agentRoleId: 'tech_lead',
-      taskPrompt:
+      agentId: 'tech_lead',
+      output: 'tech_lead_review',
+      prompt:
           'Review the backend and frontend implementations for quality, '
           'architecture alignment, and adherence to our quality gate:\n'
           '- Minimum test coverage: ${gate.minTestCoverage}%\n'
@@ -246,8 +248,9 @@ class TestSuiteComponent extends ComposableNode {
     return Transaction(
       children: [
         Task(
-          agentRoleId: 'qa_engineer',
-          taskPrompt:
+          agentId: 'qa_engineer',
+          output: 'test_suite',
+          prompt:
               'Write a comprehensive test suite for ${project.projectName} backend. '
               'Target ${gate.minTestCoverage}% code coverage. Include:\n'
               '- Unit tests for all business logic\n'
@@ -274,8 +277,9 @@ class DocumentationComponent extends ComposableNode {
     return Transaction(
       children: [
         Task(
-          agentRoleId: 'tech_writer',
-          taskPrompt:
+          agentId: 'tech_writer',
+          output: 'api_documentation',
+          prompt:
               'Write complete API documentation for ${project.projectName} including:\n'
               '1. OpenAPI 3.0 specification\n'
               '2. Developer getting-started guide\n'
@@ -301,8 +305,9 @@ class DeliveryReportComponent extends ComposableNode {
   VasterNode build(BuildContext context) {
     final project = context.read<ProjectConfig>();
     return Task(
-      agentRoleId: 'architect',
-      taskPrompt:
+      agentId: 'architect',
+      output: 'delivery_report',
+      prompt:
           'Produce a final delivery report for ${project.projectName} summarising:\n'
           '- Architecture decisions and rationale\n'
           '- Implementation status (backend + frontend)\n'

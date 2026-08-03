@@ -53,7 +53,7 @@ void main(List<String> args) async {
       Agent(
         role: researcherRole,
         children: const [
-          Task(taskPrompt: 'Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.'),
+          Task(prompt: 'Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.'),
         ],
       ),
 

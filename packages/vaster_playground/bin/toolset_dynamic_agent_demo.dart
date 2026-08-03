@@ -56,7 +56,7 @@ void main() async {
           Agent(
             role: engineerRole,
             children: [
-              Task(taskPrompt: 'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
+              Task(prompt: 'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
             ],
           ),
         ],

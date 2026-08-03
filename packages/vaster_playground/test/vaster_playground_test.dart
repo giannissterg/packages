@@ -114,8 +114,8 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.taskPrompt, contains('OWASP Top 10'));
-      expect(taskNode.taskPrompt, contains('5'));
+      expect(taskNode.prompt, contains('OWASP Top 10'));
+      expect(taskNode.prompt, contains('5'));
     });
 
     test('SecurityAuditComponent omits OWASP clause when not required', () {
@@ -135,7 +135,7 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.taskPrompt, isNot(contains('OWASP Top 10')));
+      expect(taskNode.prompt, isNot(contains('OWASP Top 10')));
     });
 
     test('TestSuiteComponent reads both ProjectConfig and QualityGate', () {
@@ -150,8 +150,8 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.taskPrompt, contains('95%'));
-      expect(taskNode.taskPrompt, contains('NexusAPI'));
+      expect(taskNode.prompt, contains('95%'));
+      expect(taskNode.prompt, contains('NexusAPI'));
     });
   });
 
@@ -182,6 +182,20 @@ void main() {
       expect(state.status, equals(RuntimeStatus.halted));
       expect(state.registers.containsKey('__output__'), isTrue);
       expect(state.registers['__output__'], contains('# Nexus API — Final Delivery Report'));
+
+      // Interpolation is real: written artifacts contain the agents' actual
+      // responses, never a literal ${...} placeholder.
+      final archDoc = await vm.fileSystemManager
+          .resolveFileSystem('/workspace/docs/architecture.md')
+          .readText('/workspace/docs/architecture.md');
+      expect(archDoc, isNot(contains(r'${')),
+          reason: 'placeholders must resolve, not be written verbatim');
+      expect(archDoc, isNotEmpty);
+      final auditDoc = await vm.fileSystemManager
+          .resolveFileSystem('/workspace/reports/security_audit.md')
+          .readText('/workspace/reports/security_audit.md');
+      expect(auditDoc, contains('Security Audit'));
+      expect(auditDoc, isNot(contains(r'${')));
 
       await vm.shutdown();
     });
@@ -230,21 +244,21 @@ void main() {
           // Researcher reads the brief and produces a summary
           ReadFile(path: '/workspace/topic.txt'),
           Task(
-            agentRoleId: 'researcher',
-            taskPrompt: 'Research the following topic and produce a summary:\n\n\${topic_brief}',
+            agentId: 'researcher',
+            prompt: 'Research the following topic and produce a summary:\n\n\${topic_brief}',
           ),
           WriteFile(path: '/workspace/research.md', content: '\${research_summary}'),
           // Two reviewers review in parallel
           ParallelTasks(
             entries: [
               ParallelTaskEntry(
-                agentRoleId: 'reviewer_a',
-                promptText: 'Review this research summary for accuracy:\n\n\${research_summary}',
+                agentId: 'reviewer_a',
+                prompt: 'Review this research summary for accuracy:\n\n\${research_summary}',
                 output: 'review_a',
               ),
               ParallelTaskEntry(
-                agentRoleId: 'reviewer_b',
-                promptText: 'Review this research summary for clarity:\n\n\${research_summary}',
+                agentId: 'reviewer_b',
+                prompt: 'Review this research summary for clarity:\n\n\${research_summary}',
                 output: 'review_b',
               ),
             ],

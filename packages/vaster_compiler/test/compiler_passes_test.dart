@@ -89,7 +89,7 @@ void main() {
           then: [WriteFile(path: '/mem/a.txt', content: 'x')],
           otherwise: [],
         ),
-        const Task(agentRoleId: 'ghost', taskPrompt: 'do something'),
+        const Task(agentId: 'ghost', prompt: 'do something'),
       ]));
 
       expect(result.hasErrors, isFalse);
@@ -111,7 +111,7 @@ void main() {
           spec: const PipelineSpec(name: 'clean'),
           roles: const [architect],
           children: const [
-            Agent(role: architect, children: [Task(taskPrompt: 'design the app')]),
+            Agent(role: architect, children: [Task(prompt: 'design the app')]),
           ],
         ),
       );
@@ -168,7 +168,7 @@ void main() {
           roles: const [architect],
           children: [
             Agent(role: architect, children: [
-              Task(taskPrompt: 'design it', outputSchema: schema),
+              Task(prompt: 'design it', outputSchema: schema),
             ]),
           ],
         ),

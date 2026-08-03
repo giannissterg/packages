@@ -58,8 +58,8 @@ void main() async {
       Agent(
         role: devRole,
         children: [
-          Task(taskPrompt: 'Analyze the system architecture'),
-          Task(taskPrompt: 'Generate production code'),
+          Task(prompt: 'Analyze the system architecture'),
+          Task(prompt: 'Generate production code'),
         ],
       ),
     ],

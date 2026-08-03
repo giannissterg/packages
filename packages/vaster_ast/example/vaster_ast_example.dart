@@ -56,7 +56,7 @@ void main() {
               const SecurityAuditComponent(),
 
               // Task automatically inherits architectRole from BuildContext!
-              const Task(taskPrompt: 'Produce final system architecture document.'),
+              const Task(prompt: 'Produce final system architecture document.'),
             ],
           ),
         ],
@@ -67,7 +67,7 @@ void main() {
   );
 
   print('AST Tree Assembled Successfully!');
-  print('Root Pipeline Spec: ${pipeline.spec.name}');
+  print('Root Pipeline Spec: ${pipeline.effectiveSpec.name}');
   print('Root Mounts: ${pipeline.mounts.map((m) => m.mountPrefix).join(', ')}');
   print('Root Roles: ${pipeline.roles.map((r) => r.roleId).join(', ')}');
 }

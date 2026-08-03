@@ -14,7 +14,7 @@ class CodeReviewComponent extends ComposableNode {
       children: [
         ReadFile(path: filePath),
         // Task automatically reads enclosing AgentRole from context!
-        const Task(taskPrompt: 'Review the code for quality and security issues.'),
+        const Task(prompt: 'Review the code for quality and security issues.'),
         const Output(),
       ],
     );
@@ -59,7 +59,7 @@ void main() {
       Agent(
         role: architectRole,
         children: [
-          const Task(taskPrompt: 'Design an Auth Service from /workspace/spec.md.'),
+          const Task(prompt: 'Design an Auth Service from /workspace/spec.md.'),
         ],
       ),
 
@@ -69,7 +69,7 @@ void main() {
         children: [
           Transaction(
             children: [
-              const Task(taskPrompt: 'Implement the Auth Service based on the design.'),
+              const Task(prompt: 'Implement the Auth Service based on the design.'),
               const WriteFile(path: '/workspace/auth.dart', content: '// Auth implementation'),
             ],
           ),
@@ -91,7 +91,7 @@ void main() {
   const compiler = BasicWorkflowCompiler();
   final program = compiler.compile(pipeline);
 
-  print('Pipeline: ${pipeline.spec.name} v${pipeline.spec.version}');
+  print('Pipeline: ${pipeline.effectiveSpec.name} v${pipeline.effectiveSpec.version}');
   print('Compiled ${program.instructions.length} ISA instructions:\n');
 
   for (var i = 0; i < program.instructions.length; i++) {

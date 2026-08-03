@@ -51,7 +51,7 @@ void main() {
             role: aliceRole,
             children: const [
               SendMessage(
-                recipientAgentId: 'bob',
+                toId: 'bob',
                 payload: {'text': 'Alice completed initial research.'},
               ),
             ],

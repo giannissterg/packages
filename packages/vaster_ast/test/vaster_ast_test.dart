@@ -29,8 +29,8 @@ class SecurityAuditComponent extends ComposableNode {
       children: [
         ReadFile(path: sourceFilePath),
         Task(
-          agentRoleId: auditorRoleId,
-          taskPrompt: 'Audit $sourceFilePath for security vulnerabilities.',
+          agentId: auditorRoleId,
+          prompt: 'Audit $sourceFilePath for security vulnerabilities.',
         ),
         const Output(),
       ],
@@ -145,7 +145,7 @@ void main() {
       final expanded = component.build(ctx);
 
       expect(expanded, isA<Prompt>());
-      expect((expanded as Prompt).promptText, equals('Connect to analytics.internal:9000'));
+      expect((expanded as Prompt).prompt, equals('Connect to analytics.internal:9000'));
     });
 
     test('ProviderNode.applyToContext() injects typed value preserving T', () {

@@ -50,7 +50,7 @@ void main() {
             compressibility: ContextCompressibility.truncate,
           ),
           const Agent(role: architect, children: [
-            Task(taskPrompt: 'Design the notes app architecture'),
+            Task(prompt: 'Design the notes app architecture'),
           ]),
           const CompressContext(targetTokens: 100000),
           const EvictContext(regionId: 'meeting_log'),

@@ -36,7 +36,7 @@ void main() async {
             path: '/workspace/prod_config.json',
             content: '{"db": "production_cluster", "replicas": 5}',
           ),
-          Task(taskPrompt: 'Prepare deployment configuration.'),
+          Task(prompt: 'Prepare deployment configuration.'),
         ],
       ),
 

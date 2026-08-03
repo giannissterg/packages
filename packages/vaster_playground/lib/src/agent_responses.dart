@@ -288,13 +288,17 @@ All reviewer sign-offs obtained.
 ''';
 
 /// Aggregated response map used by [FakeVasterModel].
+// Ordered latest-pipeline-stage FIRST: matching is by substring, and with
+// real ${...} interpolation a later stage's prompt embeds earlier stages'
+// responses — so an earlier key (e.g. 'OWASP Top 10', quoted inside the
+// security report) would otherwise shadow the later stage's own key.
 final agentResponseMap = {
-  'comprehensive system architecture': _architectureResponse,
-  'Implement the backend service': _backendResponse,
-  'Implement the frontend client': _frontendResponse,
-  'OWASP Top 10': _securityResponse,
-  'Review the backend and frontend implementations': _reviewResponse,
-  'Write a comprehensive test suite': _testSuiteResponse,
-  'Write complete API documentation': _documentationResponse,
   'final delivery report': _deliveryReportResponse,
+  'Write complete API documentation': _documentationResponse,
+  'Write a comprehensive test suite': _testSuiteResponse,
+  'Review the backend and frontend implementations': _reviewResponse,
+  'OWASP Top 10': _securityResponse,
+  'Implement the frontend client': _frontendResponse,
+  'Implement the backend service': _backendResponse,
+  'comprehensive system architecture': _architectureResponse,
 };
