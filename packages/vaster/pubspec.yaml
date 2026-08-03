@@ -76,12 +76,16 @@ dependencies:
     path: ../vaster_policy
   vaster_policy_engine:
     path: ../vaster_policy_engine
+  vaster_replay:
+    path: ../vaster_replay
   vaster_resources:
     path: ../vaster_resources
   vaster_runtime:
     path: ../vaster_runtime
   vaster_sandbox:
     path: ../vaster_sandbox
+  vaster_sandbox_ffi:
+    path: ../vaster_sandbox_ffi
   vaster_scheduler:
     path: ../vaster_scheduler
   vaster_session:

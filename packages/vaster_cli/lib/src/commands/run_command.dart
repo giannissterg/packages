@@ -2,15 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
-import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_domain/vaster_domain.dart';
-import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_model_google_ai/vaster_model_google_ai.dart';
-import 'package:vaster_policy/vaster_policy.dart';
-import 'package:vaster_runtime/vaster_runtime.dart';
-import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 import '../vaster_command.dart';
