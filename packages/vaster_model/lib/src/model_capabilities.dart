@@ -21,6 +21,12 @@ class ModelCapabilities {
   /// Whether the model backend supports internal reasoning / thoughts.
   final bool supportsReasoning;
 
+  /// Whether the backend wire-reports exact monetary cost on
+  /// `UsageMetadata.costUsd` (e.g. the claude CLI's `total_cost_usd`). A
+  /// capability of the interface, not pricing data — rate tables live in
+  /// `vaster_pricing`.
+  final bool reportsCostUsd;
+
   const ModelCapabilities({
     this.maxContextTokens = 128000,
     this.maxOutputTokens = 8192,
@@ -29,6 +35,7 @@ class ModelCapabilities {
     this.supportsVision = true,
     this.supportsSystemInstruction = true,
     this.supportsReasoning = false,
+    this.reportsCostUsd = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +46,7 @@ class ModelCapabilities {
         'supportsVision': supportsVision,
         'supportsSystemInstruction': supportsSystemInstruction,
         'supportsReasoning': supportsReasoning,
+        if (reportsCostUsd) 'reportsCostUsd': reportsCostUsd,
       };
 
   factory ModelCapabilities.fromJson(Map<String, dynamic> json) {
@@ -52,6 +60,7 @@ class ModelCapabilities {
       supportsSystemInstruction:
           json['supportsSystemInstruction'] as bool? ?? true,
       supportsReasoning: json['supportsReasoning'] as bool? ?? false,
+      reportsCostUsd: json['reportsCostUsd'] as bool? ?? false,
     );
   }
 

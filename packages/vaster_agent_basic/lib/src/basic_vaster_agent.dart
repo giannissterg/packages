@@ -4,6 +4,7 @@ import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session/vaster_session.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// Concrete implementation of [VasterAgent] executing model turns,
 /// tool dispatch loops, and subagent spawning into child sessions.
@@ -55,6 +56,10 @@ class BasicVasterAgent implements VasterAgent {
     cancelToken?.throwIfCancelled();
     final watch = Stopwatch()..start();
     final subagentOutputs = <AgentOutput>[];
+    // This agent's own usage, accumulated across every tool-loop turn. When a
+    // backend reports nothing, a labeled estimate stands in so the total is
+    // never silently zero.
+    var taskUsage = const UsageMetadata();
 
     try {
       // ── ① Resolve tool definitions filtered by descriptor whitelist ──────────
@@ -98,14 +103,14 @@ class BasicVasterAgent implements VasterAgent {
 
         // c. Generate and track token usage
         response = await session.model.generate(request);
-        resourceTracker.consumeTokens(
-          response.usage.totalTokenCount > 0
-              ? response.usage.totalTokenCount
-              : (request.messages.fold<int>(
-                      0, (s, m) => s + m.text.length) ~/
-                  4) +
-                  (response.text.length ~/ 4),
-        );
+        final turnUsage = response.usage.totalTokenCount > 0
+            ? response.usage
+            : TokenEstimate.forExchange(
+                prompt: request.messages.map((m) => m.text).join('\n'),
+                output: response.text,
+              );
+        taskUsage += turnUsage;
+        resourceTracker.consumeTokens(turnUsage.totalTokenCount);
 
         // d. Record the model turn in session history
         session.appendMessage(response.message);
@@ -145,6 +150,7 @@ class BasicVasterAgent implements VasterAgent {
         outputText: response?.text ?? '',
         isSuccess: true,
         subagentOutputs: subagentOutputs,
+        usage: taskUsage,
         executionDuration: watch.elapsed,
       );
     } on QuotaExceededException catch (e) {
@@ -155,6 +161,7 @@ class BasicVasterAgent implements VasterAgent {
         outputText: '',
         isSuccess: false,
         subagentOutputs: subagentOutputs,
+        usage: taskUsage,
         executionDuration: watch.elapsed,
         errorDetails: 'Quota exceeded: ${e.message}',
       );
@@ -166,6 +173,7 @@ class BasicVasterAgent implements VasterAgent {
         outputText: '',
         isSuccess: false,
         subagentOutputs: subagentOutputs,
+        usage: taskUsage,
         executionDuration: watch.elapsed,
         errorDetails: '$e\n$st',
       );

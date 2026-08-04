@@ -36,6 +36,10 @@ class ModelResponse {
         'message': message.toJson(),
         'finishReason': finishReason.name,
         'usage': usage.toJson(),
+        // JSON-safe provider payloads survive serialization (and therefore
+        // replay tapes); host-object rawResponses are dropped as before.
+        if (rawResponse is Map || rawResponse is List)
+          'rawResponse': rawResponse,
       };
 
   factory ModelResponse.fromJson(Map<String, dynamic> json) {
@@ -53,6 +57,7 @@ class ModelResponse {
       usage: usageRaw != null
           ? UsageMetadata.fromJson(usageRaw)
           : const UsageMetadata(),
+      rawResponse: json['rawResponse'],
     );
   }
 
@@ -72,7 +77,14 @@ class ModelResponseChunk {
   /// Finish reason if streaming completed in this chunk.
   final FinishReason? finishReason;
 
-  /// Usage metadata if provided at completion.
+  /// Usage snapshot for the call so far.
+  ///
+  /// **Contract**: when present, this is the authoritative *cumulative*
+  /// snapshot at this point in the stream — the final chunk carries the final
+  /// usage. Consumers must take the last non-null value, never sum chunks.
+  /// Backends whose wire deltas are partial (e.g. Anthropic splits input
+  /// tokens into `message_start` and output tokens into `message_delta`)
+  /// merge them internally before emitting.
   final UsageMetadata? usage;
 
   const ModelResponseChunk({

@@ -120,6 +120,13 @@ class VasterRuntime {
   /// Pending human interaction request if status is [RuntimeStatus.pausedForHuman].
   HumanInteractionRequest? get pendingHumanRequest => _hitl.pendingRequest;
 
+  /// Tokens consumed against the program-declared quota (current [SetQuotaOp]
+  /// scope). Read-only observability into the quota meter.
+  int get quotaConsumedTokens => _quotaTracker.consumedTokens;
+
+  /// Monetary cost consumed against the program-declared quota scope.
+  double get quotaConsumedCost => _quotaTracker.consumedCost;
+
   /// Current execution state snapshot.
   RuntimeState get state => RuntimeState(
         pc: _pc,
@@ -412,13 +419,21 @@ class VasterRuntime {
             cacheHints: _cacheHints.activeHints,
           );
         }
-        // Charge real server-reported usage; the length heuristic is only a
+        // Charge real server-reported usage; the labeled estimate is only a
         // fallback for backends that don't report tokens.
         final tokens = response.usage.totalTokenCount > 0
             ? response.usage.totalTokenCount
-            : (promptText.length ~/ 4) + (response.text.length ~/ 4);
+            : TokenEstimate.forExchange(
+                    prompt: promptText, output: response.text)
+                .totalTokenCount;
         budget.consumeTokens(tokens);
         _quotaTracker.consumeTokens(tokens);
+        final promptCost = vm.config.pricingCatalog.resolveCostUsd(
+            response.usage, (_activeModel ?? vm.config.defaultModel).modelName);
+        if (promptCost != null) {
+          budget.consumeCost(promptCost);
+          _quotaTracker.consumeCost(promptCost);
+        }
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
       case SelectModelOp op:
@@ -517,9 +532,24 @@ class VasterRuntime {
           AgentTask(taskId: 'isa_task_$_pc', inputPrompt: taskPrompt, metadata: meta),
           agentId: op.agentId,
         );
-        final tokens = (taskPrompt.length ~/ 4) + (output.outputText.length ~/ 4);
+        // Charge the task tree's real accumulated usage (agent + subagents);
+        // the estimate only stands in when the whole tree reported nothing.
+        final taskUsage = output.aggregateUsage;
+        final tokens = taskUsage.totalTokenCount > 0
+            ? taskUsage.totalTokenCount
+            : TokenEstimate.forExchange(
+                    prompt: taskPrompt, output: output.outputText)
+                .totalTokenCount;
         budget.consumeTokens(tokens);
         _quotaTracker.consumeTokens(tokens);
+        // Wire-reported cost (summed across the tree) wins; else rate the
+        // default model, which agents run on unless configured otherwise.
+        final taskCost = vm.config.pricingCatalog
+            .resolveCostUsd(taskUsage, vm.config.defaultModel.modelName);
+        if (taskCost != null) {
+          budget.consumeCost(taskCost);
+          _quotaTracker.consumeCost(taskCost);
+        }
         if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
       case DispatchParallelTasksOp op:
@@ -534,9 +564,21 @@ class VasterRuntime {
                   ))
               .toList();
           final outputs = await manager.dispatchParallelTasks(dispatches);
+          // Parallel work is not free work: charge the summed usage of every
+          // task tree (previously this path charged nothing at all).
+          var parallelUsage = const UsageMetadata();
           for (int i = 0; i < outputs.length; i++) {
+            parallelUsage += outputs[i].aggregateUsage;
             final v = op.dispatches[i].outputVar;
             if (v != null) _registers.write(v, outputs[i].outputText);
+          }
+          budget.consumeTokens(parallelUsage.totalTokenCount);
+          _quotaTracker.consumeTokens(parallelUsage.totalTokenCount);
+          final parallelCost = vm.config.pricingCatalog.resolveCostUsd(
+              parallelUsage, vm.config.defaultModel.modelName);
+          if (parallelCost != null) {
+            budget.consumeCost(parallelCost);
+            _quotaTracker.consumeCost(parallelCost);
           }
         }
 
@@ -690,15 +732,22 @@ class VasterRuntime {
       case SetQuotaOp op:
         _quotaTracker.applyQuota(op.quota);
         if (op.quota.maxCostBudget != null) {
-          // No model backend reports monetary cost yet, so a cost ceiling
-          // cannot bind — declare that loudly instead of pretending.
-          vm.eventBus.publish(RuntimeWarningEvent(
-            eventId: 'evt_warn_quota_cost_$_pc',
-            code: 'cost_quota_unenforced',
-            message: 'maxCostBudget is declared at PC $_pc but no backend '
-                'reports cost — the cost ceiling is not enforced.',
-            pc: _pc,
-          ));
+          // A cost ceiling binds only when the active backend wire-reports
+          // cost or the pricing catalog rates its model — otherwise declare
+          // the gap loudly instead of pretending.
+          final costModel = _activeModel ?? vm.config.defaultModel;
+          final enforceable = costModel.capabilities.reportsCostUsd ||
+              vm.config.pricingCatalog.prices(costModel.modelName);
+          if (!enforceable) {
+            vm.eventBus.publish(RuntimeWarningEvent(
+              eventId: 'evt_warn_quota_cost_$_pc',
+              code: 'cost_quota_unenforced',
+              message: 'maxCostBudget is declared at PC $_pc but the active '
+                  'backend "${costModel.modelName}" neither reports cost nor '
+                  'has catalog pricing — the cost ceiling is not enforced.',
+              pc: _pc,
+            ));
+          }
         }
 
       // ── HITL ─────────────────────────────────────────────────────────────

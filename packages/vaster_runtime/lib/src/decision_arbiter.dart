@@ -64,9 +64,16 @@ final class DecisionArbiter {
 
     final tokens = response.usage.totalTokenCount > 0
         ? response.usage.totalTokenCount
-        : (composed.length ~/ 4) + (response.text.length ~/ 4);
+        : TokenEstimate.forExchange(prompt: composed, output: response.text)
+            .totalTokenCount;
     budget.consumeTokens(tokens);
     quotaTracker.consumeTokens(tokens);
+    final cost = vm.config.pricingCatalog.resolveCostUsd(
+        response.usage, (model ?? vm.config.defaultModel).modelName);
+    if (cost != null) {
+      budget.consumeCost(cost);
+      quotaTracker.consumeCost(cost);
+    }
 
     return _parse(response.text, labels);
   }

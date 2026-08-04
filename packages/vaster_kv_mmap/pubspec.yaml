@@ -12,6 +12,8 @@ dependencies:
     path: ../vaster_kv
   vaster_mmap:
     path: ../vaster_mmap
+  vaster_token_estimate:
+    path: ../vaster_token_estimate
 
 dev_dependencies:
   lints: ^6.0.0

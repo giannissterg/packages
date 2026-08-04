@@ -96,5 +96,25 @@ void main() {
 
       expect(compiled.includedRegions.map((r) => r.id), contains('pinned_spec'));
     });
+
+    test('promptStream meters tokens from the terminal chunk usage', () async {
+      final vm = await VasterVMEngine.bootstrap(
+        config: VMConfig(
+          defaultModel: FakeVasterModel(
+            usageBuilder: (request, responseText) => const UsageMetadata(
+              promptTokenCount: 80,
+              candidatesTokenCount: 20,
+              source: UsageSource.measured,
+            ),
+          ),
+        ),
+      );
+
+      final before = vm.resourceTracker.consumedTokens;
+      await vm.promptStream('Stream a reply.').drain<void>();
+
+      // Charged exactly the terminal snapshot — not a per-chunk sum.
+      expect(vm.resourceTracker.consumedTokens - before, equals(100));
+    });
   });
 }

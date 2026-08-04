@@ -7,6 +7,8 @@ environment:
 
 workspace:
   - packages/vaster_model
+  - packages/vaster_token_estimate
+  - packages/vaster_pricing
   - packages/vaster_model_fake
   - packages/vaster_context
   - packages/vaster_context_manager

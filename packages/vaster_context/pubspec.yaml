@@ -10,6 +10,7 @@ environment:
 dependencies:
   crypto: ^3.0.3
   vaster_model:
+  vaster_token_estimate:
 
 dev_dependencies:
   lints: ^6.0.0

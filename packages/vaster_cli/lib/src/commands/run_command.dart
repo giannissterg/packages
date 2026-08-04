@@ -203,6 +203,8 @@ class RunCommand extends VasterCommand {
     // 3. Bootstrap and execute.
     final vm = await VasterVMEngine.bootstrap(
         config: VMConfig(defaultModel: model));
+    final usageMeter = _UsageMeter();
+    final usageSub = vm.eventBus.on<ModelUsageEvent>().listen(usageMeter.add);
     final budget = ExecutionBudget.unlimited();
     final runtime = VasterRuntime(
       vm: vm,
@@ -275,9 +277,10 @@ class RunCommand extends VasterCommand {
       out.writeln('\n[record] ${recorder.recordedSteps} steps + '
           '${recordingTape?.length ?? 0} model calls → $recordPath');
     }
+    // Let the broadcast stream flush events published this turn.
+    await Future<void>.delayed(Duration.zero);
+    await usageSub.cancel();
     if (eventSub != null) {
-      // Let the broadcast stream flush events published this turn.
-      await Future<void>.delayed(Duration.zero);
       await eventSub.cancel();
     }
 
@@ -285,6 +288,19 @@ class RunCommand extends VasterCommand {
     out.writeln('\n── EXECUTION COMPLETE ─────────────────────────────────');
     out.writeln('  status : ${state.status.name}');
     out.writeln('  tokens : ${budget.consumedTokens}');
+    if (budget.consumedCost > 0) {
+      out.writeln('  cost   : \$${budget.consumedCost.toStringAsFixed(6)}');
+    }
+    if (usageMeter.promptTokens > 0 && usageMeter.cacheReadTokens > 0) {
+      final share = usageMeter.cacheReadTokens / usageMeter.promptTokens * 100;
+      out.writeln('  cache  : ${usageMeter.cacheReadTokens} of '
+          '${usageMeter.promptTokens} prompt tokens read from cache '
+          '(${share.toStringAsFixed(1)}%)');
+    }
+    if (usageMeter.sawEstimates) {
+      out.writeln('  note   : some usage was length-estimated, not '
+          'backend-reported');
+    }
     if (state.registers.containsKey('__output__')) {
       out.writeln('  output :');
       out.writeln('${state.registers['__output__']}');
@@ -295,5 +311,19 @@ class RunCommand extends VasterCommand {
 
     await vm.shutdown();
     return state.status == RuntimeStatus.halted ? 0 : 1;
+  }
+}
+
+/// Aggregates [ModelUsageEvent]s for the final report: total prompt tokens,
+/// cache-read share, and whether any usage was estimated.
+class _UsageMeter {
+  int promptTokens = 0;
+  int cacheReadTokens = 0;
+  bool sawEstimates = false;
+
+  void add(ModelUsageEvent event) {
+    promptTokens += event.promptTokenCount;
+    cacheReadTokens += (event.usage['cacheReadTokenCount'] as int?) ?? 0;
+    if (event.estimated) sawEstimates = true;
   }
 }

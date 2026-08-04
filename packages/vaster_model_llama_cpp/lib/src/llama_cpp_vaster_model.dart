@@ -175,8 +175,17 @@ class LlamaCppVasterModel implements VasterModel {
     return FinishReason.stop;
   }
 
-  static UsageMetadata _parseUsage(Map<String, dynamic> json) => UsageMetadata(
-        promptTokenCount: (json['tokens_evaluated'] as int?) ?? 0,
-        candidatesTokenCount: (json['tokens_predicted'] as int?) ?? 0,
-      );
+  static UsageMetadata _parseUsage(Map<String, dynamic> json) {
+    // tokens_evaluated counts freshly-processed prompt tokens only; the
+    // cached prefix reused via cache_prompt arrives in tokens_cached. Total
+    // prompt = evaluated + cached.
+    final evaluated = (json['tokens_evaluated'] as int?) ?? 0;
+    final cached = (json['tokens_cached'] as int?) ?? 0;
+    return UsageMetadata(
+      promptTokenCount: evaluated + cached,
+      candidatesTokenCount: (json['tokens_predicted'] as int?) ?? 0,
+      cacheReadTokenCount: cached,
+      source: UsageSource.measured,
+    );
+  }
 }

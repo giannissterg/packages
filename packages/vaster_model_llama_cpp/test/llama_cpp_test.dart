@@ -68,6 +68,19 @@ void main() {
       expect(response.usage.candidatesTokenCount, equals(7));
     });
 
+    test('cached prefix tokens count toward the prompt', () {
+      final response = LlamaCppVasterModel.parseResponse({
+        'content': 'warm cache',
+        'stop': true,
+        'tokens_evaluated': 30,
+        'tokens_cached': 900,
+        'tokens_predicted': 5,
+      });
+      expect(response.usage.promptTokenCount, equals(930));
+      expect(response.usage.cacheReadTokenCount, equals(900));
+      expect(response.usage.source, equals(UsageSource.measured));
+    });
+
     test('stopped_limit maps to maxTokens', () {
       final response = LlamaCppVasterModel.parseResponse({
         'content': 'truncated…',

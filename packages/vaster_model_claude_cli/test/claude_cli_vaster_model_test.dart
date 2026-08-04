@@ -17,6 +17,28 @@ void main() {
       expect(response.usage.candidatesTokenCount, equals(3));
     });
 
+    test('cache tokens fold into prompt count and cost is captured', () {
+      // Shape observed live: on a warm cache input_tokens is single digits
+      // while the cached prefix carries the real prompt size.
+      const stdout = '{"type":"result","is_error":false,"result":"ok",'
+          '"total_cost_usd":0.0234,'
+          '"usage":{"input_tokens":6,"output_tokens":700,'
+          '"cache_read_input_tokens":4200,"cache_creation_input_tokens":800},'
+          '"modelUsage":{"claude-opus-5":{"inputTokens":6,"costUSD":0.0234}}}';
+
+      final response = ClaudeCliVasterModel.parseCliJson(stdout);
+
+      expect(response.usage.promptTokenCount, equals(6 + 4200 + 800));
+      expect(response.usage.cacheReadTokenCount, equals(4200));
+      expect(response.usage.cacheCreationTokenCount, equals(800));
+      expect(response.usage.candidatesTokenCount, equals(700));
+      expect(response.usage.costUsd, equals(0.0234));
+      expect(response.usage.source, equals(UsageSource.measured));
+      // The full CLI JSON (modelUsage breakdown etc.) is preserved raw.
+      expect(response.rawResponse, isA<Map<String, dynamic>>());
+      expect((response.rawResponse as Map)['modelUsage'], isNotNull);
+    });
+
     test('throws StateError when the CLI reports is_error', () {
       // This is the real payload emitted by an unauthenticated CLI.
       const stdout = '{"type":"result","subtype":"success","is_error":true,'

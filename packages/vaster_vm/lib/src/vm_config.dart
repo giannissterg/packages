@@ -1,4 +1,5 @@
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_pricing/vaster_pricing.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 
 /// Configuration settings used to initialize a [VasterVirtualMachine].
@@ -8,6 +9,11 @@ class VMConfig {
 
   /// Default resource quota applied to VM execution tasks.
   final ResourceQuota defaultQuota;
+
+  /// Rate table used to compute monetary cost for backends that don't
+  /// wire-report it. Defaults to the dated builtin rates; pass
+  /// [PricingCatalog.empty] to disable computed cost entirely.
+  final PricingCatalog pricingCatalog;
 
   /// Default root mount path prefix for memory filesystems.
   final String rootMountPath;
@@ -24,6 +30,7 @@ class VMConfig {
   const VMConfig({
     required this.defaultModel,
     this.defaultQuota = ResourceQuota.unlimited,
+    this.pricingCatalog = PricingCatalog.builtin,
     this.rootMountPath = '/mem',
     this.cores = 1,
     this.metadata = const {},

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:vaster_kv/vaster_kv.dart';
 import 'package:vaster_mmap/vaster_mmap.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// A state-addressed [KvCacheController] whose physical frames live in named
 /// POSIX shared-memory segments ([SharedMemoryFrame]).
@@ -90,7 +91,7 @@ class MmapKvCacheController implements KvCacheController, KvFrameResolver {
     final frame = SharedMemoryFrame.create(
       _segmentName(contentFingerprint),
       payload,
-      meta: tokenEstimate ?? content.length ~/ 4,
+      meta: tokenEstimate ?? TokenEstimate.forText(content),
     );
     final handle = _handleFor(contentFingerprint, frame);
     _frames[contentFingerprint] = (handle, frame);

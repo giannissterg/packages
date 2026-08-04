@@ -69,11 +69,9 @@ abstract final class UnixSocketProtocol {
       if (requestId != null) 'requestId': requestId,
       'text': response.text,
       'finishReason': response.finishReason.name,
-      'usage': {
-        'promptTokenCount': response.usage.promptTokenCount,
-        'candidatesTokenCount': response.usage.candidatesTokenCount,
-        'totalTokenCount': response.usage.totalTokenCount,
-      },
+      // Single-sourced through UsageMetadata's own serialization so new
+      // usage fields propagate across the wire with no protocol edits.
+      'usage': response.usage.toJson(),
       'functionCalls': response.functionCalls
           .map((c) => {
                 'callId': c.callId,
@@ -94,11 +92,7 @@ abstract final class UnixSocketProtocol {
     );
 
     final usageMap = json['usage'] as Map<String, dynamic>? ?? {};
-    final usage = UsageMetadata(
-      promptTokenCount: usageMap['promptTokenCount'] as int? ?? 0,
-      candidatesTokenCount: usageMap['candidatesTokenCount'] as int? ?? 0,
-      totalTokenCount: usageMap['totalTokenCount'] as int? ?? 0,
-    );
+    final usage = UsageMetadata.fromJson(usageMap);
 
     final fnCallsRaw = json['functionCalls'] as List? ?? [];
     final functionCalls = fnCallsRaw.map((c) {

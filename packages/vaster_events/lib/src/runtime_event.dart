@@ -75,6 +75,62 @@ final class ModelFinishedEvent extends RuntimeEvent {
       };
 }
 
+/// Per-call token/cost usage, emitted by the component that OWNS the model
+/// call (the VM's prompt funnel, or the agent manager per task) — exactly one
+/// event per call; charge-only sites never emit.
+///
+/// This package is dependency-free, so the full usage breakdown travels as
+/// the [usage] JSON map (cache read/write, thoughts, source) alongside the
+/// flattened headline numbers.
+final class ModelUsageEvent extends RuntimeEvent {
+  final String modelName;
+
+  /// Which funnel emitted this: `vm_prompt` or `agent_task`.
+  final String callSite;
+
+  final int promptTokenCount;
+  final int candidatesTokenCount;
+  final int totalTokenCount;
+
+  /// Monetary cost when known (wire-reported or catalog-computed).
+  final double? costUsd;
+
+  /// True when the numbers came from a length heuristic, not the wire.
+  final bool estimated;
+
+  /// Full `UsageMetadata.toJson()` payload.
+  final Map<String, dynamic> usage;
+
+  ModelUsageEvent({
+    required super.eventId,
+    required this.modelName,
+    required this.callSite,
+    required this.promptTokenCount,
+    required this.candidatesTokenCount,
+    required this.totalTokenCount,
+    this.costUsd,
+    required this.estimated,
+    required this.usage,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'model_usage',
+        'eventId': eventId,
+        'modelName': modelName,
+        'callSite': callSite,
+        'promptTokenCount': promptTokenCount,
+        'candidatesTokenCount': candidatesTokenCount,
+        'totalTokenCount': totalTokenCount,
+        if (costUsd != null) 'costUsd': costUsd,
+        'estimated': estimated,
+        'usage': usage,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
 /// Emitted when a tool invocation is called by a model.
 final class ToolCalledEvent extends RuntimeEvent {
   final String callId;

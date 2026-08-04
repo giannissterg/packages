@@ -13,6 +13,7 @@ import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 import 'package:vaster_sandbox_isolate/vaster_sandbox_isolate.dart';
 import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
 import 'package:vaster_scheduler/vaster_scheduler.dart';
@@ -358,10 +359,12 @@ class VasterVMEngine implements VasterVirtualMachine {
     );
 
     final response = await activeModel.generate(request);
-    resourceTracker.consumeTokens(
+    _meterCall(
       response.usage.totalTokenCount > 0
-          ? response.usage.totalTokenCount
-          : (promptText.length ~/ 4) + (response.text.length ~/ 4),
+          ? response.usage
+          : TokenEstimate.forExchange(
+              prompt: promptText, output: response.text),
+      activeModel,
     );
 
     return response;
@@ -389,10 +392,15 @@ class VasterVMEngine implements VasterVirtualMachine {
     );
 
     final response = await activeModel.generate(request);
-    resourceTracker.consumeTokens(
+    _meterCall(
       response.usage.totalTokenCount > 0
-          ? response.usage.totalTokenCount
-          : response.text.length ~/ 4,
+          ? response.usage
+          // The fallback must count the sent history too, not just the reply.
+          : UsageMetadata(
+              promptTokenCount: TokenEstimate.forMessages(messages),
+              candidatesTokenCount: TokenEstimate.forText(response.text),
+            ),
+      activeModel,
     );
 
     return response;
@@ -420,13 +428,39 @@ class VasterVMEngine implements VasterVirtualMachine {
       cancelToken: cancelToken,
     );
 
-    resourceTracker.consumeTokens(
+    _meterCall(
       response.usage.totalTokenCount > 0
-          ? response.usage.totalTokenCount
-          : (promptText.length ~/ 4) + (response.text.length ~/ 4),
+          ? response.usage
+          : TokenEstimate.forExchange(
+              prompt: promptText, output: response.text),
+      model ?? this.config.defaultModel,
     );
 
     return response;
+  }
+
+  int _usageEventSeq = 0;
+
+  /// Meters one model call at the VM funnel: publishes exactly one
+  /// [ModelUsageEvent] (before charging, so the usage is observable even when
+  /// a quota trips), charges tokens, and charges monetary cost when known
+  /// (wire-reported cost wins, else the pricing catalog rates the model,
+  /// else cost is honestly unknown and nothing is charged).
+  void _meterCall(UsageMetadata usage, VasterModel model) {
+    final cost = config.pricingCatalog.resolveCostUsd(usage, model.modelName);
+    eventBus.publish(ModelUsageEvent(
+      eventId: 'evt_usage_vm_${_usageEventSeq++}',
+      modelName: model.modelName,
+      callSite: 'vm_prompt',
+      promptTokenCount: usage.promptTokenCount,
+      candidatesTokenCount: usage.candidatesTokenCount,
+      totalTokenCount: usage.totalTokenCount,
+      costUsd: cost,
+      estimated: usage.source == UsageSource.estimated,
+      usage: usage.toJson(),
+    ));
+    resourceTracker.consumeTokens(usage.totalTokenCount);
+    if (cost != null) resourceTracker.consumeCost(cost);
   }
 
   @override
@@ -448,7 +482,26 @@ class VasterVMEngine implements VasterVirtualMachine {
       cacheHints: cacheHints ?? const [],
     );
 
-    yield* activeModel.generateStream(request);
+    // Streaming is metered like any other call: chunk usage is a cumulative
+    // snapshot (take-last, never sum). If the stream dies before a usage
+    // snapshot arrives, a labeled estimate from the accumulated text stands
+    // in so streamed work is never free.
+    UsageMetadata? streamUsage;
+    final textBuffer = StringBuffer();
+    try {
+      await for (final chunk in activeModel.generateStream(request)) {
+        if (chunk.textDelta != null) textBuffer.write(chunk.textDelta);
+        if (chunk.usage != null) streamUsage = chunk.usage;
+        yield chunk;
+      }
+    } finally {
+      _meterCall(
+        streamUsage ??
+            TokenEstimate.forExchange(
+                prompt: promptText, output: textBuffer.toString()),
+        activeModel,
+      );
+    }
   }
 
   @override

@@ -47,6 +47,20 @@ Breaking DX overhaul of the AST surface, plus new runtime semantics.
   from the review text — a real claude-cli calibration run showed backends
   without schema enforcement re-reviewing the artifact and overriding the
   reviewer's verdict.
+- **Usage fidelity**: `UsageMetadata` gained cache read/write and thought
+  token breakdowns, wire-reported `costUsd`, and a measured-vs-estimated
+  `source` marker; every backend parser reports full-fidelity usage
+  (claude-cli no longer drops cache tokens and `total_cost_usd`; claude-api
+  streaming parses `message_start`; the RPC sidecar carries usage on stream
+  chunks; gemini-cli handles both stats schemas; llama.cpp counts
+  `tokens_cached`). `AgentOutput` carries per-tree usage, so agent dispatch
+  charges real numbers and parallel dispatch is no longer free. Streaming
+  (`vm.promptStream`) is metered. New packages: `vaster_token_estimate` (the
+  one sanctioned `/4` heuristic, always labeled estimated) and
+  `vaster_pricing` (`PricingCatalog` rate tables; wire-reported cost wins) —
+  cost ceilings now bind, and `cost_quota_unenforced` fires only for
+  genuinely unpriced backends. New `ModelUsageEvent` telemetry (one per
+  model call) and a `vaster run` report with cost and cache-share lines.
 
 ## 0.0.1
 

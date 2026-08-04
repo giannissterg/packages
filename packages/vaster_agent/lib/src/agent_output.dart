@@ -1,3 +1,5 @@
+import 'package:vaster_model/vaster_model.dart';
+
 /// Execution result payload returned by an agent task execution.
 class AgentOutput {
   /// Matching task identifier.
@@ -15,6 +17,10 @@ class AgentOutput {
   /// Results returned by spawned subagents during this task.
   final List<AgentOutput> subagentOutputs;
 
+  /// Token/cost usage of THIS agent's own model calls (accumulated across
+  /// its tool loop) — excludes subagents; see [aggregateUsage].
+  final UsageMetadata usage;
+
   /// Total execution duration.
   final Duration executionDuration;
 
@@ -27,9 +33,15 @@ class AgentOutput {
     required this.outputText,
     this.isSuccess = true,
     this.subagentOutputs = const [],
+    this.usage = const UsageMetadata(),
     this.executionDuration = Duration.zero,
     this.errorDetails,
   });
+
+  /// Usage of the whole task tree: this agent's own calls plus every
+  /// subagent's, each counted exactly once.
+  UsageMetadata get aggregateUsage =>
+      subagentOutputs.fold(usage, (acc, s) => acc + s.aggregateUsage);
 
   Map<String, dynamic> toJson() => {
         'taskId': taskId,
@@ -37,11 +49,14 @@ class AgentOutput {
         'outputText': outputText,
         'isSuccess': isSuccess,
         'subagentOutputs': subagentOutputs.map((s) => s.toJson()).toList(),
+        if (usage.totalTokenCount != 0 || usage.costUsd != null)
+          'usage': usage.toJson(),
         'executionDurationMs': executionDuration.inMilliseconds,
         if (errorDetails != null) 'errorDetails': errorDetails,
       };
 
   factory AgentOutput.fromJson(Map<String, dynamic> json) {
+    final usageRaw = json['usage'] as Map<String, dynamic>?;
     return AgentOutput(
       taskId: json['taskId'] as String? ?? '',
       agentId: json['agentId'] as String? ?? '',
@@ -51,6 +66,9 @@ class AgentOutput {
               ?.map((e) => AgentOutput.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      usage: usageRaw != null
+          ? UsageMetadata.fromJson(usageRaw)
+          : const UsageMetadata(),
       executionDuration:
           Duration(milliseconds: json['executionDurationMs'] as int? ?? 0),
       errorDetails: json['errorDetails'] as String?,

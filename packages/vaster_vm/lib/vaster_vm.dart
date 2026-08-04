@@ -18,6 +18,7 @@ export 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 export 'package:vaster_instruction/vaster_instruction.dart';
 export 'package:vaster_model/vaster_model.dart';
 export 'package:vaster_policy/vaster_policy.dart';
+export 'package:vaster_pricing/vaster_pricing.dart';
 export 'package:vaster_policy_engine/vaster_policy_engine.dart';
 export 'package:vaster_resources/vaster_resources.dart';
 export 'package:vaster_runtime/vaster_runtime.dart';
@@ -28,6 +29,7 @@ export 'package:vaster_sandbox_process/vaster_sandbox_process.dart';
 export 'package:vaster_scheduler/vaster_scheduler.dart';
 export 'package:vaster_session/vaster_session.dart';
 export 'package:vaster_session_manager/vaster_session_manager.dart';
+export 'package:vaster_token_estimate/vaster_token_estimate.dart';
 export 'package:vaster_tool/vaster_tool.dart';
 export 'package:vaster_tool_manager/vaster_tool_manager.dart';
 

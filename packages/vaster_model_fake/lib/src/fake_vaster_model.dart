@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// A mock/fake implementation of [VasterModel] for offline testing, local VM development,
 /// and automated test scenarios.
@@ -20,6 +21,12 @@ class FakeVasterModel implements VasterModel {
   /// Default static response text returned when no handler or response map match is found.
   final String defaultResponseText;
 
+  /// Builds the [UsageMetadata] reported for a generated response, letting
+  /// tests pin exact token/cost numbers. When null, usage defaults to a
+  /// token-scale length estimate (~4 chars/token, `source: estimated`).
+  final UsageMetadata Function(ModelRequest request, String responseText)?
+      usageBuilder;
+
   /// Recorded history of requests received by this model backend.
   final List<ModelRequest> recordedRequests = [];
 
@@ -37,6 +44,7 @@ class FakeVasterModel implements VasterModel {
     this.defaultResponseText = 'Fake model response text',
     this.responseMap = const {},
     this.handler,
+    this.usageBuilder,
   });
 
   @override
@@ -60,18 +68,21 @@ class FakeVasterModel implements VasterModel {
 
     final responseText = matchedText ?? '$defaultResponseText (Echo: "$userText")';
 
+    // Token-scale estimate (~4 chars/token), mirroring real backends'
+    // magnitudes; raw character counts would be ~4x inflated.
     final promptTokens = request.messages.fold<int>(
       0,
-      (sum, msg) => sum + msg.text.length,
+      (sum, msg) => sum + TokenEstimate.forText(msg.text),
     );
 
     return ModelResponse(
       message: ChatMessage.model(responseText),
       finishReason: FinishReason.stop,
-      usage: UsageMetadata(
-        promptTokenCount: promptTokens,
-        candidatesTokenCount: responseText.length,
-      ),
+      usage: usageBuilder?.call(request, responseText) ??
+          UsageMetadata(
+            promptTokenCount: promptTokens,
+            candidatesTokenCount: TokenEstimate.forText(responseText),
+          ),
     );
   }
 

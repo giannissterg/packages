@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'kv_cache_controller.dart';
 import 'kv_cache_handle.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// In-process simulation of a state-addressed KV cache — LRU-evicting slot
 /// store used for tests and for modeling physical-context behavior without a
@@ -58,7 +59,7 @@ class InMemoryKvCacheController implements KvCacheController {
     final handle = KvCacheHandle(
       handleId: 'slot_${contentFingerprint.substring(0, 12)}',
       contentFingerprint: contentFingerprint,
-      tokenCount: tokenEstimate ?? content.length ~/ 4,
+      tokenCount: tokenEstimate ?? TokenEstimate.forText(content),
       sizeBytes: state.length,
       backend: backendId,
     );

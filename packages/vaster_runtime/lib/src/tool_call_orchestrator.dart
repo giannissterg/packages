@@ -92,11 +92,20 @@ final class ToolCallOrchestrator {
         tools: toolDefinitions,
         cacheHints: cacheHints,
       );
+      // Each loop turn re-sends the whole transcript — the estimate must
+      // count that input side, not just the reply.
       final tokens = response.usage.totalTokenCount > 0
           ? response.usage.totalTokenCount
-          : response.text.length ~/ 4;
+          : TokenEstimate.forMessages(transcript) +
+              TokenEstimate.forText(response.text);
       budget.consumeTokens(tokens);
       quotaTracker.consumeTokens(tokens);
+      final cost = vm.config.pricingCatalog.resolveCostUsd(
+          response.usage, (model ?? vm.config.defaultModel).modelName);
+      if (cost != null) {
+        budget.consumeCost(cost);
+        quotaTracker.consumeCost(cost);
+      }
     }
     return response;
   }

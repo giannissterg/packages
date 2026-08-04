@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
@@ -233,5 +234,82 @@ void main() {
       expect(ClaudeApiVasterModel.mapStopReason('refusal'), FinishReason.safety);
       expect(ClaudeApiVasterModel.mapStopReason(null), FinishReason.unknown);
     });
+
+    test('parseUsage carries the cache breakdown and measured source', () {
+      final usage = ClaudeApiVasterModel.parseUsage({
+        'input_tokens': 6,
+        'cache_read_input_tokens': 4000,
+        'cache_creation_input_tokens': 500,
+        'output_tokens': 300,
+      });
+      expect(usage.promptTokenCount, equals(4506));
+      expect(usage.cacheReadTokenCount, equals(4000));
+      expect(usage.cacheCreationTokenCount, equals(500));
+      expect(usage.source, equals(UsageSource.measured));
+    });
   });
+
+  group('SSE streaming usage', () {
+    test('message_start seeds input+cache; message_delta supplies output', () async {
+      // Anthropic reports input/cache counts only in message_start; the
+      // message_delta usage carries cumulative output_tokens. The terminal
+      // chunk must merge both — before this fix, streamed prompt tokens ≈ 0.
+      final events = [
+        {
+          'type': 'message_start',
+          'message': {
+            'usage': {
+              'input_tokens': 12,
+              'cache_read_input_tokens': 2000,
+              'cache_creation_input_tokens': 300,
+              'output_tokens': 1,
+            },
+          },
+        },
+        {
+          'type': 'content_block_delta',
+          'delta': {'type': 'text_delta', 'text': 'Hello'},
+        },
+        {
+          'type': 'message_delta',
+          'delta': {'stop_reason': 'end_turn'},
+          'usage': {'output_tokens': 42},
+        },
+        {'type': 'message_stop'},
+      ];
+      final sse = events.map((e) => 'data: ${jsonEncode(e)}\n\n').join();
+
+      final model = ClaudeApiVasterModel(
+        apiKey: 'test-key',
+        clientFactory: () => _FakeSseClient(sse),
+      );
+
+      final chunks = await model
+          .generateStream(ModelRequest(messages: [ChatMessage.user('hi')]))
+          .toList();
+
+      final terminal = chunks.last;
+      expect(terminal.finishReason, equals(FinishReason.stop));
+      expect(terminal.usage, isNotNull);
+      expect(terminal.usage!.promptTokenCount, equals(12 + 2000 + 300));
+      expect(terminal.usage!.cacheReadTokenCount, equals(2000));
+      expect(terminal.usage!.cacheCreationTokenCount, equals(300));
+      expect(terminal.usage!.candidatesTokenCount, equals(42));
+      expect(terminal.usage!.source, equals(UsageSource.measured));
+    });
+  });
+}
+
+/// Serves a canned SSE body for any request.
+class _FakeSseClient extends http.BaseClient {
+  final String body;
+  _FakeSseClient(this.body);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(
+      Stream.value(utf8.encode(body)),
+      200,
+    );
+  }
 }

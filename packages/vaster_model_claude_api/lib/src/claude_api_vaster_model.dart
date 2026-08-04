@@ -156,6 +156,13 @@ class ClaudeApiVasterModel implements VasterModel {
 
         final event = jsonDecode(payload) as Map<String, dynamic>;
         switch (event['type'] as String?) {
+          case 'message_start':
+            // Input + cache token counts arrive only here; message_delta
+            // carries cumulative output tokens. Seed the accumulator so the
+            // terminal chunk reports full prompt usage.
+            final message = event['message'] as Map<String, dynamic>? ?? {};
+            final rawUsage = message['usage'] as Map<String, dynamic>?;
+            if (rawUsage != null) usage = parseUsage(rawUsage);
           case 'content_block_start':
             final block = event['content_block'] as Map<String, dynamic>? ?? {};
             if (block['type'] == 'tool_use') {
@@ -197,7 +204,29 @@ class ClaudeApiVasterModel implements VasterModel {
             final stopReason = delta['stop_reason'] as String?;
             if (stopReason != null) finishReason = mapStopReason(stopReason);
             final rawUsage = event['usage'] as Map<String, dynamic>?;
-            if (rawUsage != null) usage = parseUsage(rawUsage);
+            if (rawUsage != null) {
+              // Merge, don't overwrite: message_delta usage carries cumulative
+              // output_tokens but typically no input/cache counts — keep the
+              // prompt side seeded by message_start.
+              final deltaUsage = parseUsage(rawUsage);
+              final prior = usage;
+              usage = prior == null
+                  ? deltaUsage
+                  : UsageMetadata(
+                      promptTokenCount: deltaUsage.promptTokenCount > 0
+                          ? deltaUsage.promptTokenCount
+                          : prior.promptTokenCount,
+                      candidatesTokenCount: deltaUsage.candidatesTokenCount,
+                      cacheReadTokenCount: deltaUsage.cacheReadTokenCount > 0
+                          ? deltaUsage.cacheReadTokenCount
+                          : prior.cacheReadTokenCount,
+                      cacheCreationTokenCount:
+                          deltaUsage.cacheCreationTokenCount > 0
+                              ? deltaUsage.cacheCreationTokenCount
+                              : prior.cacheCreationTokenCount,
+                      source: UsageSource.measured,
+                    );
+            }
           case 'message_stop':
             yield ModelResponseChunk(
               finishReason: finishReason ?? FinishReason.stop,
@@ -421,9 +450,13 @@ class ClaudeApiVasterModel implements VasterModel {
     final cacheRead = (usage['cache_read_input_tokens'] as int?) ?? 0;
     final cacheWrite = (usage['cache_creation_input_tokens'] as int?) ?? 0;
     return UsageMetadata(
-      // Total prompt size = uncached + cache-read + cache-write tokens.
+      // Total prompt size = uncached + cache-read + cache-write tokens
+      // (Anthropic's input_tokens excludes cache tokens).
       promptTokenCount: input + cacheRead + cacheWrite,
       candidatesTokenCount: (usage['output_tokens'] as int?) ?? 0,
+      cacheReadTokenCount: cacheRead,
+      cacheCreationTokenCount: cacheWrite,
+      source: UsageSource.measured,
     );
   }
 }

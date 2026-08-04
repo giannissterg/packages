@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// Projects a session's live conversation history into context regions, so
 /// history is budgeted, compressible, prioritized, and inspectable like every
@@ -33,7 +34,7 @@ final class SessionHistorySource extends ConversationContextSource {
   }) : super(id: 'session:$sessionId:history', name: 'session_history');
 
   static int _estimate(Iterable<ChatMessage> messages) =>
-      messages.fold(0, (sum, m) => sum + (m.text.length / 4).ceil() + 4);
+      TokenEstimate.forMessages(messages);
 
   @override
   List<ContextRegion> getRegions() {

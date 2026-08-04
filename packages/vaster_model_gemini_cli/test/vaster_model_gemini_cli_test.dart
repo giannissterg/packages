@@ -25,6 +25,44 @@ void main() {
     });
   });
 
+  group('GeminiCliVasterModel.parseStats', () {
+    test('per-model schema: sums models, maps cached/thoughts/tool', () {
+      final usage = GeminiCliVasterModel.parseStats({
+        'models': {
+          'gemini-2.5-pro': {
+            'tokens': {
+              'prompt': 1000,
+              'candidates': 200,
+              'cached': 600,
+              'thoughts': 150,
+              'tool': 50,
+            },
+          },
+          'gemini-2.5-flash': {
+            'tokens': {'input': 100, 'output': 20},
+          },
+        },
+      });
+
+      expect(usage.promptTokenCount, equals(1000 + 100 + 50)); // tool → prompt
+      expect(usage.candidatesTokenCount, equals(220));
+      expect(usage.cacheReadTokenCount, equals(600));
+      expect(usage.thoughtsTokenCount, equals(150));
+      expect(usage.source, equals(UsageSource.measured));
+    });
+
+    test('flat schema: input_tokens/output_tokens', () {
+      final usage = GeminiCliVasterModel.parseStats({
+        'input_tokens': 42,
+        'output_tokens': 7,
+      });
+
+      expect(usage.promptTokenCount, equals(42));
+      expect(usage.candidatesTokenCount, equals(7));
+      expect(usage.source, equals(UsageSource.measured));
+    });
+  });
+
   group('GeminiCliVasterModel — Integration with local Gemini CLI', () {
     final geminiAvailable = Process.runSync('gemini', ['--version']).exitCode == 0;
 

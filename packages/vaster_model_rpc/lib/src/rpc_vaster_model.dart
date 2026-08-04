@@ -99,10 +99,13 @@ class RpcVasterModel implements VasterModel {
               )
             : null;
 
+        final usageMap = json['usage'] as Map<String, dynamic>?;
+
         yield ModelResponseChunk(
           delta: textDelta != null ? TextPart(textDelta) : null,
           textDelta: textDelta,
           finishReason: finishReason,
+          usage: usageMap != null ? UsageMetadata.fromJson(usageMap) : null,
         );
       }
     } finally {

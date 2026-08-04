@@ -73,6 +73,37 @@ void main() {
     await vm2.shutdown();
   });
 
+  test('recorded usage and JSON-safe rawResponse survive the tape', () async {
+    final live = FakeVasterModel(handler: (request) {
+      return ModelResponse(
+        message: ChatMessage.model('measured reply'),
+        usage: const UsageMetadata(
+          promptTokenCount: 1234,
+          candidatesTokenCount: 56,
+          cacheReadTokenCount: 1000,
+          costUsd: 0.0123,
+          source: UsageSource.measured,
+        ),
+        rawResponse: const {'total_cost_usd': 0.0123, 'provider': 'test'},
+      );
+    });
+    final tape = ModelTape();
+    final recorder = RecordingVasterModel(inner: live, tape: tape);
+    await recorder
+        .generate(ModelRequest(messages: [ChatMessage.user('hi')]));
+
+    final rehydrated = ModelTape.fromJson(
+        jsonDecode(jsonEncode(tape.toJson())) as Map<String, dynamic>);
+    final replayed = await ReplayVasterModel(tape: rehydrated)
+        .generate(ModelRequest(messages: [ChatMessage.user('hi')]));
+
+    expect(replayed.usage.promptTokenCount, equals(1234));
+    expect(replayed.usage.cacheReadTokenCount, equals(1000));
+    expect(replayed.usage.costUsd, equals(0.0123));
+    expect(replayed.usage.source, equals(UsageSource.measured));
+    expect((replayed.rawResponse as Map)['provider'], equals('test'));
+  });
+
   test('the tape carries the backend capabilities that shaped its requests',
       () async {
     // Regression: a session sizes its context compilation from the model's

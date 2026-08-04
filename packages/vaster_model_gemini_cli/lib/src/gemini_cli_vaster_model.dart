@@ -108,20 +108,9 @@ class GeminiCliVasterModel implements VasterModel {
           }
         } else if (type == 'result') {
           final stats = json['stats'] as Map<String, dynamic>?;
-          UsageMetadata? usage;
-
-          if (stats != null) {
-            final inputTokens = stats['input_tokens'] as int? ?? 0;
-            final outputTokens = stats['output_tokens'] as int? ?? 0;
-            usage = UsageMetadata(
-              promptTokenCount: inputTokens,
-              candidatesTokenCount: outputTokens,
-            );
-          }
-
           yield ModelResponseChunk(
             finishReason: FinishReason.stop,
-            usage: usage,
+            usage: stats != null ? parseStats(stats) : null,
           );
         }
       } catch (e) {
@@ -195,30 +184,58 @@ class GeminiCliVasterModel implements VasterModel {
     final responseText = json['response'] as String? ?? '';
     final stats = json['stats'] as Map<String, dynamic>?;
 
-    UsageMetadata usage = const UsageMetadata();
-    if (stats != null && stats['models'] is Map) {
+    return ModelResponse(
+      message: ChatMessage.model(responseText),
+      finishReason: FinishReason.stop,
+      usage: stats != null ? parseStats(stats) : const UsageMetadata(),
+      rawResponse: json,
+    );
+  }
+
+  /// Parses a Gemini CLI `stats` payload into [UsageMetadata].
+  ///
+  /// The CLI has emitted two schemas across versions: the per-model map
+  /// (`stats.models[*].tokens.{prompt,candidates,cached,thoughts,tool,total}`,
+  /// preferred when present) and the flat pair
+  /// (`stats.{input_tokens,output_tokens}`). Both stream and non-stream paths
+  /// parse through here so one schema can never silently decode as zeros in
+  /// only one of them.
+  static UsageMetadata parseStats(Map<String, dynamic> stats) {
+    if (stats['models'] is Map) {
       final modelsMap = stats['models'] as Map<String, dynamic>;
       var totalInput = 0;
       var totalOutput = 0;
+      var totalCached = 0;
+      var totalThoughts = 0;
+      var totalTool = 0;
 
       for (final modelEntry in modelsMap.values) {
         if (modelEntry is Map && modelEntry['tokens'] is Map) {
           final tokens = modelEntry['tokens'] as Map<String, dynamic>;
-          totalInput += (tokens['prompt'] as int? ?? tokens['input'] as int? ?? 0);
-          totalOutput += (tokens['candidates'] as int? ?? tokens['output'] as int? ?? 0);
+          totalInput +=
+              (tokens['prompt'] as int? ?? tokens['input'] as int? ?? 0);
+          totalOutput +=
+              (tokens['candidates'] as int? ?? tokens['output'] as int? ?? 0);
+          totalCached += tokens['cached'] as int? ?? 0;
+          totalThoughts += tokens['thoughts'] as int? ?? 0;
+          totalTool += tokens['tool'] as int? ?? 0;
         }
       }
 
-      usage = UsageMetadata(
-        promptTokenCount: totalInput,
+      return UsageMetadata(
+        // Tool tokens are billed input; fold them into the prompt side.
+        promptTokenCount: totalInput + totalTool,
         candidatesTokenCount: totalOutput,
+        thoughtsTokenCount: totalThoughts,
+        cacheReadTokenCount: totalCached,
+        source: UsageSource.measured,
       );
     }
 
-    return ModelResponse(
-      message: ChatMessage.model(responseText),
-      finishReason: FinishReason.stop,
-      usage: usage,
+    return UsageMetadata(
+      promptTokenCount: stats['input_tokens'] as int? ?? 0,
+      candidatesTokenCount: stats['output_tokens'] as int? ?? 0,
+      source: UsageSource.measured,
     );
   }
 

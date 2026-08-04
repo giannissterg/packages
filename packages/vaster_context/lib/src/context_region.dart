@@ -6,6 +6,7 @@ import 'compression_info.dart';
 import 'context_compressibility.dart';
 import 'context_lifetime.dart';
 import 'context_priority.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// Canonical textual content of a region — the single source of truth for
 /// content fingerprints (newline-joined text parts). Used by cache
@@ -95,7 +96,7 @@ class ContextRegion {
     int order = 0,
   }) {
     final msg = ChatMessage(role: role, parts: [TextPart(text)]);
-    final tokens = estimatedTokens ?? (text.length / 4).ceil();
+    final tokens = estimatedTokens ?? TokenEstimate.forText(text);
     return ContextRegion(
       id: id,
       label: label,

@@ -60,6 +60,8 @@ class ClaudeCliVasterModel implements VasterModel {
       supportsVision: false,
       supportsSystemInstruction: true,
       supportsReasoning: true,
+      // The CLI reports the exact bill (total_cost_usd) on every call.
+      reportsCostUsd: true,
     ),
   });
 
@@ -153,17 +155,36 @@ class ClaudeCliVasterModel implements VasterModel {
     }
 
     final usageRaw = json['usage'] as Map<String, dynamic>?;
-    final usage = usageRaw == null
-        ? const UsageMetadata()
-        : UsageMetadata(
-            promptTokenCount: (usageRaw['input_tokens'] as int?) ?? 0,
-            candidatesTokenCount: (usageRaw['output_tokens'] as int?) ?? 0,
-          );
+    final costUsd = (json['total_cost_usd'] as num?)?.toDouble();
+    UsageMetadata usage;
+    if (usageRaw == null) {
+      usage = UsageMetadata(costUsd: costUsd);
+    } else {
+      final input = (usageRaw['input_tokens'] as int?) ?? 0;
+      final cacheRead = (usageRaw['cache_read_input_tokens'] as int?) ?? 0;
+      final cacheWrite = (usageRaw['cache_creation_input_tokens'] as int?) ?? 0;
+      usage = UsageMetadata(
+        // The CLI's input_tokens excludes cached prefix tokens — on a warm
+        // cache it reports single digits while thousands were billed. Total
+        // prompt = uncached + cache-read + cache-write.
+        promptTokenCount: input + cacheRead + cacheWrite,
+        candidatesTokenCount: (usageRaw['output_tokens'] as int?) ?? 0,
+        cacheReadTokenCount: cacheRead,
+        cacheCreationTokenCount: cacheWrite,
+        // The CLI computes the exact bill for the whole call — free, exact
+        // cost, no pricing table needed.
+        costUsd: costUsd,
+        source: UsageSource.measured,
+      );
+    }
 
     return ModelResponse(
       message: ChatMessage.model(text),
       finishReason: FinishReason.stop,
       usage: usage,
+      // Preserves the CLI's full result JSON (modelUsage per-model breakdown,
+      // durations, session id) without modeling it.
+      rawResponse: json,
     );
   }
 }

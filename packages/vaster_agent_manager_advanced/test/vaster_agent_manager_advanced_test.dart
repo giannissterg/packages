@@ -120,9 +120,12 @@ void main() {
       );
 
       await Future.delayed(const Duration(milliseconds: 20));
-      expect(events, hasLength(2));
-      expect(events.first, isA<ModelStartedEvent>());
-      expect(events.last, isA<ModelFinishedEvent>());
+      expect(events, hasLength(3));
+      expect(events[0], isA<ModelStartedEvent>());
+      expect(events[1], isA<ModelFinishedEvent>());
+      final usageEvent = events[2] as ModelUsageEvent;
+      expect(usageEvent.callSite, equals('agent_task'));
+      expect(usageEvent.totalTokenCount, greaterThan(0));
     });
 
     test('enforces maxTreeDepth limit during subagent creation', () async {

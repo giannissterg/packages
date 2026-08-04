@@ -89,6 +89,9 @@ class BasicModelSession implements ModelSession {
     return response;
   }
 
+  /// Sessions own no resource trackers (they are conversational memory, not
+  /// meters — Rule 6.4): token/cost metering for streams happens at the VM
+  /// funnel (`VasterVMEngine.promptStream`), not here.
   @override
   Stream<ModelResponseChunk> sendStream(
     ChatMessage userMessage, {

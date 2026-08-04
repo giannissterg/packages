@@ -14,6 +14,8 @@ dependencies:
     path: ../vaster_context_manager
   vaster_model:
     path: ../vaster_model
+  vaster_token_estimate:
+    path: ../vaster_token_estimate
 
 dev_dependencies:
   lints: ^6.0.0

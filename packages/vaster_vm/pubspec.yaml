@@ -23,6 +23,8 @@ dependencies:
   vaster_filesystem_memory:
   vaster_instruction:
   vaster_model:
+  vaster_token_estimate:
+  vaster_pricing:
   vaster_policy:
   vaster_policy_engine:
   vaster_resources:

@@ -82,6 +82,10 @@ class VasterModelSidecarServer {
                 'status': 'ok',
                 'textDelta': chunk.textDelta,
                 'finishReason': chunk.finishReason?.name,
+                // Cumulative usage snapshot (take-last semantics); without it
+                // every model behind the sidecar streams zero usage and
+                // silently defeats budget enforcement.
+                if (chunk.usage != null) 'usage': chunk.usage!.toJson(),
               };
               clientSocket.write('${jsonEncode(chunkMap)}\n');
               await clientSocket.flush();

@@ -34,7 +34,9 @@ class GoogleAiVasterModel implements VasterModel {
     this.targetModel = 'gemini-2.5-flash',
     this.apiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta',
     http.Client? httpClient,
-    this.modelName = 'google-ai-gemini',
+    // Defaults to the target model id (matching the claude-api convention)
+    // so pricing catalogs and telemetry see the real model, not a label.
+    String? modelName,
     this.capabilities = const ModelCapabilities(
       maxContextTokens: 1048576,
       maxOutputTokens: 8192,
@@ -48,6 +50,7 @@ class GoogleAiVasterModel implements VasterModel {
             Platform.environment['GEMINI_API_KEY'] ??
             Platform.environment['GOOGLE_AI_API_KEY'] ??
             '',
+        modelName = modelName ?? targetModel,
         _client = httpClient ?? http.Client();
 
   @override
@@ -184,13 +187,8 @@ class GoogleAiVasterModel implements VasterModel {
     final finishReason = _parseFinishReason(finishStr);
 
     final usageRaw = json['usageMetadata'] as Map<String, dynamic>?;
-    final usage = usageRaw != null
-        ? UsageMetadata(
-            promptTokenCount: usageRaw['promptTokenCount'] as int? ?? 0,
-            candidatesTokenCount: usageRaw['candidatesTokenCount'] as int? ?? 0,
-            totalTokenCount: usageRaw['totalTokenCount'] as int? ?? 0,
-          )
-        : const UsageMetadata();
+    final usage =
+        usageRaw != null ? parseUsageMetadata(usageRaw) : const UsageMetadata();
 
     return ModelResponse(
       message: ChatMessage.model(text),
@@ -199,6 +197,20 @@ class GoogleAiVasterModel implements VasterModel {
       rawResponse: json,
     );
   }
+
+  /// Parses a `usageMetadata` payload (shared by response and stream chunks).
+  ///
+  /// Gemini's `totalTokenCount` already includes thought tokens — pass it
+  /// through verbatim rather than recomputing.
+  static UsageMetadata parseUsageMetadata(Map<String, dynamic> usageRaw) =>
+      UsageMetadata(
+        promptTokenCount: usageRaw['promptTokenCount'] as int? ?? 0,
+        candidatesTokenCount: usageRaw['candidatesTokenCount'] as int? ?? 0,
+        thoughtsTokenCount: usageRaw['thoughtsTokenCount'] as int? ?? 0,
+        cacheReadTokenCount: usageRaw['cachedContentTokenCount'] as int? ?? 0,
+        totalTokenCount: usageRaw['totalTokenCount'] as int?,
+        source: UsageSource.measured,
+      );
 
   ModelResponseChunk _parseResponseChunk(Map<String, dynamic> json) {
     final candidates = json['candidates'] as List? ?? [];
@@ -224,13 +236,8 @@ class GoogleAiVasterModel implements VasterModel {
     }
 
     final usageRaw = json['usageMetadata'] as Map<String, dynamic>?;
-    final usage = usageRaw != null
-        ? UsageMetadata(
-            promptTokenCount: usageRaw['promptTokenCount'] as int? ?? 0,
-            candidatesTokenCount: usageRaw['candidatesTokenCount'] as int? ?? 0,
-            totalTokenCount: usageRaw['totalTokenCount'] as int? ?? 0,
-          )
-        : null;
+    // Gemini repeats cumulative usage on each chunk — consumers take-last.
+    final usage = usageRaw != null ? parseUsageMetadata(usageRaw) : null;
 
     return ModelResponseChunk(
       delta: textDelta != null ? TextPart(textDelta) : null,

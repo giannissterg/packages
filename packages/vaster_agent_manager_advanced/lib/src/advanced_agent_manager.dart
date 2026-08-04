@@ -7,6 +7,7 @@ import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// Advanced supervisor implementation of [AgentManager] featuring supervisor trees,
 /// parallel task dispatching, lifecycle states, and optional [RuntimeEventBus] telemetry.
@@ -166,19 +167,40 @@ class AdvancedAgentManager implements AgentManager {
       eventId: 'evt_start_${task.taskId}',
       sessionId: agent.session.sessionId,
       modelName: agent.session.model.modelName,
-      promptTokenCount: task.inputPrompt.length ~/ 4,
+      promptTokenCount: TokenEstimate.forText(task.inputPrompt),
+      metadata: const {'estimated': true},
     ));
 
     try {
       final output = await agent.run(task);
       _states[agentId] = AgentState.idle;
 
+      final aggregate = output.aggregateUsage;
       eventBus.publish(ModelFinishedEvent(
         eventId: 'evt_finish_${task.taskId}',
         sessionId: agent.session.sessionId,
         finishReason: 'stop',
-        totalTokens: output.outputText.length ~/ 4,
+        totalTokens: aggregate.totalTokenCount > 0
+            ? aggregate.totalTokenCount
+            : TokenEstimate.forText(output.outputText),
         executionDuration: output.executionDuration,
+        metadata: {
+          if (aggregate.totalTokenCount == 0) 'estimated': true,
+        },
+      ));
+      // One usage event per task (per-call granularity would need an event
+      // bus inside the agent itself). Cost is wire-reported only here — the
+      // manager owns no pricing catalog.
+      eventBus.publish(ModelUsageEvent(
+        eventId: 'evt_usage_${task.taskId}',
+        modelName: agent.session.model.modelName,
+        callSite: 'agent_task',
+        promptTokenCount: aggregate.promptTokenCount,
+        candidatesTokenCount: aggregate.candidatesTokenCount,
+        totalTokenCount: aggregate.totalTokenCount,
+        costUsd: aggregate.costUsd,
+        estimated: aggregate.source == UsageSource.estimated,
+        usage: aggregate.toJson(),
       ));
 
       return output;
