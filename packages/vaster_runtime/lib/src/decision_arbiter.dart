@@ -18,8 +18,13 @@ import 'package:vaster_vm/vaster_vm.dart';
 final class DecisionArbiter {
   final VasterVirtualMachine vm;
   final ExecutionBudget budget;
+  final ResourceTracker quotaTracker;
 
-  const DecisionArbiter({required this.vm, required this.budget});
+  const DecisionArbiter({
+    required this.vm,
+    required this.budget,
+    required this.quotaTracker,
+  });
 
   /// Asks the model to pick one of [branches] for [prompt].
   ///
@@ -57,9 +62,11 @@ final class DecisionArbiter {
         : await vm.prompt(composed,
             model: model, config: config, cacheHints: cacheHints);
 
-    budget.consumeTokens(response.usage.totalTokenCount > 0
+    final tokens = response.usage.totalTokenCount > 0
         ? response.usage.totalTokenCount
-        : (composed.length ~/ 4) + (response.text.length ~/ 4));
+        : (composed.length ~/ 4) + (response.text.length ~/ 4);
+    budget.consumeTokens(tokens);
+    quotaTracker.consumeTokens(tokens);
 
     return _parse(response.text, labels);
   }

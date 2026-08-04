@@ -1,6 +1,6 @@
 name: vaster_context
 description: Virtual context primitives, heaps, regions, priorities, token budgets, and context sources for Vaster.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'file_descriptor.dart';
 
@@ -24,8 +25,8 @@ final class VirtualFile extends VirtualNode {
     required this.bytes,
   });
 
-  /// String view of file content.
-  String get text => String.fromCharCodes(bytes);
+  /// String view of file content, decoded as UTF-8 (the VFS text encoding).
+  String get text => utf8.decode(bytes, allowMalformed: true);
 
   @override
   String toString() => 'VirtualFile("$path", ${bytes.length}B)';

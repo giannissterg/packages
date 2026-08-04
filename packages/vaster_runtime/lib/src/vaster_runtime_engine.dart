@@ -29,6 +29,7 @@ typedef RuntimeStepObserver = void Function(
 /// | [PolicyGuard]      | Policy authorization and security traps         |
 /// | [ToolCallOrchestrator] | Model ↔ tool conversation loop              |
 /// | [ExecutionBudget]   | Time, token, and cost capacity budget tracking  |
+/// | [ResourceTracker]  | Program-declared quota enforcement ([SetQuotaOp]) |
 /// | [VasterScheduler]  | Opcode scheduling, priorities, and preemption   |
 /// | [VasterVirtualMachine] | All VM subsystem access (model, VFS, agents…) |
 class VasterRuntime {
@@ -40,6 +41,16 @@ class VasterRuntime {
   final CallStack _callStack = CallStack();
   final CacheHintTracker _cacheHints = CacheHintTracker();
   final HitlController _hitl = HitlController();
+
+  /// Enforces the quota the *program itself* declares via [SetQuotaOp]
+  /// (compiled from `BudgetScope`), as opposed to [budget], which is the
+  /// host-imposed capacity for this runtime. Starts unlimited; each
+  /// [SetQuotaOp] replaces the quota and restarts measurement from that
+  /// instruction onward. Breaches throw [QuotaExceededException], which
+  /// program-level error handlers may recover from — otherwise the machine
+  /// traps.
+  final ResourceTracker _quotaTracker =
+      ResourceTracker(quota: ResourceQuota.unlimited);
 
   /// Program-level error handlers installed by [PushErrorHandlerOp]
   /// (innermost last). Consulted by both run loops when an instruction
@@ -71,6 +82,7 @@ class VasterRuntime {
   late final ToolCallOrchestrator _toolOrchestrator = ToolCallOrchestrator(
     vm: vm,
     budget: budget,
+    quotaTracker: _quotaTracker,
     guard: _policyGuard,
     maxIterations: maxToolIterations,
   );
@@ -79,7 +91,7 @@ class VasterRuntime {
   /// the tool orchestrator: the arbiter handles the model conversation, the
   /// engine keeps the control transfer.
   late final DecisionArbiter _decisionArbiter =
-      DecisionArbiter(vm: vm, budget: budget);
+      DecisionArbiter(vm: vm, budget: budget, quotaTracker: _quotaTracker);
 
   /// ISA `${name}` register interpolation (see RegisterInterpolation spec).
   late final RegisterInterpolator _interpolator =
@@ -158,6 +170,7 @@ class VasterRuntime {
       _cacheHints.clear();
       _hitl.clear();
       _errorHandlers.clear();
+      _quotaTracker.applyQuota(ResourceQuota.unlimited);
     }
 
     return _runLoop(program);
@@ -232,6 +245,9 @@ class VasterRuntime {
       // and observers must see the instruction's own address.
       final executingPc = _pc;
       try {
+        // Program-declared quota deadline: checked at instruction boundaries,
+        // recoverable by program error handlers (unlike host budget expiry).
+        _quotaTracker.checkDeadline();
         final stopwatch = Stopwatch()..start();
         await scheduler.scheduleOpcode(
           taskName: 'op_${instruction.runtimeType}_$_pc',
@@ -402,6 +418,7 @@ class VasterRuntime {
             ? response.usage.totalTokenCount
             : (promptText.length ~/ 4) + (response.text.length ~/ 4);
         budget.consumeTokens(tokens);
+        _quotaTracker.consumeTokens(tokens);
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
       case SelectModelOp op:
@@ -502,6 +519,7 @@ class VasterRuntime {
         );
         final tokens = (taskPrompt.length ~/ 4) + (output.outputText.length ~/ 4);
         budget.consumeTokens(tokens);
+        _quotaTracker.consumeTokens(tokens);
         if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
       case DispatchParallelTasksOp op:
@@ -669,8 +687,19 @@ class VasterRuntime {
           }
         }
 
-      case SetQuotaOp _:
-        break; // quota enforcement handled by ResourceTracker in vm
+      case SetQuotaOp op:
+        _quotaTracker.applyQuota(op.quota);
+        if (op.quota.maxCostBudget != null) {
+          // No model backend reports monetary cost yet, so a cost ceiling
+          // cannot bind — declare that loudly instead of pretending.
+          vm.eventBus.publish(RuntimeWarningEvent(
+            eventId: 'evt_warn_quota_cost_$_pc',
+            code: 'cost_quota_unenforced',
+            message: 'maxCostBudget is declared at PC $_pc but no backend '
+                'reports cost — the cost ceiling is not enforced.',
+            pc: _pc,
+          ));
+        }
 
       // ── HITL ─────────────────────────────────────────────────────────────
       case YieldHumanInteractionOp op:
@@ -714,8 +743,8 @@ class VasterRuntime {
       case JumpIfOp op:
         final val = _registers.read(op.conditionVar);
         final isTrue = switch (val) {
-          true || 'approved' || 'true' => true,
-          false || 'rejected' || 'false' || '' || 0 || null => false,
+          true || 'true' => true,
+          false || 'false' || '' || 0 || null => false,
           _ => true,
         };
         if (isTrue) _pc = op.targetPc - 1;

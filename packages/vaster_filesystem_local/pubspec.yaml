@@ -1,6 +1,6 @@
 name: vaster_filesystem_local
 description: Host local disk filesystem backend implementation for Vaster.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

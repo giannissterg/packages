@@ -551,7 +551,9 @@ final class DecideLoop extends VasterNode {
 /// Declarative fields only — the compiler materializes the ISA-level
 /// interaction request when lowering. [interactionType] is the
 /// `HumanInteractionType` name (`approval`, `question`, `input`, `review`).
-/// The human's answer binds to [output]; its status to `<output>_status`.
+/// The human's answer binds to [output]; whether it was affirmative
+/// (approved/answered vs rejected/timed out) binds as a boolean to
+/// `<output>_status`.
 final class YieldHuman extends VasterNode {
   final String requestId;
   final String interactionType;

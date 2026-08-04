@@ -19,6 +19,7 @@ import 'package:vaster_vm/vaster_vm.dart';
 final class ToolCallOrchestrator {
   final VasterVirtualMachine vm;
   final ExecutionBudget budget;
+  final ResourceTracker quotaTracker;
   final PolicyGuard guard;
 
   /// Maximum model turns in one tool-calling loop (runaway guard).
@@ -27,6 +28,7 @@ final class ToolCallOrchestrator {
   const ToolCallOrchestrator({
     required this.vm,
     required this.budget,
+    required this.quotaTracker,
     required this.guard,
     required this.maxIterations,
   });
@@ -59,6 +61,7 @@ final class ToolCallOrchestrator {
       final results = <ContentPart>[];
       for (final call in response.functionCalls) {
         guard.check(PolicyAction.toolCall, call.name);
+        quotaTracker.recordToolCall();
         vm.eventBus.publish(ToolCalledEvent(
           eventId: 'evt_tool_call_${call.callId}',
           callId: call.callId,
@@ -89,9 +92,11 @@ final class ToolCallOrchestrator {
         tools: toolDefinitions,
         cacheHints: cacheHints,
       );
-      budget.consumeTokens(response.usage.totalTokenCount > 0
+      final tokens = response.usage.totalTokenCount > 0
           ? response.usage.totalTokenCount
-          : response.text.length ~/ 4);
+          : response.text.length ~/ 4;
+      budget.consumeTokens(tokens);
+      quotaTracker.consumeTokens(tokens);
     }
     return response;
   }

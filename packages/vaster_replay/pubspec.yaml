@@ -1,6 +1,6 @@
 name: vaster_replay
 description: Time-Travel Debugging & Deterministic Execution Replay Engine for Vaster LLM Virtual Machine workflows.
-version: 0.1.0
+version: 0.2.0
 publish_to: none
 resolution: workspace
 

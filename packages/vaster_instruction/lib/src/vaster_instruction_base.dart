@@ -70,7 +70,10 @@ sealed class VasterInstruction {
   Map<String, dynamic> toJson();
 
   factory VasterInstruction.fromJson(Map<String, dynamic> json) {
-    final opStr = json['opcode'] as String? ?? 'prompt';
+    final opStr = json['opcode'];
+    if (opStr is! String) {
+      throw const FormatException('Instruction map has no "opcode" field.');
+    }
     final opcode = InstructionOpcode.parse(opStr);
 
     return switch (opcode) {

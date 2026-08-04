@@ -1,6 +1,6 @@
 name: vaster_ast
 description: Abstract Syntax Tree (AST) node hierarchy and ComposableNode for Vaster workflow pipelines.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

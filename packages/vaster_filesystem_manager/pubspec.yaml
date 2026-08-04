@@ -1,6 +1,6 @@
 name: vaster_filesystem_manager
 description: Active virtual filesystem manager, mount routing, transactions, and context bridging for Vaster.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

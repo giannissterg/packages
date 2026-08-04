@@ -1,6 +1,6 @@
 name: vaster_model_rpc_server
 description: Out-of-process Unix Domain Socket RPC server sidecar host for VasterModel.
-version: 0.1.0
+version: 0.2.0
 resolution: workspace
 publish_to: none
 

@@ -1,6 +1,6 @@
 name: vaster_kv_mmap
 description: Zero-copy shared-memory KV cache controller for Vaster — physical context frames in POSIX shared memory, attachable across processes.
-version: 0.1.0
+version: 0.2.0
 publish_to: none
 resolution: workspace
 

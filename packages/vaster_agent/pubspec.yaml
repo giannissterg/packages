@@ -1,6 +1,6 @@
 name: vaster_agent
 description: Pure agent interfaces, descriptors, tasks, and outputs for Vaster.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

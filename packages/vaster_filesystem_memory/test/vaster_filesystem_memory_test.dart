@@ -19,6 +19,19 @@ void main() {
       expect(desc?.sizeBytes, equals('Hello Memory VFS'.length));
     });
 
+    test('text round-trips UTF-8 beyond Latin-1', () async {
+      final VasterFileSystem fs = MemoryVasterFileSystem();
+      // Em-dash, arrows, box drawing, CJK, emoji — real model output routinely
+      // contains all of these; they must survive a write/read round-trip.
+      const content = '# Plan — steps\nA → B\n┌─┬┐\n│└─┘\n日本語 🎯';
+      await fs.writeText('/plan.md', content);
+      expect(await fs.readText('/plan.md'), equals(content));
+
+      final nodes = await fs.listDirectory('/');
+      final file = nodes.whereType<VirtualFile>().single;
+      expect(file.text, equals(content));
+    });
+
     test('listDirectory lists files and nested directories', () async {
       final fs = MemoryVasterFileSystem();
       await fs.writeText('/src/main.dart', 'void main() {}');

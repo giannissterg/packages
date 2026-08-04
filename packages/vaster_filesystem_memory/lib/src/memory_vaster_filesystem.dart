@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:vaster_filesystem/vaster_filesystem.dart';
@@ -19,15 +20,18 @@ class MemoryVasterFileSystem implements VasterFileSystem {
     return p;
   }
 
+  // Text is UTF-8 on the wire, matching LocalVasterFileSystem. (The previous
+  // codeUnits round-trip truncated every codepoint above U+00FF to its low
+  // byte — em-dashes and box-drawing characters came back as control chars.)
   @override
   Future<String> readText(String path) async {
     final bytes = await readBytes(path);
-    return String.fromCharCodes(bytes);
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   @override
   Future<void> writeText(String path, String content) async {
-    await writeBytes(path, Uint8List.fromList(content.codeUnits));
+    await writeBytes(path, Uint8List.fromList(utf8.encode(content)));
   }
 
   @override

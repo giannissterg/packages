@@ -1,6 +1,6 @@
 name: vaster_compiler
 description: WorkflowCompiler interface and BasicWorkflowCompiler translating vaster_ast Pipeline trees into low-level VasterProgram ISA bytecode.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

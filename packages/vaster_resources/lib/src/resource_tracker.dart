@@ -3,15 +3,19 @@ import 'resource_quota.dart';
 
 /// Active resource usage tracker enforcing a [ResourceQuota].
 class ResourceTracker {
-  final ResourceQuota quota;
+  ResourceQuota _quota;
   final Stopwatch _stopwatch = Stopwatch();
 
   int _consumedTokens = 0;
   int _toolCallCount = 0;
+  double _consumedCost = 0.0;
 
-  ResourceTracker({required this.quota}) {
+  ResourceTracker({required this._quota}) {
     _stopwatch.start();
   }
+
+  /// The quota currently being enforced.
+  ResourceQuota get quota => _quota;
 
   /// Total consumed tokens so far.
   int get consumedTokens => _consumedTokens;
@@ -19,18 +23,34 @@ class ResourceTracker {
   /// Total tool call executions so far.
   int get toolCallCount => _toolCallCount;
 
+  /// Total consumed monetary cost so far.
+  double get consumedCost => _consumedCost;
+
   /// Elapsed execution time.
   Duration get elapsedTime => _stopwatch.elapsed;
+
+  /// Replaces the enforced quota and restarts measurement: all counters reset
+  /// to zero and the deadline clock restarts. Used when a program scope
+  /// declares a new quota (e.g. a `SetQuotaOp` in bytecode).
+  void applyQuota(ResourceQuota quota) {
+    _quota = quota;
+    _consumedTokens = 0;
+    _toolCallCount = 0;
+    _consumedCost = 0.0;
+    _stopwatch
+      ..reset()
+      ..start();
+  }
 
   /// Consumes [count] tokens and checks quota limit.
   void consumeTokens(int count) {
     _consumedTokens += count;
-    if (quota.maxTokenBudget != null && _consumedTokens > quota.maxTokenBudget!) {
+    if (_quota.maxTokenBudget != null && _consumedTokens > _quota.maxTokenBudget!) {
       throw QuotaExceededException(
         resourceType: 'tokens',
         message: 'Token budget exceeded.',
         currentUsage: _consumedTokens,
-        quotaLimit: quota.maxTokenBudget!,
+        quotaLimit: _quota.maxTokenBudget!,
       );
     }
   }
@@ -38,24 +58,37 @@ class ResourceTracker {
   /// Increments tool call count by [count] and checks quota limit.
   void recordToolCall({int count = 1}) {
     _toolCallCount += count;
-    if (quota.maxToolCallsPerTask != null && _toolCallCount > quota.maxToolCallsPerTask!) {
+    if (_quota.maxToolCallsPerTask != null && _toolCallCount > _quota.maxToolCallsPerTask!) {
       throw QuotaExceededException(
         resourceType: 'tool_calls',
         message: 'Max tool call limit per task exceeded.',
         currentUsage: _toolCallCount,
-        quotaLimit: quota.maxToolCallsPerTask!,
+        quotaLimit: _quota.maxToolCallsPerTask!,
+      );
+    }
+  }
+
+  /// Consumes [cost] monetary units and checks quota limit.
+  void consumeCost(double cost) {
+    _consumedCost += cost;
+    if (_quota.maxCostBudget != null && _consumedCost > _quota.maxCostBudget!) {
+      throw QuotaExceededException(
+        resourceType: 'cost',
+        message: 'Cost budget exceeded.',
+        currentUsage: _consumedCost,
+        quotaLimit: _quota.maxCostBudget!,
       );
     }
   }
 
   /// Checks if time deadline has expired.
   void checkDeadline() {
-    if (quota.timeDeadline != null && _stopwatch.elapsed > quota.timeDeadline!) {
+    if (_quota.timeDeadline != null && _stopwatch.elapsed > _quota.timeDeadline!) {
       throw QuotaExceededException(
         resourceType: 'deadline',
         message: 'Execution deadline expired.',
         currentUsage: _stopwatch.elapsed.inMilliseconds,
-        quotaLimit: quota.timeDeadline!.inMilliseconds,
+        quotaLimit: _quota.timeDeadline!.inMilliseconds,
       );
     }
   }

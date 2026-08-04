@@ -1,6 +1,6 @@
 name: vaster_domain
 description: Pure workflow domain specifications consumed by vaster_ast nodes (PipelineSpec, AgentRole, TaskDefinition, StorageMount, CodeEnvironment).
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

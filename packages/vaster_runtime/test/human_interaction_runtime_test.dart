@@ -102,7 +102,7 @@ void main() {
 
       expect(resumedState.status, equals(RuntimeStatus.halted));
       expect(resumedState.registers['approval_res'], equals('LGTM!'));
-      expect(resumedState.registers['approval_res_status'], equals('approved'));
+      expect(resumedState.registers['approval_res_status'], isTrue);
       expect(resumedState.registers['after_pause'], equals('resumed'));
     });
 
@@ -170,7 +170,7 @@ void main() {
       );
 
       expect(state2.status, equals(RuntimeStatus.halted));
-      expect(state2.registers['staging_deploy_status'], equals('rejected'));
+      expect(state2.registers['staging_deploy_status'], isFalse);
       expect(state2.registers['staging_deploy'], equals('Security review pending'));
 
       // Read file content from VFS

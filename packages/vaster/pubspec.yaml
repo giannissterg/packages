@@ -1,6 +1,6 @@
 name: vaster
 description: Vaster LLM Virtual Machine — Declarative AST, ISA Compiler, Bytecode Engine, Multi-Agent Sessions, Continuations, and Sidecar RPC.
-version: 0.0.1
+version: 0.2.0
 publish_to: none
 resolution: workspace
 

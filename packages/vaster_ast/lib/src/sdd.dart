@@ -433,9 +433,14 @@ class Review extends ComposableNode {
       ),
       WriteFile(path: artifact ?? conventions.reviewPath, content: r'${review}'),
     ];
+    // Calibration note (claude-cli recording, 2026-08-04): backends without
+    // schema enforcement will happily re-review the artifact and override the
+    // reviewer's verdict. The decider must apply the review, not redo it.
     const decidePrompt =
         'Based on this review, should the artifact be approved or sent back '
-        'for revision? Approve unless the review names blocking issues.'
+        'for revision? Approve unless the review names blocking issues. '
+        'Do not re-review the artifact yourself — judge only from the review '
+        'text, deferring to its own recommendation when it states one.'
         '\n\nReview:\n\${review}';
     const approveDescription =
         'no blocking issues — minor notes can ride along';

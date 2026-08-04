@@ -41,10 +41,6 @@ enum InstructionOpcode {
   returnSubroutine('return_subroutine'),
 
   /// Model-steered branch among statically-known labeled targets.
-  ///
-  /// Forward-compat note: runtimes older than this opcode decode it as an
-  /// empty `prompt` via [parse]'s unknown-name fallback — ship programs only
-  /// to runtimes that know `decide`.
   decide('decide'),
   halt('halt');
 
@@ -52,12 +48,20 @@ enum InstructionOpcode {
 
   const InstructionOpcode(this.name);
 
+  /// Parses an opcode name, throwing [FormatException] on unknown names.
+  ///
+  /// An unknown name means the program was produced by a newer (or skewed)
+  /// toolchain — silently decoding it as any other opcode would corrupt the
+  /// program, so version skew must fail loudly. Callers decoding VBC bytes
+  /// surface this as a [VbcDecodeException] via [VbcCodec.decode].
   static InstructionOpcode parse(String value) {
     final lower = value.toLowerCase().trim();
     for (final op in InstructionOpcode.values) {
       if (op.name == lower) return op;
     }
-    return InstructionOpcode.prompt;
+    throw FormatException(
+        'Unknown ISA opcode "$value" — the program was likely produced by a '
+        'newer toolchain than this runtime supports.');
   }
 
   @override

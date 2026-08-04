@@ -1,6 +1,6 @@
 name: vaster_scheduler
 description: Deadline-aware priority scheduling, time-slicing, and task orchestration for Vaster VM.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

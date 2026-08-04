@@ -1,6 +1,6 @@
 name: vaster_runtime
 description: Concrete execution runtime executing low-level Vaster ISA instructions on VasterVirtualMachine.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

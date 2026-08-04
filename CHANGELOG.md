@@ -29,6 +29,24 @@ Breaking DX overhaul of the AST surface, plus new runtime semantics.
   sandbox timeouts enforced.
 - CLI: `vaster compile`, `vaster run --record/--events`, and the
   claude-cli/gemini-cli/rpc backends.
+- **Runtime honesty**: `SetQuotaOp` is enforced — program-declared token
+  budgets, deadlines, and tool-call ceilings bind from the instruction they
+  execute at (breaches are catchable by `TryCatch`, otherwise trap); declared
+  cost ceilings publish a `cost_quota_unenforced` warning until a backend
+  reports cost. Unknown ISA opcodes now fail decoding loudly instead of
+  silently becoming empty prompts. **Breaking**: the HITL `<output>_status`
+  register is now a boolean (affirmative vs not) instead of the raw status
+  name, and the `JumpIf` truthiness table no longer special-cases
+  `approved`/`rejected` strings.
+- VFS: `MemoryVasterFileSystem` text I/O is UTF-8 (was UTF-16 code units
+  truncated to bytes — every codepoint above U+00FF was mangled on the
+  write/read round-trip, discovered when a real-model SDD run had its plan's
+  em-dashes and box-drawing characters corrupted between Plan and Review).
+  `VirtualFile.text` decodes UTF-8 accordingly.
+- SDD: the review-verdict decide prompt now instructs the model to judge only
+  from the review text — a real claude-cli calibration run showed backends
+  without schema enforcement re-reviewing the artifact and overriding the
+  reviewer's verdict.
 
 ## 0.0.1
 

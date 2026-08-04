@@ -1,6 +1,6 @@
 name: vaster_context_manager
 description: Active context manager, allocation strategy execution, region eviction, and dynamic context compilation for Vaster.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

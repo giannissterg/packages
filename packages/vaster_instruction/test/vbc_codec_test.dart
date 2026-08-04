@@ -212,6 +212,19 @@ void main() {
           throwsA(isA<VbcDecodeException>()),
         );
       });
+
+      test('rejects unknown opcodes instead of silently decoding them', () {
+        expect(
+          () => VasterInstruction.fromJson(
+              {'opcode': 'quantum_entangle', 'outputVar': 'x'}),
+          throwsA(isA<FormatException>().having(
+              (e) => e.message, 'message', contains('quantum_entangle'))),
+        );
+        expect(
+          () => VasterInstruction.fromJson({'outputVar': 'x'}),
+          throwsA(isA<FormatException>()),
+        );
+      });
     });
   });
 }

@@ -27,6 +27,11 @@ enum HumanResponseStatus {
   final String name;
   const HumanResponseStatus(this.name);
 
+  /// Whether this status is an affirmative outcome — the approve/continue
+  /// branch of a workflow. [approved] and [answered] are affirmative;
+  /// [rejected] and [timedOut] are not.
+  bool get isAffirmative => this == approved || this == answered;
+
   static HumanResponseStatus parse(String value) {
     final lower = value.toLowerCase().trim();
     for (final s in HumanResponseStatus.values) {

@@ -1,6 +1,6 @@
 name: vaster_playground
 description: A complex multi-agent pipeline playground showcasing the full vaster compiler and VM ecosystem.
-version: 1.0.0
+version: 0.2.0
 
 resolution: workspace
 

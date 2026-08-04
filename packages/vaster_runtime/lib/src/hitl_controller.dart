@@ -62,7 +62,7 @@ class HitlController {
     }
     if (req.outputVar != null) {
       registers.write(req.outputVar!, response.value);
-      registers.write('${req.outputVar!}_status', response.status.name);
+      registers.write('${req.outputVar!}_status', response.status.isAffirmative);
     }
     _pendingRequest = null;
     return 1; // advance past YieldHumanInteractionOp
