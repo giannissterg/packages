@@ -16,7 +16,12 @@ import 'llama_worker.dart';
 ///
 /// Discovery is cross-process by construction — [lookup] falls back to a
 /// named-segment attach, the same path a foreign process takes.
-final class LlamaFfiKvCacheController implements KvCacheController {
+///
+/// Also a [KvFrameResolver]: ring-transport clients ([MmapVasterModel])
+/// lower cache hints to [KvFrameRef]s through [resolveFrame] so only the
+/// frame *name* crosses the ring, never the content.
+final class LlamaFfiKvCacheController
+    implements KvCacheController, KvFrameResolver {
   final LlamaWorker worker;
 
   /// Frame-name prefix; the name is `prefix + first 16 fingerprint chars`
@@ -107,4 +112,15 @@ final class LlamaFfiKvCacheController implements KvCacheController {
 
   @override
   Future<List<KvCacheHandle>> list() async => _known.values.toList();
+
+  @override
+  Future<KvFrameRef?> resolveFrame(String contentFingerprint) async {
+    final handle = await lookup(contentFingerprint);
+    if (handle == null) return null;
+    return KvFrameRef(
+      frameName: _frameName(contentFingerprint),
+      contentFingerprint: contentFingerprint,
+      tokenCount: handle.tokenCount,
+    );
+  }
 }

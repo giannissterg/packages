@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The transport is honest now (ZC-P5).** `MmapVasterModel`'s
+  fake-success timeout stub is gone: no sidecar answer raises typed
+  `SidecarUnavailableException`; a sidecar `{"error": …}` envelope raises
+  `SidecarRemoteException`. Default response timeout sized for local
+  inference (60s).
+- Ring ops after `close` throw `StateError` instead of touching unmapped
+  pages (a poll loop outliving its ring was a SIGSEGV).
+
 - `SharedMemoryFrame.allocate` — create a frame at an exact payload size and
   fill it *after* creation, and `SharedMemoryFrame.payloadPointer` — the
   native address of the payload region. Together they are the FFI write

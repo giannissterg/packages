@@ -6,6 +6,27 @@ import 'package:vaster_model/vaster_model.dart';
 import 'kv_frame_ref.dart';
 import 'shared_memory_ring.dart';
 
+/// No sidecar answered on the response ring within the timeout. The
+/// transport reports absence honestly — there is no fabricated fallback
+/// response (the pre-0.5 stub that faked success is gone).
+final class SidecarUnavailableException implements Exception {
+  final String ringName;
+  final Duration waited;
+  SidecarUnavailableException(this.ringName, this.waited);
+  @override
+  String toString() =>
+      'SidecarUnavailableException: no sidecar response on "$ringName" '
+      'within ${waited.inMilliseconds}ms — is `vaster serve` running?';
+}
+
+/// The sidecar answered with a typed error envelope (`{"error": …}`).
+final class SidecarRemoteException implements Exception {
+  final String message;
+  SidecarRemoteException(this.message);
+  @override
+  String toString() => 'SidecarRemoteException: $message';
+}
+
 /// Implementation of [VasterModel] using POSIX Shared Memory (`mmap`) zero-copy IPC.
 ///
 /// Bypasses TCP sockets, network protocols, and HTTP serialization by
@@ -36,7 +57,8 @@ class MmapVasterModel implements VasterModel {
   /// Optional resolver lowering cache hints to shared-memory frame refs.
   final KvFrameResolver? frameResolver;
 
-  /// How long to poll for a sidecar response before falling back.
+  /// How long to poll for a sidecar response before throwing
+  /// [SidecarUnavailableException]. Sized for local small-model inference.
   final Duration responseTimeout;
 
   /// Poll interval while waiting for the sidecar.
@@ -48,7 +70,7 @@ class MmapVasterModel implements VasterModel {
     required this.ring,
     SharedMemoryRing? responseRing,
     this.frameResolver,
-    this.responseTimeout = const Duration(milliseconds: 250),
+    this.responseTimeout = const Duration(seconds: 60),
     this.pollInterval = const Duration(milliseconds: 2),
     this.targetModelName = 'mmap-llm-sidecar',
   }) : responseRing = responseRing ?? ring;
@@ -91,7 +113,8 @@ class MmapVasterModel implements VasterModel {
     // Write zero-copy request frame into shared RAM pages.
     ring.writeString(jsonEncode(payloadMap));
 
-    // Poll the response ring for a sidecar answer.
+    // Poll the response ring for a sidecar answer. No answer is an error —
+    // the transport never fabricates success.
     final deadline = DateTime.now().add(responseTimeout);
     while (DateTime.now().isBefore(deadline)) {
       final payload = responseRing.readString();
@@ -103,22 +126,20 @@ class MmapVasterModel implements VasterModel {
         await Future<void>.delayed(pollInterval);
       }
     }
-
-    // Default fallback response for test harness / sidecar verification.
-    return ModelResponse(
-      message: ChatMessage.model(
-          'MmapVasterModel: Zero-copy shared memory frame delivered via ${ring.shmName}'),
-      finishReason: FinishReason.stop,
-    );
+    throw SidecarUnavailableException(ring.shmName, responseTimeout);
   }
 
   ModelResponse? _tryParseResponse(String payload) {
+    final Object? json;
     try {
-      final json = jsonDecode(payload);
-      if (json is Map<String, dynamic> && json.containsKey('message')) {
-        return ModelResponse.fromJson(json);
-      }
-    } catch (_) {}
+      json = jsonDecode(payload);
+    } on FormatException {
+      return null;
+    }
+    if (json is! Map<String, dynamic>) return null;
+    final error = json['error'];
+    if (error is String) throw SidecarRemoteException(error);
+    if (json.containsKey('message')) return ModelResponse.fromJson(json);
     return null;
   }
 

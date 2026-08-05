@@ -15,4 +15,5 @@ export 'src/llama_engine.dart'
 export 'src/llama_ffi_kv_cache_controller.dart'
     show LlamaFfiKvCacheController;
 export 'src/llama_ffi_vaster_model.dart' show LlamaFfiVasterModel;
+export 'src/llama_sidecar_host.dart' show LlamaSidecarHost;
 export 'src/llama_worker.dart' show LlamaWorker;

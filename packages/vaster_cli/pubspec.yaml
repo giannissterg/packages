@@ -34,6 +34,8 @@ dependencies:
     path: ../vaster_context_manager
   vaster_llama_ffi:
     path: ../vaster_llama_ffi
+  vaster_mmap:
+    path: ../vaster_mmap
   vaster_model:
     path: ../vaster_model
   vaster_model_claude_api:

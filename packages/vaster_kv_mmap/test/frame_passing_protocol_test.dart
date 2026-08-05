@@ -117,18 +117,21 @@ void main() {
         responseTimeout: const Duration(milliseconds: 100),
       );
 
-      final result = await model.generate(ModelRequest(
-        messages: [ChatMessage.user('hello')],
-        cacheHints: const [
-          ContextCacheHint(regionId: 'r', contentFingerprint: 'deadbeef'),
-        ],
-      ));
+      // No sidecar is listening: the envelope still lands on the ring, and
+      // the transport reports absence honestly instead of faking success.
+      await expectLater(
+        model.generate(ModelRequest(
+          messages: [ChatMessage.user('hello')],
+          cacheHints: const [
+            ContextCacheHint(regionId: 'r', contentFingerprint: 'deadbeef'),
+          ],
+        )),
+        throwsA(isA<SidecarUnavailableException>()),
+      );
 
       final envelope =
           jsonDecode(requestRing.readString()!) as Map<String, dynamic>;
       expect(envelope.containsKey('kvFrames'), isFalse);
-      // No sidecar answered — legacy fallback stub preserved.
-      expect(result.text, contains('Zero-copy shared memory frame delivered'));
     });
   });
 }

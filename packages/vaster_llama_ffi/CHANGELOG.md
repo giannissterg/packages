@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- ZC-P5: the sidecar over the rings. `LlamaSidecarHost` serves `generate`
+  envelopes from a request ring (errors typed on the wire);
+  `LlamaFfiKvCacheController` now also implements `KvFrameResolver`, so
+  `MmapVasterModel` clients lower hints to frame refs — only names cross
+  the ring. Proven: client↔sidecar warm call restores KV from frames and
+  matches the cold completion exactly.
+
 - ZC-P3: the zero-copy model layer.
   - `LlamaFfiKvCacheController` — `KvCacheController` whose frames hold
     real KV tensor state: materialize prefills and exports directly into a

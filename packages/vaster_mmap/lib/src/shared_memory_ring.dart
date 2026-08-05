@@ -85,6 +85,8 @@ class SharedMemoryRing {
   /// Payload capacity in bytes.
   final int capacity;
 
+  bool _closed = false;
+
   SharedMemoryRing._(this._segment, this._ring, this.capacity);
 
   String get shmName => _segment.name;
@@ -170,13 +172,31 @@ class SharedMemoryRing {
 
   /// Writes one binary frame; throws [RingFullException] when it does not
   /// fit (the consumer is not draining).
-  void writePacket(List<int> bytes) => _ring.write(bytes);
+  void writePacket(List<int> bytes) {
+    _checkOpen();
+    _ring.write(bytes);
+  }
 
   /// Writes one binary frame if it fits; returns false otherwise.
-  bool tryWritePacket(List<int> bytes) => _ring.tryWrite(bytes);
+  bool tryWritePacket(List<int> bytes) {
+    _checkOpen();
+    return _ring.tryWrite(bytes);
+  }
 
   /// Reads the next binary frame, or null when the ring is empty.
-  Uint8List? readPacket() => _ring.read();
+  Uint8List? readPacket() {
+    _checkOpen();
+    return _ring.read();
+  }
+
+  /// A ring op after [close] would touch unmapped pages — a native fault.
+  /// Surface it as a typed error instead (a poll loop outliving its ring
+  /// is a bug the caller must see, not a SIGSEGV).
+  void _checkOpen() {
+    if (_closed) {
+      throw StateError('SharedMemoryRing "$shmName" is closed.');
+    }
+  }
 
   /// Writes a UTF-8 string frame (same backpressure as [writePacket]).
   void writeString(String text) => writePacket(utf8.encode(text));
@@ -193,5 +213,8 @@ class SharedMemoryRing {
   /// Unmaps the ring. The segment is destroyed when [unlink] is true,
   /// defaulting to [isOwner] — an attacher's close no longer tears down the
   /// ring its peer is still using. Idempotent.
-  void close({bool? unlink}) => _segment.close(unlink: unlink);
+  void close({bool? unlink}) {
+    _closed = true;
+    _segment.close(unlink: unlink);
+  }
 }
