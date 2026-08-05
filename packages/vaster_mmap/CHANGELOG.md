@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Composition over parallel monoliths** across the whole package:
+  - `ShmSegment.attach` — attach-only opening (throws when the segment does
+    not exist, never creates); both the ring's and the frame's attach paths
+    now probe through it instead of the old create-then-detect hack. One
+    internal open ladder serves create-or-attach and attach-only alike.
+  - `ShmSegment.view(offset, length)` — the one place a protocol gets its
+    typed slice of the mapping.
+  - New `SegmentTag` composable owns segment identity (magic + version as
+    the first two header words) for every protocol; the ring and the frame
+    stamp/validate through it instead of hand-rolling header checks.
+  - **`SharedMemoryFrame` rebuilt as a thin composition** over
+    `ShmSegment` + `SegmentTag` — its private copy of the shm/fallback/mmap
+    ladder is gone. `FrameHeader` is v2 (versioned, tag-first).
+  - **BREAKING (behavior)**: `SharedMemoryFrame.create` on an existing name
+    is now content-addressed idempotent — it validates and attaches to the
+    existing frame instead of silently overwriting pages a peer may be
+    reading; a payload-length mismatch throws. Frames keep their
+    content-at-rest lifetime: `close()` detaches by default for creator and
+    attacher alike.
+
 - **`SharedMemoryRing` rebuilt in layers** (roadmap item 8):
   - `ShmSegment` — mapping lifecycle only: explicit owner-vs-attacher via
     `O_EXCL`, descriptors closed immediately after `mmap` (the old code had

@@ -1,14 +1,17 @@
 import 'dart:ffi';
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:ffi/ffi.dart';
 
-import 'ffi/posix_shm_bindings.dart';
+import 'segment_tag.dart';
+import 'shm_segment.dart';
 
-/// Structure layout of a shared-memory frame header.
+/// Layout of a shared-memory frame header. Begins with the shared
+/// [SegmentTag] words (magic, version) like every Vaster segment protocol.
 base class FrameHeader extends Struct {
   @Uint32()
   external int magic; // 0x564B5646 ("VKVF")
+
+  @Uint32()
+  external int version; // layout version — see [frameVersion]
 
   @Uint32()
   external int payloadLength;
@@ -19,159 +22,118 @@ base class FrameHeader extends Struct {
 
 const int frameMagic = 0x564B5646; // "VKVF" — Vaster KV Frame
 
+/// Header layout version. v2: versioned header sharing the [SegmentTag]
+/// convention with the ring.
+const int frameVersion = 2;
+
+/// The frame's segment identity, composed from the shared [SegmentTag]
+/// convention.
+const SegmentTag frameTag =
+    SegmentTag(magic: frameMagic, version: frameVersion, protocol: 'frame');
+
 /// A named POSIX shared-memory **blob segment** holding a single immutable
 /// payload — the physical-frame primitive underneath zero-copy KV state
 /// sharing.
 ///
 /// Unlike [SharedMemoryRing] (a message-passing ring), a frame is
-/// content-at-rest: one process [create]s it, any process that knows the name
-/// can [attach] and read the payload through a zero-copy [bytes] view over
-/// the same physical pages. Falls back to an mmap'd temp file where
-/// `shm_open` is restricted.
-class SharedMemoryFrame {
-  final String name;
+/// content-at-rest: one process [create]s it, any process that knows the
+/// name can [attach] and read the payload through a zero-copy [bytes] view
+/// over the same physical pages.
+///
+/// Like the ring, the frame is a thin protocol *composed* over the two
+/// shared building blocks — [ShmSegment] owns the mapping lifecycle,
+/// [SegmentTag] owns segment identity — instead of carrying its own copy of
+/// the open/attach/mmap ladder.
+///
+/// ### Content-addressed idempotency
+/// Frame names derive from content fingerprints, so [create] on a name that
+/// already exists is a benign race with a peer materializing the *same*
+/// content: create validates the existing frame and returns it as an
+/// attachment instead of rewriting live pages under the peer (the old
+/// implementation silently overwrote). A payload-length mismatch means the
+/// name does NOT address the same content — that throws.
+///
+/// ### Lifetime
+/// Frames outlive handles: [close] detaches by default (`unlink: false`) for
+/// creator and attacher alike — state stays discoverable cross-process until
+/// someone closes with `unlink: true` (eviction).
+final class SharedMemoryFrame {
+  final ShmSegment _segment;
   final int payloadLength;
 
   /// Caller-defined metadata word stored in the header.
   final int meta;
 
-  final Pointer<Uint8> _basePtr;
-  final int _totalSize;
-  final File? _fallbackFile;
+  SharedMemoryFrame._(this._segment, this.payloadLength, this.meta);
 
-  SharedMemoryFrame._(
-    this.name,
-    this.payloadLength,
-    this.meta,
-    this._basePtr,
-    this._totalSize,
-    this._fallbackFile,
-  );
+  String get name => _segment.name;
 
-  static String _cleanName(String name) => name.startsWith('/') ? name : '/$name';
+  /// True when this instance materialized the frame (vs attached to one a
+  /// peer had already materialized).
+  bool get isOwner => _segment.isOwner;
 
-  static String _fallbackPath(String name) =>
-      '${Directory.systemTemp.path}/${name.replaceAll('/', '_')}.shm';
+  static int get _headerSize => sizeOf<FrameHeader>();
 
-  /// Creates (or overwrites) the named frame and copies [payload] into it.
-  static SharedMemoryFrame create(String name, Uint8List payload, {int meta = 0}) {
-    final cName = _cleanName(name).toNativeUtf8();
-    int fd = -1;
-    File? fallback;
-    try {
-      fd = PosixShmBindings.shmOpen(cName, oRdcwr | oCreat, mode0666);
-    } catch (_) {}
-    if (fd < 0) {
-      final path = _fallbackPath(name);
-      fallback = File(path)..createSync(recursive: true);
-      final cPath = path.toNativeUtf8();
-      fd = PosixShmBindings.open(cPath, oRdcwr | oCreat, mode0666);
-      calloc.free(cPath);
-    }
-    calloc.free(cName);
-    if (fd < 0) throw StateError('Cannot create shared memory frame "$name".');
+  /// Creates the named frame with [payload], or — when a peer already
+  /// materialized it — validates and attaches to the existing frame
+  /// (see *Content-addressed idempotency* above).
+  factory SharedMemoryFrame.create(String name, Uint8List payload,
+      {int meta = 0}) {
+    final segment =
+        ShmSegment.open(name: name, size: _headerSize + payload.length);
+    final header = segment.base.cast<FrameHeader>();
 
-    final totalSize = sizeOf<FrameHeader>() + payload.length;
-    PosixShmBindings.ftruncate(fd, totalSize);
-
-    final rawPtr = PosixShmBindings.mmap(
-        nullptr, totalSize, protRead | protWrite, mapShared, fd, 0);
-    // The mapping outlives the descriptor — close it now, success or not.
-    PosixShmBindings.close(fd);
-    if (rawPtr == mapFailed) {
-      throw StateError('Failed mmap for frame "$name".');
+    if (segment.isOwner) {
+      frameTag.stamp(segment);
+      header.ref
+        ..payloadLength = payload.length
+        ..meta = meta;
+      segment.view(_headerSize, payload.length).setAll(0, payload);
+      return SharedMemoryFrame._(segment, payload.length, meta);
     }
 
-    final basePtr = rawPtr.cast<Uint8>();
-    final header = rawPtr.cast<FrameHeader>();
-    header.ref
-      ..magic = frameMagic
-      ..payloadLength = payload.length
-      ..meta = meta;
-
-    final payloadPtr =
-        Pointer<Uint8>.fromAddress(basePtr.address + sizeOf<FrameHeader>());
-    payloadPtr.asTypedList(payload.length).setRange(0, payload.length, payload);
-
-    return SharedMemoryFrame._(
-        name, payload.length, meta, basePtr, totalSize, fallback);
+    // Existing frame: same name must mean same content. Validate the tag
+    // against the header page before trusting any field, then insist the
+    // lengths agree — never rewrite pages a peer may be reading.
+    frameTag.validate(segment);
+    final existingLength = header.ref.payloadLength;
+    if (existingLength != payload.length) {
+      segment.close(unlink: false);
+      throw StateError(
+          'Frame "$name" already exists with a $existingLength-byte payload; '
+          'refusing to overwrite it with ${payload.length} bytes — '
+          'content-addressed names must not collide.');
+    }
+    return SharedMemoryFrame._(segment, existingLength, header.ref.meta);
   }
 
-  /// Attaches to an existing named frame. Throws [StateError] if the segment
-  /// does not exist or does not carry a valid frame header.
-  static SharedMemoryFrame attach(String name) {
-    final cName = _cleanName(name).toNativeUtf8();
-    int fd = -1;
-    File? fallback;
+  /// Attaches to an existing named frame. Probes the header first (touching
+  /// only the segment's first page), learns the payload length, then maps in
+  /// full. Throws [StateError] when the frame does not exist or the segment
+  /// is not a valid frame — attach never creates anything.
+  factory SharedMemoryFrame.attach(String name) {
+    final probe = ShmSegment.attach(name: name, size: _headerSize);
+    final int payloadLength;
+    final int meta;
     try {
-      fd = PosixShmBindings.shmOpen(cName, oRdcwr, mode0666); // no O_CREAT
-    } catch (_) {}
-    if (fd < 0) {
-      final path = _fallbackPath(name);
-      final file = File(path);
-      if (!file.existsSync()) {
-        calloc.free(cName);
-        throw StateError('Shared memory frame "$name" does not exist.');
-      }
-      fallback = file;
-      final cPath = path.toNativeUtf8();
-      fd = PosixShmBindings.open(cPath, oRdcwr, mode0666);
-      calloc.free(cPath);
-    }
-    calloc.free(cName);
-    if (fd < 0) throw StateError('Cannot attach shared memory frame "$name".');
-
-    // Map the header first to learn the payload size, then remap in full.
-    final headerSize = sizeOf<FrameHeader>();
-    final headerPtr = PosixShmBindings.mmap(
-        nullptr, headerSize, protRead | protWrite, mapShared, fd, 0);
-    if (headerPtr == mapFailed) {
-      PosixShmBindings.close(fd);
-      throw StateError('Failed header mmap for frame "$name".');
-    }
-    final header = headerPtr.cast<FrameHeader>().ref;
-    if (header.magic != frameMagic) {
-      PosixShmBindings.munmap(headerPtr, headerSize);
-      PosixShmBindings.close(fd);
-      throw StateError('Segment "$name" is not a Vaster frame.');
-    }
-    final payloadLength = header.payloadLength;
-    final meta = header.meta;
-    PosixShmBindings.munmap(headerPtr, headerSize);
-
-    final totalSize = headerSize + payloadLength;
-    final rawPtr = PosixShmBindings.mmap(
-        nullptr, totalSize, protRead | protWrite, mapShared, fd, 0);
-    // Full mapping established (or failed) — the descriptor is done either way.
-    PosixShmBindings.close(fd);
-    if (rawPtr == mapFailed) {
-      throw StateError('Failed mmap for frame "$name".');
+      frameTag.validate(probe);
+      final header = probe.base.cast<FrameHeader>().ref;
+      payloadLength = header.payloadLength;
+      meta = header.meta;
+    } finally {
+      probe.close(unlink: false);
     }
 
-    return SharedMemoryFrame._(
-        name, payloadLength, meta, rawPtr.cast<Uint8>(), totalSize, fallback);
+    final segment =
+        ShmSegment.attach(name: name, size: _headerSize + payloadLength);
+    return SharedMemoryFrame._(segment, payloadLength, meta);
   }
 
   /// Zero-copy view of the payload — backed directly by the shared pages.
-  Uint8List get bytes =>
-      Pointer<Uint8>.fromAddress(_basePtr.address + sizeOf<FrameHeader>())
-          .asTypedList(payloadLength);
+  Uint8List get bytes => _segment.view(_headerSize, payloadLength);
 
-  /// Unmaps the frame; with [unlink] the underlying segment is destroyed.
-  void close({bool unlink = false}) {
-    PosixShmBindings.munmap(_basePtr.cast<Void>(), _totalSize);
-    if (unlink) {
-      final cName = _cleanName(name).toNativeUtf8();
-      try {
-        PosixShmBindings.shmUnlink(cName);
-      } catch (_) {}
-      calloc.free(cName);
-      final fallback = _fallbackFile ?? File(_fallbackPath(name));
-      if (fallback.existsSync()) {
-        try {
-          fallback.deleteSync();
-        } catch (_) {}
-      }
-    }
-  }
+  /// Detaches from the frame; with [unlink] the underlying segment is
+  /// destroyed (eviction). Detach is the default for creator and attacher
+  /// alike — frames are content-at-rest and outlive handles. Idempotent.
+  void close({bool unlink = false}) => _segment.close(unlink: unlink);
 }

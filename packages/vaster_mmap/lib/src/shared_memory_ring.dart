@@ -3,6 +3,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'ring_buffer.dart';
+import 'segment_tag.dart';
 import 'shm_segment.dart';
 
 /// Layout of the shared ring header at the base of the segment.
@@ -33,6 +34,11 @@ const int shmMagic = 0x56415354; // "VAST"
 /// Header layout version. v2: versioned header, little-endian frame
 /// prefixes, no dead status word.
 const int shmRingVersion = 2;
+
+/// The ring's segment identity, composed from the shared [SegmentTag]
+/// convention (magic + version as the first two header words).
+const SegmentTag ringTag =
+    SegmentTag(magic: shmMagic, version: shmRingVersion, protocol: 'ring');
 
 const int defaultShmCapacity = 4 * 1024 * 1024; // 4MB payload region
 
@@ -117,14 +123,20 @@ class SharedMemoryRing {
     final header = segment.base.cast<ShmRingHeader>();
 
     if (segment.isOwner) {
+      ringTag.stamp(segment);
       header.ref
-        ..magic = shmMagic
-        ..version = shmRingVersion
         ..capacity = capacity
         ..head = 0
         ..tail = 0;
     } else {
-      _validateHeader(header, segment, expectedCapacity: capacity);
+      ringTag.validate(segment);
+      if (header.ref.capacity != capacity) {
+        final found = header.ref.capacity;
+        segment.close(unlink: false);
+        throw StateError(
+            'Segment "$shmName" was created with capacity $found, not '
+            "$capacity — attach with the creator's capacity.");
+      }
     }
 
     return SharedMemoryRing._(segment, _ringOver(segment, capacity), capacity);
@@ -135,62 +147,26 @@ class SharedMemoryRing {
   /// Probes the header first (a header-sized mapping touches only the
   /// segment's first page, which every live segment backs), reads the
   /// creator's capacity, then maps in full. Throws [StateError] when the
-  /// ring does not exist.
+  /// ring does not exist — attach never creates anything.
   factory SharedMemoryRing.attach(String shmName) {
-    final probe = ShmSegment.open(name: shmName, size: _headerSize);
-    if (probe.isOwner) {
-      // We just created a bogus header-sized segment: it did not exist.
-      probe.close(unlink: true);
-      throw StateError('Shared memory ring "$shmName" does not exist.');
-    }
+    final probe = ShmSegment.attach(name: shmName, size: _headerSize);
     final int capacity;
     try {
-      final header = probe.base.cast<ShmRingHeader>();
-      _validateHeader(header, probe);
-      capacity = header.ref.capacity;
+      ringTag.validate(probe);
+      capacity = probe.base.cast<ShmRingHeader>().ref.capacity;
     } finally {
       probe.close(unlink: false);
     }
 
     final segment =
-        ShmSegment.open(name: shmName, size: _headerSize + capacity);
+        ShmSegment.attach(name: shmName, size: _headerSize + capacity);
     return SharedMemoryRing._(segment, _ringOver(segment, capacity), capacity);
   }
 
-  static void _validateHeader(
-    Pointer<ShmRingHeader> header,
-    ShmSegment segment, {
-    int? expectedCapacity,
-  }) {
-    final h = header.ref;
-    void fail(String reason) {
-      segment.close(unlink: false);
-      throw StateError('Segment "${segment.name}" $reason');
-    }
-
-    if (h.magic != shmMagic) {
-      fail('is not a Vaster ring (magic 0x${h.magic.toRadixString(16)}). '
-          'A stale fallback file from a crashed peer looks like this — '
-          'delete it and retry.');
-    }
-    if (h.version != shmRingVersion) {
-      fail('uses ring layout v${h.version}; this build speaks '
-          'v$shmRingVersion.');
-    }
-    if (expectedCapacity != null && h.capacity != expectedCapacity) {
-      fail('was created with capacity ${h.capacity}, not $expectedCapacity — '
-          'attach with the creator\'s capacity.');
-    }
-  }
-
-  static RingBuffer _ringOver(ShmSegment segment, int capacity) {
-    final payload = Pointer<Uint8>.fromAddress(
-        segment.base.address + _headerSize);
-    return RingBuffer(
-      data: payload.asTypedList(capacity),
-      indices: _ShmRingIndices(segment.base.cast<ShmRingHeader>()),
-    );
-  }
+  static RingBuffer _ringOver(ShmSegment segment, int capacity) => RingBuffer(
+        data: segment.view(_headerSize, capacity),
+        indices: _ShmRingIndices(segment.base.cast<ShmRingHeader>()),
+      );
 
   /// Writes one binary frame; throws [RingFullException] when it does not
   /// fit (the consumer is not draining).
