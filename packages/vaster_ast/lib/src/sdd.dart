@@ -1,4 +1,4 @@
-part of '../vaster_ast.dart';
+part of 'ast_lib.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SDD workflow kit — spec-driven development as a declarative phase TREE.

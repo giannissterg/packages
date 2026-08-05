@@ -1,4 +1,4 @@
-part of '../vaster_ast.dart';
+part of 'ast_lib.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Coordination pattern library — multi-agent composition primitives.

@@ -1,4 +1,4 @@
-part of '../vaster_ast.dart';
+part of 'ast_lib.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Vaster Declarative Functional AST Nodes
@@ -107,9 +107,11 @@ final class Sequence extends VasterNode {
 /// functional surface (no imperative variable mutation).
 class Inputs extends ComposableNode {
   final Map<String, Object?> values;
-  final List<VasterNode> children;
 
-  const Inputs(this.values, {this.children = const []});
+  /// The subtree these inputs are visible to; omit to only bind them.
+  final VasterNode? child;
+
+  const Inputs(this.values, {this.child});
 
   @override
   VasterNode build(BuildContext context) {
@@ -117,7 +119,7 @@ class Inputs extends ComposableNode {
       value: PipelineInputs(values),
       children: [
         InputsHeader(values: values),
-        ...children,
+        ?child,
       ],
     );
   }
@@ -158,9 +160,11 @@ class Agent extends ComposableNode {
 /// ToolSet scope provider node.
 class ToolSet extends ComposableNode {
   final List<ToolDefinition> tools;
-  final List<VasterNode> children;
 
-  const ToolSet({required this.tools, this.children = const []});
+  /// The subtree scoped to these tools; omit to only provision them.
+  final VasterNode? child;
+
+  const ToolSet({required this.tools, this.child});
 
   @override
   VasterNode build(BuildContext context) {
@@ -168,7 +172,7 @@ class ToolSet extends ComposableNode {
       value: ToolSetData(tools),
       children: [
         ToolSetHeader(tools: tools),
-        ...children,
+        ?child,
       ],
     );
   }
@@ -177,9 +181,11 @@ class ToolSet extends ComposableNode {
 /// Storage Mount scope provider node.
 class Mount extends ComposableNode {
   final StorageMount mount;
-  final List<VasterNode> children;
 
-  const Mount({required this.mount, this.children = const []});
+  /// The subtree scoped to this mount; omit to only provision it.
+  final VasterNode? child;
+
+  const Mount({required this.mount, this.child});
 
   @override
   VasterNode build(BuildContext context) {
@@ -187,7 +193,7 @@ class Mount extends ComposableNode {
       value: mount,
       children: [
         MountHeader(mount: mount),
-        ...children,
+        ?child,
       ],
     );
   }
@@ -199,13 +205,15 @@ class BudgetScope extends ComposableNode {
   final int? maxTokens;
   final double? maxCost;
   final Duration? maxDuration;
-  final List<VasterNode> children;
+
+  /// The subtree bounded by this budget; omit to only declare it.
+  final VasterNode? child;
 
   const BudgetScope({
     this.maxTokens,
     this.maxCost,
     this.maxDuration,
-    this.children = const [],
+    this.child,
   });
 
   @override
@@ -222,7 +230,7 @@ class BudgetScope extends ComposableNode {
           maxCost: maxCost,
           maxDuration: maxDuration,
         ),
-        ...children,
+        ?child,
       ],
     );
   }
@@ -322,9 +330,11 @@ final class ReadFile extends VasterNode {
 /// Code Sandbox scope provider node.
 class Sandbox extends ComposableNode {
   final CodeEnvironment env;
-  final List<VasterNode> children;
 
-  const Sandbox({required this.env, this.children = const []});
+  /// The subtree scoped to this sandbox; omit to only register it.
+  final VasterNode? child;
+
+  const Sandbox({required this.env, this.child});
 
   @override
   VasterNode build(BuildContext context) {
@@ -332,7 +342,7 @@ class Sandbox extends ComposableNode {
       value: env,
       children: [
         SandboxHeader(env: env),
-        ...children,
+        ?child,
       ],
     );
   }
@@ -378,9 +388,11 @@ final class Transaction extends VasterNode {
 /// Model selection scope provider node.
 class SelectModel extends ComposableNode {
   final ModelDescriptor model;
-  final List<VasterNode> children;
 
-  const SelectModel({required this.model, this.children = const []});
+  /// The subtree scoped to this model; omit to only switch the active model.
+  final VasterNode? child;
+
+  const SelectModel({required this.model, this.child});
 
   @override
   VasterNode build(BuildContext context) {
@@ -388,7 +400,7 @@ class SelectModel extends ComposableNode {
       value: model,
       children: [
         SelectModelHeader(model: model),
-        ...children,
+        ?child,
       ],
     );
   }

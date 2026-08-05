@@ -33,13 +33,13 @@ void main() {
         BudgetScope(
           maxTokens: 50000,
           maxCost: 2.5,
-          children: [
+          child: Sequence([
             WriteFile(path: '/workspace/brief.md', content: 'the brief'),
             ReadFile(path: '/workspace/brief.md', output: 'brief'),
             WriteFile(path: r'/workspace/${brief}.md', content: 'dynamic'),
             Sandbox(
               env: CodeEnvironment(envId: 'ci', timeoutMs: 5000),
-              children: [Execute(code: 'run checks', output: 'checks')],
+              child: Execute(code: 'run checks', output: 'checks'),
             ),
             Router(
               prompt: 'Who owns this incident?',
@@ -64,7 +64,7 @@ void main() {
                 SendMessage(fromId: 'triager', toId: 'sre', payload: {'go': true}),
               ],
             ),
-          ],
+          ]),
         ),
       ],
     ));

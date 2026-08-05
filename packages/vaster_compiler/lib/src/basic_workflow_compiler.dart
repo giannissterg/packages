@@ -1,5 +1,7 @@
 import 'package:vaster_agent/vaster_agent.dart';
 import 'package:vaster_ast/vaster_ast.dart';
+import 'package:vaster_ast/primitives.dart';
+import 'package:vaster_ast/lowering.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_resources/vaster_resources.dart';

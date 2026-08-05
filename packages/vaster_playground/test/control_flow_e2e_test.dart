@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
+import 'package:vaster_ast/primitives.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';

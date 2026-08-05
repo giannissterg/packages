@@ -1,4 +1,4 @@
-part of '../vaster_ast.dart';
+part of 'ast_lib.dart';
 
 /// Container for active tool definitions in BuildContext.
 final class ToolSetData {

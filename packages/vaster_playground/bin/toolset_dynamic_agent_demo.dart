@@ -52,14 +52,12 @@ void main() async {
       // ToolSet Scope Provider wrapping sub-tree
       ToolSet(
         tools: const [writeFileTool, readFileTool],
-        children: const [
-          Agent(
-            role: engineerRole,
-            child: Task(
-                prompt:
-                    'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
-          ),
-        ],
+        child: const Agent(
+          role: engineerRole,
+          child: Task(
+              prompt:
+                  'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
+        ),
       ),
 
       const Output(),

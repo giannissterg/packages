@@ -2,6 +2,15 @@
 
 ## 0.2.0
 
+- **Breaking — declarative-only default import**: imperative primitives
+  live in `package:vaster_ast/primitives.dart`; compiler lowering targets in
+  `package:vaster_ast/lowering.dart`. The main import is the declarative
+  tier only.
+- **Breaking — scope providers take `child:`**: `ToolSet`, `Mount`,
+  `Sandbox`, `SelectModel`, `BudgetScope`, `Inputs` (matching
+  `Agent`/`Knowledge`/`ContextBudget`); wrap former sibling lists in
+  `Sequence`. Omitting `child` provisions/declares without scoping.
+
 Breaking DX overhaul — see the root CHANGELOG for the full narrative.
 
 - Vocabulary unified (`prompt`, `condition`, `counter`, `error`, `output`,

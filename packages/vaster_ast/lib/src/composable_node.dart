@@ -1,4 +1,4 @@
-part of '../vaster_ast.dart';
+part of 'ast_lib.dart';
 
 /// Flutter-style composable node for defining reusable, modular pipeline components.
 ///

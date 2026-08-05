@@ -65,7 +65,7 @@ void main() async {
     children: [
       ToolSet(
         tools: const [writeFileTool, readFileTool],
-        children: [
+        child: Sequence([
           // Phase 1: Architecture & Project Analysis
           const Agent(
             role: architectRole,
@@ -165,7 +165,7 @@ void main() {
               ),
             ],
           ),
-        ],
+        ]),
       ),
     ],
   );

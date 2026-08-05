@@ -83,13 +83,13 @@ void main() async {
                         description: 'Analyzes code for vulnerabilities',
                       ),
                     ],
-                    children: [
+                    child: const Sequence([
                       // Declarative Functional Component (ComposableNode)
-                      const SecurityAuditComponent(),
+                      SecurityAuditComponent(),
 
                       // Task automatically inherits secAuditorRole from context!
-                      const Task(prompt: 'Produce final compliance report.'),
-                    ],
+                      Task(prompt: 'Produce final compliance report.'),
+                    ]),
                   ),
               ),
 

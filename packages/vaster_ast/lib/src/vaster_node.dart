@@ -1,4 +1,4 @@
-part of '../vaster_ast.dart';
+part of 'ast_lib.dart';
 
 /// Sealed base class for all Vaster AST nodes.
 ///

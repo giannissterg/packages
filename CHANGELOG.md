@@ -47,6 +47,17 @@ Breaking DX overhaul of the AST surface, plus new runtime semantics.
   from the review text — a real claude-cli calibration run showed backends
   without schema enforcement re-reviewing the artifact and overriding the
   reviewer's verdict.
+- **AST DX — declarative surface** (Flutter-style): the default
+  `package:vaster_ast/vaster_ast.dart` import now contains no imperative
+  nodes. Low-level primitives (`AddContext`, `EvictContext`,
+  `CompressContext`, `YieldHuman`, `While`, `Repeat`, `TryCatch`,
+  `DefineSubroutine`, `CallSubroutine`) moved to the opt-in
+  `package:vaster_ast/primitives.dart`; compiler lowering targets
+  (`*Header`, `*Execution`, `PipelineBody`) moved to
+  `package:vaster_ast/lowering.dart` (vaster_compiler-internal). Scope
+  providers unified on a single `child:` like `Agent`/`Knowledge`:
+  `ToolSet`, `Mount`, `Sandbox`, `SelectModel`, `BudgetScope`, and `Inputs`
+  now take `child:` (breaking; wrap former sibling lists in `Sequence`).
 - **Context class system**: context is now managed like memory — the
   compiled prompt is *linked*, not concatenated. New `ContextClass` /
   `BudgetShare` / `ContextClassTable` primitives (segment table with bands,

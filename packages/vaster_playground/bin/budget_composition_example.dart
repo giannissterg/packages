@@ -30,12 +30,10 @@ void main() async {
       const BudgetScope(
         maxTokens: 200,
         maxDuration: Duration(minutes: 1),
-        children: [
-          Agent(
-            role: analystRole,
-            child: Task(prompt: 'Analyze sales data and summarize findings.'),
-          ),
-        ],
+        child: Agent(
+          role: analystRole,
+          child: Task(prompt: 'Analyze sales data and summarize findings.'),
+        ),
       ),
     ],
   );
@@ -72,12 +70,10 @@ void main() async {
     children: [
       const BudgetScope(
         maxTokens: 5,
-        children: [
-          Agent(
-            role: analystRole,
-            child: Task(prompt: 'Analyze sales data and summarize findings.'),
-          ),
-        ],
+        child: Agent(
+          role: analystRole,
+          child: Task(prompt: 'Analyze sales data and summarize findings.'),
+        ),
       ),
     ],
   );
