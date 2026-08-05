@@ -30,6 +30,10 @@ dependencies:
     path: ../vaster_debug
   vaster_dis:
     path: ../vaster_dis
+  vaster_context_manager:
+    path: ../vaster_context_manager
+  vaster_llama_ffi:
+    path: ../vaster_llama_ffi
   vaster_model:
     path: ../vaster_model
   vaster_model_claude_api:

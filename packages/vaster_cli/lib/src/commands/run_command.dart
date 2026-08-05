@@ -10,6 +10,7 @@ import 'package:vaster_dis/tracer.dart';
 
 import '../vaster_command.dart';
 import 'backend_resolver.dart';
+import 'kv_prewarmer.dart';
 
 class RunCommand extends VasterCommand {
   @override
@@ -35,10 +36,12 @@ class RunCommand extends VasterCommand {
         'claude-cli',
         'gemini',
         'gemini-cli',
+        'llama',
         'rpc',
       ],
       help: 'Model backend for compiled program execution '
-          '(fake = offline echo model, rpc = sidecar socket).',
+          '(fake = offline echo model, llama = in-process llama.cpp over '
+          'FFI with zero-copy KV frames, rpc = sidecar socket).',
     );
     parser.addOption(
       'model',
@@ -159,8 +162,9 @@ class RunCommand extends VasterCommand {
     }
 
     // 2. Resolve the model backend (shared with `vaster resume`).
-    VasterModel model =
-        resolveBackendModel(results: results, context: context, err: err);
+    final resolved =
+        await resolveBackendModel(results: results, context: context, err: err);
+    VasterModel model = resolved.model;
 
     // Deterministic replay: answer every model call from a recorded tape.
     final replayPath = results['replay'] as String?;
@@ -242,6 +246,17 @@ class RunCommand extends VasterCommand {
         out.writeln('  awaiting: ${request.prompt}');
       }
       out.writeln('  checkpoint: $path');
+      // Zero-copy prewarm: pinned regions become shared KV frames so the
+      // resuming process restores state instead of re-decoding the prefix.
+      final kv = resolved.kvController;
+      if (kv != null) {
+        final (regions, tokens) = await prewarmPinnedRegions(
+            contextManager: vm.contextManager, controller: kv);
+        if (regions > 0) {
+          out.writeln('  kv-prewarm: $regions pinned region(s) → '
+              'shared frames ($tokens tokens)');
+        }
+      }
       out.writeln('  resume: vaster resume $path --respond approve');
       tracer?.detach();
       recorder?.detach();

@@ -56,6 +56,22 @@ final class LlamaFfiVasterModel implements VasterModel {
           reportsCostUsd: false,
         );
 
+  /// Renders a message run exactly as it appears inside [composePrompt].
+  ///
+  /// This is the alignment contract for KV prewarming: state materialized
+  /// from `renderMessages(region.messages)` is a byte-identical prefix of
+  /// a prompt whose leading messages are that region's — so a restored
+  /// frame lines up with the composed prompt token-for-token.
+  static String renderMessages(Iterable<ChatMessage> messages) {
+    final buffer = StringBuffer();
+    for (final message in messages) {
+      final text = message.text.trim();
+      if (text.isEmpty) continue;
+      buffer.writeln('${message.role.name}: $text');
+    }
+    return buffer.toString();
+  }
+
   /// Flattens the typed conversation into a plain prompt. Stable content
   /// (system instruction, earlier turns) renders first so materialized
   /// prefixes stay byte-identical across calls — required for KV reuse.
@@ -66,11 +82,7 @@ final class LlamaFfiVasterModel implements VasterModel {
       buffer.writeln(system);
       buffer.writeln();
     }
-    for (final message in request.messages) {
-      final text = message.text.trim();
-      if (text.isEmpty) continue;
-      buffer.writeln('${message.role.name}: $text');
-    }
+    buffer.write(renderMessages(request.messages));
     buffer.write('model:');
     return buffer.toString();
   }

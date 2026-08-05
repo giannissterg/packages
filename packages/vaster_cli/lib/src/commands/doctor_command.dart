@@ -1,5 +1,9 @@
 import 'dart:io';
+
+import 'package:vaster_llama_ffi/vaster_llama_ffi.dart';
+
 import '../vaster_command.dart';
+import 'backend_resolver.dart';
 
 class DoctorCommand extends VasterCommand {
   @override
@@ -44,6 +48,29 @@ class DoctorCommand extends VasterCommand {
       out.writeln('  ✓ GEMINI_API_KEY    : Configured (${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)})');
     } else {
       out.writeln('  ℹ GEMINI_API_KEY    : Not set (Using Fake or Gemini CLI mode)');
+    }
+
+    // Check llama.cpp FFI backend (libllama + a GGUF model)
+    final libPath = LlamaBindings.defaultLibraryPath;
+    if (File(libPath).existsSync()) {
+      try {
+        LlamaBindings.open(libraryPath: libPath);
+        out.writeln('  ✓ libllama          : $libPath (all symbols resolve)');
+      } catch (e) {
+        out.writeln('  ⚠ libllama          : present but incompatible — $e');
+      }
+    } else {
+      out.writeln('  ℹ libllama          : not found at $libPath '
+          '(brew install llama.cpp for --backend llama)');
+    }
+    final llamaModel = Platform.environment['VASTER_LLAMA_MODEL'] ??
+        defaultLlamaModelPath();
+    if (File(llamaModel).existsSync()) {
+      final mb = (File(llamaModel).lengthSync() / (1024 * 1024)).round();
+      out.writeln('  ✓ llama model       : $llamaModel (${mb}MB)');
+    } else {
+      out.writeln('  ℹ llama model       : none at $llamaModel '
+          '(--model <path.gguf> or VASTER_LLAMA_MODEL)');
     }
 
     // Check Unix Domain Socket support

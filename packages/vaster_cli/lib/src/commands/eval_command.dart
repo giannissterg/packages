@@ -88,8 +88,9 @@ class EvalCommand extends VasterCommand {
         program: program,
         vmFactory: () async => VasterVMEngine.bootstrap(
           config: VMConfig(
-            defaultModel: resolveBackendModel(
-                results: results, context: context, err: err),
+            defaultModel: (await resolveBackendModel(
+                    results: results, context: context, err: err))
+                .model,
           ),
         ),
         dispose: (vm) => (vm as VasterVMEngine).shutdown(),

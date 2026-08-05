@@ -101,7 +101,8 @@ class ResumeCommand extends VasterCommand {
     }
 
     final model =
-        resolveBackendModel(results: results, context: context, err: err);
+        (await resolveBackendModel(results: results, context: context, err: err))
+            .model;
     final program = checkpoint.decodeProgram();
 
     out.writeln('======================================================================');
@@ -198,6 +199,11 @@ class ResumeCommand extends VasterCommand {
       out.writeln(
           '  cost   : \$${runtime.budget.consumedCost.toStringAsFixed(6)}');
     }
+    if (usageMeter.cacheReadTokens > 0) {
+      out.writeln('  cache  : ${usageMeter.cacheReadTokens} of '
+          '${usageMeter.promptTokens} prompt tokens restored from KV state '
+          '— never re-decoded');
+    }
     final resultRegister = program.resultBinding;
     if (resultRegister != null &&
         state.registers.containsKey(resultRegister)) {
@@ -216,10 +222,12 @@ class ResumeCommand extends VasterCommand {
 /// Aggregates resume-side usage for the report.
 class ResumeUsageMeter {
   int promptTokens = 0;
+  int cacheReadTokens = 0;
   bool sawEstimates = false;
 
   void add(ModelUsageEvent event) {
     promptTokens += event.promptTokenCount;
+    cacheReadTokens += (event.usage['cacheReadTokenCount'] as int?) ?? 0;
     if (event.estimated) sawEstimates = true;
   }
 }

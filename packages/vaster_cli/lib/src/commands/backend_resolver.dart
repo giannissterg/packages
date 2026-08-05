@@ -1,4 +1,5 @@
 import 'package:args/args.dart';
+import 'package:vaster_llama_ffi/vaster_llama_ffi.dart';
 import 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
 import 'package:vaster_model_claude_cli/vaster_model_claude_cli.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
@@ -6,20 +7,36 @@ import 'package:vaster_model_gemini_cli/vaster_model_gemini_cli.dart';
 import 'package:vaster_model_google_ai/vaster_model_google_ai.dart';
 import 'package:vaster_model_rpc/vaster_model_rpc.dart';
 import 'package:vaster_vm/vaster_vm.dart';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 
 import '../vaster_command.dart';
+
+/// A resolved backend: the model, plus the zero-copy KV controller when
+/// the backend has one (`llama`) — hosts use it to prewarm pinned regions
+/// into shared frames at park time so a resume starts warm.
+final class ResolvedBackend {
+  final VasterModel model;
+  final LlamaFfiKvCacheController? kvController;
+  const ResolvedBackend(this.model, {this.kvController});
+}
+
+/// Fallback GGUF used by `--backend llama` when neither `--model` nor
+/// `VASTER_LLAMA_MODEL` names one.
+String defaultLlamaModelPath() =>
+    '${Platform.environment['HOME']}/models/SmolLM2-135M-Instruct-Q4_K_M.gguf';
 
 /// One backend-name → model resolution for every CLI verb (`run`, `resume`).
 ///
 /// Real network backends are wrapped in the resilience layer: transient
 /// failures (429/5xx/timeouts) retry with exponential backoff instead of
-/// trapping the VM.
-VasterModel resolveBackendModel({
+/// trapping the VM. The in-process `llama` backend is deliberately NOT
+/// wrapped: it holds live engine state (a restored KV sequence), and a
+/// blind retry would re-decode against that state.
+Future<ResolvedBackend> resolveBackendModel({
   required ArgResults results,
   required CommandContext context,
   required StringSink err,
-}) {
+}) async {
   final backend = results['backend'] as String? ?? 'fake';
 
   VasterModel resilient(VasterModel backend) => ResilientVasterModel(
@@ -31,7 +48,25 @@ VasterModel resolveBackendModel({
         onRetry: (event) => err.writeln('  [retry] $event'),
       );
 
-  return switch (backend) {
+  if (backend == 'llama') {
+    final modelPath = results['model'] as String? ??
+        Platform.environment['VASTER_LLAMA_MODEL'] ??
+        defaultLlamaModelPath();
+    if (!File(modelPath).existsSync()) {
+      throw StateError('llama backend: model file not found at "$modelPath" '
+          '(pass --model <path.gguf> or set VASTER_LLAMA_MODEL).');
+    }
+    final worker = await LlamaWorker.spawn(modelPath: modelPath);
+    final kv = LlamaFfiKvCacheController(worker: worker);
+    final stem = modelPath.split('/').last.replaceAll('.gguf', '');
+    return ResolvedBackend(
+      LlamaFfiVasterModel(
+          worker: worker, kvController: kv, modelName: 'llama-ffi:$stem'),
+      kvController: kv,
+    );
+  }
+
+  return ResolvedBackend(switch (backend) {
     'claude-api' => resilient(ClaudeApiVasterModel(
         targetModel: results['model'] as String? ?? 'claude-opus-5')),
     'claude-cli' => resilient(ClaudeCliVasterModel(
@@ -46,5 +81,5 @@ VasterModel resolveBackendModel({
         workingDirectory: context.workingDirectory)),
     'rpc' => resilient(RpcVasterModel(socketPath: context.socketPath)),
     _ => FakeVasterModel(),
-  };
+  });
 }
