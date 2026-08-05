@@ -1,6 +1,6 @@
 name: vaster_model_claude_cli
 description: Claude Code CLI backend implementation for the VasterModel interface.
-version: 0.3.0
+version: 0.4.0
 
 resolution: workspace
 

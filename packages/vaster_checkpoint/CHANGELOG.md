@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 - **BREAKING**: format v2 — everything machine-owned rides inside the
   continuation's `MachineSnapshot`; the checkpoint no longer enumerates

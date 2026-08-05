@@ -1,6 +1,6 @@
 name: vaster_cli
 description: Official command-line interface for running, disassembling, serving, and inspecting Vaster LLM Virtual Machine pipelines.
-version: 0.3.0
+version: 0.4.0
 publish_to: none
 resolution: workspace
 

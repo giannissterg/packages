@@ -1,6 +1,6 @@
 name: vaster_sandbox_isolate
 description: Dart Isolate code sandbox backend implementation.
-version: 0.3.0
+version: 0.4.0
 
 resolution: workspace
 

@@ -1,4 +1,4 @@
-## Unreleased (machine-state era)
+## 0.4.0
 
 - Sealed `MachinePhase` (`PhaseIdle/Running/Halted/PausedForHuman/Trapped/
   TimedOut`) replaces the status-enum + error-string + separate-getter
@@ -14,7 +14,7 @@
   replaces the eight-parameter surface. The live model is derived from its
   descriptor on use.
 
-## Unreleased
+## 0.4.0
 
 - Checkpoint surface: `activeSessionId` / `activeModelDescriptor` /
   `programToolSet` / `errorHandlersSnapshot` getters, `restoreQuota`, and

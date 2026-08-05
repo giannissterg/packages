@@ -45,9 +45,32 @@ The kernel is in place, honest, and now battle-tested:
    compiled war room checks clean with a finite bound.
 4. **Zero-copy completion** — the real llama.cpp sidecar over the (now
    correct) ring + frame substrate; cache-aware context planning.
-5. **Illegal states unrepresentable** — sealed `TaskOutcome`, sealed runtime
-   status, typed `Schema` DSL, mailbox/inbox unification, supervisor restart
-   policies.
+5. **Illegal states unrepresentable** — sealed `TaskOutcome`, typed `Schema`
+   DSL, mailbox/inbox unification, supervisor restart policies
+   (`MachinePhase` ✅ delivered).
+
+## The pivot (assessed 2026-08-06)
+
+Every remaining weakness is about **evidence and outside contact**, not
+architecture. The machine is proven *correct*; it is not yet proven
+*useful*, and nobody but its authors can use it. Candid gaps:
+almost all validation is fake-model; no published packages/docs/examples;
+the zero-copy claim has no real sidecar; no eval harness (we cannot measure
+task success); estimation still `len/4` (cost bounds inherit it); the
+portability claim has no spec/conformance suite/second runtime; adversarial
+surface lightly probed.
+
+Outward order of attack:
+1. v0.4.0 tag (✅ when this lands).
+2. **The "prove it" milestone**: one genuinely useful workflow end-to-end on
+   claude-cli for real — checked, run with durable parking, approved via
+   `vaster resume` from a separate invocation, recorded, reported.
+3. Eval harness MVP (turns "it ran" into "it works"; customer for estimate
+   calibration).
+4. Approachability: honest README, 10-minute getting-started, runnable
+   examples; pub.dev after the surface stabilizes.
+5. Then threads 4/5 by appetite — the real-model milestone will likely make
+   the reliability campaign urgent on its own.
 
 ---
 

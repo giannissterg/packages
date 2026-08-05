@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 - New `vaster check <program>` — static verification: binding dominance,
   worst-case cost bound (`--model`, `--max-cost` gating), and policy proofs

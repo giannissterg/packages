@@ -1,6 +1,6 @@
 name: vaster_sandbox
 description: Pure isolated code sandbox interfaces, descriptors, security policies, requests, and results.
-version: 0.3.0
+version: 0.4.0
 
 resolution: workspace
 

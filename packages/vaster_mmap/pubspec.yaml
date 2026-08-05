@@ -1,6 +1,6 @@
 name: vaster_mmap
 description: Zero-Copy POSIX Shared Memory IPC transport for Vaster Model Sidecars using dart:ffi.
-version: 0.3.0
+version: 0.4.0
 publish_to: none
 resolution: workspace
 
