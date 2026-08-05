@@ -11,6 +11,7 @@ workspace:
   - packages/vaster_pricing
   - packages/vaster_metering
   - packages/vaster_debug
+  - packages/vaster_checkpoint
   - packages/vaster_model_fake
   - packages/vaster_context
   - packages/vaster_context_manager

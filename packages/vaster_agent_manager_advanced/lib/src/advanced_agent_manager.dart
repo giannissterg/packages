@@ -148,11 +148,17 @@ class AdvancedAgentManager implements AgentManager {
     }
 
     final sessionId = AgentDescriptor.sessionIdFor(descriptor.agentId);
-    final session = await sessionManager.createSession(
-      sessionId: sessionId,
-      model: model,
-      contextManager: contextManager,
-    );
+    // Get-or-create: after a checkpoint restore the agent's session already
+    // exists (with its restored history) while the agent object does not —
+    // recreating the agent must adopt that session, not throw on the
+    // duplicate id. For an existing session the passed contextManager is
+    // unused (the session keeps the one it was restored with).
+    final session = sessionManager.getSession(sessionId) ??
+        await sessionManager.createSession(
+          sessionId: sessionId,
+          model: model,
+          contextManager: contextManager,
+        );
 
     // Project the agent's system instruction into the heap as a system-class
     // region so it actually reaches ModelRequest.systemInstruction — before

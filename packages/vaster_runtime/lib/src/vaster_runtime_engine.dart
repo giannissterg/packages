@@ -94,6 +94,10 @@ class VasterRuntime {
   RuntimeStepObserver? stepObserver;
 
   VasterModel? _activeModel;
+
+  /// The descriptor that selected [_activeModel] — kept for checkpoint
+  /// capture (a model object cannot serialize; its descriptor can).
+  ModelDescriptor? _activeModelDescriptor;
   String? _activeSessionId;
   VasterProgram? _currentProgram;
 
@@ -200,6 +204,40 @@ class VasterRuntime {
   /// Monetary cost consumed against the program-declared quota scope.
   double get quotaConsumedCost => _quotaTracker.consumedCost;
 
+  /// Tool calls recorded against the program-declared quota scope.
+  int get quotaConsumedToolCalls => _quotaTracker.toolCallCount;
+
+  /// The program-declared quota currently being enforced.
+  ResourceQuota get activeQuota => _quotaTracker.quota;
+
+  /// Machine-internal state a checkpoint must carry beyond registers and the
+  /// call stack — without these, a resumed PromptOp forgets its session,
+  /// model, program toolset, and error handlers (found by the kill-safety
+  /// E2E: the post-resume prompt ran sessionless).
+  String? get activeSessionId => _activeSessionId;
+  ModelDescriptor? get activeModelDescriptor => _activeModelDescriptor;
+  List<ToolDefinition> get programToolSet => List.unmodifiable(_activeToolSet);
+  List<({int targetPc, String errorVar})> get errorHandlersSnapshot =>
+      List.unmodifiable(_errorHandlers);
+
+  /// Restores a captured program-quota scope (checkpoint resume): the quota
+  /// that was active at capture and the meters as they stood. Consumption
+  /// continues from the restored values; enforcement resumes with the next
+  /// real charge.
+  void restoreQuota(
+    ResourceQuota quota, {
+    required int consumedTokens,
+    required double consumedCost,
+    required int consumedToolCalls,
+  }) {
+    _quotaTracker.applyQuota(quota);
+    _quotaTracker.restoreConsumed(
+      tokens: consumedTokens,
+      cost: consumedCost,
+      toolCalls: consumedToolCalls,
+    );
+  }
+
   /// Current execution state snapshot.
   RuntimeState get state => RuntimeState(
         pc: _pc,
@@ -284,12 +322,38 @@ class VasterRuntime {
     List<ActivationRecord>? callStack,
     HumanInteractionRequest? pendingRequest,
     HumanInteractionResponse? humanResponse,
+    String? activeSessionId,
+    ModelDescriptor? activeModelDescriptor,
+    List<ToolDefinition>? programToolSet,
+    List<({int targetPc, String errorVar})>? errorHandlers,
   }) async {
     _currentProgram = program;
     _pc = resumePc;
     if (registers != null) _registers.restore(registers);
     if (callStack != null) _callStack.restore(callStack);
     _hitl.restorePending(pendingRequest);
+    // Machine-internal state: the session/model/toolset/handler context the
+    // suspended instruction stream was executing under.
+    _activeSessionId = activeSessionId;
+    if (activeModelDescriptor != null) {
+      _activeModel = vm.modelRegistry.resolveModel(activeModelDescriptor);
+      _activeModelDescriptor = activeModelDescriptor;
+    }
+    if (programToolSet != null) _activeToolSet = List.of(programToolSet);
+    if (errorHandlers != null) {
+      _errorHandlers
+        ..clear()
+        ..addAll(errorHandlers);
+    }
+
+    // Cache hints are derived state — rebuild them from the (restored)
+    // context heap's pinned regions instead of serializing tracker
+    // internals. Same fingerprints, same hints, zero extra state.
+    for (final region in vm.contextManager.regions) {
+      if (region.isPinned) {
+        _cacheHints.onRegionPinned(region.id, vm.contextManager);
+      }
+    }
 
     if (humanResponse != null) {
       _pc += _hitl.consume(response: humanResponse, registers: _registers);
@@ -517,6 +581,7 @@ class VasterRuntime {
 
       case SelectModelOp op:
         _activeModel = vm.modelRegistry.resolveModel(op.descriptor);
+        _activeModelDescriptor = op.descriptor;
 
       case CreateSessionOp op:
         await vm.createSession(

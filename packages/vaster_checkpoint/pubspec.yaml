@@ -1,0 +1,27 @@
+name: vaster_checkpoint
+description: Whole-machine durable checkpoints for Vaster — capture a running pipeline to self-contained JSON and resume it in a fresh VM.
+version: 0.3.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  vaster_budget:
+  vaster_context:
+  vaster_continuation:
+  vaster_filesystem_memory:
+  vaster_instruction:
+  vaster_model:
+  vaster_policy:
+  vaster_resources:
+  vaster_runtime:
+  vaster_scheduler:
+  vaster_vm_api:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
+  vaster_model_fake:
+  vaster_vm:
