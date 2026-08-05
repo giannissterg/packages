@@ -65,8 +65,9 @@ Outward order of attack:
 2. **The "prove it" milestone**: one genuinely useful workflow end-to-end on
    claude-cli for real — checked, run with durable parking, approved via
    `vaster resume` from a separate invocation, recorded, reported.
-3. Eval harness MVP (turns "it ran" into "it works"; customer for estimate
-   calibration).
+3. Eval harness MVP — ✅ delivered 2026-08-06: `vaster_eval` + `vaster eval`
+   (hermetic N-trial runs, composable scorers, success rates with real
+   metered cost).
 4. Approachability: honest README, 10-minute getting-started, runnable
    examples; pub.dev after the surface stabilizes.
 5. Then threads 4/5 by appetite — the real-model milestone will likely make

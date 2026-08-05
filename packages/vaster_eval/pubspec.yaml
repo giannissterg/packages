@@ -1,0 +1,23 @@
+name: vaster_eval
+description: Multi-run evaluation harness for Vaster — N trials per variant, composable scorers, aggregated cost/quality/latency reports. Turns "it ran" into "it works".
+version: 0.4.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  vaster_budget:
+  vaster_instruction:
+  vaster_model:
+  vaster_policy:
+  vaster_runtime:
+  vaster_scheduler:
+  vaster_vm_api:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
+  vaster_model_fake:
+  vaster_vm:

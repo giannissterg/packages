@@ -18,6 +18,8 @@ dependencies:
     path: ../vaster_instruction
   vaster_check:
     path: ../vaster_check
+  vaster_eval:
+    path: ../vaster_eval
   vaster_policy:
     path: ../vaster_policy
   vaster_pricing:

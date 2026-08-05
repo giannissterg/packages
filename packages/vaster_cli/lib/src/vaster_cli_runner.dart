@@ -9,6 +9,7 @@ import 'commands/disassemble_command.dart';
 import 'commands/doctor_command.dart';
 import 'commands/inspect_command.dart';
 import 'commands/check_command.dart';
+import 'commands/eval_command.dart';
 import 'commands/resume_command.dart';
 import 'commands/run_command.dart';
 import 'commands/serve_command.dart';
@@ -24,6 +25,7 @@ class VasterCliRunner {
         [
           RunCommand(),
           CheckCommand(),
+          EvalCommand(),
           ResumeCommand(),
           CompileCommand(),
           AuditCommand(),

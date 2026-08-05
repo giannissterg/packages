@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- New `vaster eval <program>` — N-trial evaluation with success rate, mean
+  score, and real metered cost per trial (`--trials`, `--contains`,
+  `--regex`, `--json`).
+
 ## 0.4.0
 
 - New `vaster check <program>` — static verification: binding dominance,
