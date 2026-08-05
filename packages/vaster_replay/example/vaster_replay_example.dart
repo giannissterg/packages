@@ -18,7 +18,6 @@ void main() {
       pc: 0,
       instruction: const PromptOp(promptText: 'Design a notes app', outputVar: 'r0'),
       registers: {'r0': 'Design a notes app'},
-      vfsSnapshot: CowFileSnapshot.empty(),
     ))
     ..recordStep(ExecutionStepFrame(
       stepIndex: 1,
@@ -29,7 +28,6 @@ void main() {
         outputVar: 'r1',
       ),
       registers: {'r0': 'Design a notes app', 'r1': 'Spec v1'},
-      vfsSnapshot: CowFileSnapshot.empty(),
     ))
     ..recordStep(ExecutionStepFrame(
       stepIndex: 2,
@@ -40,7 +38,6 @@ void main() {
         'r1': 'Spec v1',
         '__output__': 'Spec v1',
       },
-      vfsSnapshot: CowFileSnapshot.empty(),
     ));
 
   final engine = VasterReplayEngine(journal: journal, initialStepIndex: 2);

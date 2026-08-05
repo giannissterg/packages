@@ -281,6 +281,9 @@ class RunCommand extends VasterCommand {
       // complete, deterministic re-execution recipe (`--replay <file>`).
       File(recordPath).writeAsStringSync(
           const JsonEncoder.withIndent('  ').convert({
+        // The program makes the envelope self-contained for `vaster debug`
+        // (older envelopes lack it and need --program).
+        'program': program.toJson(),
         'journal': recorder.journal.toJson(),
         'modelTape': recordingTape?.toJson() ?? ModelTape().toJson(),
       }));

@@ -1,6 +1,6 @@
-import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_runtime/vaster_runtime.dart';
 
 /// Immutable point-in-time snapshot frame captured at a specific ISA instruction execution step.
 class ExecutionStepFrame {
@@ -16,8 +16,12 @@ class ExecutionStepFrame {
   /// Snapshot of virtual register file contents (`Map<String, Object?>`).
   final Map<String, Object?> registers;
 
-  /// Copy-on-Write VFS page snapshot at this step.
-  final CowFileSnapshot vfsSnapshot;
+  /// Subroutine activation records live at this step (outermost first).
+  /// Required for resuming into a frame recorded inside a subroutine — a
+  /// machine paused in a call is defined by where it will return to.
+  /// VFS state is deliberately NOT recorded per frame: it is reconstructed
+  /// deterministically by replaying the tape (see DebugSession).
+  final List<ActivationRecord> callStack;
 
   /// Model response payload emitted during this step (if an LLM call occurred).
   final ModelResponse? modelOutput;
@@ -30,7 +34,7 @@ class ExecutionStepFrame {
     required this.pc,
     required this.instruction,
     required this.registers,
-    required this.vfsSnapshot,
+    this.callStack = const [],
     this.modelOutput,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
@@ -42,7 +46,7 @@ class ExecutionStepFrame {
       pc: pc,
       instruction: instruction,
       registers: Map.of(newRegisters),
-      vfsSnapshot: vfsSnapshot,
+      callStack: callStack,
       modelOutput: modelOutput,
       timestamp: timestamp,
     );
@@ -54,7 +58,15 @@ class ExecutionStepFrame {
         'pc': pc,
         'instruction': instruction.toJson(),
         'registers': registers,
-        'vfsSnapshot': vfsSnapshot.toJson(),
+        if (callStack.isNotEmpty)
+          'callStack': [
+            for (final f in callStack)
+              {
+                'functionName': f.functionName,
+                'returnPc': f.returnPc,
+                if (f.outputVar != null) 'outputVar': f.outputVar,
+              },
+          ],
         if (modelOutput != null) 'modelOutput': modelOutput!.toJson(),
         'timestamp': timestamp.toIso8601String(),
       };
@@ -71,9 +83,16 @@ class ExecutionStepFrame {
       registers: Map<String, Object?>.from(
         (json['registers'] as Map?) ?? const {},
       ),
-      vfsSnapshot: CowFileSnapshot.fromJson(
-        Map<String, dynamic>.from(json['vfsSnapshot'] as Map),
-      ),
+      // Tolerant of legacy frames (which carried a vfsSnapshot instead).
+      callStack: [
+        for (final raw in (json['callStack'] as List? ?? const []))
+          ActivationRecord(
+            functionName:
+                (raw as Map)['functionName'] as String? ?? '',
+            returnPc: raw['returnPc'] as int? ?? 0,
+            outputVar: raw['outputVar'] as String?,
+          ),
+      ],
       modelOutput: rawModel == null
           ? null
           : ModelResponse.fromJson(Map<String, dynamic>.from(rawModel as Map)),

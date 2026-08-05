@@ -18,7 +18,6 @@ void main() {
         pc: 0,
         instruction: const PromptOp(promptText: 'Initial Prompt', outputVar: 'r0'),
         registers: {'r0': 'Initial Prompt'},
-        vfsSnapshot: CowFileSnapshot.empty(),
       ));
 
       journal.recordStep(ExecutionStepFrame(
@@ -30,7 +29,6 @@ void main() {
           outputVar: 'r1',
         ),
         registers: {'r0': 'Initial Prompt', 'r1': 'Generated Code v1'},
-        vfsSnapshot: CowFileSnapshot.empty(),
       ));
 
       journal.recordStep(ExecutionStepFrame(
@@ -42,7 +40,6 @@ void main() {
           'r1': 'Generated Code v1',
           '__output__': 'Final Report',
         },
-        vfsSnapshot: CowFileSnapshot.empty(),
       ));
 
       replayEngine = VasterReplayEngine(journal: journal, initialStepIndex: 2);
@@ -111,21 +108,18 @@ void main() {
           pc: 0,
           instruction: const PromptOp(promptText: 'p', outputVar: 'r0'),
           registers: {'r0': 'a'},
-          vfsSnapshot: CowFileSnapshot.empty(),
         ))
         ..recordStep(ExecutionStepFrame(
           stepIndex: 1,
           pc: 1,
           instruction: const SetRegisterOp(registerName: 'r1', value: 'b'),
           registers: {'r0': 'a', 'r1': 'b'},
-          vfsSnapshot: CowFileSnapshot.empty(),
         ))
         ..recordStep(ExecutionStepFrame(
           stepIndex: 2,
           pc: 2,
           instruction: const SetRegisterOp(registerName: 'r0', value: 'z'),
           registers: {'r0': 'z', 'r1': 'b'},
-          vfsSnapshot: CowFileSnapshot.empty(),
         ));
       engine = VasterReplayEngine(journal: journal, initialStepIndex: 2);
     });
@@ -163,7 +157,6 @@ void main() {
           outputVar: 'r1',
         ),
         registers: {'r0': 'hello', 'count': 42},
-        vfsSnapshot: CowFileSnapshot.empty(),
       );
 
       final restored =
@@ -183,14 +176,12 @@ void main() {
           pc: 0,
           instruction: const SetRegisterOp(registerName: 'x', value: 1),
           registers: {'x': 1},
-          vfsSnapshot: CowFileSnapshot.empty(),
         ))
         ..recordStep(ExecutionStepFrame(
           stepIndex: 1,
           pc: 1,
           instruction: const HaltOp(),
           registers: {'x': 1},
-          vfsSnapshot: CowFileSnapshot.empty(),
         ));
 
       final restored =
@@ -321,7 +312,6 @@ void main() {
           pc: 0,
           instruction: const HaltOp(),
           registers: const {},
-          vfsSnapshot: CowFileSnapshot.empty(),
         ));
       expect(() => engine.resume(runtime), throwsStateError);
     });

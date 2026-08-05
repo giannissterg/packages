@@ -1,4 +1,3 @@
-import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 
@@ -25,12 +24,10 @@ class VasterExecutionRecorder {
   /// The journal frames are appended to.
   final VasterExecutionJournal journal;
 
-  /// Optional provider capturing a Copy-on-Write VFS snapshot per step.
-  ///
-  /// When null, each frame records an empty snapshot ([CowFileSnapshot.empty]).
-  /// Supply this to correlate register state with virtual filesystem state at
-  /// each step (e.g. bridging the active filesystem manager's transaction).
-  final CowFileSnapshot Function()? vfsSnapshotProvider;
+  // VFS state is intentionally NOT captured per frame: the step observer is
+  // synchronous while every snapshot API is async, and per-step page maps
+  // would dwarf the journal. DebugSession reconstructs VFS/context state
+  // deterministically by replaying the model tape instead.
 
   int _stepCounter = 0;
   VasterRuntime? _attached;
@@ -41,7 +38,6 @@ class VasterExecutionRecorder {
 
   VasterExecutionRecorder({
     VasterExecutionJournal? journal,
-    this.vfsSnapshotProvider,
   }) : journal = journal ?? VasterExecutionJournal();
 
   /// Whether the recorder is currently attached to a runtime.
@@ -87,7 +83,8 @@ class VasterExecutionRecorder {
         pc: pc,
         instruction: instruction,
         registers: Map<String, Object?>.of(registers),
-        vfsSnapshot: vfsSnapshotProvider?.call() ?? CowFileSnapshot.empty(),
+        // The live call stack makes frames resumable inside subroutines.
+        callStack: _attached?.callStackSnapshot ?? const [],
       ),
     );
 

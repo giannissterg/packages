@@ -44,7 +44,7 @@ class VasterDisassembler {
 
       final pcStr = pc.toString().padLeft(4, '0');
       final opName = inst.opcode.name.toUpperCase().padRight(24);
-      final operandStr = _formatOperands(inst);
+      final operandStr = formatInstruction(inst);
 
       if (options.showAddresses) {
         buffer.writeln('  [$pcStr]  $opName $operandStr');
@@ -109,7 +109,15 @@ class VasterDisassembler {
     return targets;
   }
 
-  String _formatOperands(VasterInstruction inst) {
+  /// Renders one `[PC] opcode operands` line — the shared single-instruction
+  /// renderer used by the disassembly listing and the time-travel debugger.
+  String formatLine(int pc, VasterInstruction instruction) =>
+      '[${pc.toString().padLeft(4, '0')}] '
+      '${instruction.opcode.name.padRight(20)} '
+      '${formatInstruction(instruction)}';
+
+  /// Renders an instruction's operands as a compact one-line string.
+  String formatInstruction(VasterInstruction inst) {
     switch (inst) {
       case PromptOp op:
         final preview = _truncate(op.promptText, 40);

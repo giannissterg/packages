@@ -276,11 +276,16 @@ class VasterRuntime {
         executed++;
       } catch (e, st) {
         if (_handleProgramError(e)) {
+          // Journals must not have silent PC gaps: record the faulting
+          // instruction with post-recovery state (the handler's error
+          // register is already written and the PC points at the catch).
+          stepObserver?.call(executingPc, instruction, _registers.snapshot());
           executed++; // recovery consumed a step
           continue;
         }
         _status = RuntimeStatus.error;
         _lastError = _formatTrap(instruction, e, st);
+        stepObserver?.call(executingPc, instruction, _registers.snapshot());
         break;
       }
     }
