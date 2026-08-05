@@ -39,6 +39,8 @@ dependencies:
     path: ../vaster_continuation
   vaster_continuation_manager:
     path: ../vaster_continuation_manager
+  vaster_debug:
+    path: ../vaster_debug
   vaster_dis:
     path: ../vaster_dis
   vaster_domain:

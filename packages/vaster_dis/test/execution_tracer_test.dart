@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_dis/tracer.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 void main() {

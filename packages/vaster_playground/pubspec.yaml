@@ -29,5 +29,6 @@ dependencies:
   vaster_vm:
 
 dev_dependencies:
+  vaster_debug:
   lints: ^6.0.0
   test: ^1.25.6

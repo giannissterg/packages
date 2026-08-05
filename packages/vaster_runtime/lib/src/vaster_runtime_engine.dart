@@ -11,7 +11,7 @@ import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_tool/vaster_tool.dart';
 import 'package:vaster_token_estimate/vaster_token_estimate.dart';
-import 'package:vaster_agent_manager_advanced/vaster_agent_manager_advanced.dart';
+import 'package:vaster_agent/vaster_agent.dart';
 import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
 import 'package:vaster_filesystem_local/vaster_filesystem_local.dart';
 import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
@@ -616,34 +616,32 @@ class VasterRuntime {
         if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
       case DispatchParallelTasksOp op:
-        if (vm.agentManager is AdvancedAgentManager) {
-          final manager = vm.agentManager as AdvancedAgentManager;
-          // Each dispatch gets its own taskId — a shared id would collide in
-          // event streams and output correlation across the parallel batch.
-          final dispatches = [
-            for (var i = 0; i < op.dispatches.length; i++)
-              (
-                agentId: op.dispatches[i].agentId,
-                task: AgentTask(
-                    taskId: 'parallel_${_pc}_$i',
-                    inputPrompt: _interp(op.dispatches[i].taskPrompt)),
-              ),
-          ];
-          final outputs = await manager.dispatchParallelTasks(dispatches);
-          // Parallel work is not free work: charge the summed usage of every
-          // task tree (previously this path charged nothing at all).
-          var parallelUsage = const UsageMetadata();
-          for (int i = 0; i < outputs.length; i++) {
-            parallelUsage += outputs[i].aggregateUsage;
-            final v = op.dispatches[i].outputVar;
-            if (v != null) _registers.write(v, outputs[i].outputText);
-          }
-          _meter.charge(
-            usage: parallelUsage,
-            modelName: vm.config.defaultModel.modelName,
-            callSite: 'isa_parallel_tasks',
-          );
+        // Each dispatch gets its own taskId — a shared id would collide in
+        // event streams and output correlation across the parallel batch.
+        final dispatches = [
+          for (var i = 0; i < op.dispatches.length; i++)
+            (
+              agentId: op.dispatches[i].agentId,
+              task: AgentTask(
+                  taskId: 'parallel_${_pc}_$i',
+                  inputPrompt: _interp(op.dispatches[i].taskPrompt)),
+            ),
+        ];
+        final outputs =
+            await vm.agentManager.dispatchParallelTasks(dispatches);
+        // Parallel work is not free work: charge the summed usage of every
+        // task tree (previously this path charged nothing at all).
+        var parallelUsage = const UsageMetadata();
+        for (int i = 0; i < outputs.length; i++) {
+          parallelUsage += outputs[i].aggregateUsage;
+          final v = op.dispatches[i].outputVar;
+          if (v != null) _registers.write(v, outputs[i].outputText);
         }
+        _meter.charge(
+          usage: parallelUsage,
+          modelName: vm.config.defaultModel.modelName,
+          callSite: 'isa_parallel_tasks',
+        );
 
       case SendMessageOp op:
         vm.messagingHub.sendMessage(AgentMessage(

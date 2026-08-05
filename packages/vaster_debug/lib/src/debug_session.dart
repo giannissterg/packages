@@ -2,9 +2,7 @@ import 'dart:convert';
 
 import 'package:vaster_vm/vaster_vm.dart';
 
-import 'execution_step_frame.dart';
-import 'model_tape.dart';
-import 'register_delta.dart';
+import 'package:vaster_replay/vaster_replay.dart';
 
 /// A recorded execution envelope loaded for debugging: the compiled program,
 /// the step journal, and the model I/O tape.

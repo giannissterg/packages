@@ -11,9 +11,10 @@ dependencies:
   vaster_instruction:
   vaster_model:
   vaster_runtime:
-  vaster_vm:
 
 dev_dependencies:
+  vaster_dis:
+  vaster_vm:
   lints: ^6.0.0
   test: ^1.25.0
   vaster_model_fake:

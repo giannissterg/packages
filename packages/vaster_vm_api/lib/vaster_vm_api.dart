@@ -8,4 +8,5 @@ library;
 
 export 'src/model_registry.dart';
 export 'src/vaster_vm_interface.dart';
+export 'src/vfs_syscalls.dart';
 export 'src/vm_config.dart';

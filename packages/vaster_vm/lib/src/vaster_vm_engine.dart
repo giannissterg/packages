@@ -197,7 +197,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     // policy-gated built-in path (which takes precedence); these registrations
     // serve definition advertisement and agent/tool-manager callers.
     vm.registerTool(FunctionTool.define(
-      name: 'write_file',
+      name: VfsSyscalls.writeFileName,
       description: 'Write text content to a file in the virtual filesystem.',
       parametersSchema: const {
         'type': 'object',
@@ -207,15 +207,10 @@ class VasterVMEngine implements VasterVirtualMachine {
         },
         'required': ['path', 'content'],
       },
-      handler: (args) async {
-        final path = args['path']?.toString() ?? '';
-        final content = args['content']?.toString() ?? '';
-        await vm.fileSystemManager.resolveFileSystem(path).writeText(path, content);
-        return {'status': 'ok', 'path': path};
-      },
+      handler: (args) => VfsSyscalls.writeFile(vm, args),
     ));
     vm.registerTool(FunctionTool.define(
-      name: 'read_file',
+      name: VfsSyscalls.readFileName,
       description: 'Read text content from a file in the virtual filesystem.',
       parametersSchema: const {
         'type': 'object',
@@ -224,12 +219,7 @@ class VasterVMEngine implements VasterVirtualMachine {
         },
         'required': ['path'],
       },
-      handler: (args) async {
-        final path = args['path']?.toString() ?? '';
-        final content =
-            await vm.fileSystemManager.resolveFileSystem(path).readText(path);
-        return {'content': content};
-      },
+      handler: (args) => VfsSyscalls.readFile(vm, args),
     ));
 
     return vm;

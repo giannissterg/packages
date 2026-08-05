@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:vaster_instruction/vaster_instruction.dart';
 
-import 'vaster_runtime_engine.dart';
+import 'package:vaster_runtime/vaster_runtime.dart';
 
 /// Live disassembly-style execution tracer for a [VasterRuntime].
 ///

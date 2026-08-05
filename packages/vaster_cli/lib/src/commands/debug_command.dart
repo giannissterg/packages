@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:vaster_debug/vaster_debug.dart';
 import 'package:vaster_dis/vaster_dis.dart';
-import 'package:vaster_replay/vaster_replay.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 import '../vaster_command.dart';

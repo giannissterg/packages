@@ -4,6 +4,7 @@ import 'package:test/test.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_replay/vaster_replay.dart';
 import 'package:vaster_vm/vaster_vm.dart';
+import 'package:vaster_dis/tracer.dart';
 
 void main() {
   group('Journal navigation (vaster_replay)', () {

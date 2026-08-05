@@ -13,8 +13,11 @@ executables:
 dependencies:
   args: ^2.5.0
   vaster_instruction:
+  vaster_runtime:
 
 dev_dependencies:
+  vaster_vm:
+  vaster_model_fake:
   vaster_agent:
   lints: ^6.0.0
   test: ^1.25.6

@@ -11,6 +11,7 @@ import 'package:vaster_model_google_ai/vaster_model_google_ai.dart';
 import 'package:vaster_model_rpc/vaster_model_rpc.dart';
 import 'package:vaster_replay/vaster_replay.dart';
 import 'package:vaster_vm/vaster_vm.dart';
+import 'package:vaster_dis/tracer.dart';
 
 import '../vaster_command.dart';
 

@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 import 'package:vaster_model_fake/vaster_model_fake.dart';
+import 'package:vaster_dis/tracer.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 /// Live disassembly-style execution trace: attach an [ExecutionTracer] and

@@ -130,20 +130,18 @@ final class ToolCallOrchestrator {
   Future<Map<String, dynamic>> _dispatchToolCall(FunctionCallPart call) async {
     try {
       // 1. Built-in policy-gated VFS syscalls (must win over registrations so
-      //    the ExecutionPolicy cannot be bypassed via the tool table).
+      //    the ExecutionPolicy cannot be bypassed via the tool table). The
+      //    handler itself is the shared [VfsSyscalls] implementation — only
+      //    the policy gate lives here.
       switch (call.name) {
-        case 'write_file':
-          final path = call.arguments['path']?.toString() ?? '';
-          guard.check(PolicyAction.fileWrite, path);
-          final content = call.arguments['content']?.toString() ?? '';
-          await vm.fileSystemManager.resolveFileSystem(path).writeText(path, content);
-          return {'status': 'ok', 'path': path};
-        case 'read_file':
-          final path = call.arguments['path']?.toString() ?? '';
-          guard.check(PolicyAction.fileRead, path);
-          final content =
-              await vm.fileSystemManager.resolveFileSystem(path).readText(path);
-          return {'content': content};
+        case VfsSyscalls.writeFileName:
+          guard.check(
+              PolicyAction.fileWrite, call.arguments['path']?.toString() ?? '');
+          return await VfsSyscalls.writeFile(vm, call.arguments);
+        case VfsSyscalls.readFileName:
+          guard.check(
+              PolicyAction.fileRead, call.arguments['path']?.toString() ?? '');
+          return await VfsSyscalls.readFile(vm, call.arguments);
       }
 
       // 2. Symbol table — the linked tool registry.
