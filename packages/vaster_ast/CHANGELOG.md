@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- `nodes.dart` split into part files along its seams: `nodes_declarative`,
+  `nodes_context`, `nodes_control_flow`, `nodes_lowering` (same library, no
+  API change).
+- `ApprovalGate` reads the HITL approval flag via the shared
+  `hitlStatusRegister` convention (narrow `show` import of
+  `vaster_instruction`).
+
 ## 0.2.0
 
 - **Breaking — typed dataflow**: `output:`/`from:` slots take `Binding`;

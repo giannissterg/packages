@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `VfsSyscalls`: the single implementation of the built-in
+  `write_file`/`read_file` tools, shared by the runtime's policy-gated tool
+  loop and the VM bootstrap registrations.
+- `VasterVirtualMachine.defaultRootAgentId` names the `runAgentTask`
+  fallback-agent convention.
+
 ## 0.2.0
 
 - Initial version: `VasterVirtualMachine`, `VMConfig`, and `ModelRegistry`

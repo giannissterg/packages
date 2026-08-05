@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `AgentDescriptor.sessionIdFor`: the shared `sess_<agentId>` session-naming
+  convention (previously hand-rolled by three producers).
+
 ## 0.2.0
 
 - Initial version: `AgentDescriptor` extracted from `vaster_agent` so the
