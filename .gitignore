@@ -15,3 +15,6 @@ build/
 scratch/
 tmp/
 *.log
+
+# Generated getting-started tour output (artifacts/prove_it is committed evidence)
+artifacts/examples/

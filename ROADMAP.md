@@ -68,8 +68,12 @@ Outward order of attack:
 3. Eval harness MVP — ✅ delivered 2026-08-06: `vaster_eval` + `vaster eval`
    (hermetic N-trial runs, composable scorers, success rates with real
    metered cost).
-4. Approachability: honest README, 10-minute getting-started, runnable
-   examples; pub.dev after the surface stabilizes.
+4. Approachability — ✅ delivered 2026-08-06: honest README (claims match
+   the machine, status section with candid limits), `docs/GETTING_STARTED.md`
+   (the 10-minute tour, every command a verified transcript: compile →
+   audit → check + negative proof → park at exit 3 → resume → time-travel
+   debug), curated playground on-ramp (`example_01..03`) + real catalog
+   README. pub.dev still waits for the surface to stabilize.
 5. Then threads 4/5 by appetite — the real-model milestone will likely make
    the reliability campaign urgent on its own.
 

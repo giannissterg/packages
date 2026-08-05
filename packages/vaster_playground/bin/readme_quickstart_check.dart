@@ -35,16 +35,16 @@ void main() async {
     ],
   );
 
-  // 3. Compile AST to ISA Bytecode
-  final compiler = BasicWorkflowCompiler();
+  // 3. Compile the AST to a serializable ISA program
+  const compiler = BasicWorkflowCompiler();
   final program = compiler.compile(pipeline);
 
-  // 4. Bootstrap Vaster VM Engine with Model Backend
+  // 4. Bootstrap the VM with a model backend
   final vm = await VasterVMEngine.bootstrap(
     config: VMConfig(defaultModel: FakeVasterModel()),
   );
 
-  // 5. Execute Pipeline in Vaster Runtime
+  // 5. Execute and read the declared result
   final runtime = VasterRuntime(
     vm: vm,
     policy: ExecutionPolicy.unlimited,
@@ -53,7 +53,8 @@ void main() async {
   );
 
   final state = await runtime.executeProgram(program);
-  print('Pipeline execution status: ${state.status.name}');
+  print('status : ${state.status.name}');
+  print('summary: ${state.registers[program.resultBinding]}');
 
   await vm.shutdown();
 }
