@@ -1,3 +1,11 @@
+## Unreleased
+
+- Checkpoint surface: `activeSessionId` / `activeModelDescriptor` /
+  `programToolSet` / `errorHandlersSnapshot` getters, `restoreQuota`, and
+  `restoreAndResume` accepts the machine-internal state (session, model,
+  toolset, error handlers) plus rebuilds cache hints from restored pinned
+  regions. Fixes resumed prompts running sessionless.
+
 ## 0.3.0
 
 - `RegisterFile.jsonExtract` returns a sealed `ExtractOutcome`

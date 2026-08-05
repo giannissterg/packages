@@ -3,17 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
-import 'package:vaster_model_claude_api/vaster_model_claude_api.dart';
-import 'package:vaster_model_claude_cli/vaster_model_claude_cli.dart';
-import 'package:vaster_model_fake/vaster_model_fake.dart';
-import 'package:vaster_model_gemini_cli/vaster_model_gemini_cli.dart';
-import 'package:vaster_model_google_ai/vaster_model_google_ai.dart';
-import 'package:vaster_model_rpc/vaster_model_rpc.dart';
+import 'package:vaster_checkpoint/vaster_checkpoint.dart';
 import 'package:vaster_replay/vaster_replay.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 import 'package:vaster_dis/tracer.dart';
 
 import '../vaster_command.dart';
+import 'backend_resolver.dart';
 
 class RunCommand extends VasterCommand {
   @override
@@ -48,6 +44,13 @@ class RunCommand extends VasterCommand {
       'model',
       abbr: 'm',
       help: 'Backend model id (e.g. claude-opus-5, gemini-2.0-flash).',
+    );
+    parser.addOption(
+      'checkpoint-dir',
+      help: 'Durable parking: on a human-interaction pause, write a '
+          'self-contained checkpoint file to this directory and exit '
+          '(code 3) instead of prompting interactively. Resume later with '
+          '`vaster resume <file>`.',
     );
     parser.addFlag(
       'trace',
@@ -155,34 +158,9 @@ class RunCommand extends VasterCommand {
       return 1;
     }
 
-    // 2. Resolve the model backend. Real network backends are wrapped in the
-    //    resilience layer: transient failures (429/5xx/timeouts) retry with
-    //    exponential backoff instead of trapping the VM.
-    VasterModel resilient(VasterModel backend) => ResilientVasterModel(
-          primary: backend,
-          retryPolicy: const RetryPolicy(
-            maxAttempts: 3,
-            attemptTimeout: Duration(minutes: 2),
-          ),
-          onRetry: (event) => err.writeln('  [retry] $event'),
-        );
-
-    VasterModel model = switch (backend) {
-      'claude-api' => resilient(ClaudeApiVasterModel(
-          targetModel: results['model'] as String? ?? 'claude-opus-5')),
-      'claude-cli' => resilient(ClaudeCliVasterModel(
-          selectedModel: results['model'] as String?,
-          workingDirectory: context.workingDirectory)),
-      'gemini' => resilient(GoogleAiVasterModel(
-          apiKey: Platform.environment['GEMINI_API_KEY'] ??
-              Platform.environment['GOOGLE_AI_API_KEY'],
-          targetModel: results['model'] as String? ?? 'gemini-2.0-flash')),
-      'gemini-cli' => resilient(GeminiCliVasterModel(
-          selectedModel: results['model'] as String?,
-          workingDirectory: context.workingDirectory)),
-      'rpc' => resilient(RpcVasterModel(socketPath: context.socketPath)),
-      _ => FakeVasterModel(),
-    };
+    // 2. Resolve the model backend (shared with `vaster resume`).
+    VasterModel model =
+        resolveBackendModel(results: results, context: context, err: err);
 
     // Deterministic replay: answer every model call from a recorded tape.
     final replayPath = results['replay'] as String?;
@@ -244,7 +222,37 @@ class RunCommand extends VasterCommand {
 
     var state = await runtime.executeProgram(program);
 
-    // 4. Interactive human-in-the-loop resume.
+    // 4. Durable parking: with --checkpoint-dir the pause becomes a
+    //    checkpoint file and the process exits — the pipeline no longer
+    //    holds a process hostage while a human thinks.
+    final checkpointDir = results['checkpoint-dir'] as String?;
+    if (checkpointDir != null &&
+        state.status == RuntimeStatus.pausedForHuman) {
+      final request = runtime.pendingHumanRequest;
+      final checkpoint = MachineCheckpoint.capture(
+          runtime: runtime, vm: vm, program: program);
+      final path = '$checkpointDir/${program.programName}'
+          '_${request?.requestId ?? 'paused'}.ckpt.json';
+      File(path)
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+            const JsonEncoder.withIndent('  ').convert(checkpoint.toJson()));
+      out.writeln('\n── PARKED (durable) ────────────────────────────────────');
+      if (request != null) {
+        out.writeln('  awaiting: ${request.prompt}');
+      }
+      out.writeln('  checkpoint: $path');
+      out.writeln('  resume: vaster resume $path --respond approve');
+      tracer?.detach();
+      recorder?.detach();
+      await Future<void>.delayed(Duration.zero);
+      await usageSub.cancel();
+      await eventSub?.cancel();
+      await vm.shutdown();
+      return 3;
+    }
+
+    // Interactive human-in-the-loop resume.
     while (state.status == RuntimeStatus.pausedForHuman) {
       final request = runtime.pendingHumanRequest;
       if (request == null) break;

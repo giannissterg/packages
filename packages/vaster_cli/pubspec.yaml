@@ -16,6 +16,8 @@ dependencies:
     path: ../vaster_compiler
   vaster_instruction:
     path: ../vaster_instruction
+  vaster_checkpoint:
+    path: ../vaster_checkpoint
   vaster_debug:
     path: ../vaster_debug
   vaster_dis:

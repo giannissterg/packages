@@ -8,6 +8,7 @@ import 'commands/compile_command.dart';
 import 'commands/disassemble_command.dart';
 import 'commands/doctor_command.dart';
 import 'commands/inspect_command.dart';
+import 'commands/resume_command.dart';
 import 'commands/run_command.dart';
 import 'commands/serve_command.dart';
 import 'vaster_command.dart';
@@ -21,6 +22,7 @@ class VasterCliRunner {
     final commandsToRegister = initialCommands ??
         [
           RunCommand(),
+          ResumeCommand(),
           CompileCommand(),
           AuditCommand(),
         DebugCommand(),

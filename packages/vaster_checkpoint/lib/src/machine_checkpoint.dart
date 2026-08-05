@@ -227,35 +227,43 @@ final class MachineCheckpoint {
   }) async {
     final runtime = await restoreRuntime(
         vm: vm, policy: policy, scheduler: scheduler, budget: budget);
-    return runtime.restoreAndResume(
-      continuation.resumePc,
-      decodeProgram(),
-      registers: continuation.registers,
-      callStack: [
-        for (final frame in continuation.callStack)
-          ActivationRecord(
-            functionName: frame.functionName,
-            returnPc: frame.returnPc,
-            outputVar: frame.outputVar,
-          ),
-      ],
-      pendingRequest: continuation.pendingRequest,
-      humanResponse: respond,
-      activeSessionId: continuation.sessionId,
-      activeModelDescriptor: continuation.activeModelDescriptor,
-      programToolSet: [
-        for (final def in programToolSet)
-          ToolDefinition.fromJson(Map<String, dynamic>.from(def)),
-      ],
-      errorHandlers: [
-        for (final h in errorHandlers)
-          (
-            targetPc: (h['targetPc'] as num).toInt(),
-            errorVar: h['errorVar'] as String,
-          ),
-      ],
-    );
+    return resumeWith(runtime, respond: respond);
   }
+
+  /// Continues execution on a runtime obtained from [restoreRuntime] —
+  /// split out so hosts can attach tracers/observers before resuming.
+  Future<RuntimeState> resumeWith(
+    VasterRuntime runtime, {
+    HumanInteractionResponse? respond,
+  }) =>
+      runtime.restoreAndResume(
+        continuation.resumePc,
+        decodeProgram(),
+        registers: continuation.registers,
+        callStack: [
+          for (final frame in continuation.callStack)
+            ActivationRecord(
+              functionName: frame.functionName,
+              returnPc: frame.returnPc,
+              outputVar: frame.outputVar,
+            ),
+        ],
+        pendingRequest: continuation.pendingRequest,
+        humanResponse: respond,
+        activeSessionId: continuation.sessionId,
+        activeModelDescriptor: continuation.activeModelDescriptor,
+        programToolSet: [
+          for (final def in programToolSet)
+            ToolDefinition.fromJson(Map<String, dynamic>.from(def)),
+        ],
+        errorHandlers: [
+          for (final h in errorHandlers)
+            (
+              targetPc: (h['targetPc'] as num).toInt(),
+              errorVar: h['errorVar'] as String,
+            ),
+        ],
+      );
 
   Map<String, dynamic> toJson() => {
         'formatVersion': formatVersion,
