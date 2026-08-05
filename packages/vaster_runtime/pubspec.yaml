@@ -8,6 +8,16 @@ environment:
   sdk: ^3.13.0-282.1.beta
 
 dependencies:
+  vaster_pricing:
+  vaster_agent_manager_advanced:
+  vaster_sandbox:
+  vaster_policy_engine:
+  vaster_filesystem_memory:
+  vaster_filesystem_local:
+  vaster_filesystem:
+  vaster_context_manager:
+  vaster_context:
+  vaster_agent_messaging:
   vaster_agent:
   vaster_budget:
   vaster_events:
@@ -18,9 +28,10 @@ dependencies:
   vaster_resources:
   vaster_scheduler:
   vaster_tool:
-  vaster_vm:
+  vaster_vm_api:
 
 dev_dependencies:
+  vaster_vm:
   lints: ^6.0.0
   test: ^1.25.6
   vaster_continuation:

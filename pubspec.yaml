@@ -33,6 +33,7 @@ workspace:
   - packages/vaster_agent_messaging
   - packages/vaster_resources
   - packages/vaster_vm
+  - packages/vaster_vm_api
   - packages/vaster_instruction
   - packages/vaster_runtime
   - packages/vaster_domain

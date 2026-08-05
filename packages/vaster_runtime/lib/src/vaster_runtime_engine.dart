@@ -1,6 +1,31 @@
 import 'dart:convert';
 
-import 'package:vaster_vm/vaster_vm.dart';
+import 'package:vaster_budget/vaster_budget.dart';
+import 'package:vaster_context/vaster_context.dart';
+import 'package:vaster_events/vaster_events.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy/vaster_policy.dart';
+import 'package:vaster_resources/vaster_resources.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
+import 'package:vaster_tool/vaster_tool.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
+import 'package:vaster_agent_manager_advanced/vaster_agent_manager_advanced.dart';
+import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
+import 'package:vaster_filesystem_local/vaster_filesystem_local.dart';
+import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
+import 'package:vaster_vm_api/vaster_vm_api.dart';
+
+import 'cache_hint_tracker.dart';
+import 'call_stack.dart';
+import 'decision_arbiter.dart';
+import 'hitl_controller.dart';
+import 'policy_guard.dart';
+import 'register_file.dart';
+import 'register_interpolator.dart';
+import 'runtime_state.dart';
+import 'runtime_status.dart';
+import 'tool_call_orchestrator.dart';
 
 
 /// Observer invoked after each instruction is executed by a [VasterRuntime].

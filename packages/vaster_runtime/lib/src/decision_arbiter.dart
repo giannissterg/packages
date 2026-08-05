@@ -1,6 +1,10 @@
 import 'dart:convert';
 
-import 'package:vaster_vm/vaster_vm.dart';
+import 'package:vaster_budget/vaster_budget.dart';
+import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_resources/vaster_resources.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
+import 'package:vaster_vm_api/vaster_vm_api.dart';
 
 /// Resolves one [DecideOp] decision: asks the model to choose among labeled
 /// branches and returns the parsed outcome.

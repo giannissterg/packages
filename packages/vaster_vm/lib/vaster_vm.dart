@@ -34,8 +34,6 @@ export 'package:vaster_tool/vaster_tool.dart';
 export 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
 // Export Master VM orchestrator types
-export 'src/model_registry.dart';
 export 'src/program_execution_job.dart';
+export 'package:vaster_vm_api/vaster_vm_api.dart';
 export 'src/vaster_vm_engine.dart';
-export 'src/vaster_vm_interface.dart';
-export 'src/vm_config.dart';

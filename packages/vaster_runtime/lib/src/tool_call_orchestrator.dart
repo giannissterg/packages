@@ -1,4 +1,12 @@
-import 'package:vaster_vm/vaster_vm.dart';
+import 'package:vaster_budget/vaster_budget.dart';
+import 'package:vaster_events/vaster_events.dart';
+import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy/vaster_policy.dart';
+import 'package:vaster_resources/vaster_resources.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
+import 'package:vaster_vm_api/vaster_vm_api.dart';
+
+import 'policy_guard.dart';
 
 
 /// Orchestrates the model ↔ tool conversation for one prompt.

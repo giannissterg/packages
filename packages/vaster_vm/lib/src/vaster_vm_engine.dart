@@ -19,10 +19,9 @@ import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
 import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
-import 'model_registry.dart';
+import 'package:vaster_vm_api/vaster_vm_api.dart';
+
 import 'program_execution_job.dart';
-import 'vaster_vm_interface.dart';
-import 'vm_config.dart';
 
 /// Concrete Master Virtual Machine Engine implementation orchestrating all Vaster sub-systems.
 class VasterVMEngine implements VasterVirtualMachine {
@@ -198,7 +197,9 @@ class VasterVMEngine implements VasterVirtualMachine {
     return vm;
   }
 
-  @override
+  /// Host-facing: submits an ISA program for multi-pipeline time-sliced
+  /// execution. Deliberately NOT part of [VasterVirtualMachine] — the
+  /// runtime never schedules jobs; only hosts do.
   ProgramExecutionJob submitProgram(
     VasterProgram program, {
     ExecutionPolicy? policy,
@@ -269,7 +270,7 @@ class VasterVMEngine implements VasterVirtualMachine {
   /// drains the queue; null outside a run.
   Map<String, RuntimeState>? _quantumResults;
 
-  @override
+  /// Host-facing companion to [submitProgram].
   Future<Map<String, RuntimeState>> runScheduledJobs({int stepQuantum = 5}) async {
     _stepQuantum = stepQuantum;
     final results = _quantumResults = <String, RuntimeState>{};

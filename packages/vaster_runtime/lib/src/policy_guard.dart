@@ -1,4 +1,5 @@
-import 'package:vaster_vm/vaster_vm.dart';
+import 'package:vaster_policy/vaster_policy.dart';
+import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 
 /// Immutable policy-enforcement collaborator.
 ///

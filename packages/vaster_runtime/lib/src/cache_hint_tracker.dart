@@ -1,4 +1,5 @@
-import 'package:vaster_vm/vaster_vm.dart';
+import 'package:vaster_context_manager/vaster_context_manager.dart';
+import 'package:vaster_model/vaster_model.dart';
 
 /// Tracks JIT context cache hints accumulated during ISA execution.
 ///

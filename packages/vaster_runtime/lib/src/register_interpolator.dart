@@ -1,6 +1,8 @@
 import 'dart:convert';
 
-import 'package:vaster_vm/vaster_vm.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
+
+import 'register_file.dart';
 
 /// Resolves ISA register interpolation (`${name}` / `$$`) against the
 /// machine's [RegisterFile].

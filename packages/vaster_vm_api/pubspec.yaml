@@ -1,5 +1,5 @@
-name: vaster_vm
-description: Master LLM Virtual Machine orchestrator combining all Vaster sub-systems.
+name: vaster_vm_api
+description: The VasterVirtualMachine interface and VM configuration — the subsystem surface the runtime programs against, extracted so vaster_runtime and vaster_vm form no dependency cycle.
 version: 0.2.0
 
 resolution: workspace
@@ -8,32 +8,21 @@ environment:
   sdk: ^3.13.0-282.1.beta
 
 dependencies:
-  vaster_vm_api:
   vaster_agent:
-  vaster_agent_basic:
+  vaster_agent_descriptor:
   vaster_agent_manager:
-  vaster_agent_manager_advanced:
   vaster_agent_messaging:
   vaster_budget:
-  vaster_context:
   vaster_context_manager:
   vaster_events:
   vaster_filesystem:
-  vaster_filesystem_local:
   vaster_filesystem_manager:
-  vaster_filesystem_memory:
-  vaster_instruction:
   vaster_model:
-  vaster_token_estimate:
-  vaster_pricing:
-  vaster_policy:
   vaster_policy_engine:
+  vaster_pricing:
   vaster_resources:
-  vaster_runtime:
   vaster_sandbox:
-  vaster_sandbox_isolate:
   vaster_sandbox_manager:
-  vaster_sandbox_process:
   vaster_scheduler:
   vaster_session:
   vaster_session_manager:
@@ -43,4 +32,3 @@ dependencies:
 dev_dependencies:
   lints: ^6.0.0
   test: ^1.25.6
-  vaster_model_fake:

@@ -4,7 +4,7 @@ import 'package:vaster_vm/vaster_vm.dart';
 
 void main() {
   group('Multi-Pipeline VM Scheduler Composition Tests', () {
-    late VasterVirtualMachine vm;
+    late VasterVMEngine vm;
 
     setUp(() async {
       final fakeModel = FakeVasterModel();
