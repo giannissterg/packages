@@ -39,6 +39,7 @@ void main(List<String> args) async {
 
   // Build Tree-Structured Provider AST
   final pipeline = Pipeline(
+    result: const Binding('report'),
     name: 'real_google_ai_pipeline',
     mounts: const [StorageMount(mountPrefix: '/workspace')],
     roles: const [researcherRole],
@@ -53,11 +54,10 @@ void main(List<String> args) async {
       Agent(
         role: researcherRole,
         child: const Task(
-            prompt:
-                Template.text('Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.')),
+            prompt: Template.text(
+                'Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.'),
+            output: Binding('report')),
       ),
-
-      const Output(),
     ],
   );
 
@@ -89,7 +89,7 @@ void main(List<String> args) async {
   print('  Status: ${state.status.name}');
   print('  Output Register Value:');
   print('  --------------------------------------------------------------');
-  print(state.registers['__output__']);
+  print(state.registers['report']);
   print('  --------------------------------------------------------------\n');
 
   await vm.shutdown();

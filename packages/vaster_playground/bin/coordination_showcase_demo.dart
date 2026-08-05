@@ -69,6 +69,7 @@ Future<void> main() async {
   });
 
   final pipeline = Pipeline(
+    result: const Binding('report_severity'),
     name: 'incident_desk',
     children: [
       AgentTeam(
@@ -153,7 +154,6 @@ Future<void> main() async {
                   artifact: '/workspace/incident_report.json',
                   extract: {'severity': Binding('report_severity')},
                 ),
-                Output(from: Binding('report_severity')),
               ]),
             ),
           ),

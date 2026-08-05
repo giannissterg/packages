@@ -301,9 +301,13 @@ class RunCommand extends VasterCommand {
       out.writeln('  note   : some usage was length-estimated, not '
           'backend-reported');
     }
-    if (state.registers.containsKey('__output__')) {
+    // Program-declared result (header metadata); legacy programs used the
+    // __output__ register convention.
+    final resultRegister = program.resultBinding ??
+        (state.registers.containsKey('__output__') ? '__output__' : null);
+    if (resultRegister != null && state.registers.containsKey(resultRegister)) {
       out.writeln('  output :');
-      out.writeln('${state.registers['__output__']}');
+      out.writeln('${state.registers[resultRegister]}');
     }
     if (state.status == RuntimeStatus.error) {
       err.writeln('\n${state.errorDetails}');

@@ -208,7 +208,6 @@ void main() async {
       DartProjectBootstrapComponent(projectName: 'smart_calculator'),
       FeatureImplementationComponent(),
       UnitTestingComponent(),
-      Output(),
     ],
   );
 

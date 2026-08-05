@@ -71,7 +71,6 @@ void main() {
             agentId: 'architect',
             prompt: Template.text('Design the Auth Service API.'),
           ),
-          Output(),
         ],
       );
 
@@ -206,27 +205,29 @@ void main() {
 
       const pipeline = Pipeline(
         spec: PipelineSpec(name: 'e2e_pipeline'),
+        result: Binding('analysis'),
         children: [
           Mount(mount: StorageMount(mountPrefix: '/mem')),
           WriteFile(path: Template.text('/mem/brief.txt'), content: Template.text('Build a REST API')),
           ReadFile(path: Template.text('/mem/brief.txt')),
-          Prompt(Template.text('Analyze the brief')),
-          Output(),
+          Prompt(Template.text('Analyze the brief'), output: Binding('analysis')),
         ],
       );
 
       final program = compiler.compile(pipeline);
+      // The result is header metadata now — no ConcatRegisterOp/__output__.
+      expect(program.resultBinding, equals('analysis'));
       expect(
-        program.instructions.whereType<ConcatRegisterOp>().any(
-          (op) => op.targetVar == '__output__',
-        ),
-        isTrue,
+        program.instructions
+            .whereType<ConcatRegisterOp>()
+            .any((op) => op.targetVar == '__output__'),
+        isFalse,
       );
 
       final state = await runtime.executeProgram(program);
 
       expect(state.status, equals(RuntimeStatus.halted));
-      expect(state.registers['__output__'], contains('Pipeline complete.'));
+      expect(state.registers['analysis'], contains('Analyze the brief'));
 
       await vm.shutdown();
     });

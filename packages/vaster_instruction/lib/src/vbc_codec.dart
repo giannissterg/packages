@@ -47,8 +47,10 @@ final class VbcCodec {
   static const int magic = 0x56424301; // "VBC" 0x01
 
   /// v1: pool, programName, instructions.
-  /// v2: pool, programName, header value (context-class JSON or null),
-  ///     instructions.
+  /// v2: pool, programName, header value (a map of header fields —
+  ///     contextClasses, resultBinding — or null), instructions. Early-v2
+  ///     payloads carried the context-class table directly as the header
+  ///     value; the decoder sniffs that legacy shape by its 'classes' key.
   static const int formatVersion = 2;
 
   /// Oldest container version this codec still decodes.
@@ -96,7 +98,7 @@ final class VbcCodec {
     }
 
     intern(program.programName);
-    collectStrings(program.contextClasses);
+    collectStrings(program.headerJson);
     final instructionMaps =
         program.instructions.map((i) => i.toJson()).toList(growable: false);
     for (final map in instructionMaps) {
@@ -112,8 +114,8 @@ final class VbcCodec {
       payload.add(bytes);
     }
     _writeVarint(payload, pool[program.programName]!);
-    // v2 header: the program's context-class table (or null).
-    _writeValue(payload, program.contextClasses, pool);
+    // v2 header: the program header map (or null).
+    _writeValue(payload, program.headerJson, pool);
     _writeVarint(payload, instructionMaps.length);
     for (final map in instructionMaps) {
       _writeValue(payload, map, pool);
@@ -216,10 +218,20 @@ final class VbcCodec {
 
       final programName = poolAt(reader.readVarint());
       Map<String, dynamic>? contextClasses;
+      String? resultBinding;
       if (version >= 2) {
         final header = _readValue(reader, poolAt);
         if (header is Map) {
-          contextClasses = Map<String, dynamic>.from(header);
+          final map = Map<String, dynamic>.from(header);
+          if (map.containsKey('classes')) {
+            // Legacy early-v2: the header value WAS the class table.
+            contextClasses = map;
+          } else {
+            contextClasses = map['contextClasses'] != null
+                ? Map<String, dynamic>.from(map['contextClasses'] as Map)
+                : null;
+            resultBinding = map['resultBinding'] as String?;
+          }
         }
       }
       final instructionCount = reader.readVarint();
@@ -238,6 +250,7 @@ final class VbcCodec {
       return VasterProgram(
         programName: programName,
         contextClasses: contextClasses,
+        resultBinding: resultBinding,
         instructions: instructions,
       );
     } on VbcDecodeException {

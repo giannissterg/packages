@@ -55,7 +55,6 @@ void main() {
               child: Task(prompt: Template.text('Design the notes app architecture'))),
           const CompressContext(targetTokens: 100000),
           const EvictContext(regionId: 'meeting_log'),
-          const Output(),
         ],
       );
 

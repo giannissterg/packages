@@ -58,10 +58,8 @@ void main() {
           // Bob receives the message from inbox
           Agent(
             role: bobRole,
-            child: const ReceiveMessage(),
+            child: const ReceiveMessage(output: Binding('received')),
           ),
-
-          const Output(),
         ],
       );
 
@@ -69,7 +67,7 @@ void main() {
       final state = await runtime.executeProgram(program);
 
       expect(state.status, equals(RuntimeStatus.halted));
-      expect(state.registers['__output__'], equals('Alice completed initial research.'));
+      expect(state.registers['received'], equals('Alice completed initial research.'));
     });
   });
 }

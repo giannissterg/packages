@@ -36,7 +36,9 @@ void main() {
       await vm.shutdown();
     });
 
-    Pipeline pipeline(List<VasterNode> children) => Pipeline(
+    Pipeline pipeline(List<VasterNode> children, {Binding? result}) =>
+      Pipeline(
+        result: result,
           spec: const PipelineSpec(name: 'control_flow_e2e'),
           children: children,
         );
@@ -86,20 +88,22 @@ void main() {
       final program = compiler.compile(pipeline(const [
         TryCatch(
           tryChildren: [ReadFile(path: Template.text('/not_mounted/missing.txt'))],
-          catchChildren: [Prompt(Template.text('recovering from failure'))],
+          catchChildren: [
+            Prompt(Template.text('recovering from failure'),
+                output: Binding('recovery'))
+          ],
           error: 'err',
         ),
-        Output(),
-      ]));
+      ], result: const Binding('recovery')));
 
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
       expect(state.registers['err'], isNotNull);
       expect('${state.registers['err']}', isNotEmpty);
-      // The catch block executed: its prompt reached the model and Output
-      // captured the catch prompt's result.
+      // The catch block executed: its prompt reached the model and its
+      // result landed in the declared result binding.
       expect(fakeModel.recordedRequests, hasLength(1));
-      expect('${state.registers['__output__']}', contains('recovering'));
+      expect('${state.registers['recovery']}', contains('recovering'));
     });
 
     test('the same error without TryCatch traps the VM', () async {
@@ -157,13 +161,12 @@ void main() {
 
       final program = compiler.compile(pipeline(const [
         DefineSubroutine(name: 'greet', children: [Prompt(Template.text('hello sub'))]),
-        CallSubroutine(name: 'greet'),
-        Output(),
-      ]));
+        CallSubroutine(name: 'greet', output: 'sub_result'),
+      ], result: const Binding('sub_result')));
 
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
-      expect(state.registers['__output__'], 'SUB_RESULT');
+      expect(state.registers['sub_result'], 'SUB_RESULT');
       expect(fakeModel.recordedRequests, hasLength(1));
     });
 

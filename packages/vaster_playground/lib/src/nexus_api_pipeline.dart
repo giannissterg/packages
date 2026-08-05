@@ -132,8 +132,6 @@ The platform exposes a unified gateway for downstream microservices.
             ),
           ],
         ),
-
-        Output(),
       ],
     ),
   ],

@@ -51,11 +51,11 @@ void main() {
     );
 
     final program = const BasicWorkflowCompiler().compile(Pipeline(
+      result: const Binding('clarifications'),
       name: 'clarify_e2e',
       roles: const [analyst],
       children: const [
         Clarify(topic: 'billing requirements', agent: analyst, maxQuestions: 5),
-        Output(from: Binding('clarifications')),
       ],
     ));
 
@@ -80,7 +80,7 @@ void main() {
     // The model declares ready; the folded notes are the phase's value.
     expect(state.status, RuntimeStatus.halted);
     expect(questionsAsked, equals(2));
-    final notes = '${state.registers['__output__']}';
+    final notes = '${state.registers['clarifications']}';
     expect(notes, contains('NOTES(v2)'));
     expect(notes, contains('USD and EUR only.'),
         reason: 'human answers are folded into the clarification notes');

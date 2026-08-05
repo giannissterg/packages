@@ -14,8 +14,10 @@ class CodeReviewComponent extends ComposableNode {
       children: [
         ReadFile(path: Template.text(filePath)),
         // Task automatically reads enclosing AgentRole from context!
-        const Task(prompt: Template.text('Review the code for quality and security issues.')),
-        const Output(),
+        const Task(
+            prompt:
+                Template.text('Review the code for quality and security issues.'),
+            output: Binding('code_review')),
       ],
     );
   }
@@ -42,6 +44,7 @@ void main() {
 
   // Declarative Functional AST Tree
   final pipeline = Pipeline(
+    result: const Binding('code_review'),
     spec: const PipelineSpec(
       name: 'multi_agent_auth_pipeline',
       version: '1.0.0',
@@ -77,8 +80,6 @@ void main() {
         role: architectRole,
         child: const CodeReviewComponent(filePath: '/workspace/auth.dart'),
       ),
-
-      const Output(),
     ],
   );
 

@@ -32,7 +32,6 @@ class SecurityAuditComponent extends ComposableNode {
           agentId: auditorRoleId,
           prompt: Template.text('Audit $sourceFilePath for security vulnerabilities.'),
         ),
-        const Output(),
       ],
     );
   }
@@ -59,15 +58,16 @@ void main() {
     test('Pipeline holds body nodes', () {
       const pipeline = Pipeline(
         spec: PipelineSpec(name: 'demo'),
+        result: Binding('greeting'),
         children: [
           Mount(mount: StorageMount(mountPrefix: '/mem')),
-          Prompt(Template.text('Hello')),
-          Output(),
+          Prompt(Template.text('Hello'), output: Binding('greeting')),
         ],
       );
-      expect(pipeline.children, hasLength(3));
+      expect(pipeline.children, hasLength(2));
       expect(pipeline.children.first, isA<Mount>());
-      expect(pipeline.children.last, isA<Output>());
+      expect(pipeline.children.last, isA<Prompt>());
+      expect(pipeline.result?.name, equals('greeting'));
     });
 
     test('BuildContext.withRole creates new context without mutating original', () {
@@ -91,10 +91,9 @@ void main() {
       final expanded = component.build(context);
       expect(expanded, isA<Transaction>());
       final tx = expanded as Transaction;
-      expect(tx.children, hasLength(3));
+      expect(tx.children, hasLength(2));
       expect(tx.children.first, isA<ReadFile>());
-      expect(tx.children[1], isA<Task>());
-      expect(tx.children.last, isA<Output>());
+      expect(tx.children.last, isA<Task>());
     });
   });
 

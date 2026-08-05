@@ -40,6 +40,11 @@ class Pipeline extends ComposableNode {
   final List<ToolDefinition> tools;
   final ModelDescriptor? model;
   final Map<Binding, Object?> inputs;
+
+  /// The program's declared result: hosts read this binding's register after
+  /// halt. Compiled into the program header — replaces the legacy `Output`
+  /// node and its `__output__` register convention.
+  final Binding? result;
   final List<VasterNode> children;
 
   const Pipeline({
@@ -50,6 +55,7 @@ class Pipeline extends ComposableNode {
     this.tools = const [],
     this.model,
     this.inputs = const {},
+    this.result,
     this.children = const [],
   }) : assert((name == null) != (spec == null),
             'Provide exactly one of name/spec');
@@ -640,15 +646,6 @@ class ApprovalGate extends ComposableNode {
       ),
     ]);
   }
-}
-
-/// Declarative pipeline output node: copies the value bound to [from]
-/// (default: the last produced value) into the program output.
-final class Output extends VasterNode {
-  final VasterNode? child;
-  final Binding? from;
-
-  const Output({this.child, this.from});
 }
 
 /// Extracts JSON [field] from the value bound to [from] (default: the last

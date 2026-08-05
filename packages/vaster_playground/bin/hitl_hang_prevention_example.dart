@@ -51,8 +51,6 @@ void main() async {
           WriteFile(path: Template.text('/workspace/deploy.log'), content: Template.text('Deployment rejected by operator.')),
         ],
       ),
-
-      const Output(),
     ],
   );
 

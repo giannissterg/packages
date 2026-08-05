@@ -25,9 +25,11 @@ Future<void> main() async {
   });
 
   final pipeline = Pipeline(
+    result: const Binding('incident_path'),
     name: 'incident_triage',
     children: const [
       Decide(
+        output: Binding('incident_path'),
         prompt: Template.text('An alert fired for elevated error rates on the payments '
             'service. How should this incident be handled?'),
         paths: [
@@ -43,7 +45,6 @@ Future<void> main() async {
           ),
         ],
       ),
-      Output(),
     ],
   );
 
@@ -67,6 +68,6 @@ Future<void> main() async {
   await Future<void>.delayed(Duration.zero);
 
   stdout.writeln('\nstatus : ${state.status.name}');
-  stdout.writeln('chosen : ${state.registers['__output__']}');
+  stdout.writeln('chosen : ${state.registers['incident_path']}');
   await vm.shutdown();
 }

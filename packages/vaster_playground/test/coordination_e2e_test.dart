@@ -41,6 +41,7 @@ void main() {
     final (vm, runtime) = await boot(model);
 
     final program = compiler.compile(Pipeline(
+      result: const Binding('map'),
       name: 'fanout_e2e',
       roles: [role('scout_n'), role('scout_s'), role('cartographer')],
       children: const [
@@ -57,7 +58,6 @@ void main() {
             output: Binding('map'),
           ),
         ),
-        Output(from: Binding('map')),
       ],
     ));
 

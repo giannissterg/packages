@@ -46,6 +46,7 @@ void main() async {
 
   // 1. Build AST with ToolSet scope provider
   final pipeline = Pipeline(
+    result: const Binding('deploy_result'),
     name: 'toolset_dynamic_demo_pipeline',
     roles: const [engineerRole],
     children: [
@@ -55,12 +56,11 @@ void main() async {
         child: const Agent(
           role: engineerRole,
           child: Task(
-              prompt:
-                  Template.text('Create a deployment configuration file at /workspace/deploy.json and verify its content.')),
+              prompt: Template.text(
+                  'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
+              output: Binding('deploy_result')),
         ),
       ),
-
-      const Output(),
     ],
   );
 

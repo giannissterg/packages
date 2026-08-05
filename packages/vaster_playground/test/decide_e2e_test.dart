@@ -12,7 +12,9 @@ import 'package:vaster_vm/vaster_vm.dart';
 void main() {
   const compiler = BasicWorkflowCompiler();
 
-  Pipeline pipeline(List<VasterNode> children) => Pipeline(
+  Pipeline pipeline(List<VasterNode> children, {Binding? result}) =>
+      Pipeline(
+        result: result,
         spec: const PipelineSpec(name: 'decide_e2e'),
         children: children,
       );
@@ -41,9 +43,10 @@ void main() {
     });
     final (vm, runtime) = await boot(model);
 
-    final program = compiler.compile(pipeline(const [
+    final program = compiler.compile(pipeline(result: const Binding('handling'), const [
       Decide(
         prompt: Template.text('How should this incident be handled?'),
+        output: Binding('handling'),
         paths: [
           DecisionPath(label: 'auto_fix', description: 'safe to fix automatically',
               children: [Prompt(Template.text('apply the automatic fix'))]),
@@ -51,13 +54,12 @@ void main() {
               children: [Prompt(Template.text('page the on-call engineer'))]),
         ],
       ),
-      Output(),
     ]));
 
     final state = await runtime.executeProgram(program);
 
     expect(state.status, RuntimeStatus.halted);
-    expect(state.registers['__output__'], equals('escalate'),
+    expect(state.registers['handling'], equals('escalate'),
         reason: 'the chosen label is the Decide node\'s produced value');
     final prompts = model.recordedRequests.map((r) => r.messages.last.text);
     expect(prompts.any((p) => p.contains('page the on-call')), isTrue);

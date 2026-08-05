@@ -125,6 +125,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
               .withOverrides(state.contextClassOverrides)
               .toJson()
           : null,
+      resultBinding: pipeline.result?.name,
       instructions: instructions,
     );
 
@@ -508,14 +509,6 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         );
         state.lastOutputRegister = reg;
 
-      case Output n:
-        if (n.child != null) {
-          _lowerNode(n.child!, ir, context, state);
-        }
-        final sourceReg = n.from?.name ?? state.lastOutputRegister;
-        if (sourceReg != null) {
-          ir.emit(ConcatRegisterOp(targetVar: '__output__', sourceVars: [sourceReg]));
-        }
 
       case Sequence n:
         _lowerNodes(n.children, ir, context, state);

@@ -119,6 +119,24 @@ void main() {
           reason: 'truthy flag lands in the otherwise body under not()');
     });
 
+    test('Pipeline(result:) lands in the program header and survives VBC',
+        () {
+      const pipeline = Pipeline(
+        name: 'result_header',
+        result: Binding('answer'),
+        children: [Prompt(Template.text('answer me'), output: Binding('answer'))],
+      );
+      final program = const BasicWorkflowCompiler().compile(pipeline);
+      expect(program.resultBinding, equals('answer'));
+      // No ConcatRegisterOp/__output__ machinery anymore.
+      expect(program.instructions.whereType<ConcatRegisterOp>(), isEmpty);
+
+      final restored = VasterProgramBinary.fromBytes(program.toBytes());
+      expect(restored.resultBinding, equals('answer'));
+      expect(VasterProgram.fromJson(program.toJson()).resultBinding,
+          equals('answer'));
+    });
+
     test('a fully-const pipeline with bindings still compiles', () {
       // Const-constructibility is a DX invariant — Binding must not break it.
       const result = Binding('answer');

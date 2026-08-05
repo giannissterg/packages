@@ -68,6 +68,7 @@ void main() {
     // Phases are siblings — the pipeline reads as the SDD checklist itself;
     // only conditionality nests (Implement exists only when approved).
     final pipeline = Pipeline(
+      result: const Binding('release_notes'),
       name: 'sdd_flagship',
       roles: const [architect, lead, backend, frontend, reviewer],
       children: const [
@@ -98,7 +99,6 @@ void main() {
                 output: Binding('release_notes'),
               ),
             ),
-            Output(from: Binding('release_notes')),
           ],
           onRevise: [Prompt(Template.text('Log: the plan needs revision.'))],
         ),
@@ -136,7 +136,7 @@ void main() {
 
     // The verdict bound and the approve branch ran to the release notes.
     expect(state.registers['review_verdict'], equals('approve'));
-    expect('${state.registers['__output__']}', contains('# Release Notes'));
+    expect('${state.registers['release_notes']}', contains('# Release Notes'));
 
     await vm.shutdown();
   });

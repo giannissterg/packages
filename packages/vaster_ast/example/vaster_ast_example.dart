@@ -37,6 +37,7 @@ void main() {
 
   // Declarative Functional AST Tree
   final pipeline = Pipeline(
+    result: const Binding('architecture'),
     name: 'declarative_ast_demo',
     mounts: const [StorageMount(mountPrefix: '/workspace')],
     roles: const [architectRole],
@@ -68,7 +69,6 @@ void main() {
         ],
       ),
 
-      const Output(from: Binding('architecture')),
     ],
   );
 

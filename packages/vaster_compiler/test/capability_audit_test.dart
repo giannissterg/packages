@@ -108,7 +108,6 @@ void main() {
   test('a fully static program reports an empty decision surface', () {
     final program = compiler.compile(Pipeline(name: 'static', children: const [
       Prompt(Template.text('just one turn')),
-      Output(),
     ]));
     final audit = CapabilityAudit.of(program);
     expect(audit.decisions, isEmpty);

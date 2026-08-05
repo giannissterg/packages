@@ -96,7 +96,6 @@ void main() {
       final program = compiler.compile(pipeline(const [
         DefineSubroutine(name: 'greet', children: [Prompt(Template.text('hello sub'))]),
         CallSubroutine(name: 'greet'),
-        Output(),
       ]));
       final instructions = program.instructions;
 
@@ -206,17 +205,21 @@ void main() {
       );
     });
 
-    test('the chosen label flows to Output() positionally', () {
-      final program = compiler.compile(pipeline(const [
-        Decide(prompt: Template.text('pick'), paths: [
-          DecisionPath(label: 'a', description: 'first'),
-          DecisionPath(label: 'b', description: 'second'),
-        ]),
-        Output(),
-      ]));
+    test('the chosen label lands in the declared result binding', () {
+      final program = compiler.compile(const Pipeline(
+        name: 'decide_result',
+        result: Binding('choice'),
+        children: [
+          Decide(prompt: Template.text('pick'), output: Binding('choice'), paths: [
+            DecisionPath(label: 'a', description: 'first'),
+            DecisionPath(label: 'b', description: 'second'),
+          ]),
+        ],
+      ));
       final decide = program.instructions.whereType<DecideOp>().single;
-      final concat = program.instructions.whereType<ConcatRegisterOp>().single;
-      expect(concat.sourceVars, equals([decide.outputVar]));
+      expect(decide.outputVar, equals('choice'));
+      expect(program.resultBinding, equals('choice'));
+      expect(program.instructions.whereType<ConcatRegisterOp>(), isEmpty);
     });
 
     test('optimize:true preserves every decide path block', () {

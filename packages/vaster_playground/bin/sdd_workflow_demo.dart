@@ -57,6 +57,7 @@ Future<void> main() async {
   // Phases are siblings — the pipeline reads as the SDD checklist itself;
   // only conditionality nests (Implement exists only when approved).
   final pipeline = Pipeline(
+    result: const Binding('release_notes'),
     name: 'sdd_data_export',
     roles: const [architect, lead, backend, frontend, reviewer],
     children: const [
@@ -87,7 +88,6 @@ Future<void> main() async {
               output: Binding('release_notes'),
             ),
           ),
-          Output(from: Binding('release_notes')),
         ],
         onRevise: [Prompt(Template.text('Log: plan sent back for revision.'))],
       ),
@@ -120,6 +120,6 @@ Future<void> main() async {
         await vm.fileSystemManager.resolveFileSystem(path).readText(path);
     stdout.writeln('\n── $path ──\n${content.split('\n').first}');
   }
-  stdout.writeln('\noutput  : ${state.registers['__output__']}');
+  stdout.writeln('\noutput  : ${state.registers['release_notes']}');
   await vm.shutdown();
 }

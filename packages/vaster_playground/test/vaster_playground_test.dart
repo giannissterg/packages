@@ -180,8 +180,10 @@ void main() {
       }
 
       expect(state.status, equals(RuntimeStatus.halted));
-      expect(state.registers.containsKey('__output__'), isTrue);
-      expect(state.registers['__output__'], contains('# Nexus API — Final Delivery Report'));
+      final deliveryReport = await vm.fileSystemManager
+          .resolveFileSystem('/workspace/reports/delivery_report.md')
+          .readText('/workspace/reports/delivery_report.md');
+      expect(deliveryReport, contains('# Nexus API — Final Delivery Report'));
 
       // Interpolation is real: written artifacts contain the agents' actual
       // responses, never a literal ${...} placeholder.

@@ -19,6 +19,7 @@ void main() async {
   // 2. Compose the declarative AST pipeline. `output:` binds a step's
   //    value; `${...}` interpolates it into later prompts at runtime.
   final pipeline = Pipeline(
+    result: const Binding('summary'),
     name: 'my_first_pipeline',
     roles: const [architectRole],
     children: const [
@@ -29,8 +30,8 @@ void main() async {
           output: Binding('design'),
         ),
       ),
-      Prompt(Template(['Summarize this design in one paragraph:\n', Binding('design')])),
-      Output(),
+      Prompt(Template(['Summarize this design in one paragraph:\n', Binding('design')]),
+          output: Binding('summary')),
     ],
   );
 
