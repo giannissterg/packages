@@ -11,6 +11,7 @@ import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model/vaster_model.dart';
 
+part 'binding.dart';
 part 'build_context.dart';
 part 'vaster_node.dart';
 part 'composable_node.dart';

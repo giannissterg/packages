@@ -92,14 +92,14 @@ Future<void> main() async {
                         description: 'outages, capacity, networking',
                         agent: sre,
                         prompt: 'Investigate the infrastructure angle.',
-                        output: 'triage_note'),
+                        output: Binding('triage_note')),
                     RouteCase(
                         label: 'application',
                         description: 'defects in application code',
                         agent: appdev,
                         prompt: 'Own the incident: coordinate the '
                             'investigation of the checkout failures.',
-                        output: 'triage_note'),
+                        output: Binding('triage_note')),
                   ],
                   defaultRoute: 'infrastructure',
                 ),
@@ -123,7 +123,7 @@ Future<void> main() async {
                       prompt: 'Merge the findings into a root-cause '
                           'statement.\nMetrics: \${metrics_findings}\n'
                           'Logs: \${logs_findings}',
-                      output: 'root_cause'),
+                      output: Binding('root_cause')),
                 ),
 
                 // 3. Worker/critic refinement of the customer notice.
@@ -133,11 +133,11 @@ Future<void> main() async {
                       prompt: 'Draft the customer notice for this incident.\n'
                           'Root cause: \${root_cause}\n'
                           'Critique so far: \${critique}',
-                      output: 'notice'),
+                      output: Binding('notice')),
                   critic: Task(
                       agent: editor,
                       prompt: 'Critique this notice: \${notice}',
-                      output: 'critique'),
+                      output: Binding('critique')),
                   maxRounds: 4,
                 ),
 
@@ -154,11 +154,11 @@ Future<void> main() async {
                     },
                     'required': ['severity', 'summary'],
                   },
-                  output: 'report',
+                  output: Binding('report'),
                   artifact: '/workspace/incident_report.json',
-                  extract: {'severity': 'report_severity'},
+                  extract: {'severity': Binding('report_severity')},
                 ),
-                Output(from: 'report_severity'),
+                Output(from: Binding('report_severity')),
               ]),
             ),
           ),

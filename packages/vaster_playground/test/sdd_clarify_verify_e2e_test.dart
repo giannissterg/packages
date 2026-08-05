@@ -55,7 +55,7 @@ void main() {
       roles: const [analyst],
       children: const [
         Clarify(topic: 'billing requirements', agent: analyst, maxQuestions: 5),
-        Output(from: 'clarifications'),
+        Output(from: Binding('clarifications')),
       ],
     ));
 

@@ -35,11 +35,11 @@ void main() {
           maxCost: 2.5,
           child: Sequence([
             WriteFile(path: '/workspace/brief.md', content: 'the brief'),
-            ReadFile(path: '/workspace/brief.md', output: 'brief'),
+            ReadFile(path: '/workspace/brief.md', output: Binding('brief')),
             WriteFile(path: r'/workspace/${brief}.md', content: 'dynamic'),
             Sandbox(
               env: CodeEnvironment(envId: 'ci', timeoutMs: 5000),
-              child: Execute(code: 'run checks', output: 'checks'),
+              child: Execute(code: 'run checks', output: Binding('checks')),
             ),
             Router(
               prompt: 'Who owns this incident?',

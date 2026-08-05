@@ -44,7 +44,7 @@ void main() {
       const WriteFile(path: '/workspace/brief.md', content: 'Build a cloud REST API.'),
 
       // `output:` binds a step's value; later steps consume it with ${...}.
-      const ReadFile(path: '/workspace/brief.md', output: 'brief'),
+      const ReadFile(path: '/workspace/brief.md', output: Binding('brief')),
 
       // Inject typed configuration into context tree using Provider<T>
       Provider<ProjectConfig>(
@@ -62,14 +62,14 @@ void main() {
               Task(
                 prompt: 'Produce the final system architecture document for '
                     'this brief:\n\${brief}',
-                output: 'architecture',
+                output: Binding('architecture'),
               ),
             ]),
           ),
         ],
       ),
 
-      const Output(from: 'architecture'),
+      const Output(from: Binding('architecture')),
     ],
   );
 

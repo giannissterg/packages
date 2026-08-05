@@ -96,10 +96,10 @@ class ArchitectureDesignComponent extends ComposableNode {
     final project = context.read<ProjectConfig>();
     return Transaction(
       children: [
-        ReadFile(path: briefPath, output: 'project_brief'),
+        ReadFile(path: briefPath, output: Binding('project_brief')),
         Task(
           agentId: 'architect',
-          output: 'architecture_doc',
+          output: Binding('architecture_doc'),
           prompt:
               'Read the project brief below and produce a comprehensive system architecture '
               'document for ${project.projectName} using ${project.language}.\n\n'
@@ -123,7 +123,7 @@ class ParallelImplementationComponent extends ComposableNode {
   VasterNode build(BuildContext context) {
     final project = context.read<ProjectConfig>();
     return Sequence([
-        ReadFile(path: architecturePath, output: 'architecture_doc'),
+        ReadFile(path: architecturePath, output: Binding('architecture_doc')),
         ParallelTasks(
           entries: [
             ParallelTaskEntry(
@@ -173,11 +173,11 @@ class SecurityAuditComponent extends ComposableNode {
 
     return Transaction(
       children: [
-        ReadFile(path: backendPath, output: 'backend_src'),
-        ReadFile(path: architecturePath, output: 'architecture_doc'),
+        ReadFile(path: backendPath, output: Binding('backend_src')),
+        ReadFile(path: architecturePath, output: Binding('architecture_doc')),
         Task(
           agentId: 'security_auditor',
-          output: 'security_report',
+          output: Binding('security_report'),
           prompt:
               '$owaspClause$depClause'
               'Identify all vulnerabilities with CVSS scores. Flag anything above '
@@ -205,7 +205,7 @@ class TechLeadReviewComponent extends ComposableNode {
 
     return Task(
       agentId: 'tech_lead',
-      output: 'tech_lead_review',
+      output: Binding('tech_lead_review'),
       prompt:
           'Review the backend and frontend implementations for quality, '
           'architecture alignment, and adherence to our quality gate:\n'
@@ -233,7 +233,7 @@ class TestSuiteComponent extends ComposableNode {
       children: [
         Task(
           agentId: 'qa_engineer',
-          output: 'test_suite',
+          output: Binding('test_suite'),
           prompt:
               'Write a comprehensive test suite for ${project.projectName} backend. '
               'Target ${gate.minTestCoverage}% code coverage. Include:\n'
@@ -262,7 +262,7 @@ class DocumentationComponent extends ComposableNode {
       children: [
         Task(
           agentId: 'tech_writer',
-          output: 'api_documentation',
+          output: Binding('api_documentation'),
           prompt:
               'Write complete API documentation for ${project.projectName} including:\n'
               '1. OpenAPI 3.0 specification\n'
@@ -290,7 +290,7 @@ class DeliveryReportComponent extends ComposableNode {
     final project = context.read<ProjectConfig>();
     return Task(
       agentId: 'architect',
-      output: 'delivery_report',
+      output: Binding('delivery_report'),
       prompt:
           'Produce a final delivery report for ${project.projectName} summarising:\n'
           '- Architecture decisions and rationale\n'

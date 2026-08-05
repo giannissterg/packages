@@ -75,24 +75,24 @@ class Clarify extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
   final int? maxQuestions;
-  final String output;
+  final Binding output;
 
   const Clarify({
     required this.topic,
     this.agent,
     this.agentId,
     this.maxQuestions,
-    this.output = 'clarifications',
+    this.output = const Binding('clarifications'),
   }) : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
     return Sequence([
-      InputsHeader(values: {output: '(nothing gathered yet)'}),
+      InputsHeader(values: {output.name: '(nothing gathered yet)'}),
       DecideLoop(
         prompt: 'You are gathering requirements about: $topic\n\n'
-            'Clarifications so far:\n\${$output}\n\n'
+            'Clarifications so far:\n\${${output.name}}\n\n'
             'Do you have enough information to write a specification, or '
             'should you ask another question?',
         continueLabel: 'ask',
@@ -102,23 +102,23 @@ class Clarify extends ComposableNode {
           Task(
             agent: agent,
             agentId: agentId,
-            output: 'clarify_question',
+            output: const Binding('clarify_question'),
             prompt: 'You are gathering requirements about: $topic\n'
-                'Clarifications so far:\n\${$output}\n\n'
+                'Clarifications so far:\n\${${output.name}}\n\n'
                 'Ask the single most important unanswered question. Reply '
                 'with only the question.',
           ),
           const AskHuman(
             requestId: 'clarify',
             prompt: r'${clarify_question}',
-            output: 'clarify_answer',
+            output: Binding('clarify_answer'),
           ),
           Task(
             agent: agent,
             agentId: agentId,
             output: output,
             prompt: 'Update the clarification notes with the new exchange.\n\n'
-                'Notes so far:\n\${$output}\n\n'
+                'Notes so far:\n\${${output.name}}\n\n'
                 'Q: \${clarify_question}\nA: \${clarify_answer}\n\n'
                 'Reply with the complete updated notes in Markdown.'
                 '$_documentOnly',
@@ -142,9 +142,9 @@ class Clarify extends ComposableNode {
 /// loop back into implementation). An unresolvable judgment defaults to
 /// FAIL — verification is the one gate that must not pass on ambiguity.
 ///
-/// Expands to: `Execute(run, output: 'verification')` →
+/// Expands to: `Execute(run, output: const Binding('verification'))` →
 /// `WriteFile(verifyPath, '${verification}')` → `Decide(pass/fail,
-/// output: 'verification_verdict', defaultPath: 'fail')`.
+/// output: const Binding('verification_verdict'), defaultPath: 'fail')`.
 class Verify extends ComposableNode {
   /// Code or command to execute in the sandbox (supports `${...}`).
   final String run;
@@ -166,13 +166,13 @@ class Verify extends ComposableNode {
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
     return Sequence([
-      Execute(envId: envId, code: run, output: 'verification'),
+      Execute(envId: envId, code: run, output: const Binding('verification')),
       WriteFile(path: conventions.verifyPath, content: r'${verification}'),
       Decide(
         prompt: 'Below is the output of the verification run. Did '
             'verification pass — no failures, errors, or unmet '
             'expectations?\n\nOutput:\n\${verification}',
-        output: 'verification_verdict',
+        output: const Binding('verification_verdict'),
         defaultPath: 'fail',
         paths: [
           DecisionPath(
@@ -194,7 +194,7 @@ class Verify extends ComposableNode {
 /// Phase 1 — turn a [goal] into a written specification: after this phase,
 /// the spec artifact exists and `spec` is bound for every later sibling.
 ///
-/// Expands to: `Task(output: 'spec')` → `WriteFile(specPath, '${spec}')`.
+/// Expands to: `Task(output: const Binding('spec'))` → `WriteFile(specPath, '${spec}')`.
 /// The goal may interpolate pipeline [Inputs].
 class Specify extends ComposableNode {
   final String goal;
@@ -219,7 +219,7 @@ class Specify extends ComposableNode {
       Task(
         agent: agent,
         agentId: agentId,
-        output: 'spec',
+        output: const Binding('spec'),
         prompt: 'Write a complete, reviewable specification in Markdown for '
             'the following goal. Cover scope, requirements, non-goals, and '
             'acceptance criteria.\n\nGoal: $goal$_documentOnly',
@@ -231,8 +231,8 @@ class Specify extends ComposableNode {
 
 /// Phase 2 — derive an implementation plan from the specification artifact.
 ///
-/// Expands to: `ReadFile(specPath, output: 'spec_doc')` →
-/// `Task(output: 'plan')` → `WriteFile(planPath, '${plan}')`.
+/// Expands to: `ReadFile(specPath, output: const Binding('spec_doc'))` →
+/// `Task(output: const Binding('plan'))` → `WriteFile(planPath, '${plan}')`.
 class Plan extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
@@ -265,11 +265,11 @@ class Plan extends ComposableNode {
         : '\n\nA review of the previous version follows — address every '
             'blocking issue it names:\n\${$addressing}';
     return Sequence([
-      ReadFile(path: from ?? conventions.specPath, output: 'spec_doc'),
+      ReadFile(path: from ?? conventions.specPath, output: const Binding('spec_doc')),
       Task(
         agent: agent,
         agentId: agentId,
-        output: 'plan',
+        output: const Binding('plan'),
         prompt: 'Produce a concrete implementation plan in Markdown for the '
             'specification below: ordered milestones, workstreams with clear '
             'boundaries, file-level changes, and verification steps.\n\n'
@@ -309,7 +309,7 @@ class Workstream {
 /// [Task] interpolating the workstream outputs) — it belongs to the phase
 /// because a fan-out's join is part of its meaning.
 ///
-/// Expands to: `ReadFile(planPath, output: 'plan_doc')` → `FanOut` (one entry
+/// Expands to: `ReadFile(planPath, output: const Binding('plan_doc'))` → `FanOut` (one entry
 /// per workstream, prompts embedding the plan) → per-workstream artifact
 /// writes → integrate.
 class Implement extends ComposableNode {
@@ -327,7 +327,7 @@ class Implement extends ComposableNode {
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
     return Sequence([
-      ReadFile(path: from ?? conventions.planPath, output: 'plan_doc'),
+      ReadFile(path: from ?? conventions.planPath, output: const Binding('plan_doc')),
       FanOut(
         tasks: [
           for (final ws in workstreams)
@@ -418,11 +418,11 @@ class Review extends ComposableNode {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
     final target = of ?? conventions.planPath;
     final reviewSteps = <VasterNode>[
-      ReadFile(path: target, output: 'review_target'),
+      ReadFile(path: target, output: const Binding('review_target')),
       Task(
         agent: agent,
         agentId: agentId,
-        output: 'review',
+        output: const Binding('review'),
         prompt: 'Review the artifact below: correctness, completeness, '
             'risks, and whether it meets its stated goal. Hold it to a '
             'shipping standard, not a perfection standard — note minor '
@@ -465,7 +465,7 @@ class Review extends ComposableNode {
         ...reviewSteps,
         DecideLoop(
           prompt: decidePrompt,
-          output: 'review_verdict',
+          output: const Binding('review_verdict'),
           body: const [],
           continueLabel: 'revise',
           continueDescription: reviseDescription,
@@ -486,7 +486,7 @@ class Review extends ComposableNode {
       ...reviewSteps,
       Decide(
         prompt: decidePrompt,
-        output: 'review_verdict',
+        output: const Binding('review_verdict'),
         defaultPath: 'approve',
         paths: [
           DecisionPath(

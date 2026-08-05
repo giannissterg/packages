@@ -52,7 +52,7 @@ void main() {
             synthesize: Task(
               agentId: 'lead',
               prompt: r'Combine: ${part_a} and ${part_b}',
-              output: 'combined',
+              output: Binding('combined'),
             ),
           ),
         ]),
@@ -92,11 +92,11 @@ void main() {
             worker: Task(
                 agentId: 'writer',
                 prompt: r'Draft the post. Critique so far: ${critique}',
-                output: 'draft'),
+                output: Binding('draft')),
             critic: Task(
                 agentId: 'editor',
                 prompt: r'Critique this draft: ${draft}',
-                output: 'critique'),
+                output: Binding('critique')),
             maxRounds: 4,
           ),
         ]),
@@ -266,9 +266,9 @@ void main() {
                 'summary': {'type': 'string'},
               },
             },
-            output: 'design',
+            output: Binding('design'),
             artifact: '/workspace/design.json',
-            extract: {'summary': 'design_summary'},
+            extract: {'summary': Binding('design_summary')},
           ),
         ]),
       ]));
@@ -341,10 +341,10 @@ void main() {
 
     test('id override disambiguates same-label scopes; from binds content', () {
       final program = compiler.compile(pipeline(const [
-        Prompt('produce the notes', output: 'notes'),
+        Prompt('produce the notes', output: Binding('notes')),
         Knowledge(
           label: 'notes',
-          from: 'notes',
+          from: Binding('notes'),
           id: 'k1',
           child: Prompt('use them'),
         ),

@@ -54,10 +54,10 @@ void main() {
           synthesize: Task(
             agentId: 'cartographer',
             prompt: r'Merge the surveys.\nNorth: ${north}\nSouth: ${south}',
-            output: 'map',
+            output: Binding('map'),
           ),
         ),
-        Output(from: 'map'),
+        Output(from: Binding('map')),
       ],
     ));
 
@@ -100,11 +100,11 @@ void main() {
           worker: Task(
               agentId: 'writer',
               prompt: r'Draft the announcement. Critique so far: ${critique}',
-              output: 'draft'),
+              output: Binding('draft')),
           critic: Task(
               agentId: 'editor',
               prompt: r'Critique this draft: ${draft}',
-              output: 'critique'),
+              output: Binding('critique')),
           maxRounds: 5,
         ),
       ],

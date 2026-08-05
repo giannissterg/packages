@@ -84,17 +84,17 @@ class FanOut extends ComposableNode {
 class RefineLoop extends ComposableNode {
   final Task worker;
   final Task critic;
-  final String critiqueOutput;
+  final Binding critiqueOutput;
   final String acceptLabel;
   final String acceptDescription;
   final List<VasterNode> onAccept;
   final int? maxRounds;
-  final String? output;
+  final Binding? output;
 
   const RefineLoop({
     required this.worker,
     required this.critic,
-    this.critiqueOutput = 'critique',
+    this.critiqueOutput = const Binding('critique'),
     this.acceptLabel = 'accept',
     this.acceptDescription = 'the work meets the bar — stop iterating',
     this.onAccept = const [],
@@ -105,7 +105,7 @@ class RefineLoop extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     return DecideLoop(
-      prompt: 'Latest critique:\n\${$critiqueOutput}\n\n'
+      prompt: 'Latest critique:\n\${${critiqueOutput.name}}\n\n'
           'Given this critique, does the work meet the bar, or is another '
           'revision pass needed?',
       continueLabel: 'revise',
@@ -133,7 +133,7 @@ class RouteCase {
   final AgentRole? agent;
   final String? agentId;
   final String prompt;
-  final String? output;
+  final Binding? output;
 
   const RouteCase({
     required this.label,
@@ -156,7 +156,7 @@ class Router extends ComposableNode {
   final String prompt;
   final List<RouteCase> routes;
   final String? defaultRoute;
-  final String? output;
+  final Binding? output;
 
   const Router({
     required this.prompt,
@@ -213,9 +213,11 @@ class Produce extends ComposableNode {
   final String? agentId;
   final String prompt;
   final Map<String, dynamic> schema;
-  final String output;
+  final Binding output;
   final String? artifact;
-  final Map<String, String> extract;
+
+  /// JSON field name → binding the field destructures into.
+  final Map<String, Binding> extract;
 
   const Produce({
     this.agent,
@@ -241,7 +243,7 @@ class Produce extends ComposableNode {
       for (final entry in extract.entries)
         Extract(from: output, field: entry.key, output: entry.value),
       if (artifact != null)
-        WriteFile(path: artifact!, content: '\${$output}'),
+        WriteFile(path: artifact!, content: '\${${output.name}}'),
     ]);
   }
 }

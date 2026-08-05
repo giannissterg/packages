@@ -26,7 +26,7 @@ void main() async {
         role: architectRole,
         child: Task(
           prompt: 'Analyze the project architecture and design the notes entity.',
-          output: 'design',
+          output: Binding('design'),
         ),
       ),
       Prompt('Summarize this design in one paragraph:\n\${design}'),

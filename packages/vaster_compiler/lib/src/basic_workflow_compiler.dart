@@ -175,7 +175,9 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       case ParallelTasks n:
         final dispatches = <ParallelTaskDispatch>[];
         for (final t in n.entries) {
-          final reg = _binding(t.output, state);
+          // ParallelTaskEntry is a vaster_domain spec type (serializable,
+          // Binding-free by design) — string tier.
+          final reg = _bindingName(t.output, state);
           dispatches.add(
             ParallelTaskDispatch(
               agentId: t.agentId,
@@ -188,7 +190,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.emit(DispatchParallelTasksOp(dispatches: dispatches));
 
       case Extract n:
-        final source = n.from ?? state.lastOutputRegister;
+        final source = n.from?.name ?? state.lastOutputRegister;
         if (source == null) {
           state.diagnostics.add(const CompileDiagnostic(
             severity: CompileSeverity.error,
@@ -384,7 +386,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       case Repeat n:
         // Counted pre-test loop; the counter register doubles as the
         // user-visible iteration index when [counter] is set.
-        final counterReg = _binding(n.counter, state);
+        final counterReg = _bindingName(n.counter, state);
         final cmpReg = state.nextAutoRegister();
         final repeatStart = ir.newLabel('repeat_start');
         final repeatBody = ir.newLabel('repeat_body');
@@ -432,7 +434,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         state.subroutineBodies[n.name] = n.children;
 
       case CallSubroutine n:
-        final callReg = _binding(n.output, state);
+        final callReg = _bindingName(n.output, state);
         ir.call(
           n.name,
           state.subroutineLabel(ir, n.name),
@@ -466,7 +468,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.emit(EvictContextOp(regionId: n.regionId, force: n.force));
 
       case CompressContext n:
-        final reg = _binding(n.output, state);
+        final reg = _bindingName(n.output, state);
         ir.emit(CompressContextOp(
           regionId: n.regionId,
           targetTokens: n.targetTokens,
@@ -505,7 +507,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         if (n.child != null) {
           _lowerNode(n.child!, ir, context, state);
         }
-        final sourceReg = n.from ?? state.lastOutputRegister;
+        final sourceReg = n.from?.name ?? state.lastOutputRegister;
         if (sourceReg != null) {
           ir.emit(ConcatRegisterOp(targetVar: '__output__', sourceVars: [sourceReg]));
         }
@@ -527,7 +529,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
       case InputsHeader n:
         for (final entry in n.values.entries) {
-          final name = _binding(entry.key, state);
+          final name = _bindingName(entry.key, state);
           ir.emit(SetRegisterOp(registerName: name, value: entry.value));
         }
 
@@ -594,7 +596,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.emit(SelectModelOp(descriptor: n.model));
 
       case TaskExecution n:
-        final reg = _binding(n.output, state);
+        final reg = _bindingName(n.output, state);
         ir.emit(SetSessionOp(sessionId: 'sess_${n.agentId}'));
         ir.emit(
           DispatchAgentTaskOp(
@@ -607,7 +609,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         state.lastOutputRegister = reg;
 
       case ExecuteExecution n:
-        final reg = _binding(n.output, state);
+        final reg = _bindingName(n.output, state);
         ir.emit(ExecSandboxOp(sandboxId: n.envId, code: n.code, outputVar: reg));
         state.lastOutputRegister = reg;
 
@@ -621,24 +623,31 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         );
 
       case ReceiveMessageExecution n:
-        final reg = _binding(n.output, state);
+        final reg = _bindingName(n.output, state);
         ir.emit(PopMessageOp(agentId: n.agentId, outputVar: reg));
         state.lastOutputRegister = reg;
     }
   }
 
-  /// Resolves an author-requested binding name, validating it against the
-  /// reserved `__` prefix, or allocates an auto register.
-  String _binding(String? requested, _CompilerState state) {
+  /// String-tier variant of [_binding] for lowering headers and primitives,
+  /// whose slots are already register names.
+  String _bindingName(String? requested, _CompilerState state) =>
+      _binding(requested == null ? null : Binding(requested), state);
+
+  /// Resolves an author-declared [Binding] to its ISA register name,
+  /// validating the reserved `__` prefix, or allocates an auto register.
+  /// Bindings compile away here — the ISA only ever sees register strings.
+  String _binding(Binding? requested, _CompilerState state) {
     if (requested == null) return state.nextAutoRegister();
-    if (requested.startsWith('__')) {
+    final name = requested.name;
+    if (name.startsWith('__')) {
       state.diagnostics.add(CompileDiagnostic(
         severity: CompileSeverity.error,
         code: 'reserved_binding',
-        message: 'Binding name "$requested" uses the reserved "__" prefix.',
+        message: 'Binding name "$name" uses the reserved "__" prefix.',
       ));
     }
-    return requested;
+    return name;
   }
 }
 

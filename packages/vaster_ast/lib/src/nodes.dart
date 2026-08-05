@@ -39,7 +39,7 @@ class Pipeline extends ComposableNode {
   final List<StorageMount> mounts;
   final List<ToolDefinition> tools;
   final ModelDescriptor? model;
-  final Map<String, Object?> inputs;
+  final Map<Binding, Object?> inputs;
   final List<VasterNode> children;
 
   const Pipeline({
@@ -60,7 +60,9 @@ class Pipeline extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     VasterNode tree = PipelineBody([
-      if (inputs.isNotEmpty) InputsHeader(values: inputs),
+      if (inputs.isNotEmpty)
+        InputsHeader(
+            values: {for (final e in inputs.entries) e.key.name: e.value}),
       if (model != null) SelectModelHeader(model: model!),
       if (tools.isNotEmpty) ToolSetHeader(tools: tools),
       for (final mount in mounts) MountHeader(mount: mount),
@@ -84,7 +86,9 @@ class Pipeline extends ComposableNode {
     }
     if (inputs.isNotEmpty) {
       tree = Provider<PipelineInputs>(
-          value: PipelineInputs(inputs), children: [tree]);
+          value: PipelineInputs(
+              {for (final e in inputs.entries) e.key.name: e.value}),
+          children: [tree]);
     }
     return Provider<PipelineSpec>(value: effectiveSpec, children: [tree]);
   }
@@ -106,7 +110,7 @@ final class Sequence extends VasterNode {
 /// `Provider`-flavored answer to seeding values, per the framework's
 /// functional surface (no imperative variable mutation).
 class Inputs extends ComposableNode {
-  final Map<String, Object?> values;
+  final Map<Binding, Object?> values;
 
   /// The subtree these inputs are visible to; omit to only bind them.
   final VasterNode? child;
@@ -115,10 +119,11 @@ class Inputs extends ComposableNode {
 
   @override
   VasterNode build(BuildContext context) {
+    final named = {for (final e in values.entries) e.key.name: e.value};
     return Provider<PipelineInputs>(
-      value: PipelineInputs(values),
+      value: PipelineInputs(named),
       children: [
-        InputsHeader(values: values),
+        InputsHeader(values: named),
         ?child,
       ],
     );
@@ -258,7 +263,7 @@ class Task extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
   final String prompt;
-  final String? output;
+  final Binding? output;
 
   /// Optional JSON Schema typing this task's output — the workflow-language
   /// equivalent of a return-type annotation. Lowered into the emitted
@@ -283,7 +288,7 @@ class Task extends ComposableNode {
     return TaskExecution(
       agentId: id,
       prompt: prompt,
-      output: output,
+      output: output?.name,
       outputSchema: outputSchema,
     );
   }
@@ -300,8 +305,8 @@ final class ParallelTasks extends VasterNode {
 final class Prompt extends VasterNode {
   final String prompt;
 
-  /// Binding name for the response; auto-allocated when omitted.
-  final String? output;
+  /// Binding for the response; auto-allocated when omitted.
+  final Binding? output;
 
   /// Optional JSON Schema typing the prompt's output (return-type annotation).
   final Map<String, dynamic>? outputSchema;
@@ -322,7 +327,7 @@ final class WriteFile extends VasterNode {
 /// supports `${name}` interpolation.
 final class ReadFile extends VasterNode {
   final String path;
-  final String? output;
+  final Binding? output;
 
   const ReadFile({required this.path, this.output});
 }
@@ -353,14 +358,14 @@ class Sandbox extends ComposableNode {
 class Execute extends ComposableNode {
   final String? envId;
   final String code;
-  final String? output;
+  final Binding? output;
 
   const Execute({this.envId, required this.code, this.output});
 
   @override
   VasterNode build(BuildContext context) {
     final id = envId ?? context.tryRead<CodeEnvironment>()?.envId ?? 'default';
-    return ExecuteExecution(envId: id, code: code, output: output);
+    return ExecuteExecution(envId: id, code: code, output: output?.name);
   }
 }
 
@@ -448,7 +453,7 @@ class SendMessage extends ComposableNode {
 class ReceiveMessage extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
-  final String? output;
+  final Binding? output;
 
   const ReceiveMessage({this.agent, this.agentId, this.output})
       : assert(agent == null || agentId == null,
@@ -460,7 +465,7 @@ class ReceiveMessage extends ComposableNode {
         agentId ??
         context.tryRead<AgentRole>()?.roleId ??
         'anonymous';
-    return ReceiveMessageExecution(agentId: id, output: output);
+    return ReceiveMessageExecution(agentId: id, output: output?.name);
   }
 }
 
@@ -509,7 +514,7 @@ final class Decide extends VasterNode {
 
   /// Binding name for the chosen label; the model's rationale lands in
   /// `<output>_rationale`. Auto-allocated when omitted.
-  final String? output;
+  final Binding? output;
 
   const Decide({
     required this.prompt,
@@ -542,8 +547,8 @@ final class DecideLoop extends VasterNode {
   /// (the review-then-revise shape).
   final List<VasterNode> onContinue;
 
-  /// Binding name for the final decision label; auto-allocated when omitted.
-  final String? output;
+  /// Binding for the final decision label; auto-allocated when omitted.
+  final Binding? output;
 
   const DecideLoop({
     required this.prompt,
@@ -590,7 +595,7 @@ final class AskHuman extends VasterNode {
   final String requestId;
   final String prompt;
   final List<String> options;
-  final String? output;
+  final Binding? output;
 
   const AskHuman({
     required this.requestId,
@@ -641,7 +646,7 @@ class ApprovalGate extends ComposableNode {
 /// (default: the last produced value) into the program output.
 final class Output extends VasterNode {
   final VasterNode? child;
-  final String? from;
+  final Binding? from;
 
   const Output({this.child, this.from});
 }
@@ -650,9 +655,9 @@ final class Output extends VasterNode {
 /// produced value) into a new binding [output]. The declarative way to
 /// destructure a schema-typed result.
 final class Extract extends VasterNode {
-  final String? from;
+  final Binding? from;
   final String field;
-  final String output;
+  final Binding output;
 
   const Extract({this.from, required this.field, required this.output});
 }
@@ -700,7 +705,7 @@ final class Provider<T> extends VasterNode {
 class Knowledge extends ComposableNode {
   final String label;
   final String text;
-  final String? from;
+  final Binding? from;
 
   /// Context class this knowledge belongs to (defaults to `knowledge`).
   /// Policy fields left null inherit from the class.
@@ -737,7 +742,7 @@ class Knowledge extends ComposableNode {
         regionId: regionId,
         label: label,
         text: text,
-        from: from,
+        from: from?.name,
         className: className,
         priority: priority,
         compressibility: compressibility,

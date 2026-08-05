@@ -87,10 +87,10 @@ Future<void> main() async {
                   r'Backend: ${backend_result}'
                   '\n'
                   r'Frontend: ${frontend_result}',
-              output: 'release_notes',
+              output: Binding('release_notes'),
             ),
           ),
-          Output(from: 'release_notes'),
+          Output(from: Binding('release_notes')),
         ],
         onRevise: [Prompt('Log: plan sent back for revision.')],
       ),
