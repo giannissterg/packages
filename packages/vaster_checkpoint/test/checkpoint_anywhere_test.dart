@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:vaster_checkpoint/vaster_checkpoint.dart';
@@ -187,4 +188,57 @@ void main() {
         reason: 'undelivered actor messages are durable state');
     await vmB.shutdown();
   });
+  test('DISK MOUNT SURVIVAL: a pre-suspension MountFsOp is re-established '
+      'on resume', () async {
+    final diskDir =
+        Directory.systemTemp.createTempSync('vaster_disk_mount_');
+    addTearDown(() => diskDir.deleteSync(recursive: true));
+
+    final program = VasterProgram(
+      programName: 'durable_disk',
+      instructions: [
+        MountFsOp(mountPrefix: '/out', diskPath: diskDir.path), // 0
+        YieldHumanInteractionOp(
+          request: const HumanInteractionRequest(
+            requestId: 'gate',
+            type: HumanInteractionType.approval,
+            prompt: 'continue?',
+            outputVar: 'g',
+          ),
+        ), // 1
+        const WriteFileOp(
+            vfsPath: '/out/artifact.txt', content: 'post-resume'), // 2
+        const HaltOp(), // 3
+      ],
+    );
+
+    final (vmA, runtimeA) = await boot();
+    final paused = await runtimeA.executeProgram(program);
+    expect(paused.status, RuntimeStatus.pausedForHuman);
+    final json = jsonEncode(MachineCheckpoint.capture(
+            runtime: runtimeA, vm: vmA, program: program)
+        .toJson());
+    await vmA.shutdown();
+
+    // The fresh VM never executed the MountFsOp (it is pre-gate) — the
+    // checkpoint's mount table must re-establish it. Found by the first
+    // real-backend prove-it run: without this, the resume traps resolving
+    // the prefix.
+    final (vmB, _) = await boot();
+    addTearDown(vmB.shutdown);
+    final resumed = await MachineCheckpoint.fromJson(
+            jsonDecode(json) as Map<String, dynamic>)
+        .resume(
+      vm: vmB,
+      policy: ExecutionPolicy.unlimited,
+      scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+      respond: HumanInteractionResponse.approve(requestId: 'gate'),
+    );
+    expect(resumed.status, RuntimeStatus.halted,
+        reason: 'error: ${resumed.errorDetails}');
+    expect(File('${diskDir.path}/artifact.txt').readAsStringSync(),
+        'post-resume',
+        reason: 'the post-resume write must land on the REAL disk mount');
+  });
+
 }

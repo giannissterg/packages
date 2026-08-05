@@ -12,6 +12,7 @@ dependencies:
   vaster_budget:
   vaster_context:
   vaster_continuation:
+  vaster_filesystem_local:
   vaster_filesystem_memory:
   vaster_instruction:
   vaster_machine_state:

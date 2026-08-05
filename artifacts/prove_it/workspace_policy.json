@@ -1,0 +1,11 @@
+{
+  "policyId": "workspace_writer",
+  "defaultAllow": false,
+  "allowedCapabilities": [
+    {"action": "file:write", "pattern": {"type": "prefix", "prefix": "/workspace/"}},
+    {"action": "file:read", "pattern": {"type": "prefix", "prefix": "/workspace/"}},
+    {"action": "model:generate", "pattern": {"type": "any"}},
+    {"action": "human:interact", "pattern": {"type": "any"}}
+  ],
+  "deniedCapabilities": []
+}

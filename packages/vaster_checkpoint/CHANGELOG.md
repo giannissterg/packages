@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Checkpoints carry the disk-mount table (`diskMounts`): a pre-suspension
+  `MountFsOp`'s disk mount is re-established on resume instead of trapping
+  (found by the first real-backend prove-it run; files survive restarts by
+  nature, the mount TABLE is machine state).
+
 ## 0.4.0
 
 - **BREAKING**: format v2 — everything machine-owned rides inside the

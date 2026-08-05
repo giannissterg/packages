@@ -4,6 +4,7 @@ import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
 import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
+import 'package:vaster_filesystem_local/vaster_filesystem_local.dart';
 import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_policy/vaster_policy.dart';
@@ -51,6 +52,12 @@ final class MachineCheckpoint {
   /// mountPrefix → (path → base64 content), memory mounts only.
   final Map<String, Map<String, String>> memoryMounts;
 
+  /// mountPrefix → host disk path for disk-backed mounts. The FILES survive
+  /// restarts by nature, but the mount TABLE is machine state — without it a
+  /// resumed program traps resolving a prefix its pre-suspension MountFsOp
+  /// had established (found by the first real-backend prove-it run).
+  final Map<String, String> diskMounts;
+
   /// agentId → serialized [AgentMessage]s, read/unread state included.
   /// Undelivered actor messages are durable state (found by the
   /// machine-state review: a message sent before suspension was lost).
@@ -74,6 +81,7 @@ final class MachineCheckpoint {
     required this.sessions,
     required this.contextRegions,
     required this.memoryMounts,
+    this.diskMounts = const {},
     this.messageInboxes = const {},
     required this.budgetConsumedTokens,
     required this.budgetConsumedCost,
@@ -108,6 +116,12 @@ final class MachineCheckpoint {
           if (entry.value is MemoryVasterFileSystem)
             entry.key:
                 (entry.value as MemoryVasterFileSystem).exportFilesBase64(),
+      },
+      diskMounts: {
+        for (final entry in vm.fileSystemManager.mounts.entries)
+          if (entry.value is LocalVasterFileSystem)
+            entry.key:
+                (entry.value as LocalVasterFileSystem).rootDirectory.path,
       },
       messageInboxes: vm.messagingHub is BasicAgentMessagingHub
           ? (vm.messagingHub as BasicAgentMessagingHub).exportInboxes()
@@ -169,6 +183,12 @@ final class MachineCheckpoint {
       }
     }
 
+    for (final entry in diskMounts.entries) {
+      if (vm.fileSystemManager.mounts[entry.key] == null) {
+        vm.mountFileSystem(entry.key,
+            LocalVasterFileSystem(entry.value, mountPrefix: entry.key));
+      }
+    }
     if (messageInboxes.isNotEmpty &&
         vm.messagingHub is BasicAgentMessagingHub) {
       (vm.messagingHub as BasicAgentMessagingHub)
@@ -216,6 +236,7 @@ final class MachineCheckpoint {
         'sessions': [for (final s in sessions) s.toJson()],
         'contextRegions': contextRegions,
         'memoryMounts': memoryMounts,
+        if (diskMounts.isNotEmpty) 'diskMounts': diskMounts,
         if (messageInboxes.isNotEmpty) 'messageInboxes': messageInboxes,
         'budgetConsumedTokens': budgetConsumedTokens,
         'budgetConsumedCost': budgetConsumedCost,
@@ -249,6 +270,10 @@ final class MachineCheckpoint {
             for (final f in (entry.value as Map).entries)
               f.key.toString(): f.value.toString(),
           },
+      },
+      diskMounts: {
+        for (final entry in (json['diskMounts'] as Map? ?? const {}).entries)
+          entry.key.toString(): entry.value.toString(),
       },
       messageInboxes: {
         for (final entry

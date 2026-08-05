@@ -1,0 +1,82 @@
+{
+  "formatVersion": 2,
+  "programVbcBase64": "VkJDAQACAADXWy1Rpthl0+ltVSR8KcpSJtYZvmoU8G2/gfbReUHF3EAOcmVsZWFzZV9zY3JpYmUNcmVzdWx0QmluZGluZwdvdXRjb21lBm9wY29kZQxzZXRfcmVnaXN0ZXIMcmVnaXN0ZXJOYW1lB3Byb2plY3QFdmFsdWUGVmFzdGVyB3ZlcnNpb24GdjAuNC4wCG1vdW50X2ZzC21vdW50UHJlZml4Ci93b3Jrc3BhY2UIZGlza1BhdGgcYXJ0aWZhY3RzL3Byb3ZlX2l0L3dvcmtzcGFjZQlzZXRfcXVvdGEFcXVvdGEObWF4VG9rZW5CdWRnZXQNbWF4Q29zdEJ1ZGdldAthZGRfY29udGV4dAhyZWdpb25JZBdrbm93bGVkZ2VfcmVsZWFzZV9mYWN0cwVsYWJlbA1yZWxlYXNlIGZhY3RzBHRleHTgBlZhc3RlciBpcyBhbiBMTE0gdmlydHVhbCBtYWNoaW5lIGZvciBEYXJ0OiBkZWNsYXJhdGl2ZSBwaXBlbGluZXMgY29tcGlsZSB0byBzZXJpYWxpemFibGUgYnl0ZWNvZGUgZXhlY3V0ZWQgYnkgYSBydW50aW1lIHdpdGggcmVhbCB0b2tlbi9jb3N0IG1ldGVyaW5nLiB2MC40LjAgc2hpcHM6ICgxKSBkdXJhYmxlIGV4ZWN1dGlvbiDigJQgYSBydW5uaW5nIHBpcGVsaW5lIGNhbiBzdXNwZW5kIHRvIGEgc2VsZi1jb250YWluZWQgSlNPTiBjaGVja3BvaW50IGF0IGEgaHVtYW4tYXBwcm92YWwgZ2F0ZSwgdGhlIHByb2Nlc3MgY2FuIGRpZSwgYW5kIGB2YXN0ZXIgcmVzdW1lYCBjb21wbGV0ZXMgaXQgaW4gYSBmcmVzaCBWTSwgbWV0ZXJzIGNvbnRpbnVpbmcgd2hlcmUgdGhleSBzdG9vZDsgKDIpIGEgbWFjaGluZS1zdGF0ZSBhcmNoaXRlY3R1cmUgd2hlcmUgZXZlcnkgcGllY2Ugb2YgcnVudGltZSBzdGF0ZSBsaXZlcyBpbiBhIHNuYXBzaG90YWJsZSBjb21wb25lbnQsIGVuZm9yY2VkIGJ5IGEgY2hlY2twb2ludC1hbnl3aGVyZSB0ZXN0OyAoMykgYHZhc3RlciBjaGVja2Ag4oCUIHN0YXRpYyB2ZXJpZmljYXRpb246IGV2ZXJ5IHJlZ2lzdGVyIHJlYWQgcHJvdmVuIGRvbWluYXRlZCBieSBhIHdyaXRlLCBhIHdvcnN0LWNhc2UgZG9sbGFyIGJvdW5kIGZyb20gbG9vcCBhbmFseXNpcyBhbmQgcHJpY2luZyB0YWJsZXMsIGFuZCBwb2xpY3kgcHJvb2ZzIHRoYXQgY2F0Y2ggZm9yYmlkZGVuIGZpbGUgd3JpdGVzIGJlZm9yZSBleGVjdXRpb247ICg0KSBhY3Rvci1zZW1hbnRpY3MgYWdlbnRzIChvbmUgdGFzayBhdCBhIHRpbWUgcGVyIGFnZW50KSBhbmQgc2VhbGVkIGZhaWx1cmUgdHlwZXMgdGhyb3VnaG91dC4gNjE0IHRlc3RzLgljbGFzc05hbWUJa25vd2xlZGdlBnBpbm5lZAZwcm9tcHQKcHJvbXB0VGV4dIsCRHJhZnQgYSByZWxlYXNlIGFubm91bmNlbWVudCBmb3IgJHtwcm9qZWN0fSAke3ZlcnNpb259IHVzaW5nIE9OTFkgdGhlIGZhY3RzIGluIHlvdXIgY29udGV4dC4gU3RydWN0dXJlOiBvbmUgb3BlbmluZyBwYXJhZ3JhcGggb24gd2hhdCB0aGUgcmVsZWFzZSBtZWFucywgdGhlbiBhIHNob3J0IGJ1bGxldGVkIGxpc3Qgb2YgdGhlIGZvdXIgaGlnaGxpZ2h0cywgdGhlbiBvbmUgY2xvc2luZyBzZW50ZW5jZS4gVW5kZXIgMjUwIHdvcmRzLiBObyBoeXBlIGFkamVjdGl2ZXMuCW91dHB1dFZhcgVkcmFmdMABSGVyZSBpcyB5b3VyIGRyYWZ0Ogoke2RyYWZ0fQoKVGlnaHRlbiBpdDogY3V0IGFueXRoaW5nIG5vdCBncm91bmRlZCBpbiB0aGUgc3RhdGVkIGZhY3RzLCBwcmVmZXIgY29uY3JldGUgbm91bnMgb3ZlciBtYXJrZXRpbmcgbGFuZ3VhZ2UsIGtlZXAgaXQgdW5kZXIgMjAwIHdvcmRzLiBSZXBseSB3aXRoIHRoZSBmaW5hbCB0ZXh0IG9ubHkuC2ZpbmFsX2RyYWZ0EWJlZ2luX3RyYW5zYWN0aW9uF3lpZWxkX2h1bWFuX2ludGVyYWN0aW9uB3JlcXVlc3QJcmVxdWVzdElkDHB1Ymxpc2hfZ2F0ZQR0eXBlCGFwcHJvdmFsRFB1Ymxpc2ggdGhpcyBhbm5vdW5jZW1lbnQgZm9yICR7cHJvamVjdH0gJHt2ZXJzaW9ufT8KCiR7ZmluYWxfZHJhZnR9B29wdGlvbnMHYXBwcm92ZQZyZWplY3QHanVtcF9pZgh0YXJnZXRQYwxjb25kaXRpb25WYXITcHVibGlzaF9nYXRlX3N0YXR1cwh3aXRoaGVsZARqdW1wCndyaXRlX2ZpbGUHdmZzUGF0aBsvd29ya3NwYWNlL1JFTEVBU0VfTk9URVMubWQHY29udGVudA4ke2ZpbmFsX2RyYWZ0fQlwdWJsaXNoZWQGY29tbWl0DWV2aWN0X2NvbnRleHQFZm9yY2UEaGFsdAAHAQEFAhEHAwMFBAUFBgcFCAcDAwUEBQUJBwUKBwMDBQsMBQ0OBQ8HAgMFEBEHAhIDwKkHEwRAAAAAAAAAAAcGAwUUFQUWFwUYGQUaGwUcHQIHAwMFHh8FICEFIgcDAwUeHwUjIQUkBwEDBSUHAgMFJicHBSgFKSoFKx4FLC0GAgUuBS8hBSkHAwMFMDEDGDIFMwcDAwUEBQUCBwU0BwIDBTUxAxwHAwMFNjcFODkFOgcDAwUEBQUCBwU7BwEDBTwHAwMFPRUFFj4CBwEDBT8=",
+  "continuation": {
+    "formatVersion": 2,
+    "continuationId": "ckpt_8_release_scribe",
+    "programName": "release_scribe",
+    "machineState": {
+      "formatVersion": 1,
+      "pc": 8,
+      "components": {
+        "registers": {
+          "data": {
+            "project": "Vaster",
+            "version": "v0.4.0",
+            "draft": "# Vaster v0.4.0\n\nThis release closes out the machine-state architecture and durable-execution threads, and adds a third: static verification. A Vaster machine now has a componentized state, a durable inbox, a sealed phase lifecycle, and a `vaster check` command that catches classes of errors before you run anything.\n\n- **Machine-state architecture (MS-P2/P3/P4/P5/P6):** machine state is componentized, the inbox is durable with an enforcement gate, and `MachinePhase` is a sealed lifecycle.\n- **Durable execution (DE-P5):** war-room durability lands on top of the checkpoint/resume foundation shipped in v0.3.0 (`vaster_checkpoint`, `run --checkpoint-dir`, `vaster resume`).\n- **`vaster check`:** static verification as a first-class command — the third evolution thread alongside machine-state and durable-execution.\n- **Time-travel debugger (from v0.2.0) and typed bindings (Binding/Template/Cond, 2026-08-05) remain in place**, with the TT-P4 resume follow-up still open.\n\nIf you're upgrading from v0.3.0, the checkpoint directory format and `vaster resume` entry point are unchanged; the new surface area is `vaster check` and the sealed `MachinePhase` type.",
+            "final_draft": "# Vaster v0.4.0\n\nThis release closes the machine-state and durable-execution threads and opens a third: static verification.\n\n- **Machine-state architecture (MS-P2/P3/P4/P5/P6):** machine state is componentized, the inbox is durable with an enforcement gate, and `MachinePhase` is a sealed lifecycle.\n- **Durable execution (DE-P5):** war-room durability, on top of the checkpoint/resume foundation from v0.3.0 (`vaster_checkpoint`, `run --checkpoint-dir`, `vaster resume`).\n- **`vaster check`:** static verification as a first-class command.\n- **Carried forward:** the time-travel debugger from v0.2.0 and typed bindings (Binding/Template/Cond, 2026-08-05). TT-P4 resume remains open.\n\nUpgrading from v0.3.0: the checkpoint directory format and `vaster resume` entry point are unchanged. New surface area is `vaster check` and the sealed `MachinePhase` type."
+          }
+        },
+        "callStack": {
+          "frames": []
+        },
+        "machineContext": {},
+        "hitl": {
+          "pendingRequest": {
+            "requestId": "publish_gate",
+            "type": "approval",
+            "prompt": "Publish this announcement for Vaster v0.4.0?\n\n# Vaster v0.4.0\n\nThis release closes the machine-state and durable-execution threads and opens a third: static verification.\n\n- **Machine-state architecture (MS-P2/P3/P4/P5/P6):** machine state is componentized, the inbox is durable with an enforcement gate, and `MachinePhase` is a sealed lifecycle.\n- **Durable execution (DE-P5):** war-room durability, on top of the checkpoint/resume foundation from v0.3.0 (`vaster_checkpoint`, `run --checkpoint-dir`, `vaster resume`).\n- **`vaster check`:** static verification as a first-class command.\n- **Carried forward:** the time-travel debugger from v0.2.0 and typed bindings (Binding/Template/Cond, 2026-08-05). TT-P4 resume remains open.\n\nUpgrading from v0.3.0: the checkpoint directory format and `vaster resume` entry point are unchanged. New surface area is `vaster check` and the sealed `MachinePhase` type.",
+            "options": [
+              "approve",
+              "reject"
+            ],
+            "outputVar": "publish_gate"
+          }
+        },
+        "quota": {
+          "quota": {
+            "maxTokenBudget": 60000,
+            "maxCostBudget": 2.0
+          },
+          "consumedTokens": 46716,
+          "consumedCost": 0.11565324999999999,
+          "toolCalls": 0
+        }
+      }
+    },
+    "suspendedAt": "2026-08-06T00:38:34.720942"
+  },
+  "sessions": [],
+  "contextRegions": [
+    {
+      "id": "knowledge_release_facts",
+      "label": "release facts",
+      "messages": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "Vaster is an LLM virtual machine for Dart: declarative pipelines compile to serializable bytecode executed by a runtime with real token/cost metering. v0.4.0 ships: (1) durable execution — a running pipeline can suspend to a self-contained JSON checkpoint at a human-approval gate, the process can die, and `vaster resume` completes it in a fresh VM, meters continuing where they stood; (2) a machine-state architecture where every piece of runtime state lives in a snapshotable component, enforced by a checkpoint-anywhere test; (3) `vaster check` — static verification: every register read proven dominated by a write, a worst-case dollar bound from loop analysis and pricing tables, and policy proofs that catch forbidden file writes before execution; (4) actor-semantics agents (one task at a time per agent) and sealed failure types throughout. 614 tests."
+            }
+          ]
+        }
+      ],
+      "estimatedTokens": 215,
+      "classId": "knowledge",
+      "isPinned": true,
+      "utility": 1.0,
+      "order": 0
+    }
+  ],
+  "memoryMounts": {
+    "/mem": {}
+  },
+  "diskMounts": {
+    "/workspace": "/Users/giannissterg/programming/dart/vaster/artifacts/prove_it/workspace"
+  },
+  "budgetConsumedTokens": 46716,
+  "budgetConsumedCost": 0.11565324999999999,
+  "budgetConsumedDurationMs": 22731,
+  "capturedAt": "2026-08-06T00:38:34.722275"
+}
