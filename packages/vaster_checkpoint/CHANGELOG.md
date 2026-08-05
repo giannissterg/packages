@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **BREAKING**: format v2 — everything machine-owned rides inside the
+  continuation's `MachineSnapshot`; the checkpoint no longer enumerates
+  machine state (toolset/handlers/quota fields removed). Message inboxes are
+  captured and restored. Checkpoint-anywhere + round-trip-completeness
+  enforcement tests.
+
 ## 0.3.0
 
 - Initial release: `MachineCheckpoint` — a versioned, self-contained JSON

@@ -22,7 +22,7 @@
 ## 4. The LLM VM Execution Triad (Model, Session, Continuation)
 - **Model = Processor**: `VasterModel` is the non-deterministic LLM compute unit. It consumes structured prompts/messages and tool definitions to produce outputs.
 - **Session = Memory & Context Heap**: `VasterSession` maintains conversational turn history, system instructions, pinned context regions, tool schemas, and token tracking. It can be forked (`ForkSessionOp`) to branch memory trees.
-- **Continuation = Execution Snapshot**: `VasterContinuation` captures the frozen state of ISA bytecode execution (`resumePc`, `registers`, `callStack`, `pendingRequest`) referencing an active `sessionId`. It allows long-running or pauseable workflows to yield without blocking host OS threads and resume safely across server reboots.
+- **Continuation = Execution Snapshot**: `VasterContinuation` is identity metadata plus the whole-machine `MachineSnapshot` (Rule 8) — it never enumerates individual pieces of machine state, so it cannot be missing one. It allows long-running or pauseable workflows to yield without blocking host OS threads and resume safely across server reboots.
 
 ## 5. Strict Construction-Time Ownership (Runtime & Backend Packages)
 
@@ -58,7 +58,15 @@ To prevent concept conflation and architectural coupling across package boundari
 ## 7. Dependency Addition Approval
 - **Explicit User Approval Required**: ALWAYS ask for explicit user approval before adding any new dependency (production or dev_dependency) to any `pubspec.yaml` file across the workspace. Workspace-internal dependencies introduced by a user-approved plan are covered by that approval.
 
-## 8. Shared-Memory Segment Protocols (`vaster_mmap`)
+## 8. Machine State & Durability
+- **No Loose State Fields on the Machine**: every piece of runtime machine state lives inside a named component implementing `MachineStateComponent` (`vaster_machine_state`), registered in `VasterRuntime._stateComponents` — the single enumeration point. Capture is a fold (`captureSnapshot`), restore is a dispatch (`restoreSnapshot`). Loose mutable fields on the runtime are forbidden: they are exactly how the first checkpoint silently lost the active session.
+- **Descriptors Are State, Live Objects Never Are**: the active model is stored as its `ModelDescriptor` and resolved through the registry on use; cache hints are re-derived from restored pinned regions. Anything that cannot serialize is derived state by definition.
+- **Carriers Do Not Enumerate Machine State**: `VasterContinuation` is identity + `MachineSnapshot`; `MachineCheckpoint` is program + continuation + VM-subsystem states + host-budget consumption. Neither lists machine components by name — a carrier cannot forget state it never enumerates.
+- **Every Stateful VM Subsystem Exposes Export/Import in Its Own Package** (sessions, context regions, memory mounts, message inboxes) — none of them knows what a checkpoint is; `vaster_checkpoint` composes them all.
+- **The Checkpoint-Anywhere Test Is the Gate**: capturing at every instruction boundary of the state gauntlet and resuming each into a fresh VM must reproduce the uninterrupted run. New machine or subsystem state must extend the gauntlet.
+- **Snapshots Happen at Rest**: capture only at instruction boundaries (a paused/halted machine, or between `executeStep` quanta) — a capture mid-transition re-executes non-idempotent instructions on resume.
+
+## 9. Shared-Memory Segment Protocols (`vaster_mmap`)
 - **Compose Over the Two Building Blocks**: Every segment protocol (ring, frame, and anything future — KV pools, checkpoint segments) is a thin composition over `ShmSegment` (mapping lifecycle: create-vs-attach via `O_EXCL`, fd hygiene, owner-unlink-on-close) and `SegmentTag` (identity: magic + version as the first two header words). Never re-implement the open/attach/mmap ladder.
 - **Ownership Is Discovered, Never Guessed**: `O_EXCL` decides creator vs attacher; only owners size and unlink by default; attach never creates. Validation happens against the header page before any payload byte is touched.
 - **SPSC Honesty**: Rings are single-producer/single-consumer with documented publication order (payload before head, copy-out before tail, aligned 32-bit index words). Do not claim atomicity the platform does not provide; backpressure is typed (`RingFullException`), never silent overwrite.

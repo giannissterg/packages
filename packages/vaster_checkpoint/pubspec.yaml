@@ -8,6 +8,7 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
+  vaster_agent_messaging:
   vaster_budget:
   vaster_context:
   vaster_continuation:

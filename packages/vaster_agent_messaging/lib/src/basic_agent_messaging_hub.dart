@@ -44,6 +44,26 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
     _inboxes.remove(agentId);
   }
 
+  /// Exports every inbox (checkpoint capture) — read/unread state included.
+  ///
+  /// Undelivered actor messages are durable state: a message sent before a
+  /// suspension and popped after resume must survive the process boundary.
+  Map<String, List<Map<String, dynamic>>> exportInboxes() => {
+        for (final entry in _inboxes.entries)
+          entry.key: [for (final m in entry.value) m.toJson()],
+      };
+
+  /// Imports inboxes previously exported with [exportInboxes], replacing
+  /// same-agent inboxes (checkpoint restore).
+  void importInboxes(Map<String, List<Map<String, dynamic>>> inboxes) {
+    for (final entry in inboxes.entries) {
+      _inboxes[entry.key] = [
+        for (final m in entry.value)
+          AgentMessage.fromJson(Map<String, dynamic>.from(m)),
+      ];
+    }
+  }
+
   @override
   Future<void> close() async {
     await _controller.close();

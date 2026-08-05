@@ -1,3 +1,13 @@
+## Unreleased (machine-state era)
+
+- **BREAKING**: machine state is componentized. `MachineContext` (session /
+  model descriptor / toolset / error handlers) joins RegisterFile, CallStack,
+  HitlController, and a QuotaStateAdapter as `MachineStateComponent`s;
+  `captureSnapshot`/`restoreSnapshot` fold over the single `_stateComponents`
+  registration; `restoreAndResume(MachineSnapshot, program, {humanResponse})`
+  replaces the eight-parameter surface. The live model is derived from its
+  descriptor on use.
+
 ## Unreleased
 
 - Checkpoint surface: `activeSessionId` / `activeModelDescriptor` /

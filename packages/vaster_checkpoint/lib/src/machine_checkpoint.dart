@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
+import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
 import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_policy/vaster_policy.dart';
@@ -50,6 +51,11 @@ final class MachineCheckpoint {
   /// mountPrefix → (path → base64 content), memory mounts only.
   final Map<String, Map<String, String>> memoryMounts;
 
+  /// agentId → serialized [AgentMessage]s, read/unread state included.
+  /// Undelivered actor messages are durable state (found by the
+  /// machine-state review: a message sent before suspension was lost).
+  final Map<String, List<Map<String, dynamic>>> messageInboxes;
+
   /// Host-budget consumption at capture (limits are the resuming host's
   /// decision; consumption is a fact of the run). Everything machine-owned —
   /// registers, call stack, ambient context, HITL state, the program quota —
@@ -68,6 +74,7 @@ final class MachineCheckpoint {
     required this.sessions,
     required this.contextRegions,
     required this.memoryMounts,
+    this.messageInboxes = const {},
     required this.budgetConsumedTokens,
     required this.budgetConsumedCost,
     required this.budgetConsumedDuration,
@@ -102,6 +109,9 @@ final class MachineCheckpoint {
             entry.key:
                 (entry.value as MemoryVasterFileSystem).exportFilesBase64(),
       },
+      messageInboxes: vm.messagingHub is BasicAgentMessagingHub
+          ? (vm.messagingHub as BasicAgentMessagingHub).exportInboxes()
+          : const {},
       budgetConsumedTokens: runtime.budget.consumedTokens,
       budgetConsumedCost: runtime.budget.consumedCost,
       budgetConsumedDuration: runtime.budget.consumedDuration,
@@ -159,6 +169,12 @@ final class MachineCheckpoint {
       }
     }
 
+    if (messageInboxes.isNotEmpty &&
+        vm.messagingHub is BasicAgentMessagingHub) {
+      (vm.messagingHub as BasicAgentMessagingHub)
+          .importInboxes(messageInboxes);
+    }
+
     return VasterRuntime(
       vm: vm,
       policy: policy,
@@ -200,6 +216,7 @@ final class MachineCheckpoint {
         'sessions': [for (final s in sessions) s.toJson()],
         'contextRegions': contextRegions,
         'memoryMounts': memoryMounts,
+        if (messageInboxes.isNotEmpty) 'messageInboxes': messageInboxes,
         'budgetConsumedTokens': budgetConsumedTokens,
         'budgetConsumedCost': budgetConsumedCost,
         'budgetConsumedDurationMs': budgetConsumedDuration.inMilliseconds,
@@ -232,6 +249,14 @@ final class MachineCheckpoint {
             for (final f in (entry.value as Map).entries)
               f.key.toString(): f.value.toString(),
           },
+      },
+      messageInboxes: {
+        for (final entry
+            in (json['messageInboxes'] as Map? ?? const {}).entries)
+          entry.key.toString(): [
+            for (final m in entry.value as List)
+              Map<String, dynamic>.from(m as Map),
+          ],
       },
       budgetConsumedTokens:
           (json['budgetConsumedTokens'] as num?)?.toInt() ?? 0,
