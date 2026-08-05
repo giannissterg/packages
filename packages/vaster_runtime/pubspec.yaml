@@ -10,6 +10,7 @@ environment:
 dependencies:
   vaster_pricing:
   vaster_agent_manager_advanced:
+  vaster_metering:
   vaster_sandbox:
   vaster_policy_engine:
   vaster_filesystem_memory:

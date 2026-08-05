@@ -39,8 +39,9 @@ class ExecutionTracer {
   RuntimeStepObserver? _previousObserver;
 
   /// Single stable closure instance so attach/detach identity checks hold
-  /// (method tear-offs are not identity-stable in Dart).
-  late final RuntimeStepObserver _observer = _onStep;
+  /// (method tear-offs are not identity-stable in Dart). Bound in the
+  /// constructor body — no lazy initialization.
+  RuntimeStepObserver? _observer;
 
   Map<String, Object?> _previousRegisters = const {};
   int _previousTokens = 0;
@@ -52,7 +53,9 @@ class ExecutionTracer {
     required this.sink,
     this.showRegisterDeltas = true,
     this.valueTruncation = 72,
-  });
+  }) {
+    _observer = _onStep;
+  }
 
   /// Starts tracing. Any observer already installed keeps firing (chained
   /// after the tracer).

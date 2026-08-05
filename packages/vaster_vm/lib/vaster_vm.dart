@@ -18,6 +18,7 @@ export 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 export 'package:vaster_instruction/vaster_instruction.dart';
 export 'package:vaster_model/vaster_model.dart';
 export 'package:vaster_policy/vaster_policy.dart';
+export 'package:vaster_metering/vaster_metering.dart';
 export 'package:vaster_pricing/vaster_pricing.dart';
 export 'package:vaster_policy_engine/vaster_policy_engine.dart';
 export 'package:vaster_resources/vaster_resources.dart';

@@ -18,6 +18,13 @@ class AdvancedAgentManager implements AgentManager {
   final ResourceTracker resourceTracker;
   final int maxTreeDepth;
 
+  /// Per-turn usage listener wired into every agent this manager creates.
+  /// When installed, its owner (the VM's meter) owns usage telemetry at turn
+  /// granularity and this manager suppresses its own task-level
+  /// [ModelUsageEvent] rollup — emitting both would double-count every task
+  /// in any consumer that sums usage events.
+  final void Function(UsageMetadata usage, String modelName)? onTurnUsage;
+
   final Map<String, VasterAgent> _agents = {};
   final Map<String, AgentState> _states = {};
   final Map<String, String> _parents = {}; // childId -> parentId
@@ -28,6 +35,7 @@ class AdvancedAgentManager implements AgentManager {
     required this.eventBus,
     required this.resourceTracker,
     this.maxTreeDepth = 5,
+    this.onTurnUsage,
     List<VasterAgent> initialAgents = const [],
   }) {
     for (final agent in initialAgents) {
@@ -144,6 +152,7 @@ class AdvancedAgentManager implements AgentManager {
       session: session,
       resourceTracker: resourceTracker,
       toolManager: toolManager ?? BasicToolManager(),
+      onTurnUsage: onTurnUsage,
     );
 
     registerAgent(agent, parentAgentId: parentAgentId);
@@ -203,20 +212,24 @@ class AdvancedAgentManager implements AgentManager {
           if (aggregate.totalTokenCount == 0) 'estimated': true,
         },
       ));
-      // One usage event per task (per-call granularity would need an event
-      // bus inside the agent itself). Cost is wire-reported only here — the
-      // manager owns no pricing catalog.
-      eventBus.publish(ModelUsageEvent(
-        eventId: 'evt_usage_${task.taskId}',
-        modelName: agent.session.model.modelName,
-        callSite: 'agent_task',
-        promptTokenCount: aggregate.promptTokenCount,
-        candidatesTokenCount: aggregate.candidatesTokenCount,
-        totalTokenCount: aggregate.totalTokenCount,
-        costUsd: aggregate.costUsd,
-        estimated: aggregate.source == UsageSource.estimated,
-        usage: aggregate.toJson(),
-      ));
+      // Task-level usage rollup — only when no per-turn listener is
+      // installed. With [onTurnUsage] wired, its owner already emitted one
+      // event per model turn; a rollup on top would double-count the task.
+      // Cost is wire-reported only here — the manager owns no pricing
+      // catalog.
+      if (onTurnUsage == null) {
+        eventBus.publish(ModelUsageEvent(
+          eventId: 'evt_usage_${task.taskId}',
+          modelName: agent.session.model.modelName,
+          callSite: 'agent_task',
+          promptTokenCount: aggregate.promptTokenCount,
+          candidatesTokenCount: aggregate.candidatesTokenCount,
+          totalTokenCount: aggregate.totalTokenCount,
+          costUsd: aggregate.costUsd,
+          estimated: aggregate.source == UsageSource.estimated,
+          usage: aggregate.toJson(),
+        ));
+      }
 
       return output;
     } catch (e) {

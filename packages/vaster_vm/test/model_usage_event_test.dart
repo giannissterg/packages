@@ -50,7 +50,7 @@ void main() {
     expect(events.single.totalTokenCount, equals(350));
   });
 
-  test('agent dispatch emits one agent_task usage event for the task tree',
+  test('agent dispatch emits one agent_turn usage event per model turn',
       () async {
     await vm.createAgent(
         descriptor: const AgentDescriptor(
@@ -65,9 +65,14 @@ void main() {
     );
     await flush();
 
-    final taskEvents = events.where((e) => e.callSite == 'agent_task');
-    expect(taskEvents, hasLength(1));
-    expect(taskEvents.single.totalTokenCount, equals(350));
-    expect(taskEvents.single.estimated, isFalse);
+    // The VM wires a per-turn listener, so the manager's task-level rollup is
+    // suppressed and every model turn inside the tool loop is its own event.
+    final turnEvents = events.where((e) => e.callSite == 'agent_turn');
+    expect(turnEvents, hasLength(1),
+        reason: 'one turn: the fake answers without tool calls');
+    expect(turnEvents.single.totalTokenCount, equals(350));
+    expect(turnEvents.single.estimated, isFalse);
+    expect(events.where((e) => e.callSite == 'agent_task'), isEmpty,
+        reason: 'rollup + per-turn events would double-count the task');
   });
 }

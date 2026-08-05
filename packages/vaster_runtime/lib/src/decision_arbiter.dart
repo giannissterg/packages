@@ -1,8 +1,7 @@
 import 'dart:convert';
 
-import 'package:vaster_budget/vaster_budget.dart';
+import 'package:vaster_metering/vaster_metering.dart';
 import 'package:vaster_model/vaster_model.dart';
-import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 import 'package:vaster_vm_api/vaster_vm_api.dart';
 
@@ -21,13 +20,13 @@ import 'package:vaster_vm_api/vaster_vm_api.dart';
 /// why on subsequent turns.
 final class DecisionArbiter {
   final VasterVirtualMachine vm;
-  final ExecutionBudget budget;
-  final ResourceTracker quotaTracker;
+
+  /// The runtime's shared metering pipeline (host budget + program quota).
+  final ModelCallMeter meter;
 
   const DecisionArbiter({
     required this.vm,
-    required this.budget,
-    required this.quotaTracker,
+    required this.meter,
   });
 
   /// Asks the model to pick one of [branches] for [prompt].
@@ -66,18 +65,13 @@ final class DecisionArbiter {
         : await vm.prompt(composed,
             model: model, config: config, cacheHints: cacheHints);
 
-    final tokens = response.usage.totalTokenCount > 0
-        ? response.usage.totalTokenCount
-        : TokenEstimate.forExchange(prompt: composed, output: response.text)
-            .totalTokenCount;
-    budget.consumeTokens(tokens);
-    quotaTracker.consumeTokens(tokens);
-    final cost = vm.config.pricingCatalog.resolveCostUsd(
-        response.usage, (model ?? vm.config.defaultModel).modelName);
-    if (cost != null) {
-      budget.consumeCost(cost);
-      quotaTracker.consumeCost(cost);
-    }
+    meter.charge(
+      usage: response.usage.totalTokenCount > 0
+          ? response.usage
+          : TokenEstimate.forExchange(prompt: composed, output: response.text),
+      modelName: (model ?? vm.config.defaultModel).modelName,
+      callSite: 'isa_decide',
+    );
 
     return _parse(response.text, labels);
   }

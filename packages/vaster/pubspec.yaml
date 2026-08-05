@@ -12,6 +12,7 @@ dependencies:
   vaster_sandbox_process:
   vaster_sandbox_manager:
   vaster_sandbox_isolate:
+  vaster_metering:
   vaster_pricing:
   vaster_agent_manager_advanced:
   vaster_agent:

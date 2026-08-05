@@ -4,6 +4,7 @@ import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_metering/vaster_metering.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_resources/vaster_resources.dart';
@@ -62,7 +63,7 @@ class VasterRuntime {
   final ExecutionBudget budget;
   final VasterScheduler scheduler;
 
-  final RegisterFile _registers = RegisterFile();
+  final RegisterFile _registers;
   final CallStack _callStack = CallStack();
   final CacheHintTracker _cacheHints = CacheHintTracker();
   final HitlController _hitl = HitlController();
@@ -74,8 +75,7 @@ class VasterRuntime {
   /// instruction onward. Breaches throw [QuotaExceededException], which
   /// program-level error handlers may recover from — otherwise the machine
   /// traps.
-  final ResourceTracker _quotaTracker =
-      ResourceTracker(quota: ResourceQuota.unlimited);
+  final ResourceTracker _quotaTracker;
 
   /// Program-level error handlers installed by [PushErrorHandlerOp]
   /// (innermost last). Consulted by both run loops when an instruction
@@ -94,33 +94,29 @@ class VasterRuntime {
 
   VasterModel? _activeModel;
   String? _activeSessionId;
-  final ExecutionPolicy _activePolicy;
   VasterProgram? _currentProgram;
 
   /// Security boundary: one policy bound to one engine for this runtime's
   /// lifetime, composed by both instruction dispatch and the tool loop.
-  late final PolicyGuard _policyGuard =
-      PolicyGuard(engine: vm.policyEngine, policy: _activePolicy);
+  final PolicyGuard _policyGuard;
+
+  /// Runtime-layer metering: every model call this runtime pays for charges
+  /// the host [budget] and the program [_quotaTracker] through one pipeline.
+  /// Charge-only (no event bus) — the VM funnel and agent turns already emit
+  /// their own [ModelUsageEvent]s; emitting here would double-count.
+  final ModelCallMeter _meter;
 
   /// Model ↔ tool conversation orchestration, kept out of the fetch-decode
   /// loop as its own single-responsibility collaborator.
-  late final ToolCallOrchestrator _toolOrchestrator = ToolCallOrchestrator(
-    vm: vm,
-    budget: budget,
-    quotaTracker: _quotaTracker,
-    guard: _policyGuard,
-    maxIterations: maxToolIterations,
-  );
+  final ToolCallOrchestrator _toolOrchestrator;
 
   /// Model-steered decision resolution for [DecideOp] — same separation as
   /// the tool orchestrator: the arbiter handles the model conversation, the
   /// engine keeps the control transfer.
-  late final DecisionArbiter _decisionArbiter =
-      DecisionArbiter(vm: vm, budget: budget, quotaTracker: _quotaTracker);
+  final DecisionArbiter _decisionArbiter;
 
   /// ISA `${name}` register interpolation (see RegisterInterpolation spec).
-  late final RegisterInterpolator _interpolator =
-      RegisterInterpolator(registers: _registers);
+  final RegisterInterpolator _interpolator;
 
   /// Resolves an interpolated instruction field, surfacing unresolvable
   /// references as runtime warnings instead of failing.
@@ -135,12 +131,53 @@ class VasterRuntime {
         )),
       );
 
-  VasterRuntime({
-    required this.vm,
+  /// The full collaborator graph is built here, eagerly and in dependency
+  /// order — construction-time ownership (Rule 5), no lazy initialization.
+  factory VasterRuntime({
+    required VasterVirtualMachine vm,
     required ExecutionPolicy policy,
-    required this.budget,
-    required this.scheduler,
-  }) : _activePolicy = policy;
+    required ExecutionBudget budget,
+    required VasterScheduler scheduler,
+  }) {
+    final registers = RegisterFile();
+    final quotaTracker = ResourceTracker(quota: ResourceQuota.unlimited);
+    final policyGuard = PolicyGuard(engine: vm.policyEngine, policy: policy);
+    final meter = ModelCallMeter(
+      pricingCatalog: vm.config.pricingCatalog,
+      sinks: [BudgetSink(budget), TrackerSink(quotaTracker)],
+    );
+    return VasterRuntime._(
+      vm,
+      budget,
+      scheduler,
+      registers,
+      quotaTracker,
+      policyGuard,
+      meter,
+      ToolCallOrchestrator(
+        vm: vm,
+        meter: meter,
+        quotaTracker: quotaTracker,
+        guard: policyGuard,
+        maxIterations: maxToolIterations,
+      ),
+      DecisionArbiter(vm: vm, meter: meter),
+      RegisterInterpolator(registers: registers),
+    );
+  }
+
+  VasterRuntime._(
+    this.vm,
+    this.budget,
+    this.scheduler,
+    this._registers,
+    this._quotaTracker,
+    this._policyGuard,
+    this._meter,
+    this._toolOrchestrator,
+    this._decisionArbiter,
+    this._interpolator,
+  );
 
   /// Pending human interaction request if status is [RuntimeStatus.pausedForHuman].
   HumanInteractionRequest? get pendingHumanRequest => _hitl.pendingRequest;
@@ -457,19 +494,14 @@ class VasterRuntime {
         }
         // Charge real server-reported usage; the labeled estimate is only a
         // fallback for backends that don't report tokens.
-        final tokens = response.usage.totalTokenCount > 0
-            ? response.usage.totalTokenCount
-            : TokenEstimate.forExchange(
-                    prompt: promptText, output: response.text)
-                .totalTokenCount;
-        budget.consumeTokens(tokens);
-        _quotaTracker.consumeTokens(tokens);
-        final promptCost = vm.config.pricingCatalog.resolveCostUsd(
-            response.usage, (_activeModel ?? vm.config.defaultModel).modelName);
-        if (promptCost != null) {
-          budget.consumeCost(promptCost);
-          _quotaTracker.consumeCost(promptCost);
-        }
+        _meter.charge(
+          usage: response.usage.totalTokenCount > 0
+              ? response.usage
+              : TokenEstimate.forExchange(
+                  prompt: promptText, output: response.text),
+          modelName: (_activeModel ?? vm.config.defaultModel).modelName,
+          callSite: 'isa_prompt',
+        );
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
       case SelectModelOp op:
@@ -570,22 +602,17 @@ class VasterRuntime {
         );
         // Charge the task tree's real accumulated usage (agent + subagents);
         // the estimate only stands in when the whole tree reported nothing.
+        // Wire-reported cost (summed across the tree) wins; else the meter
+        // rates the default model, which agents run on unless configured.
         final taskUsage = output.aggregateUsage;
-        final tokens = taskUsage.totalTokenCount > 0
-            ? taskUsage.totalTokenCount
-            : TokenEstimate.forExchange(
-                    prompt: taskPrompt, output: output.outputText)
-                .totalTokenCount;
-        budget.consumeTokens(tokens);
-        _quotaTracker.consumeTokens(tokens);
-        // Wire-reported cost (summed across the tree) wins; else rate the
-        // default model, which agents run on unless configured otherwise.
-        final taskCost = vm.config.pricingCatalog
-            .resolveCostUsd(taskUsage, vm.config.defaultModel.modelName);
-        if (taskCost != null) {
-          budget.consumeCost(taskCost);
-          _quotaTracker.consumeCost(taskCost);
-        }
+        _meter.charge(
+          usage: taskUsage.totalTokenCount > 0
+              ? taskUsage
+              : TokenEstimate.forExchange(
+                  prompt: taskPrompt, output: output.outputText),
+          modelName: vm.config.defaultModel.modelName,
+          callSite: 'isa_agent_task',
+        );
         if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
       case DispatchParallelTasksOp op:
@@ -608,14 +635,11 @@ class VasterRuntime {
             final v = op.dispatches[i].outputVar;
             if (v != null) _registers.write(v, outputs[i].outputText);
           }
-          budget.consumeTokens(parallelUsage.totalTokenCount);
-          _quotaTracker.consumeTokens(parallelUsage.totalTokenCount);
-          final parallelCost = vm.config.pricingCatalog.resolveCostUsd(
-              parallelUsage, vm.config.defaultModel.modelName);
-          if (parallelCost != null) {
-            budget.consumeCost(parallelCost);
-            _quotaTracker.consumeCost(parallelCost);
-          }
+          _meter.charge(
+            usage: parallelUsage,
+            modelName: vm.config.defaultModel.modelName,
+            callSite: 'isa_parallel_tasks',
+          );
         }
 
       case SendMessageOp op:

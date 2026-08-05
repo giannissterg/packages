@@ -39,12 +39,20 @@ class BasicVasterAgent implements VasterAgent {
     ModelSession parentSession,
   )? subagentLauncher;
 
+  /// Reports each model turn's usage (measured or a labeled estimate) to the
+  /// owner that wired this agent, making tool-loop turns visible to metering
+  /// per-call rather than only as a task-level rollup. Invoked before the
+  /// tracker charge so the turn stays observable even when a quota trips.
+  /// The agent stays unaware of pricing and telemetry — it only reports.
+  final void Function(UsageMetadata usage, String modelName)? onTurnUsage;
+
   BasicVasterAgent({
     required this.descriptor,
     required this.session,
     required this.resourceTracker,
     required this.toolManager,
     this.subagentLauncher,
+    this.onTurnUsage,
   });
 
   @override
@@ -115,6 +123,7 @@ class BasicVasterAgent implements VasterAgent {
                 output: response.text,
               );
         taskUsage += turnUsage;
+        onTurnUsage?.call(turnUsage, session.model.modelName);
         resourceTracker.consumeTokens(turnUsage.totalTokenCount);
 
         // d. Record the model turn in session history
@@ -208,6 +217,7 @@ class BasicVasterAgent implements VasterAgent {
         session: childSession,
         resourceTracker: resourceTracker,
         toolManager: toolManager,
+        onTurnUsage: onTurnUsage,
       );
     }
 

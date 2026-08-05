@@ -11,6 +11,7 @@ dependencies:
   vaster_context:
   vaster_events:
   vaster_model:
+  vaster_token_estimate:
 
 dev_dependencies:
   vaster_model_fake:

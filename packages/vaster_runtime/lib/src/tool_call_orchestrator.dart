@@ -1,5 +1,5 @@
-import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_events/vaster_events.dart';
+import 'package:vaster_metering/vaster_metering.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_resources/vaster_resources.dart';
@@ -26,8 +26,14 @@ import 'policy_guard.dart';
 /// flattened to prose.
 final class ToolCallOrchestrator {
   final VasterVirtualMachine vm;
-  final ExecutionBudget budget;
+
+  /// The runtime's shared metering pipeline (host budget + program quota).
+  final ModelCallMeter meter;
+
+  /// Kept alongside [meter] for the one thing metering doesn't cover:
+  /// recording tool-call counts against the program quota.
   final ResourceTracker quotaTracker;
+
   final PolicyGuard guard;
 
   /// Maximum model turns in one tool-calling loop (runaway guard).
@@ -35,7 +41,7 @@ final class ToolCallOrchestrator {
 
   const ToolCallOrchestrator({
     required this.vm,
-    required this.budget,
+    required this.meter,
     required this.quotaTracker,
     required this.guard,
     required this.maxIterations,
@@ -102,18 +108,16 @@ final class ToolCallOrchestrator {
       );
       // Each loop turn re-sends the whole transcript — the estimate must
       // count that input side, not just the reply.
-      final tokens = response.usage.totalTokenCount > 0
-          ? response.usage.totalTokenCount
-          : TokenEstimate.forMessages(transcript) +
-              TokenEstimate.forText(response.text);
-      budget.consumeTokens(tokens);
-      quotaTracker.consumeTokens(tokens);
-      final cost = vm.config.pricingCatalog.resolveCostUsd(
-          response.usage, (model ?? vm.config.defaultModel).modelName);
-      if (cost != null) {
-        budget.consumeCost(cost);
-        quotaTracker.consumeCost(cost);
-      }
+      meter.charge(
+        usage: response.usage.totalTokenCount > 0
+            ? response.usage
+            : UsageMetadata(
+                promptTokenCount: TokenEstimate.forMessages(transcript),
+                candidatesTokenCount: TokenEstimate.forText(response.text),
+              ),
+        modelName: (model ?? vm.config.defaultModel).modelName,
+        callSite: 'isa_tool_loop',
+      );
     }
     return response;
   }

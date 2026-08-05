@@ -1,5 +1,6 @@
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 import 'context_compressor.dart';
 import 'truncating_compressor.dart';
@@ -22,11 +23,19 @@ final class SummarizingCompressor implements ContextCompressor {
 
   final TruncatingCompressor fallback;
 
+  /// Reports each summarization call's usage (measured when the wire provides
+  /// it, else a labeled estimate) to the owner that wired this compressor.
+  /// Compaction burns real tokens — without this hook they were off-books.
+  /// The context subsystem stays unaware of budgets and pricing; it only
+  /// measures and reports.
+  final void Function(UsageMetadata usage)? onUsage;
+
   SummarizingCompressor({
     required this.model,
     this.promptTemplate = defaultTemplate,
     this.preserveOriginal = true,
     this.fallback = const TruncatingCompressor(),
+    this.onUsage,
   });
 
   @override
@@ -53,6 +62,9 @@ final class SummarizingCompressor implements ContextCompressor {
           maxOutputTokens: (targetTokens * 2).clamp(64, 8192),
         ),
       ));
+      onUsage?.call(response.usage.totalTokenCount > 0
+          ? response.usage
+          : TokenEstimate.forExchange(prompt: prompt, output: response.text));
       final summary = response.text.trim();
       if (summary.isEmpty) {
         return await fallback.compress(region, targetTokens: targetTokens);

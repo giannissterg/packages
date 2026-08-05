@@ -8,6 +8,7 @@ import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_filesystem_manager/vaster_filesystem_manager.dart';
 import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_metering/vaster_metering.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_policy_engine/vaster_policy_engine.dart';
@@ -67,6 +68,11 @@ class VasterVMEngine implements VasterVirtualMachine {
   @override
   final ExecutionBudget rootBudget;
 
+  /// The VM's metering pipeline: every model call the VM owns (prompt funnel,
+  /// context compression, agent turns) resolves cost, emits one
+  /// [ModelUsageEvent], and charges [resourceTracker] through this meter.
+  final ModelCallMeter meter;
+
   final Map<String, ProgramExecutionJob> _jobs = {};
 
   @override
@@ -87,6 +93,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     required this.policyEngine,
     required this.scheduler,
     required this.rootBudget,
+    required this.meter,
   });
 
   /// Factory bootstrap method to create a fully configured [VasterVMEngine].
@@ -103,11 +110,33 @@ class VasterVMEngine implements VasterVirtualMachine {
     final messagingHub = BasicAgentMessagingHub();
     final resourceTracker = ResourceTracker(quota: config.defaultQuota);
 
+    // The VM's single metering pipeline (cost + telemetry + tracker charge).
+    final meter = ModelCallMeter(
+      pricingCatalog: config.pricingCatalog,
+      sinks: [TrackerSink(resourceTracker)],
+      eventBus: eventBus,
+    );
+    // Agent turns charge tokens to the shared tracker inside the agent's own
+    // loop (quota enforcement lives there) — this meter adds what that loop
+    // cannot: cost resolution and per-turn telemetry.
+    final agentTurnMeter = ModelCallMeter(
+      pricingCatalog: config.pricingCatalog,
+      sinks: [TrackerSink(resourceTracker, chargeTokens: false)],
+      eventBus: eventBus,
+    );
+
     final sessionManager = BasicSessionManager();
     final contextManager = BasicContextManager(
       eventBus: eventBus,
       compressors: [
-        SummarizingCompressor(model: config.defaultModel),
+        SummarizingCompressor(
+          model: config.defaultModel,
+          onUsage: (usage) => meter.charge(
+            usage: usage,
+            modelName: config.defaultModel.modelName,
+            callSite: 'context_compression',
+          ),
+        ),
         const TruncatingCompressor(),
       ],
     );
@@ -123,6 +152,14 @@ class VasterVMEngine implements VasterVirtualMachine {
       sessionManager: sessionManager,
       eventBus: eventBus,
       resourceTracker: resourceTracker,
+      // Tool-loop turns were invisible to metering: only a task-level rollup
+      // with wire-reported cost existed. Per-turn wiring meters every model
+      // call an agent makes as it happens.
+      onTurnUsage: (usage, modelName) => agentTurnMeter.charge(
+        usage: usage,
+        modelName: modelName,
+        callSite: 'agent_turn',
+      ),
     );
 
     final modelRegistry = ModelRegistry(defaultModel: config.defaultModel);
@@ -142,6 +179,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       policyEngine: activePolicyEngine,
       scheduler: activeScheduler,
       rootBudget: activeRootBudget,
+      meter: meter,
     );
 
     // Automatic Bridge 1: Mount root filesystem if provided, or default MemoryVasterFileSystem
@@ -325,7 +363,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       contextManager: BasicContextManager(
         eventBus: eventBus,
         compressors: [
-          SummarizingCompressor(model: model),
+          _meteredCompressor(model),
           const TruncatingCompressor(),
         ],
       ),
@@ -443,29 +481,26 @@ class VasterVMEngine implements VasterVirtualMachine {
     return response;
   }
 
-  int _usageEventSeq = 0;
+  /// Meters one model call at the VM funnel through [meter]: one
+  /// [ModelUsageEvent] published before charging (usage stays observable even
+  /// when a quota trips), tokens charged, and cost charged when known.
+  void _meterCall(UsageMetadata usage, VasterModel model) => meter.charge(
+        usage: usage,
+        modelName: model.modelName,
+        callSite: 'vm_prompt',
+      );
 
-  /// Meters one model call at the VM funnel: publishes exactly one
-  /// [ModelUsageEvent] (before charging, so the usage is observable even when
-  /// a quota trips), charges tokens, and charges monetary cost when known
-  /// (wire-reported cost wins, else the pricing catalog rates the model,
-  /// else cost is honestly unknown and nothing is charged).
-  void _meterCall(UsageMetadata usage, VasterModel model) {
-    final cost = config.pricingCatalog.resolveCostUsd(usage, model.modelName);
-    eventBus.publish(ModelUsageEvent(
-      eventId: 'evt_usage_vm_${_usageEventSeq++}',
-      modelName: model.modelName,
-      callSite: 'vm_prompt',
-      promptTokenCount: usage.promptTokenCount,
-      candidatesTokenCount: usage.candidatesTokenCount,
-      totalTokenCount: usage.totalTokenCount,
-      costUsd: cost,
-      estimated: usage.source == UsageSource.estimated,
-      usage: usage.toJson(),
-    ));
-    resourceTracker.consumeTokens(usage.totalTokenCount);
-    if (cost != null) resourceTracker.consumeCost(cost);
-  }
+  /// A summarizing compressor whose token burn is on the books: compaction
+  /// calls meter through the VM pipeline like any other model call.
+  SummarizingCompressor _meteredCompressor(VasterModel model) =>
+      SummarizingCompressor(
+        model: model,
+        onUsage: (usage) => meter.charge(
+          usage: usage,
+          modelName: model.modelName,
+          callSite: 'context_compression',
+        ),
+      );
 
   @override
   Stream<ModelResponseChunk> promptStream(
@@ -581,14 +616,14 @@ class VasterVMEngine implements VasterVirtualMachine {
           BasicContextManager(
             eventBus: eventBus,
             compressors: [
-              SummarizingCompressor(model: activeModel),
+              _meteredCompressor(activeModel),
               const TruncatingCompressor(),
             ],
           ),
           contextManager,
         ],
         compressors: [
-          SummarizingCompressor(model: activeModel),
+          _meteredCompressor(activeModel),
           const TruncatingCompressor(),
         ],
       ),
