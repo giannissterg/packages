@@ -16,7 +16,7 @@ void main() {
       final program = const BasicWorkflowCompiler().compile(_pipeline([
         const Prompt(Template.text('cond producer')), // writes __auto_reg_0
         const When(
-          condition: '__auto_reg_0',
+          condition: Cond.isTrue(Binding('__auto_reg_0')),
           then: [WriteFile(path: Template.text('/mem/t.txt'), content: Template.text('then'))],
           otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('else'))],
         ),
@@ -40,10 +40,10 @@ void main() {
         const Prompt(Template.text('outer cond')), // __auto_reg_0
         const Prompt(Template.text('inner cond')), // __auto_reg_1
         const When(
-          condition: '__auto_reg_0',
+          condition: Cond.isTrue(Binding('__auto_reg_0')),
           then: [
             When(
-              condition: '__auto_reg_1',
+              condition: Cond.isTrue(Binding('__auto_reg_1')),
               then: [WriteFile(path: Template.text('/mem/tt.txt'), content: Template.text('then-then'))],
               otherwise: [WriteFile(path: Template.text('/mem/te.txt'), content: Template.text('then-else'))],
             ),
@@ -85,7 +85,7 @@ void main() {
       const compiler = BasicWorkflowCompiler();
       final result = compiler.compileWithDiagnostics(_pipeline([
         const When(
-          condition: 'never_written',
+          condition: Cond.isTrue(Binding('never_written')),
           then: [WriteFile(path: Template.text('/mem/a.txt'), content: Template.text('x'))],
           otherwise: [],
         ),
@@ -231,7 +231,7 @@ void main() {
       final pipeline = _pipeline([
         const Prompt(Template.text('cond')),
         const When(
-          condition: '__auto_reg_0',
+          condition: Cond.isTrue(Binding('__auto_reg_0')),
           then: [],
           otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('e'))],
         ),

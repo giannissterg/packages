@@ -219,11 +219,14 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         final thenLabel = ir.newLabel('then');
         final joinLabel = ir.newLabel('join');
 
-        ir.jumpIf(n.condition, thenLabel);
-        _lowerNodes(n.otherwise, ir, context, state);
+        final cond = _lowerCond(n.condition, ir, state);
+        ir.jumpIf(cond.register, thenLabel);
+        // A negated condition swaps the branch bodies — negation is free at
+        // compile time, no runtime inversion op needed.
+        _lowerNodes(cond.negated ? n.then : n.otherwise, ir, context, state);
         ir.jump(joinLabel);
         ir.bind(thenLabel);
-        _lowerNodes(n.then, ir, context, state);
+        _lowerNodes(cond.negated ? n.otherwise : n.then, ir, context, state);
         ir.bind(joinLabel);
 
       case Transaction n:
@@ -628,6 +631,36 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         final reg = _bindingName(n.output, state);
         ir.emit(PopMessageOp(agentId: n.agentId, outputVar: reg));
         state.lastOutputRegister = reg;
+    }
+  }
+
+  /// Lowers a [Cond] to a register to `jumpIf` on, plus a negation flag the
+  /// caller resolves by swapping branch targets. Comparisons emit a
+  /// [CompareRegisterOp] into a fresh register; `not` just flips the flag.
+  ({String register, bool negated}) _lowerCond(
+      Cond cond, IrModule ir, _CompilerState state) {
+    switch (cond) {
+      case CondIsTrue c:
+        return (register: c.binding.name, negated: false);
+      case CondEquals c:
+        final tmp = state.nextAutoRegister();
+        ir.emit(CompareRegisterOp(
+            leftVar: c.binding.name,
+            operator: 'eq',
+            rightValue: c.value,
+            targetVar: tmp));
+        return (register: tmp, negated: false);
+      case CondNotEquals c:
+        final tmp = state.nextAutoRegister();
+        ir.emit(CompareRegisterOp(
+            leftVar: c.binding.name,
+            operator: 'ne',
+            rightValue: c.value,
+            targetVar: tmp));
+        return (register: tmp, negated: false);
+      case CondNot c:
+        final inner = _lowerCond(c.inner, ir, state);
+        return (register: inner.register, negated: !inner.negated);
     }
   }
 

@@ -83,3 +83,54 @@ final class Template {
   String toString() =>
       'Template(${parts.map((p) => p is Binding ? p : "'$p'").join(', ')})';
 }
+
+/// Declarative branch condition for `When` — an expression over bound
+/// values, not a register name plus knowledge of the truthiness table.
+///
+/// ```dart
+/// When(condition: Cond.isTrue(approved), then: [...])
+/// When(condition: Cond.equals(verdict, 'approve'), then: [...])
+/// ```
+///
+/// Kept deliberately minimal (isTrue/equals/notEquals/not); `and`/`or` are
+/// expressible as nested `When`s and can graduate into the DSL when a real
+/// pipeline needs them. Conditions lower onto the existing
+/// `CompareRegisterOp`/`JumpIfOp` — no new ISA.
+sealed class Cond {
+  const Cond._();
+
+  /// True when the bound value is truthy (non-empty, non-false, non-zero).
+  const factory Cond.isTrue(Binding binding) = CondIsTrue._;
+
+  /// True when the bound value loosely equals [value].
+  const factory Cond.equals(Binding binding, Object value) = CondEquals._;
+
+  /// True when the bound value does not loosely equal [value].
+  const factory Cond.notEquals(Binding binding, Object value) =
+      CondNotEquals._;
+
+  /// Logical negation — free at compile time (branch targets swap).
+  const factory Cond.not(Cond inner) = CondNot._;
+}
+
+final class CondIsTrue extends Cond {
+  final Binding binding;
+  const CondIsTrue._(this.binding) : super._();
+}
+
+final class CondEquals extends Cond {
+  final Binding binding;
+  final Object value;
+  const CondEquals._(this.binding, this.value) : super._();
+}
+
+final class CondNotEquals extends Cond {
+  final Binding binding;
+  final Object value;
+  const CondNotEquals._(this.binding, this.value) : super._();
+}
+
+final class CondNot extends Cond {
+  final Cond inner;
+  const CondNot._(this.inner) : super._();
+}

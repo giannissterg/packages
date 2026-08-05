@@ -67,6 +67,58 @@ void main() {
       expect(result.hasErrors, isFalse);
     });
 
+    test('Cond.equals lowers to CompareRegisterOp + JumpIf', () {
+      const verdict = Binding('verdict');
+      final program = const BasicWorkflowCompiler().compile(const Pipeline(
+        name: 'cond',
+        children: [
+          Prompt(Template.text('judge'), output: verdict),
+          When(
+            condition: Cond.equals(verdict, 'approve'),
+            then: [WriteFile(
+                path: Template.text('/mem/ok.txt'),
+                content: Template.text('shipped'))],
+          ),
+        ],
+      ));
+      final cmp =
+          program.instructions.whereType<CompareRegisterOp>().single;
+      expect(cmp.leftVar, equals('verdict'));
+      expect(cmp.operator, equals('eq'));
+      expect(cmp.rightValue, equals('approve'));
+      final jump = program.instructions.whereType<JumpIfOp>().single;
+      expect(jump.conditionVar, equals(cmp.targetVar));
+    });
+
+    test('Cond.not swaps branches at compile time — no runtime negation', () {
+      const flag = Binding('flag');
+      final program = const BasicWorkflowCompiler().compile(const Pipeline(
+        name: 'notcond',
+        children: [
+          When(
+            condition: Cond.not(Cond.isTrue(flag)),
+            then: [WriteFile(
+                path: Template.text('/mem/no.txt'),
+                content: Template.text('flag was falsy'))],
+            otherwise: [WriteFile(
+                path: Template.text('/mem/yes.txt'),
+                content: Template.text('flag was truthy'))],
+          ),
+        ],
+      ));
+      // No compare op emitted; the jumpIf targets the register directly and
+      // the THEN branch (jump target) holds the *otherwise* body.
+      expect(program.instructions.whereType<CompareRegisterOp>(), isEmpty);
+      final jump = program.instructions.whereType<JumpIfOp>().single;
+      expect(jump.conditionVar, equals('flag'));
+      final jumpTargetWrites = program.instructions
+          .skip(jump.targetPc)
+          .whereType<WriteFileOp>()
+          .first;
+      expect(jumpTargetWrites.vfsPath, equals('/mem/yes.txt'),
+          reason: 'truthy flag lands in the otherwise body under not()');
+    });
+
     test('a fully-const pipeline with bindings still compiles', () {
       // Const-constructibility is a DX invariant — Binding must not break it.
       const result = Binding('answer');

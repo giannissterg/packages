@@ -369,10 +369,10 @@ class Execute extends ComposableNode {
   }
 }
 
-/// Conditional branch node on the truthiness of the value bound to
-/// [condition].
+/// Conditional branch: [then] runs when [condition] holds, else
+/// [otherwise].
 final class When extends VasterNode {
-  final String condition;
+  final Cond condition;
   final List<VasterNode> then;
   final List<VasterNode> otherwise;
 
@@ -634,7 +634,7 @@ class ApprovalGate extends ComposableNode {
         timeoutMs: timeoutMs,
       ),
       When(
-        condition: '${requestId}_status',
+        condition: Cond.isTrue(Binding('${requestId}_status')),
         then: onApprove,
         otherwise: onReject,
       ),
