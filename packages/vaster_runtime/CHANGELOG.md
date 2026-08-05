@@ -1,5 +1,11 @@
 ## Unreleased (machine-state era)
 
+- Sealed `MachinePhase` (`PhaseIdle/Running/Halted/PausedForHuman/Trapped/
+  TimedOut`) replaces the status-enum + error-string + separate-getter
+  scatter internally — a pause carries its request, a trap carries its
+  report. Exposed as `VasterRuntime.phase`; `RuntimeState.status`/
+  `errorDetails` remain as projections (`asStatus`/`errorDetails`).
+
 - **BREAKING**: machine state is componentized. `MachineContext` (session /
   model descriptor / toolset / error handlers) joins RegisterFile, CallStack,
   HitlController, and a QuotaStateAdapter as `MachineStateComponent`s;

@@ -24,6 +24,7 @@ import 'decision_arbiter.dart';
 import 'extract_outcome.dart';
 import 'hitl_controller.dart';
 import 'machine_context.dart';
+import 'machine_phase.dart';
 import 'policy_guard.dart';
 import 'register_file.dart';
 import 'quota_state_adapter.dart';
@@ -83,8 +84,13 @@ class VasterRuntime {
 
 
   int _pc = 0;
-  RuntimeStatus _status = RuntimeStatus.idle;
-  String? _lastError;
+
+  /// The machine's execution phase — sealed, data-carrying (a pause holds
+  /// its request, a trap holds its report). [_status]/[_lastError] are
+  /// projections so the fetch-decode loop reads naturally.
+  MachinePhase _phase = const PhaseIdle();
+  RuntimeStatus get _status => _phase.asStatus;
+  String? get _lastError => _phase.errorDetails;
 
   /// Optional per-instruction observer for tracing and time-travel replay.
   ///
@@ -201,6 +207,10 @@ class VasterRuntime {
     this._interpolator,
   );
 
+  /// The machine's sealed execution phase (pauses carry their request,
+  /// traps carry their report).
+  MachinePhase get phase => _phase;
+
   /// Pending human interaction request if status is [RuntimeStatus.pausedForHuman].
   HumanInteractionRequest? get pendingHumanRequest => _hitl.pendingRequest;
 
@@ -282,8 +292,7 @@ class VasterRuntime {
   }) async {
     _currentProgram = program;
     _pc = startPc;
-    _status = RuntimeStatus.running;
-    _lastError = null;
+    _phase = const PhaseRunning();
     if (resetState) {
       _machineContext.clear();
       _registers.clear();
@@ -308,7 +317,7 @@ class VasterRuntime {
       throw StateError('Runtime is not paused for human interaction.');
     }
     _pc += _hitl.consume(response: response, registers: _registers);
-    _status = RuntimeStatus.running;
+    _phase = const PhaseRunning();
     return _runLoop(_currentProgram!);
   }
 
@@ -341,8 +350,7 @@ class VasterRuntime {
       _pc += _hitl.consume(response: humanResponse, registers: _registers);
     }
 
-    _status = RuntimeStatus.running;
-    _lastError = null;
+    _phase = const PhaseRunning();
     return _runLoop(program);
   }
 
@@ -368,8 +376,8 @@ class VasterRuntime {
         _status == RuntimeStatus.running &&
         (maxSteps == null || executed < maxSteps)) {
       if (budget.isExpired) {
-        _status = RuntimeStatus.timedOut;
-        _lastError = 'Execution budget or deadline expired at PC $_pc';
+        _phase = PhaseTimedOut(
+            reason: 'Execution budget or deadline expired at PC $_pc');
         break;
       }
       final instruction = program.instructions[_pc];
@@ -402,8 +410,7 @@ class VasterRuntime {
           executed++; // recovery consumed a step
           continue;
         }
-        _status = RuntimeStatus.error;
-        _lastError = _formatTrap(instruction, e, st);
+        _phase = PhaseTrapped(details: _formatTrap(instruction, e, st));
         stepObserver?.call(executingPc, instruction, _registers.snapshot());
         break;
       }
@@ -419,7 +426,7 @@ class VasterRuntime {
   /// context regions exactly like one that ran to completion.
   RuntimeState _finalize(VasterProgram program) {
     if (_pc >= program.instructions.length && _status == RuntimeStatus.running) {
-      _status = RuntimeStatus.halted;
+      _phase = const PhaseHalted();
     }
     if (_status == RuntimeStatus.halted) {
       vm.contextManager
@@ -505,8 +512,8 @@ class VasterRuntime {
   /// The machine is left `running` when the quantum expires mid-program, so the
   /// scheduler can re-dispatch it later from the preserved PC.
   Future<RuntimeState> executeStep(VasterProgram program, {int stepCount = 5}) {
-    if (_status == RuntimeStatus.idle) {
-      _status = RuntimeStatus.running;
+    if (_phase is PhaseIdle) {
+      _phase = const PhaseRunning();
     }
     _currentProgram = program;
     return _execute(program, maxSteps: stepCount);
@@ -886,8 +893,8 @@ class VasterRuntime {
                 timeoutMs: op.request.timeoutMs,
               )
             : op.request;
-        _status = _hitl.pause(
-            request: request, eventBus: vm.eventBus, currentPc: _pc);
+        _hitl.pause(request: request, eventBus: vm.eventBus, currentPc: _pc);
+        _phase = PhasePausedForHuman(request: request);
 
       // ── Control flow ──────────────────────────────────────────────────────
       case CallOp op:
@@ -901,7 +908,7 @@ class VasterRuntime {
 
       case ReturnSubroutineOp op:
         if (_callStack.isEmpty) {
-          _status = RuntimeStatus.halted;
+          _phase = const PhaseHalted();
         } else {
           final frame = _callStack.pop();
           if (op.returnRegister != null && frame.outputVar != null) {
@@ -1023,7 +1030,7 @@ class VasterRuntime {
         _registers.concat(targetVar: op.targetVar, sourceVars: op.sourceVars);
 
       case HaltOp _:
-        _status = RuntimeStatus.halted;
+        _phase = const PhaseHalted();
     }
   }
 

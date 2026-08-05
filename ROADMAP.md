@@ -33,8 +33,11 @@ The kernel is in place, honest, and now battle-tested:
 
 1. **Lock in** — v0.3.0 tag, CI, rules.md codification. Everything after is
    safer because of it.
-2. **Durable execution** — checkpoints → `vaster resume` → gates that survive
-   process death. The thread that changes what Vaster *is*.
+2. **Durable execution** — ✅ delivered 2026-08-06: `vaster_checkpoint` +
+   `vaster_machine_state` (componentized machine, checkpoint-anywhere
+   enforcement), `vaster run --checkpoint-dir`, `vaster resume`; the
+   war-room pipeline dies at its gate and launches from JSON in a fresh VM,
+   live or tape-driven.
 3. **`vaster check`** — binding dominance, cost bounds, policy proofs. The
    guarantee no orchestration framework has.
 4. **Zero-copy completion** — the real llama.cpp sidecar over the (now
