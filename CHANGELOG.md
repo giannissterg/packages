@@ -47,6 +47,20 @@ Breaking DX overhaul of the AST surface, plus new runtime semantics.
   from the review text — a real claude-cli calibration run showed backends
   without schema enforcement re-reviewing the artifact and overriding the
   reviewer's verdict.
+- **Typed dataflow** (`Binding` / `Template` / `Cond`): the declarative
+  tier's stringly register plumbing is gone. `output:` slots take `Binding`
+  objects (the wire compiles away to an ISA register — Rule 1 intact);
+  prompts/paths/content are `Template` const part-lists mixing text and
+  bindings (unresolvable references are structurally impossible; raw `${}`
+  in a template warns); `When` takes `Cond.isTrue/equals/notEquals/not`
+  lowering onto existing CompareRegisterOp/JumpIf. `BindingScope` +
+  `context.scopedBinding` distribute defaults (SDD phases namespace their
+  bindings and artifact paths — two SDD cycles now compose collision-free,
+  closing backlog #6). `Pipeline(result:)` declares the program result in
+  the header (VBC v2 header generalized to a map), retiring the `Output`
+  node and `__output__` register convention (backlog #8). Verified by
+  replaying the recorded real-model SDD tape against the recompiled typed
+  pipeline — byte-identical prompts, full replay hit.
 - **AST DX — declarative surface** (Flutter-style): the default
   `package:vaster_ast/vaster_ast.dart` import now contains no imperative
   nodes. Low-level primitives (`AddContext`, `EvictContext`,

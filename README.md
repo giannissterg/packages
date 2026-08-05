@@ -66,21 +66,26 @@ void main() async {
     instruction: 'Expert in system design and clean code.',
   );
 
-  // 2. Compose the declarative AST pipeline. `output:` binds a step's
-  //    value; `${...}` interpolates it into later prompts at runtime.
+  // 2. Compose the declarative AST pipeline. A Binding is a typed dataflow
+  //    wire: produced by `output:`, consumed as a Template part. The
+  //    pipeline's declared result is what the host reads after halt.
   final pipeline = Pipeline(
     name: 'my_first_pipeline',
+    result: const Binding('summary'),
     roles: const [architectRole],
     children: const [
       Agent(
         role: architectRole,
         child: Task(
-          prompt: 'Analyze the project architecture and design the notes entity.',
-          output: 'design',
+          prompt: Template.text(
+              'Analyze the project architecture and design the notes entity.'),
+          output: Binding('design'),
         ),
       ),
-      Prompt('Summarize this design in one paragraph:\n\${design}'),
-      Output(),
+      Prompt(
+        Template(['Summarize this design in one paragraph:\n', Binding('design')]),
+        output: Binding('summary'),
+      ),
     ],
   );
 

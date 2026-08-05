@@ -2,6 +2,13 @@
 
 ## 0.2.0
 
+- **Breaking — typed dataflow**: `output:`/`from:` slots take `Binding`;
+  prompt/path/content slots take `Template` (const part-lists);
+  `When(condition:)` takes `Cond`; `Inputs`/`Pipeline.inputs` are keyed by
+  `Binding`. `BindingScope`/`context.scopedBinding` namespace scope-provided
+  defaults (SDD phases compose collision-free). `Pipeline(result:)` replaces
+  the removed `Output` node.
+
 - **Breaking — declarative-only default import**: imperative primitives
   live in `package:vaster_ast/primitives.dart`; compiler lowering targets in
   `package:vaster_ast/lowering.dart`. The main import is the declarative

@@ -5,9 +5,12 @@ part of 'ast_lib.dart';
 //
 // All container and scope nodes (Pipeline, Agent, ToolSet, Mount, Sandbox,
 // SelectModel) are ComposableNodes that wrap their child sub-trees in
-// Provider<T> nodes. Value-producing nodes accept an optional `output:`
-// binding name; downstream nodes consume bound values with `${name}`
-// interpolation in prompts/content or by name in `When`/`While` conditions.
+// Provider<T> nodes. Dataflow is TYPED: value-producing nodes accept an
+// optional `output: Binding`, consumers reference the same Binding as a
+// Template part or Cond operand, and BindingScope namespaces the defaults
+// composables mint via context.scopedBinding (the Theme.of pattern). The
+// pipeline's declared result (`Pipeline(result:)`) is what hosts read after
+// halt. Raw `${name}` register strings remain only in the primitives tier.
 //
 // NEST vs SEQUENCE — the tree's design rule. A node nests children only when
 // it changes what they MEAN:
