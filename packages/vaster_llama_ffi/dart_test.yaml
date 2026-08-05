@@ -1,0 +1,6 @@
+tags:
+  llama:
+    description: >-
+      Real llama.cpp inference — needs libllama (brew llama.cpp) and the
+      small test model from the ZC-P0 setup; tests skip themselves with a
+      pointer when either is absent.
