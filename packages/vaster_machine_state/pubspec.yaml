@@ -1,0 +1,16 @@
+name: vaster_machine_state
+description: The machine-state contract for Vaster — snapshotable state components and the whole-machine snapshot shared by the runtime and its carriers.
+version: 0.3.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  vaster_instruction:
+  vaster_model:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
