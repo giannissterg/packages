@@ -16,12 +16,19 @@
   money metered: statically checked, parked durably at an approval gate,
   process killed, resumed from JSON in a fresh VM, artifact written to
   disk. Transcript and findings: [docs/PROVE_IT.md](docs/PROVE_IT.md).
+- **Zero-copy KV state is real and tested.** In-process llama.cpp
+  inference over `dart:ffi` (`--backend llama`) with KV-cache state
+  crossing process boundaries through shared-memory pages: a parked
+  pipeline's pinned prefix resumes in a fresh process **without being
+  re-decoded** (engine-measured), and a warm completion is
+  token-identical to a cold one. Scope stated precisely in
+  [docs/ZERO_COPY.md](docs/ZERO_COPY.md) — same-build state portability,
+  one engine↔buffer copy, honest transport errors.
 - **Honest limits, today:** most validation runs on fake models plus one
-  paid recorded fixture; token estimates are an uncalibrated `len/4`;
-  static cost bounds assume API-shaped calls — agentic CLI backends exceed
-  them (the runtime budget is the enforced defense, and calibration is on
-  the roadmap); the llama.cpp/zero-copy sidecar is unfinished and not part
-  of any current claim.
+  paid recorded fixture and the small-model llama runs; token estimates
+  are an uncalibrated `len/4`; static cost bounds assume API-shaped calls
+  — agentic CLI backends exceed them (the runtime budget is the enforced
+  defense, and calibration is on the roadmap).
 - [ROADMAP.md](ROADMAP.md) defines 1.0 as **"the promises are contracts"**
   — everything this README claims, enforced by tests, bounded by
   `vaster check`, measured by `vaster eval`, stable across versions.
@@ -68,8 +75,10 @@
   (`ExtractOutcome`, `AgentLifecycle`, `MachinePhase`); an event bus
   carrying full usage telemetry.
 - **Model backends** — scripted fake (free, offline, deterministic),
-  Claude API, Claude CLI, Google AI (Gemini), Gemini CLI, and an
-  out-of-process RPC sidecar over Unix domain sockets.
+  Claude API, Claude CLI, Google AI (Gemini), Gemini CLI, in-process
+  llama.cpp over FFI with zero-copy KV frames (`llama`), and
+  out-of-process sidecars (JSON over Unix sockets, or shared-memory
+  rings for the llama engine).
 
 ## Architecture
 

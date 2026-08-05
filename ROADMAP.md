@@ -43,8 +43,15 @@ The kernel is in place, honest, and now battle-tested:
    (loop-recognized, honest about unbounded), policy proofs
    (proven-violation vs unprovable-dynamic), `--max-cost` CI gating; the
    compiled war room checks clean with a finite bound.
-4. **Zero-copy completion** — the real llama.cpp sidecar over the (now
-   correct) ring + frame substrate; cache-aware context planning.
+4. **Zero-copy completion** — ✅ delivered 2026-08-06 (ZC-P0..P6, FFI
+   architecture): `vaster_llama_ffi` — in-process llama.cpp over
+   `dart:ffi`, KV state moving engine → shared frame pages → engine
+   (`--backend llama`, `serve --backend llama` over rings, park-time
+   kv-prewarm, warm `vaster resume` that never re-decodes the pinned
+   prefix). Claim scoped and evidenced in docs/ZERO_COPY.md; transport
+   honesty enforced (fake-success stub removed, two hidden bugs fixed).
+   Cache-aware context *planning* (goal C) remains separate; the
+   ContextMmu token-exact validation is its first step.
 5. **Illegal states unrepresentable** — sealed `TaskOutcome`, typed `Schema`
    DSL, mailbox/inbox unification, supervisor restart policies
    (`MachinePhase` ✅ delivered).

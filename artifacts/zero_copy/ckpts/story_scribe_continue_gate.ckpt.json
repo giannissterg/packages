@@ -1,0 +1,74 @@
+{
+  "formatVersion": 2,
+  "programVbcBase64": "VkJDAQACAADMnhUIb5hRslql3YTuFzIgzdL3toP45yMMIt8aqz64Fy4Mc3Rvcnlfc2NyaWJlDXJlc3VsdEJpbmRpbmcGZW5kaW5nBm9wY29kZQxzZXRfcmVnaXN0ZXIMcmVnaXN0ZXJOYW1lBGhlcm8FdmFsdWUKQm8gdGhlIGRvZwthZGRfY29udGV4dAhyZWdpb25JZBVrbm93bGVkZ2Vfc3RvcnlfZmFjdHMFbGFiZWwLc3RvcnkgZmFjdHMEdGV4dPgCU3RvcnkgZmFjdHM6IEJvIGlzIGEgc21hbGwgYnJvd24gZG9nIHdobyBsaXZlcyBhdCB0aGUgZWRnZSBvZiBhIHBpbmUgZm9yZXN0IHdpdGggYSBsaWdodGhvdXNlIGtlZXBlciBuYW1lZCBBbmEuIEJvIGlzIGFmcmFpZCBvZiB0aHVuZGVyIGJ1dCBsb3ZlcyB0aGUgc2VhLiBBbmEgZm91bmQgQm8gYXMgYSBwdXBweSBpbiBhIHJvd2JvYXQgYWZ0ZXIgYSBzdG9ybS4gVGhlIGxpZ2h0aG91c2UgbGFtcCBpcyBwb3dlcmVkIGJ5IGFuIG9sZCBicmFzcyBkeW5hbW8gdGhhdCBCbyBjYW4gaGVhciBodW1taW5nIGZyb20gdGhlIGdhcmRlbi4gRXZlcnkgYXV0dW1uIHRoZSBnZWVzZSBwYXNzIG92ZXIgdGhlIGZvcmVzdCBhbmQgQm8gaG93bHMgZ29vZGJ5ZSB0byB0aGVtLgljbGFzc05hbWUJa25vd2xlZGdlBnBpbm5lZAZwcm9tcHQKcHJvbXB0VGV4dEtVc2luZyB0aGUgc3RvcnkgZmFjdHMsIHdyaXRlIHRoZSBvcGVuaW5nIHNlbnRlbmNlIG9mIGEgc3RvcnkgYWJvdXQgJHtoZXJvfS4Jb3V0cHV0VmFyB29wZW5pbmcRYmVnaW5fdHJhbnNhY3Rpb24XeWllbGRfaHVtYW5faW50ZXJhY3Rpb24HcmVxdWVzdAlyZXF1ZXN0SWQNY29udGludWVfZ2F0ZQR0eXBlCGFwcHJvdmFsIENvbnRpbnVlIHRoaXMgc3Rvcnk/Cgoke29wZW5pbmd9B29wdGlvbnMHYXBwcm92ZQZyZWplY3QHanVtcF9pZgh0YXJnZXRQYwxjb25kaXRpb25WYXIUY29udGludWVfZ2F0ZV9zdGF0dXMQKHN0b3J5IHdpdGhoZWxkKQRqdW1wTFVzaW5nIHRoZSBzdG9yeSBmYWN0cywgd3JpdGUgb25lIGNsb3Npbmcgc2VudGVuY2UgZm9yIHRoaXMgc3Rvcnk6CiR7b3BlbmluZ30GY29tbWl0DWV2aWN0X2NvbnRleHQFZm9yY2UEaGFsdAAHAQEFAgwHAwMFBAUFBgcFCAcGAwUJCgULDAUNDgUPEAUREgIHAwMFExQFFRYFFwcBAwUYBwIDBRkaBwUbBRwdBR4TBR8gBgIFIQUiFgUcBwMDBSMkAxAlBSYHAwMFBAUFAgcFJwcCAwUoJAMSBwMDBRMUBSkWBQIHAQMFKgcDAwUrCgULLAIHAQMFLQ==",
+  "continuation": {
+    "formatVersion": 2,
+    "continuationId": "ckpt_4_story_scribe",
+    "programName": "story_scribe",
+    "machineState": {
+      "formatVersion": 1,
+      "pc": 4,
+      "components": {
+        "registers": {
+          "data": {
+            "hero": "Bo the dog",
+            "opening": " \"Boo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"That's a story about a bunny bunny who goes on an adventure!\"\nBoo: \"That sounds fun! I want to go on an adventure too!\"\nBoo: \"I want to go on an adventure too!\"\nBoo: \"Me too!"
+          }
+        },
+        "callStack": {
+          "frames": []
+        },
+        "machineContext": {},
+        "hitl": {
+          "pendingRequest": {
+            "requestId": "continue_gate",
+            "type": "approval",
+            "prompt": "Continue this story?\n\n \"Boo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"That's a story about a bunny bunny who goes on an adventure!\"\nBoo: \"That sounds fun! I want to go on an adventure too!\"\nBoo: \"I want to go on an adventure too!\"\nBoo: \"Me too!",
+            "options": [
+              "approve",
+              "reject"
+            ],
+            "outputVar": "continue_gate"
+          }
+        },
+        "quota": {
+          "quota": {},
+          "consumedTokens": 279,
+          "consumedCost": 0.0,
+          "toolCalls": 0
+        }
+      }
+    },
+    "suspendedAt": "2026-08-06T02:10:01.624507"
+  },
+  "sessions": [],
+  "contextRegions": [
+    {
+      "id": "knowledge_story_facts",
+      "label": "story facts",
+      "messages": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "Story facts: Bo is a small brown dog who lives at the edge of a pine forest with a lighthouse keeper named Ana. Bo is afraid of thunder but loves the sea. Ana found Bo as a puppy in a rowboat after a storm. The lighthouse lamp is powered by an old brass dynamo that Bo can hear humming from the garden. Every autumn the geese pass over the forest and Bo howls goodbye to them."
+            }
+          ]
+        }
+      ],
+      "estimatedTokens": 94,
+      "classId": "knowledge",
+      "isPinned": true,
+      "utility": 1.0,
+      "order": 0
+    }
+  ],
+  "memoryMounts": {
+    "/mem": {}
+  },
+  "budgetConsumedTokens": 279,
+  "budgetConsumedCost": 0.0,
+  "budgetConsumedDurationMs": 255,
+  "capturedAt": "2026-08-06T02:10:01.625656"
+}
