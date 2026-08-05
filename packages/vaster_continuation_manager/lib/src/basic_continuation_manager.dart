@@ -1,6 +1,5 @@
 import 'package:vaster_continuation/vaster_continuation.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
-import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 import 'continuation_store_interface.dart';
 
@@ -9,14 +8,12 @@ abstract interface class ContinuationManager {
   /// Storage manager handling persistence.
   ContinuationStore get store;
 
-  /// Captures a continuation snapshot linking execution state with session context and active model,
-  /// saving it to [store].
+  /// Captures the whole machine as a continuation snapshot (one fold over
+  /// the runtime's registered state components), saving it to [store].
   Future<VasterContinuation> capture(
     VasterRuntime runtime,
-    String programName, {
-    String? sessionId,
-    ModelDescriptor? activeModelDescriptor,
-  });
+    String programName,
+  );
 
   /// Restores execution from a stored or provided [continuation] snapshot.
   Future<RuntimeState> restoreAndResume(
@@ -46,27 +43,14 @@ class BasicContinuationManager implements ContinuationManager {
   @override
   Future<VasterContinuation> capture(
     VasterRuntime runtime,
-    String programName, {
-    String? sessionId,
-    ModelDescriptor? activeModelDescriptor,
-  }) async {
-    final state = runtime.state;
+    String programName,
+  ) async {
+    // One fold over the machine's registered components — the manager no
+    // longer enumerates (and therefore can no longer forget) machine state.
     final continuation = VasterContinuation(
       continuationId: 'cont_${DateTime.now().millisecondsSinceEpoch}',
       programName: programName,
-      sessionId: sessionId,
-      activeModelDescriptor: activeModelDescriptor,
-      resumePc: state.pc,
-      registers: Map<String, dynamic>.from(state.registers),
-      callStack: [
-        for (final frame in runtime.callStackSnapshot)
-          StackFrame(
-            functionName: frame.functionName,
-            returnPc: frame.returnPc,
-            outputVar: frame.outputVar,
-          ),
-      ],
-      pendingRequest: runtime.pendingHumanRequest,
+      machineState: runtime.captureSnapshot(),
     );
     await store.saveContinuation(continuation);
     return continuation;
@@ -78,23 +62,12 @@ class BasicContinuationManager implements ContinuationManager {
     VasterContinuation continuation,
     VasterProgram program, {
     HumanInteractionResponse? humanResponse,
-  }) async {
-    return runtime.restoreAndResume(
-      continuation.resumePc,
-      program,
-      registers: continuation.registers,
-      callStack: [
-        for (final frame in continuation.callStack)
-          ActivationRecord(
-            functionName: frame.functionName,
-            returnPc: frame.returnPc,
-            outputVar: frame.outputVar,
-          ),
-      ],
-      pendingRequest: continuation.pendingRequest,
-      humanResponse: humanResponse,
-    );
-  }
+  }) =>
+      runtime.restoreAndResume(
+        continuation.machineState,
+        program,
+        humanResponse: humanResponse,
+      );
 
   @override
   Future<VasterContinuation?> getContinuation(String id) => store.loadContinuation(id);

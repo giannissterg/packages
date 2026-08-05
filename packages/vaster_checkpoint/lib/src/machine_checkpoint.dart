@@ -5,9 +5,7 @@ import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
 import 'package:vaster_filesystem_memory/vaster_filesystem_memory.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
-import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_policy/vaster_policy.dart';
-import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm_api/vaster_vm_api.dart';
@@ -33,7 +31,7 @@ import 'session_snapshot.dart';
 ///   the durable part — are captured and re-adopted on first dispatch).
 /// - Cache hints (derived state, rebuilt from restored pinned regions).
 final class MachineCheckpoint {
-  static const int currentFormatVersion = 1;
+  static const int currentFormatVersion = 2;
 
   final int formatVersion;
 
@@ -52,22 +50,11 @@ final class MachineCheckpoint {
   /// mountPrefix → (path → base64 content), memory mounts only.
   final Map<String, Map<String, String>> memoryMounts;
 
-  /// Program-registered tool definitions active at capture
-  /// (`RegisterToolSetOp`).
-  final List<Map<String, dynamic>> programToolSet;
-
-  /// Program error-handler stack active at capture (`PushErrorHandlerOp`),
-  /// innermost last.
-  final List<Map<String, dynamic>> errorHandlers;
-
-  /// The program-declared quota active at capture, with its consumed meters.
-  final ResourceQuota quota;
-  final int quotaConsumedTokens;
-  final double quotaConsumedCost;
-  final int quotaConsumedToolCalls;
-
   /// Host-budget consumption at capture (limits are the resuming host's
-  /// decision; consumption is a fact of the run).
+  /// decision; consumption is a fact of the run). Everything machine-owned —
+  /// registers, call stack, ambient context, HITL state, the program quota —
+  /// rides inside [continuation]'s machine snapshot and is NOT enumerated
+  /// here: the checkpoint cannot forget machine state it never lists.
   final int budgetConsumedTokens;
   final double budgetConsumedCost;
   final Duration budgetConsumedDuration;
@@ -81,12 +68,6 @@ final class MachineCheckpoint {
     required this.sessions,
     required this.contextRegions,
     required this.memoryMounts,
-    this.programToolSet = const [],
-    this.errorHandlers = const [],
-    required this.quota,
-    required this.quotaConsumedTokens,
-    required this.quotaConsumedCost,
-    required this.quotaConsumedToolCalls,
     required this.budgetConsumedTokens,
     required this.budgetConsumedCost,
     required this.budgetConsumedDuration,
@@ -103,25 +84,13 @@ final class MachineCheckpoint {
     required VasterVirtualMachine vm,
     required VasterProgram program,
   }) {
-    final state = runtime.state;
+    final machineState = runtime.captureSnapshot();
     return MachineCheckpoint(
       programVbcBase64: base64Encode(program.toBytes()),
       continuation: VasterContinuation(
-        continuationId: 'ckpt_${state.pc}_${program.programName}',
+        continuationId: 'ckpt_${machineState.pc}_${program.programName}',
         programName: program.programName,
-        sessionId: runtime.activeSessionId,
-        activeModelDescriptor: runtime.activeModelDescriptor,
-        resumePc: state.pc,
-        registers: Map<String, dynamic>.from(state.registers),
-        callStack: [
-          for (final frame in runtime.callStackSnapshot)
-            StackFrame(
-              functionName: frame.functionName,
-              returnPc: frame.returnPc,
-              outputVar: frame.outputVar,
-            ),
-        ],
-        pendingRequest: runtime.pendingHumanRequest,
+        machineState: machineState,
       ),
       sessions: SessionSnapshot.captureAll(vm),
       contextRegions: [
@@ -133,17 +102,6 @@ final class MachineCheckpoint {
             entry.key:
                 (entry.value as MemoryVasterFileSystem).exportFilesBase64(),
       },
-      programToolSet: [
-        for (final def in runtime.programToolSet) def.toJson(),
-      ],
-      errorHandlers: [
-        for (final h in runtime.errorHandlersSnapshot)
-          {'targetPc': h.targetPc, 'errorVar': h.errorVar},
-      ],
-      quota: runtime.activeQuota,
-      quotaConsumedTokens: runtime.quotaConsumedTokens,
-      quotaConsumedCost: runtime.quotaConsumedCost,
-      quotaConsumedToolCalls: runtime.quotaConsumedToolCalls,
       budgetConsumedTokens: runtime.budget.consumedTokens,
       budgetConsumedCost: runtime.budget.consumedCost,
       budgetConsumedDuration: runtime.budget.consumedDuration,
@@ -201,19 +159,12 @@ final class MachineCheckpoint {
       }
     }
 
-    final runtime = VasterRuntime(
+    return VasterRuntime(
       vm: vm,
       policy: policy,
       budget: budget ?? buildBudget(),
       scheduler: scheduler,
     );
-    runtime.restoreQuota(
-      quota,
-      consumedTokens: quotaConsumedTokens,
-      consumedCost: quotaConsumedCost,
-      consumedToolCalls: quotaConsumedToolCalls,
-    );
-    return runtime;
   }
 
   /// One-shot resume: restore everything and continue execution, optionally
@@ -237,32 +188,9 @@ final class MachineCheckpoint {
     HumanInteractionResponse? respond,
   }) =>
       runtime.restoreAndResume(
-        continuation.resumePc,
+        continuation.machineState,
         decodeProgram(),
-        registers: continuation.registers,
-        callStack: [
-          for (final frame in continuation.callStack)
-            ActivationRecord(
-              functionName: frame.functionName,
-              returnPc: frame.returnPc,
-              outputVar: frame.outputVar,
-            ),
-        ],
-        pendingRequest: continuation.pendingRequest,
         humanResponse: respond,
-        activeSessionId: continuation.sessionId,
-        activeModelDescriptor: continuation.activeModelDescriptor,
-        programToolSet: [
-          for (final def in programToolSet)
-            ToolDefinition.fromJson(Map<String, dynamic>.from(def)),
-        ],
-        errorHandlers: [
-          for (final h in errorHandlers)
-            (
-              targetPc: (h['targetPc'] as num).toInt(),
-              errorVar: h['errorVar'] as String,
-            ),
-        ],
       );
 
   Map<String, dynamic> toJson() => {
@@ -272,12 +200,6 @@ final class MachineCheckpoint {
         'sessions': [for (final s in sessions) s.toJson()],
         'contextRegions': contextRegions,
         'memoryMounts': memoryMounts,
-        if (programToolSet.isNotEmpty) 'programToolSet': programToolSet,
-        if (errorHandlers.isNotEmpty) 'errorHandlers': errorHandlers,
-        'quota': quota.toJson(),
-        'quotaConsumedTokens': quotaConsumedTokens,
-        'quotaConsumedCost': quotaConsumedCost,
-        'quotaConsumedToolCalls': quotaConsumedToolCalls,
         'budgetConsumedTokens': budgetConsumedTokens,
         'budgetConsumedCost': budgetConsumedCost,
         'budgetConsumedDurationMs': budgetConsumedDuration.inMilliseconds,
@@ -311,21 +233,6 @@ final class MachineCheckpoint {
               f.key.toString(): f.value.toString(),
           },
       },
-      programToolSet: [
-        for (final t in json['programToolSet'] as List? ?? const [])
-          Map<String, dynamic>.from(t as Map),
-      ],
-      errorHandlers: [
-        for (final h in json['errorHandlers'] as List? ?? const [])
-          Map<String, dynamic>.from(h as Map),
-      ],
-      quota: ResourceQuota.fromJson(
-          Map<String, dynamic>.from(json['quota'] as Map)),
-      quotaConsumedTokens: (json['quotaConsumedTokens'] as num?)?.toInt() ?? 0,
-      quotaConsumedCost:
-          (json['quotaConsumedCost'] as num?)?.toDouble() ?? 0.0,
-      quotaConsumedToolCalls:
-          (json['quotaConsumedToolCalls'] as num?)?.toInt() ?? 0,
       budgetConsumedTokens:
           (json['budgetConsumedTokens'] as num?)?.toInt() ?? 0,
       budgetConsumedCost:

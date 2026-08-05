@@ -94,13 +94,13 @@ Future<void> runPlayground({
     final snapshot = await continuationManager.capture(
       runtime,
       program.programName,
-      activeModelDescriptor: descriptor,
     );
     final snapshotJson = snapshot.toJson();
 
     stdout.writeln('  ✓ Captured VasterContinuation snapshot ID: ${snapshot.continuationId}');
     stdout.writeln('  ✓ Resume PC: ${snapshot.resumePc}');
-    stdout.writeln('  ✓ Active Model Descriptor: ${snapshot.activeModelDescriptor?.descriptorKey}');
+    stdout.writeln('  ✓ Machine components: '
+        '${snapshot.machineState.components.keys.join(', ')}');
     stdout.writeln('  ✓ JSON Payload Keys: ${snapshotJson.keys.join(', ')}\n');
 
     _printPhase('RESUMPTION', 'Restoring VasterContinuation & approving deployment turn');

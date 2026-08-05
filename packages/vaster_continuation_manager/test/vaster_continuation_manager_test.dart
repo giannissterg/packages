@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
+import 'package:vaster_machine_state/vaster_machine_state.dart';
 import 'package:vaster_continuation_manager/vaster_continuation_manager.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
@@ -13,8 +14,11 @@ void main() {
       final continuation = VasterContinuation(
         continuationId: 'cont_mem_1',
         programName: 'mem_prog',
-        resumePc: 10,
-        registers: {'var': 'val'},
+        machineState: const MachineSnapshot(pc: 10, components: {
+          'registers': {
+            'data': {'var': 'val'},
+          },
+        }),
       );
 
       await store.saveContinuation(continuation);
@@ -56,14 +60,19 @@ void main() {
       final snapshot = VasterContinuation(
         continuationId: 'cont_file_1',
         programName: 'disk_program',
-        sessionId: 'sess_disk',
-        resumePc: 42,
-        registers: {'result': 'success_from_disk'},
-        pendingRequest: const HumanInteractionRequest(
-          requestId: 'req_disk_1',
-          type: HumanInteractionType.approval,
-          prompt: 'Approve disk deployment?',
-        ),
+        machineState: MachineSnapshot(pc: 42, components: {
+          'registers': const {
+            'data': {'result': 'success_from_disk'},
+          },
+          'machineContext': const {'activeSessionId': 'sess_disk'},
+          'hitl': {
+            'pendingRequest': const HumanInteractionRequest(
+              requestId: 'req_disk_1',
+              type: HumanInteractionType.approval,
+              prompt: 'Approve disk deployment?',
+            ).toJson(),
+          },
+        }),
       );
 
       await store.saveContinuation(snapshot);
@@ -76,9 +85,10 @@ void main() {
       expect(loaded, isNotNull);
       expect(loaded!.continuationId, equals('cont_file_1'));
       expect(loaded.programName, equals('disk_program'));
-      expect(loaded.sessionId, equals('sess_disk'));
       expect(loaded.resumePc, equals(42));
-      expect(loaded.registers['result'], equals('success_from_disk'));
+      expect(
+          loaded.machineState.components['registers']?['data']?['result'],
+          equals('success_from_disk'));
       expect(loaded.pendingRequest?.requestId, equals('req_disk_1'));
 
       final list = await store.listContinuations();
@@ -208,12 +218,15 @@ void main() {
       expect(paused.status, equals(RuntimeStatus.pausedForHuman));
       expect(paused.pc, equals(3), reason: 'suspended inside the subroutine');
 
-      // The captured snapshot carries the activation record.
+      // The captured snapshot carries the activation record inside the
+      // callStack component.
       final captured = await manager.capture(runtime1, program.programName);
-      expect(captured.callStack, hasLength(1));
-      expect(captured.callStack.single.functionName, equals('audited_step'));
-      expect(captured.callStack.single.returnPc, equals(1));
-      expect(captured.callStack.single.outputVar, equals('verdict'));
+      final frames =
+          captured.machineState.components['callStack']?['frames'] as List;
+      expect(frames, hasLength(1));
+      expect(frames.single['functionName'], equals('audited_step'));
+      expect(frames.single['returnPc'], equals(1));
+      expect(frames.single['outputVar'], equals('verdict'));
 
       // Process restart: reload from disk (full JSON round-trip) onto a fresh
       // runtime whose call stack starts empty.
@@ -221,7 +234,9 @@ void main() {
         store: FileContinuationStore(storageDirectory: tempDir),
       );
       final reloaded = await manager2.getContinuation(captured.continuationId);
-      expect(reloaded!.callStack.single.outputVar, equals('verdict'),
+      final reloadedFrames =
+          reloaded!.machineState.components['callStack']?['frames'] as List;
+      expect(reloadedFrames.single['outputVar'], equals('verdict'),
           reason: 'activation record survives serialization');
 
       final runtime2 = VasterRuntime(

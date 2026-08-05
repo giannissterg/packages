@@ -13,6 +13,7 @@ dependencies:
   vaster_continuation:
   vaster_filesystem_memory:
   vaster_instruction:
+  vaster_machine_state:
   vaster_model:
   vaster_policy:
   vaster_resources:

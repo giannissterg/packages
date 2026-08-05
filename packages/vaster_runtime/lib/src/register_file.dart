@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:vaster_machine_state/vaster_machine_state.dart';
+
 import 'extract_outcome.dart';
 
 /// The VM's named register bank.
@@ -7,7 +9,7 @@ import 'extract_outcome.dart';
 /// All data read/write operations during ISA instruction execution go through
 /// here. [VasterRuntime] holds one instance and delegates all register I/O
 /// to it, keeping the fetch-decode loop free of data manipulation logic.
-class RegisterFile {
+class RegisterFile implements MachineStateComponent {
   final Map<String, dynamic> _data = {};
 
   /// Reads the value stored in [name], or null if unset.
@@ -30,6 +32,16 @@ class RegisterFile {
     _data.clear();
     _data.addAll(snapshot);
   }
+
+  @override
+  String get stateKey => 'registers';
+
+  @override
+  Map<String, dynamic> captureState() => {'data': snapshot()};
+
+  @override
+  void restoreState(Map<String, dynamic> snapshot) =>
+      restore(Map<String, dynamic>.from(snapshot['data'] as Map? ?? const {}));
 
   /// JSON-extracts [jsonKey] from the value at [sourceVar] into [targetVar].
   ///

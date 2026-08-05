@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:test/test.dart';
 import 'package:vaster_checkpoint/vaster_checkpoint.dart';
 import 'package:vaster_continuation/vaster_continuation.dart';
+import 'package:vaster_machine_state/vaster_machine_state.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -150,7 +151,9 @@ void main() {
     await runtimeA.executeProgram(program);
     final captured = MachineCheckpoint.capture(
         runtime: runtimeA, vm: vmA, program: program);
-    final tokensAtCapture = captured.quotaConsumedTokens;
+    final quotaState =
+        captured.continuation.machineState.components['quota']!;
+    final tokensAtCapture = (quotaState['consumedTokens'] as num).toInt();
     expect(tokensAtCapture, greaterThan(0));
     await vmA.shutdown();
 
@@ -165,6 +168,8 @@ void main() {
       scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
     );
 
+    // The quota component restores when the snapshot is applied at resume.
+    runtimeB.restoreSnapshot(captured.continuation.machineState);
     expect(runtimeB.quotaConsumedTokens, tokensAtCapture,
         reason: 'no free ride: consumption resumes where it stood');
     expect(runtimeB.activeQuota.maxTokenBudget, 100000,
@@ -181,16 +186,15 @@ void main() {
       continuation: VasterContinuation(
         continuationId: 'c1',
         programName: 'p',
-        resumePc: 0,
-        registers: const {'x': 1},
+        machineState: const MachineSnapshot(pc: 0, components: {
+          'registers': {
+            'data': {'x': 1},
+          },
+        }),
       ),
       sessions: const [],
       contextRegions: const [],
       memoryMounts: const {},
-      quota: ResourceQuota.unlimited,
-      quotaConsumedTokens: 5,
-      quotaConsumedCost: 0.1,
-      quotaConsumedToolCalls: 2,
       budgetConsumedTokens: 9,
       budgetConsumedCost: 0.2,
       budgetConsumedDuration: const Duration(seconds: 3),
@@ -199,8 +203,10 @@ void main() {
 
     final restored = MachineCheckpoint.fromJson(
         jsonDecode(jsonEncode(vmless.toJson())) as Map<String, dynamic>);
-    expect(restored.continuation.registers['x'], 1);
-    expect(restored.quotaConsumedTokens, 5);
+    expect(
+        restored.continuation.machineState.components['registers']?['data']
+            ?['x'],
+        1);
     expect(restored.budgetConsumedDuration, const Duration(seconds: 3));
     expect(restored.decodeProgram().programName, 'p');
 

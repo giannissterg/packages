@@ -91,13 +91,14 @@ void main() {
       expect(initialState.status, equals(RuntimeStatus.pausedForHuman));
       expect(runtime.pendingHumanRequest?.requestId, equals('req_qa_01'));
 
-      // Resumes using lower-level restoreAndResume
+      // Resumes using the whole-machine snapshot (captures registers, call
+      // stack, HITL pending request, ambient context, and quota in one fold).
+      final snapshot = runtime.captureSnapshot();
       final resumedState = await runtime.restoreAndResume(
-        initialState.pc,
+        snapshot,
         program,
-        registers: initialState.registers,
-        pendingRequest: runtime.pendingHumanRequest,
-        humanResponse: HumanInteractionResponse.approve(requestId: 'req_qa_01', comment: 'LGTM!'),
+        humanResponse: HumanInteractionResponse.approve(
+            requestId: 'req_qa_01', comment: 'LGTM!'),
       );
 
       expect(resumedState.status, equals(RuntimeStatus.halted));

@@ -4,6 +4,7 @@ import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_machine_state/vaster_machine_state.dart';
 import 'package:vaster_metering/vaster_metering.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_policy/vaster_policy.dart';
@@ -22,8 +23,10 @@ import 'call_stack.dart';
 import 'decision_arbiter.dart';
 import 'extract_outcome.dart';
 import 'hitl_controller.dart';
+import 'machine_context.dart';
 import 'policy_guard.dart';
 import 'register_file.dart';
+import 'quota_state_adapter.dart';
 import 'register_interpolator.dart';
 import 'runtime_state.dart';
 import 'runtime_status.dart';
@@ -78,10 +81,6 @@ class VasterRuntime {
   /// traps.
   final ResourceTracker _quotaTracker;
 
-  /// Program-level error handlers installed by [PushErrorHandlerOp]
-  /// (innermost last). Consulted by both run loops when an instruction
-  /// throws; policy violations bypass this stack entirely.
-  final List<({int targetPc, String errorVar})> _errorHandlers = [];
 
   int _pc = 0;
   RuntimeStatus _status = RuntimeStatus.idle;
@@ -93,12 +92,20 @@ class VasterRuntime {
   /// post-execution register snapshot. Defaults to `null` (no tracing).
   RuntimeStepObserver? stepObserver;
 
-  VasterModel? _activeModel;
+  /// The ambient execution environment (session, model descriptor, program
+  /// toolset, error handlers) — componentized machine state.
+  final MachineContext _machineContext = MachineContext();
 
-  /// The descriptor that selected [_activeModel] — kept for checkpoint
-  /// capture (a model object cannot serialize; its descriptor can).
-  ModelDescriptor? _activeModelDescriptor;
-  String? _activeSessionId;
+  /// The live model is DERIVED from the descriptor in [_machineContext],
+  /// resolved through the VM registry on use — live objects are never
+  /// machine state.
+  VasterModel? get _activeModel {
+    final descriptor = _machineContext.activeModelDescriptor;
+    return descriptor == null ? null : vm.modelRegistry.resolveModel(descriptor);
+  }
+
+  String? get _activeSessionId => _machineContext.activeSessionId;
+
   VasterProgram? _currentProgram;
 
   /// Security boundary: one policy bound to one engine for this runtime's
@@ -210,32 +217,28 @@ class VasterRuntime {
   /// The program-declared quota currently being enforced.
   ResourceQuota get activeQuota => _quotaTracker.quota;
 
-  /// Machine-internal state a checkpoint must carry beyond registers and the
-  /// call stack — without these, a resumed PromptOp forgets its session,
-  /// model, program toolset, and error handlers (found by the kill-safety
-  /// E2E: the post-resume prompt ran sessionless).
-  String? get activeSessionId => _activeSessionId;
-  ModelDescriptor? get activeModelDescriptor => _activeModelDescriptor;
-  List<ToolDefinition> get programToolSet => List.unmodifiable(_activeToolSet);
-  List<({int targetPc, String errorVar})> get errorHandlersSnapshot =>
-      List.unmodifiable(_errorHandlers);
+  /// The machine's state components — THE single registration point.
+  ///
+  /// Every piece of machine state lives inside one of these; capture is a
+  /// fold, restore is a dispatch. Adding state to the machine means adding
+  /// a component here — loose fields on the runtime are forbidden (they are
+  /// exactly how the first checkpoint silently lost the active session).
+  List<MachineStateComponent> get _stateComponents => [
+        _registers,
+        _callStack,
+        _machineContext,
+        _hitl,
+        QuotaStateAdapter(_quotaTracker),
+      ];
 
-  /// Restores a captured program-quota scope (checkpoint resume): the quota
-  /// that was active at capture and the meters as they stood. Consumption
-  /// continues from the restored values; enforcement resumes with the next
-  /// real charge.
-  void restoreQuota(
-    ResourceQuota quota, {
-    required int consumedTokens,
-    required double consumedCost,
-    required int consumedToolCalls,
-  }) {
-    _quotaTracker.applyQuota(quota);
-    _quotaTracker.restoreConsumed(
-      tokens: consumedTokens,
-      cost: consumedCost,
-      toolCalls: consumedToolCalls,
-    );
+  /// The whole machine at this instruction boundary, as pure JSON.
+  MachineSnapshot captureSnapshot() =>
+      MachineSnapshot.capture(pc: _pc, componentList: _stateComponents);
+
+  /// Restores a previously captured whole-machine snapshot.
+  void restoreSnapshot(MachineSnapshot snapshot) {
+    _pc = snapshot.pc;
+    snapshot.restoreInto(_stateComponents);
   }
 
   /// Current execution state snapshot.
@@ -282,12 +285,11 @@ class VasterRuntime {
     _status = RuntimeStatus.running;
     _lastError = null;
     if (resetState) {
-      _activeSessionId = null;
+      _machineContext.clear();
       _registers.clear();
       _callStack.clear();
       _cacheHints.clear();
       _hitl.clear();
-      _errorHandlers.clear();
       _quotaTracker.applyQuota(ResourceQuota.unlimited);
     }
     // Program-header class table: static metadata installed at load, never
@@ -310,41 +312,21 @@ class VasterRuntime {
     return _runLoop(_currentProgram!);
   }
 
-  /// Restores execution from a continuation snapshot and resumes the program.
+  /// Restores execution from a whole-machine [snapshot] and resumes
+  /// [program], optionally consuming [humanResponse] for a pending HITL
+  /// request the snapshot carries.
   ///
-  /// [callStack] restores the subroutine activation records captured at
-  /// suspension (outermost first); omitting it resumes with an empty stack,
-  /// which is only correct for a machine suspended at top level.
+  /// The snapshot is total: registers, call stack, ambient machine context
+  /// (session/model/toolset/handlers), HITL state, and the quota scope all
+  /// restore in one dispatch — there is no parameter list to keep in sync
+  /// with the machine's actual state.
   Future<RuntimeState> restoreAndResume(
-    int resumePc,
+    MachineSnapshot snapshot,
     VasterProgram program, {
-    Map<String, dynamic>? registers,
-    List<ActivationRecord>? callStack,
-    HumanInteractionRequest? pendingRequest,
     HumanInteractionResponse? humanResponse,
-    String? activeSessionId,
-    ModelDescriptor? activeModelDescriptor,
-    List<ToolDefinition>? programToolSet,
-    List<({int targetPc, String errorVar})>? errorHandlers,
   }) async {
     _currentProgram = program;
-    _pc = resumePc;
-    if (registers != null) _registers.restore(registers);
-    if (callStack != null) _callStack.restore(callStack);
-    _hitl.restorePending(pendingRequest);
-    // Machine-internal state: the session/model/toolset/handler context the
-    // suspended instruction stream was executing under.
-    _activeSessionId = activeSessionId;
-    if (activeModelDescriptor != null) {
-      _activeModel = vm.modelRegistry.resolveModel(activeModelDescriptor);
-      _activeModelDescriptor = activeModelDescriptor;
-    }
-    if (programToolSet != null) _activeToolSet = List.of(programToolSet);
-    if (errorHandlers != null) {
-      _errorHandlers
-        ..clear()
-        ..addAll(errorHandlers);
-    }
+    restoreSnapshot(snapshot);
 
     // Cache hints are derived state — rebuild them from the (restored)
     // context heap's pinned regions instead of serializing tracker
@@ -456,8 +438,8 @@ class VasterRuntime {
     if (error is StateError && error.message.startsWith('Policy violation')) {
       return false;
     }
-    if (_errorHandlers.isEmpty) return false;
-    final handler = _errorHandlers.removeLast();
+    if (_machineContext.errorHandlers.isEmpty) return false;
+    final handler = _machineContext.errorHandlers.removeLast();
     _registers.write(handler.errorVar, '$error');
     _pc = handler.targetPc;
     return true;
@@ -562,7 +544,7 @@ class VasterRuntime {
           response = await _toolOrchestrator.resolve(
             prompt: promptText,
             initialResponse: response,
-            programToolSet: _activeToolSet,
+            programToolSet: _machineContext.programToolSet,
             model: _activeModel,
             cacheHints: _cacheHints.activeHints,
           );
@@ -580,8 +562,7 @@ class VasterRuntime {
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
       case SelectModelOp op:
-        _activeModel = vm.modelRegistry.resolveModel(op.descriptor);
-        _activeModelDescriptor = op.descriptor;
+        _machineContext.activeModelDescriptor = op.descriptor;
 
       case CreateSessionOp op:
         await vm.createSession(
@@ -590,7 +571,7 @@ class VasterRuntime {
         );
 
       case SetSessionOp op:
-        _activeSessionId = op.sessionId;
+        _machineContext.activeSessionId = op.sessionId;
 
       case CheckPolicyOp op:
         _checkPolicy(op.action, op.resource);
@@ -829,7 +810,7 @@ class VasterRuntime {
         }
 
       case RegisterToolSetOp op:
-        _activeToolSet = op.tools;
+        _machineContext.programToolSet = op.tools;
         for (final tool in op.tools) {
           if (tool.name == 'write_file') {
             vm.toolManager.registerTool(
@@ -987,10 +968,11 @@ class VasterRuntime {
         _pc = branch.targetPc - 1;
 
       case PushErrorHandlerOp op:
-        _errorHandlers.add((targetPc: op.targetPc, errorVar: op.errorVar));
+        _machineContext.errorHandlers.add(
+            ErrorHandlerFrame(targetPc: op.targetPc, errorVar: op.errorVar));
 
       case PopErrorHandlerOp _:
-        if (_errorHandlers.isNotEmpty) _errorHandlers.removeLast();
+        if (_machineContext.errorHandlers.isNotEmpty) _machineContext.errorHandlers.removeLast();
 
       // ── Register file ─────────────────────────────────────────────────────
       case SetRegisterOp op:
@@ -1045,10 +1027,9 @@ class VasterRuntime {
     }
   }
 
-  List<ToolDefinition> _activeToolSet = const [];
 
   /// Currently active tool definitions registered in this runtime context.
-  List<ToolDefinition> get activeToolSet => List.unmodifiable(_activeToolSet);
+  List<ToolDefinition> get activeToolSet => List.unmodifiable(_machineContext.programToolSet);
 
   /// Maximum model turns in one tool-calling loop (runaway guard).
   static const int maxToolIterations = 8;

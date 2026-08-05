@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   vaster_instruction:
+  vaster_machine_state:
   vaster_model:
 
 dev_dependencies:

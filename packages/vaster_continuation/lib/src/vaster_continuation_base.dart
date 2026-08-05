@@ -1,111 +1,75 @@
 import 'package:vaster_instruction/vaster_instruction.dart';
-import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_machine_state/vaster_machine_state.dart';
 
-/// Single activation record / stack frame on the Vaster VM call stack.
+/// First-class, serializable snapshot of Vaster VM execution state at a
+/// yield/trap boundary: identity metadata + the whole-machine
+/// [MachineSnapshot].
 ///
-/// Mirrors the runtime's live activation record field-for-field so that a
-/// suspended machine round-trips faithfully: [returnPc] is where control
-/// resumes when the subroutine returns, and [outputVar] is the register its
-/// return value lands in.
-class StackFrame {
-  final String functionName;
-  final int returnPc;
-
-  /// Register the subroutine's return value is written into, if any.
-  final String? outputVar;
-
-  final Map<String, dynamic> localRegisters;
-
-  const StackFrame({
-    required this.functionName,
-    required this.returnPc,
-    this.outputVar,
-    this.localRegisters = const {},
-  });
-
-  Map<String, dynamic> toJson() => {
-        'functionName': functionName,
-        'returnPc': returnPc,
-        if (outputVar != null) 'outputVar': outputVar,
-        if (localRegisters.isNotEmpty) 'localRegisters': localRegisters,
-      };
-
-  factory StackFrame.fromJson(Map<String, dynamic> json) {
-    return StackFrame(
-      functionName: json['functionName'] as String? ?? 'anonymous',
-      returnPc: json['returnPc'] as int? ?? 0,
-      outputVar: json['outputVar'] as String?,
-      localRegisters: Map<String, dynamic>.from(json['localRegisters'] as Map? ?? {}),
-    );
-  }
-}
-
-/// First-class, serializable snapshot of Vaster VM execution state at a yield/trap boundary.
-///
-/// Unifies the LLM VM Triad:
-/// 1. Bytecode execution state ([resumePc], [registers], [callStack]).
-/// 2. Conversational context state ([sessionId]).
-/// 3. Active compute processor descriptor ([activeModelDescriptor]).
+/// v2 (machine-snapshot era): the five hand-copied projections of runtime
+/// state the v1 continuation carried (registers, call stack, pending
+/// request, session id, model descriptor) collapse into [machineState] —
+/// the runtime's own component fold. A continuation can no longer be
+/// missing a piece of machine state, because it does not enumerate machine
+/// state at all.
 class VasterContinuation {
+  static const int currentFormatVersion = 2;
+
+  final int formatVersion;
   final String continuationId;
   final String programName;
-  final String? sessionId;
-  final ModelDescriptor? activeModelDescriptor;
-  final int resumePc;
-  final Map<String, dynamic> registers;
-  final List<StackFrame> callStack;
-  final HumanInteractionRequest? pendingRequest;
+
+  /// The whole machine at the suspension boundary, keyed by component.
+  final MachineSnapshot machineState;
+
   final DateTime suspendedAt;
 
-  /// Snapshots are deeply immutable: [registers] and [callStack] are wrapped
-  /// in unmodifiable views so a captured continuation can never drift from
-  /// what was (or will be) persisted.
   VasterContinuation({
+    this.formatVersion = currentFormatVersion,
     required this.continuationId,
     required this.programName,
-    this.sessionId,
-    this.activeModelDescriptor,
-    required this.resumePc,
-    required Map<String, dynamic> registers,
-    List<StackFrame> callStack = const [],
-    this.pendingRequest,
+    required this.machineState,
     DateTime? suspendedAt,
-  })  : registers = Map.unmodifiable(registers),
-        callStack = List.unmodifiable(callStack),
-        suspendedAt = suspendedAt ?? DateTime.now();
+  }) : suspendedAt = suspendedAt ?? DateTime.now();
+
+  /// The instruction index execution resumes at.
+  int get resumePc => machineState.pc;
+
+  /// Convenience projection: the pending human-interaction request carried
+  /// by the machine's HITL component, if any (hosts display it and validate
+  /// `--respond` targets against it).
+  HumanInteractionRequest? get pendingRequest {
+    final pending = machineState.components['hitl']?['pendingRequest'];
+    return pending == null
+        ? null
+        : HumanInteractionRequest.fromJson(
+            Map<String, dynamic>.from(pending as Map));
+  }
 
   Map<String, dynamic> toJson() => {
+        'formatVersion': formatVersion,
         'continuationId': continuationId,
         'programName': programName,
-        if (sessionId != null) 'sessionId': sessionId,
-        if (activeModelDescriptor != null)
-          'activeModelDescriptor': activeModelDescriptor!.toJson(),
-        'resumePc': resumePc,
-        'registers': registers,
-        if (callStack.isNotEmpty)
-          'callStack': callStack.map((f) => f.toJson()).toList(),
-        if (pendingRequest != null) 'pendingRequest': pendingRequest!.toJson(),
+        'machineState': machineState.toJson(),
         'suspendedAt': suspendedAt.toIso8601String(),
       };
 
   factory VasterContinuation.fromJson(Map<String, dynamic> json) {
+    final version = (json['formatVersion'] as num?)?.toInt() ?? 1;
+    if (version != currentFormatVersion) {
+      throw FormatException(
+          'Continuation format v$version is not supported by this build '
+          '(speaks v$currentFormatVersion). v1 continuations predate the '
+          'machine-snapshot era and cannot be resumed safely — they are '
+          'missing machine state by construction.');
+    }
     return VasterContinuation(
+      formatVersion: version,
       continuationId: json['continuationId'] as String? ?? '',
       programName: json['programName'] as String? ?? '',
-      sessionId: json['sessionId'] as String?,
-      activeModelDescriptor: json['activeModelDescriptor'] != null
-          ? ModelDescriptor.fromJson(json['activeModelDescriptor'] as Map<String, dynamic>)
-          : null,
-      resumePc: json['resumePc'] as int? ?? 0,
-      registers: Map<String, dynamic>.from(json['registers'] as Map? ?? {}),
-      callStack: (json['callStack'] as List? ?? [])
-          .whereType<Map<String, dynamic>>()
-          .map((f) => StackFrame.fromJson(f))
-          .toList(),
-      pendingRequest: json['pendingRequest'] != null
-          ? HumanInteractionRequest.fromJson(json['pendingRequest'] as Map<String, dynamic>)
-          : null,
-      suspendedAt: DateTime.tryParse(json['suspendedAt'] as String? ?? '') ?? DateTime.now(),
+      machineState: MachineSnapshot.fromJson(
+          Map<String, dynamic>.from(json['machineState'] as Map)),
+      suspendedAt: DateTime.tryParse(json['suspendedAt'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 }

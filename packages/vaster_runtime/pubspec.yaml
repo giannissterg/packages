@@ -23,6 +23,7 @@ dependencies:
   vaster_budget:
   vaster_events:
   vaster_instruction:
+  vaster_machine_state:
   vaster_model:
   vaster_token_estimate:
   vaster_policy:

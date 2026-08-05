@@ -1,5 +1,6 @@
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_events/vaster_events.dart';
+import 'package:vaster_machine_state/vaster_machine_state.dart';
 import 'register_file.dart';
 import 'runtime_status.dart';
 
@@ -13,7 +14,7 @@ import 'runtime_status.dart';
 /// By centralising these transitions, [VasterRuntime] avoids duplicating
 /// mutation logic across [executeProgram], [resumeWithHumanResponse],
 /// and [restoreAndResume].
-class HitlController {
+class HitlController implements MachineStateComponent {
   HumanInteractionRequest? _pendingRequest;
 
   /// The pending human interaction request, or null if not currently paused.
@@ -71,4 +72,22 @@ class HitlController {
 
   /// Clears all HITL state (e.g. on program start).
   void clear() => _pendingRequest = null;
+
+  @override
+  String get stateKey => 'hitl';
+
+  @override
+  Map<String, dynamic> captureState() => {
+        if (_pendingRequest != null)
+          'pendingRequest': _pendingRequest!.toJson(),
+      };
+
+  @override
+  void restoreState(Map<String, dynamic> snapshot) {
+    final pending = snapshot['pendingRequest'];
+    _pendingRequest = pending == null
+        ? null
+        : HumanInteractionRequest.fromJson(
+            Map<String, dynamic>.from(pending as Map));
+  }
 }

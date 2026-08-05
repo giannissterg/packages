@@ -6,6 +6,8 @@ export 'src/cache_hint_tracker.dart';
 export 'src/decision_arbiter.dart';
 export 'src/extract_outcome.dart';
 export 'src/hitl_controller.dart';
+export 'src/machine_context.dart';
+export 'src/quota_state_adapter.dart';
 export 'src/policy_guard.dart';
 export 'src/register_file.dart';
 export 'src/register_interpolator.dart';
