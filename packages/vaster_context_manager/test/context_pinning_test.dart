@@ -29,14 +29,42 @@ void main() {
 
       manager.heap.addAll([lowUnpinned, lowPinned]);
 
-      // Compile with strict budget of 600 input tokens (cannot fit both 500+500=1000 tokens)
+      // 600 input tokens available (540 after allocation slack): both 500-token
+      // regions cannot fit — the pinned one must survive.
       final compiled = await manager.compileContext(
-        budget: const TokenBudget(maxContextTokens: 1000, reservedOutputTokens: 400),
+        budget: const TokenBudget(
+            maxContextTokens: 1000,
+            reservedOutputTokens: 400,
+            reservedToolTokens: 0),
       );
 
-      // Pinned region MUST be included even though budget pressure would evict low priority!
       final includedIds = compiled.includedRegions.map((r) => r.id).toList();
       expect(includedIds, contains('r_pinned'));
+      expect(compiled.evictedRegions.map((r) => r.id), contains('r_low'));
+    });
+
+    test('a pinned region that cannot fit is a hard overflow error', () async {
+      final manager = BasicContextManager();
+      manager.heap.addRegion(ContextRegion.text(
+        id: 'r_huge',
+        label: 'Pinned but oversized',
+        role: Role.user,
+        text: 'huge',
+        estimatedTokens: 5000,
+        isPinned: true,
+      ));
+
+      // Silently over-admitting a pinned region past the window used to ship
+      // a request the provider would reject — now it fails at link time.
+      await expectLater(
+        manager.compileContext(
+          budget: const TokenBudget(
+              maxContextTokens: 1000,
+              reservedOutputTokens: 400,
+              reservedToolTokens: 0),
+        ),
+        throwsA(isA<ContextOverflowError>()),
+      );
     });
   });
 }

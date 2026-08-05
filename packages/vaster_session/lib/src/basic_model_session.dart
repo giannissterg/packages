@@ -57,6 +57,7 @@ class BasicModelSession implements ModelSession {
     VasterModel? targetModel,
     GenerationConfig? config,
     CancellationToken? cancelToken,
+    List<ContextCacheHint> cacheHints = const [],
   }) async {
     cancelToken?.throwIfCancelled();
 
@@ -70,6 +71,8 @@ class BasicModelSession implements ModelSession {
       budget: TokenBudget(
         maxContextTokens: activeModel.capabilities.maxContextTokens,
         reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
+        // Sessions attach no tool definitions to the request.
+        reservedToolTokens: 0,
       ),
     );
 
@@ -80,6 +83,7 @@ class BasicModelSession implements ModelSession {
       messages: compiled.messages,
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
+      cacheHints: cacheHints,
     );
 
     final response = await activeModel.generate(request);
@@ -98,6 +102,7 @@ class BasicModelSession implements ModelSession {
     VasterModel? targetModel,
     GenerationConfig? config,
     CancellationToken? cancelToken,
+    List<ContextCacheHint> cacheHints = const [],
   }) async* {
     cancelToken?.throwIfCancelled();
 
@@ -109,6 +114,7 @@ class BasicModelSession implements ModelSession {
       budget: TokenBudget(
         maxContextTokens: activeModel.capabilities.maxContextTokens,
         reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
+        reservedToolTokens: 0,
       ),
     );
 
@@ -117,6 +123,7 @@ class BasicModelSession implements ModelSession {
       messages: compiled.messages,
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
+      cacheHints: cacheHints,
     );
 
     final textBuffer = StringBuffer();

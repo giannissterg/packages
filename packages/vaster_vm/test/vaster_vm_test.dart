@@ -91,7 +91,8 @@ void main() {
 
       vm.contextManager.heap.addRegion(region);
       final compiled = await vm.contextManager.compileContext(
-        budget: const TokenBudget(maxContextTokens: 100, reservedOutputTokens: 20),
+        budget: const TokenBudget(
+            maxContextTokens: 100, reservedOutputTokens: 20, reservedToolTokens: 0),
       );
 
       expect(compiled.includedRegions.map((r) => r.id), contains('pinned_spec'));

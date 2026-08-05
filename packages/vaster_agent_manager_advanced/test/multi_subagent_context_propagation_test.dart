@@ -95,7 +95,8 @@ void main() {
       // 6. Verify context propagation in child subagent session
       final coderSession = sessionManager.getSession('sess_sub_coder')!;
       final compiled = await coderSession.contextManager.compileContext(
-        budget: const TokenBudget(maxContextTokens: 1000, reservedOutputTokens: 200),
+        budget: const TokenBudget(
+            maxContextTokens: 1000, reservedOutputTokens: 200, reservedToolTokens: 0),
       );
 
       expect(compiled.systemInstruction?.parts.first, isA<TextPart>());

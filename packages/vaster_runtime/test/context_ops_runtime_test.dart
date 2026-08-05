@@ -48,13 +48,13 @@ void main() {
 
       final staticRegion = vm.contextManager.getRegion('static_region')!;
       expect(regionContentOf(staticRegion), equals('literal content'));
-      expect(staticRegion.priority.name, equals('high'));
-      expect(staticRegion.compressibility.name, equals('truncate'));
+      expect(staticRegion.priorityOrDefault.name, equals('high'));
+      expect(staticRegion.compressibilityOrDefault.name, equals('truncate'));
       expect(staticRegion.isPinned, isTrue);
 
       final dynamicRegion = vm.contextManager.getRegion('dynamic_region')!;
       expect(regionContentOf(dynamicRegion), equals('computed content'));
-      expect(dynamicRegion.lifetime.name, equals('persistent'));
+      expect(dynamicRegion.lifetimeOrDefault.name, equals('persistent'));
     });
 
     test('Evict/Unpin/SetPolicy ops manage the heap and cache hints', () async {
@@ -75,7 +75,7 @@ void main() {
 
       expect(vm.contextManager.getRegion('a'), isNull);
       final b = vm.contextManager.getRegion('b')!;
-      expect(b.priority.name, equals('critical'));
+      expect(b.priorityOrDefault.name, equals('critical'));
       expect(b.isPinned, isTrue);
     });
 

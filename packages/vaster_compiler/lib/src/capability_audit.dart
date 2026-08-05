@@ -1,3 +1,4 @@
+import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 
@@ -52,6 +53,10 @@ final class CapabilityAudit {
   /// Declared resource ceilings.
   final List<ResourceQuota> quotas;
 
+  /// The program-declared context class table (segment map); null when the
+  /// program relies on the runtime's standard table.
+  final ContextClassTable? contextClasses;
+
   /// Inter-agent messages: `sender → recipient` pairs.
   final Set<String> messageEdges;
 
@@ -72,6 +77,7 @@ final class CapabilityAudit {
     required this.decisions,
     required this.humanGates,
     required this.quotas,
+    this.contextClasses,
     required this.messageEdges,
   });
 
@@ -151,6 +157,9 @@ final class CapabilityAudit {
       humanGates: humanGates,
       quotas: quotas,
       messageEdges: messageEdges,
+      contextClasses: program.contextClasses != null
+          ? ContextClassTable.fromJson(program.contextClasses!)
+          : null,
     );
   }
 
@@ -174,6 +183,7 @@ final class CapabilityAudit {
         'humanGates': humanGates.map((pc, id) => MapEntry('$pc', id)),
         'quotas': [for (final q in quotas) q.toJson()],
         'messageEdges': messageEdges.toList()..sort(),
+        if (contextClasses != null) 'contextClasses': contextClasses!.toJson(),
       };
 
   String toPrettyString() {
@@ -248,6 +258,29 @@ final class CapabilityAudit {
             ].join(', ')),
         emptyNote: '(none declared — unlimited)');
     section('Inter-agent messages', messageEdges.toList()..sort());
+
+    final table = contextClasses;
+    section(
+        'Context segments',
+        table == null
+            ? const <String>[]
+            : table.inBandOrder.map((c) {
+                final share = <String>[
+                  if (c.share.minTokens != null) 'min ${c.share.minTokens}',
+                  if (c.share.minFraction != null)
+                    'min ${(c.share.minFraction! * 100).toStringAsFixed(0)}%',
+                  if (c.share.maxTokens != null) 'max ${c.share.maxTokens}',
+                  if (c.share.maxFraction != null)
+                    'max ${(c.share.maxFraction! * 100).toStringAsFixed(0)}%',
+                  if (c.share.weight != 1.0) 'w${c.share.weight}',
+                ].join(' ');
+                return '[band ${c.band.toString().padLeft(3)}] '
+                    '${c.name.padRight(12)} '
+                    '${c.cacheStable ? 'stable  ' : 'volatile'} '
+                    'evict:${c.eviction.name.padRight(16)}'
+                    '${share.isEmpty ? '' : ' ($share)'}';
+              }),
+        emptyNote: '(standard table — no program-declared classes)');
 
     return buffer.toString();
   }

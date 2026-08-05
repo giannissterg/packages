@@ -179,6 +179,12 @@ class VasterRuntime {
       _errorHandlers.clear();
       _quotaTracker.applyQuota(ResourceQuota.unlimited);
     }
+    // Program-header class table: static metadata installed at load, never
+    // mutated by executing instructions.
+    if (program.contextClasses != null) {
+      vm.contextManager
+          .installClassTable(ContextClassTable.fromJson(program.contextClasses!));
+    }
 
     return _runLoop(program);
   }
@@ -625,9 +631,15 @@ class VasterRuntime {
           label: op.label,
           role: Role.user,
           text: content,
-          priority: ContextPriority.parse(op.priority),
-          lifetime: ContextLifetime.parse(op.lifetime),
-          compressibility: ContextCompressibility.parse(op.compressibility),
+          classId: op.className,
+          // Null policy fields inherit from the region's context class.
+          priority:
+              op.priority != null ? ContextPriority.parse(op.priority!) : null,
+          lifetime:
+              op.lifetime != null ? ContextLifetime.parse(op.lifetime!) : null,
+          compressibility: op.compressibility != null
+              ? ContextCompressibility.parse(op.compressibility!)
+              : null,
           isPinned: op.pinned,
         ));
         if (op.pinned) {

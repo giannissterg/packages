@@ -3,6 +3,7 @@ import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_events/vaster_events.dart';
 
 import 'allocation_strategy.dart';
+import 'class_aware_allocation_strategy.dart';
 import 'compression/context_compactor.dart';
 import 'compression/context_compressor.dart';
 import 'context_manager_interface.dart';
@@ -17,6 +18,14 @@ class BasicContextManager implements ContextManager {
   @override
   final ContextHeap heap = ContextHeap();
 
+  /// The segment table governing class resolution for this manager.
+  /// Replaced only at program load via [installClassTable] — never mutated
+  /// mid-execution.
+  ContextClassTable _classTable;
+
+  @override
+  ContextClassTable get classTable => _classTable;
+
   AllocationStrategy allocationStrategy;
 
   /// Registered compressors, strongest-preference first.
@@ -29,12 +38,29 @@ class BasicContextManager implements ContextManager {
 
   BasicContextManager({
     List<ContextSource>? sources,
-    this.allocationStrategy = const PriorityAllocationStrategy(),
+    ContextClassTable classTable = ContextClassTable.standard,
+    AllocationStrategy? allocationStrategy,
     this.compressors = const [],
     this.eventBus,
-  }) {
+  })  : _classTable = classTable,
+        allocationStrategy = allocationStrategy ??
+            ClassAwareAllocationStrategy(classTable: classTable) {
     if (sources != null) {
       _sources.addAll(sources);
+    }
+  }
+
+  @override
+  void installClassTable(ContextClassTable table) {
+    final issues = table.validate();
+    if (issues.isNotEmpty) {
+      throw ArgumentError('Invalid context class table: ${issues.join('; ')}');
+    }
+    _classTable = table;
+    // The default strategy is table-bound; rebind it. A custom strategy is
+    // the caller's responsibility.
+    if (allocationStrategy is ClassAwareAllocationStrategy) {
+      allocationStrategy = ClassAwareAllocationStrategy(classTable: table);
     }
   }
 
@@ -148,7 +174,8 @@ class BasicContextManager implements ContextManager {
     String? regionId,
     bool includePinned = false,
   }) async {
-    final compactor = ContextCompactor(compressors: compressors);
+    final compactor =
+        ContextCompactor(compressors: compressors, classTable: _classTable);
     final report = await compactor.compact(
       regions: heap.regions,
       targetTokens: targetTokens,
@@ -173,7 +200,9 @@ class BasicContextManager implements ContextManager {
     if (allowCompression &&
         compressors.isNotEmpty &&
         heap.totalEstimatedTokens > budget.availableInputBudget) {
-      final report = await ContextCompactor(compressors: compressors).compact(
+      final report = await ContextCompactor(
+              compressors: compressors, classTable: _classTable)
+          .compact(
         regions: heap.regions,
         targetTokens: (budget.availableInputBudget * 0.9).floor(),
         apply: (compressed) => heap.replaceRegion(compressed),
@@ -205,7 +234,9 @@ class BasicContextManager implements ContextManager {
     final removedIds = <String>[];
     var tokensFreed = 0;
     for (final region in List<ContextRegion>.from(heap.regions)) {
-      if (!expiredLifetimes.contains(region.lifetime)) continue;
+      final effectiveLifetime =
+          region.effectiveLifetime(_classTable.resolve(region.classId));
+      if (!expiredLifetimes.contains(effectiveLifetime)) continue;
       // Sweeps respect pins and critical priority unless forced.
       if (!force &&
           (region.isPinned || region.priority == ContextPriority.critical)) {
@@ -229,11 +260,17 @@ class BasicContextManager implements ContextManager {
       'ctx_${kind}_${DateTime.now().microsecondsSinceEpoch}_${_eventCounter++}';
 
   void _emitEvicted(List<String> regionIds, int tokensFreed, String reason) {
+    // Resolve classes before publishing — the regions may already be gone
+    // from the heap by the time a subscriber looks.
+    final classes = <String, String>{
+      for (final id in regionIds)
+        id: _classTable.resolve(heap.getRegion(id)?.classId).name,
+    };
     eventBus?.publish(ContextEvictedEvent(
       eventId: _nextEventId('evict'),
       evictedRegionIds: regionIds,
       tokensFreed: tokensFreed,
-      metadata: {'reason': reason},
+      metadata: {'reason': reason, 'classes': classes},
     ));
   }
 

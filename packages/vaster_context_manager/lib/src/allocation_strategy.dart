@@ -23,7 +23,8 @@ class PriorityAllocationStrategy implements AllocationStrategy {
     // Sort regions by priority descending, then utility descending
     final sortedRegions = List<ContextRegion>.from(regions)
       ..sort((a, b) {
-        final prioDiff = b.priority.index.compareTo(a.priority.index);
+        final prioDiff =
+            b.priorityOrDefault.index.compareTo(a.priorityOrDefault.index);
         if (prioDiff != 0) return prioDiff;
         return b.utility.compareTo(a.utility);
       });

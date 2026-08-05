@@ -27,6 +27,7 @@ abstract interface class ModelSession {
     VasterModel? targetModel,
     GenerationConfig? config,
     CancellationToken? cancelToken,
+    List<ContextCacheHint> cacheHints = const [],
   });
 
   /// Sends a user message turn and streams response chunks from [targetModel] (or default [model]).
@@ -35,6 +36,7 @@ abstract interface class ModelSession {
     VasterModel? targetModel,
     GenerationConfig? config,
     CancellationToken? cancelToken,
+    List<ContextCacheHint> cacheHints = const [],
   });
 
   /// Directly appends [message] to this session's turn history without

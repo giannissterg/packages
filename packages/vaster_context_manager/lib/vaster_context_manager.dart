@@ -2,6 +2,7 @@
 library;
 
 export 'src/allocation_strategy.dart';
+export 'src/class_aware_allocation_strategy.dart';
 export 'src/composite_context_manager.dart';
 export 'src/compression/context_compactor.dart';
 export 'src/compression/context_compressor.dart';

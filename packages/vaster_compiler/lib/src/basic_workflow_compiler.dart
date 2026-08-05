@@ -118,6 +118,11 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
     final program = VasterProgram(
       programName: pipeline.effectiveSpec.name,
+      contextClasses: state.contextClassOverrides.isNotEmpty
+          ? ContextClassTable.standard
+              .withOverrides(state.contextClassOverrides)
+              .toJson()
+          : null,
       instructions: instructions,
     );
 
@@ -441,11 +446,19 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
           label: n.label,
           text: n.text,
           sourceVar: n.from,
-          priority: n.priority.name,
-          lifetime: n.lifetime.name,
-          compressibility: n.compressibility.name,
+          className: n.className,
+          // Null enum fields stay null in the ISA — inherit from the class.
+          priority: n.priority?.name,
+          lifetime: n.lifetime?.name,
+          compressibility: n.compressibility?.name,
           pinned: n.pinned,
         ));
+
+      case ContextClasses n:
+        // Header metadata, not instructions: layered onto any previously
+        // declared classes over the standard table.
+        state.contextClassOverrides.addAll(n.classes);
+        _lowerNode(n.child, ir, context, state);
 
       case EvictContext n:
         ir.emit(EvictContextOp(regionId: n.regionId, force: n.force));
@@ -642,6 +655,10 @@ class _CompilerState {
   /// Agent role ids already provisioned this compilation (dedup between
   /// Pipeline.roles and nested Agent scopes).
   final Set<String> provisionedAgents = {};
+
+  /// Context classes declared by [ContextClasses] nodes — layered over the
+  /// standard table into the program header (static metadata, not ops).
+  final List<ContextClass> contextClassOverrides = [];
 
   /// Diagnostics gathered during lowering, merged into the compile result.
   final List<CompileDiagnostic> diagnostics = [];

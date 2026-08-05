@@ -5,6 +5,13 @@ import 'compression/context_compactor.dart';
 /// Abstract interface class defining the contract for managing virtual context sources,
 /// memory heaps, lifecycles, and model context compilation.
 abstract interface class ContextManager {
+  /// The segment table governing class resolution for this manager.
+  ContextClassTable get classTable;
+
+  /// Installs a program-declared class table (at program load — class tables
+  /// are static metadata, never mutated mid-execution).
+  void installClassTable(ContextClassTable table);
+
   /// The active virtual context memory heap.
   ///
   /// NOTE: on composite managers this is a merged *snapshot* — mutations are

@@ -141,9 +141,10 @@ sealed class VasterInstruction {
           label: json['label'] as String? ?? '',
           text: json['text'] as String? ?? '',
           sourceVar: json['sourceVar'] as String?,
-          priority: json['priority'] as String? ?? 'medium',
-          lifetime: json['lifetime'] as String? ?? 'session',
-          compressibility: json['compressibility'] as String? ?? 'none',
+          className: json['className'] as String?,
+          priority: json['priority'] as String?,
+          lifetime: json['lifetime'] as String?,
+          compressibility: json['compressibility'] as String?,
           pinned: json['pinned'] as bool? ?? false,
         ),
       InstructionOpcode.evictContext => EvictContextOp(
@@ -495,14 +496,19 @@ final class PinContextOp extends VasterInstruction {
 
 /// Adds a context region to the VM context heap. Content comes from [text]
 /// or, when [sourceVar] is set, from that register at runtime.
+///
+/// Policy fields ([priority], [lifetime], [compressibility]) are nullable
+/// enum names: null means "inherit from the region's context class"
+/// ([className], resolved against the program-header class table).
 final class AddContextOp extends VasterInstruction {
   final String regionId;
   final String label;
   final String text;
   final String? sourceVar;
-  final String priority; // ContextPriority name
-  final String lifetime; // ContextLifetime name
-  final String compressibility; // ContextCompressibility name
+  final String? className; // ContextClass name in the program's class table
+  final String? priority; // ContextPriority name; null = inherit
+  final String? lifetime; // ContextLifetime name; null = inherit
+  final String? compressibility; // ContextCompressibility name; null = inherit
   final bool pinned;
 
   const AddContextOp({
@@ -510,9 +516,10 @@ final class AddContextOp extends VasterInstruction {
     required this.label,
     this.text = '',
     this.sourceVar,
-    this.priority = 'medium',
-    this.lifetime = 'session',
-    this.compressibility = 'none',
+    this.className,
+    this.priority,
+    this.lifetime,
+    this.compressibility,
     this.pinned = false,
   }) : super(InstructionOpcode.addContext);
 
@@ -523,9 +530,10 @@ final class AddContextOp extends VasterInstruction {
         'label': label,
         if (text.isNotEmpty) 'text': text,
         if (sourceVar != null) 'sourceVar': sourceVar,
-        'priority': priority,
-        'lifetime': lifetime,
-        'compressibility': compressibility,
+        if (className != null) 'className': className,
+        if (priority != null) 'priority': priority,
+        if (lifetime != null) 'lifetime': lifetime,
+        if (compressibility != null) 'compressibility': compressibility,
         'pinned': pinned,
       };
 }

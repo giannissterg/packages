@@ -1,3 +1,4 @@
+import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 
 import 'compile_diagnostics.dart';
@@ -12,12 +13,42 @@ import 'compile_diagnostics.dart';
 ///  * `duplicate_agent`     (warning) — same agent id created twice
 ///  * `unreachable_code`    (warning) — instruction that no control path reaches
 ///  * `unused_register`     (info)    — written register that nothing reads
+///  * `undefined_context_class` (error) — `AddContextOp.className` not in the
+///    program's class table (undefined-symbol check for the context linker)
+///  * `invalid_context_class_table` (error) — structurally invalid header table
 class ProgramAnalyzer {
   const ProgramAnalyzer();
 
   List<CompileDiagnostic> analyze(VasterProgram program) {
     final diagnostics = <CompileDiagnostic>[];
     final instructions = program.instructions;
+
+    // ── Context-class verification (static, undefined-symbol style) ──────
+    final classTable = program.contextClasses != null
+        ? ContextClassTable.fromJson(program.contextClasses!)
+        : ContextClassTable.standard;
+    for (final issue in classTable.validate()) {
+      diagnostics.add(CompileDiagnostic(
+        severity: CompileSeverity.error,
+        code: 'invalid_context_class_table',
+        message: issue,
+      ));
+    }
+    for (var pc = 0; pc < instructions.length; pc++) {
+      final inst = instructions[pc];
+      if (inst is AddContextOp &&
+          inst.className != null &&
+          !classTable.contains(inst.className!)) {
+        diagnostics.add(CompileDiagnostic(
+          severity: CompileSeverity.error,
+          code: 'undefined_context_class',
+          message: 'AddContextOp at PC $pc references context class '
+              '"${inst.className}", which the program\'s class table does '
+              'not declare (declared: '
+              '${classTable.classes.keys.toList().join(', ')}).',
+        ));
+      }
+    }
 
     // ── Collect jump targets, agent/session definitions ──────────────────
     final jumpTargets = <int>{};

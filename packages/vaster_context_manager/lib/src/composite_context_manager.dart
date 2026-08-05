@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:vaster_context/vaster_context.dart';
 
 import 'allocation_strategy.dart';
+import 'class_aware_allocation_strategy.dart';
 import 'compression/context_compactor.dart';
 import 'compression/context_compressor.dart';
 import 'context_manager_interface.dart';
@@ -23,9 +24,28 @@ class CompositeContextManager implements ContextManager {
 
   CompositeContextManager({
     this.children = const [],
-    this.allocationStrategy = const PriorityAllocationStrategy(),
+    AllocationStrategy? allocationStrategy,
+    ContextClassTable classTable = ContextClassTable.standard,
     this.compressors = const [],
-  });
+  })  : _classTable = classTable,
+        allocationStrategy = allocationStrategy ??
+            ClassAwareAllocationStrategy(classTable: classTable);
+
+  ContextClassTable _classTable;
+
+  @override
+  ContextClassTable get classTable => _classTable;
+
+  @override
+  void installClassTable(ContextClassTable table) {
+    _classTable = table;
+    if (allocationStrategy is ClassAwareAllocationStrategy) {
+      allocationStrategy = ClassAwareAllocationStrategy(classTable: table);
+    }
+    for (final child in children) {
+      child.installClassTable(table);
+    }
+  }
 
   /// A merged **snapshot** of all children's regions. Mutating this heap has
   /// no effect on any child — use the region-level methods instead.
@@ -145,7 +165,8 @@ class CompositeContextManager implements ContextManager {
     String? regionId,
     bool includePinned = false,
   }) async {
-    final compactor = ContextCompactor(compressors: compressors);
+    final compactor =
+        ContextCompactor(compressors: compressors, classTable: _classTable);
     // apply routes each compressed region back to the child that owns it —
     // mutations land in real heaps, not the throwaway merge.
     return compactor.compact(

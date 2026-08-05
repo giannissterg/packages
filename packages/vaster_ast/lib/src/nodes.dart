@@ -689,8 +689,12 @@ class Knowledge extends ComposableNode {
   final String label;
   final String text;
   final String? from;
-  final ContextPriority priority;
-  final ContextCompressibility compressibility;
+
+  /// Context class this knowledge belongs to (defaults to `knowledge`).
+  /// Policy fields left null inherit from the class.
+  final String className;
+  final ContextPriority? priority;
+  final ContextCompressibility? compressibility;
   final bool pinned;
   final VasterNode child;
 
@@ -702,8 +706,9 @@ class Knowledge extends ComposableNode {
     required this.label,
     this.text = '',
     this.from,
-    this.priority = ContextPriority.medium,
-    this.compressibility = ContextCompressibility.none,
+    this.className = ContextClassTable.knowledgeClassName,
+    this.priority,
+    this.compressibility,
     this.pinned = false,
     required this.child,
     this.id,
@@ -721,6 +726,7 @@ class Knowledge extends ComposableNode {
         label: label,
         text: text,
         from: from,
+        className: className,
         priority: priority,
         compressibility: compressibility,
         pinned: pinned,
@@ -759,6 +765,34 @@ class ContextBudget extends ComposableNode {
   }
 }
 
+/// Declares (or overrides) context classes for the whole program — the
+/// segment table of the context linker. Compiles into **static program
+/// header metadata**, not instructions: class resolution is lexically
+/// scoped to the program, never dependent on execution order.
+///
+/// The declared classes are layered over the standard table
+/// ([ContextClassTable.standard]), so pipelines only state their deltas.
+///
+/// ```dart
+/// ContextClasses(
+///   classes: [
+///     ContextClass(
+///       name: 'domain_docs',
+///       band: 22,
+///       share: BudgetShare(minFraction: 0.2),
+///       cacheStable: true,
+///     ),
+///   ],
+///   child: Sequence([...]),
+/// )
+/// ```
+final class ContextClasses extends VasterNode {
+  final List<ContextClass> classes;
+  final VasterNode child;
+
+  const ContextClasses({required this.classes, required this.child});
+}
+
 // ── Low-level context heap tier ───────────────────────────────────────────────
 
 /// Adds a context region to the VM context heap. Content is [text] (which
@@ -769,9 +803,13 @@ final class AddContext extends VasterNode {
   final String label;
   final String text;
   final String? from;
-  final ContextPriority priority;
-  final ContextLifetime lifetime;
-  final ContextCompressibility compressibility;
+
+  /// Context class the region belongs to; null resolves to the table's
+  /// default class. Null policy fields inherit from the class.
+  final String? className;
+  final ContextPriority? priority;
+  final ContextLifetime? lifetime;
+  final ContextCompressibility? compressibility;
   final bool pinned;
 
   const AddContext({
@@ -779,9 +817,10 @@ final class AddContext extends VasterNode {
     required this.label,
     this.text = '',
     this.from,
-    this.priority = ContextPriority.medium,
-    this.lifetime = ContextLifetime.session,
-    this.compressibility = ContextCompressibility.none,
+    this.className,
+    this.priority,
+    this.lifetime,
+    this.compressibility,
     this.pinned = false,
   });
 }

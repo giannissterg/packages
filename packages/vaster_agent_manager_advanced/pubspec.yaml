@@ -10,6 +10,7 @@ environment:
 dependencies:
   vaster_agent_basic:
   vaster_agent_manager:
+  vaster_context:
   vaster_context_manager:
   vaster_events:
   vaster_model:
@@ -21,5 +22,4 @@ dependencies:
 dev_dependencies:
   lints: ^6.0.0
   test: ^1.25.6
-  vaster_context:
   vaster_model_fake:

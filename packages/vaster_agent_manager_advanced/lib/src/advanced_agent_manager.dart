@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:vaster_agent_basic/vaster_agent_basic.dart';
 import 'package:vaster_agent_manager/vaster_agent_manager.dart';
+import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_model/vaster_model.dart';
@@ -123,6 +124,20 @@ class AdvancedAgentManager implements AgentManager {
       model: model,
       contextManager: contextManager ?? BasicContextManager(),
     );
+
+    // Project the agent's system instruction into the heap as a system-class
+    // region so it actually reaches ModelRequest.systemInstruction — before
+    // this, descriptor.systemInstruction never left the descriptor.
+    if (descriptor.systemInstruction.trim().isNotEmpty) {
+      session.contextManager.addRegion(ContextRegion.text(
+        id: 'system:agent:${descriptor.agentId}',
+        label: 'agent "${descriptor.agentId}" system instruction',
+        role: Role.system,
+        text: descriptor.systemInstruction,
+        classId: ContextClassTable.systemClassName,
+        isPinned: true,
+      ));
+    }
 
     final agent = BasicVasterAgent(
       descriptor: descriptor,

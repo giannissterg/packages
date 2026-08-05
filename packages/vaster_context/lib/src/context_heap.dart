@@ -85,10 +85,13 @@ class ContextHeap {
       return;
     }
 
-    // Source content wins; heap-side policy survives.
+    // Source content wins; heap-side policy survives. (With nullable policy
+    // fields, a heap-side null means "inherit" and correctly lets the
+    // incoming source value — or class default — through.)
     updateRegion(
       incoming.id,
       (current) => incoming.copyWith(
+        classId: current.classId,
         isPinned: current.isPinned,
         priority: current.priority,
         utility: current.utility,

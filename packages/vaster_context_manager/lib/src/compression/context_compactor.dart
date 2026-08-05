@@ -53,10 +53,29 @@ final class CompactionReport {
 final class ContextCompactor {
   final List<ContextCompressor> compressors;
 
+  /// Class table used to resolve inherited policy (compressibility, priority)
+  /// for regions that don't override it.
+  final ContextClassTable classTable;
+
   /// Regions below this size are never worth compressing.
   final int minRegionTokens;
 
-  const ContextCompactor({required this.compressors, this.minRegionTokens = 64});
+  const ContextCompactor({
+    required this.compressors,
+    this.classTable = ContextClassTable.standard,
+    this.minRegionTokens = 64,
+  });
+
+  ContextCompressibility _compressibilityOf(ContextRegion r) =>
+      r.effectiveCompressibility(classTable.resolve(r.classId));
+
+  ContextPriority _priorityOf(ContextRegion r) =>
+      r.effectivePriority(classTable.resolve(r.classId));
+
+  /// Classes whose eviction policy is `never` are immutable under pressure:
+  /// compressing the system prompt would be as dishonest as evicting it.
+  bool _isImmutable(ContextRegion r) =>
+      classTable.resolve(r.classId).eviction == EvictionPolicy.never;
 
   ContextCompressor? _selectFor(ContextCompressibility level) {
     if (level == ContextCompressibility.none) return null;
@@ -97,19 +116,24 @@ final class ContextCompactor {
     // already compressed, optionally a single target region.
     final candidates = regions
         .where((r) =>
-            r.compressibility != ContextCompressibility.none &&
+            _compressibilityOf(r) != ContextCompressibility.none &&
+            !_isImmutable(r) &&
             r.estimatedTokens >= minRegionTokens &&
             (includePinned || !r.isPinned) &&
             !r.isCompressed &&
             (onlyRegionId == null || r.id == onlyRegionId))
         .toList()
-      // Least important, biggest wins first: priority asc, utility asc, size desc.
+      // Least important, biggest wins first: priority asc, utility asc, size
+      // desc; id tie-break keeps the pass deterministic.
       ..sort((a, b) {
-        final byPriority = a.priority.index.compareTo(b.priority.index);
+        final byPriority =
+            _priorityOf(a).index.compareTo(_priorityOf(b).index);
         if (byPriority != 0) return byPriority;
         final byUtility = a.utility.compareTo(b.utility);
         if (byUtility != 0) return byUtility;
-        return b.estimatedTokens.compareTo(a.estimatedTokens);
+        final bySize = b.estimatedTokens.compareTo(a.estimatedTokens);
+        if (bySize != 0) return bySize;
+        return a.id.compareTo(b.id);
       });
 
     final entries = <CompactionEntry>[];
@@ -118,7 +142,7 @@ final class ContextCompactor {
     for (final region in candidates) {
       if (deficit <= 0 && onlyRegionId == null) break;
 
-      final compressor = _selectFor(region.compressibility);
+      final compressor = _selectFor(_compressibilityOf(region));
       if (compressor == null) continue;
 
       // Shrink to 25% (summary-sized) or to exactly-enough-to-cover-the-

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:vaster_agent/vaster_agent.dart';
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_model/vaster_model.dart';
@@ -79,6 +81,9 @@ class BasicVasterAgent implements VasterAgent {
         final budget = TokenBudget(
           maxContextTokens: session.model.capabilities.maxContextTokens,
           reservedOutputTokens: session.model.capabilities.maxOutputTokens,
+          // Reserve for the tool schemas actually attached to the request
+          // (was a hardcoded 1000 regardless of tools).
+          reservedToolTokens: _estimateToolTokens(resolvedTools),
         );
         final compiled = await session.contextManager.compileContext(budget: budget);
         final systemInstruction = compiled.systemInstruction;
@@ -217,6 +222,11 @@ class BasicVasterAgent implements VasterAgent {
 
   /// Returns compiled [ToolDefinition]s filtered by [descriptor.allowedToolNames].
   /// An empty whitelist means all registered tools are exposed.
+  /// Token reservation for the tool schemas attached to each request —
+  /// estimated from the serialized definitions actually sent.
+  static int _estimateToolTokens(List<ToolDefinition> tools) => tools.fold(
+      0, (sum, t) => sum + TokenEstimate.forText(jsonEncode(t.toJson())));
+
   List<ToolDefinition> _resolveTools() {
     final all = toolManager.compiledDefinitions;
     if (descriptor.allowedToolNames.isEmpty) return all;

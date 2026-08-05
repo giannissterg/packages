@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'compression_info.dart';
+import 'context_class.dart';
 import 'context_compressibility.dart';
 import 'context_lifetime.dart';
 import 'context_priority.dart';
@@ -34,13 +35,21 @@ class ContextRegion {
   /// Estimated token usage of this region.
   final int estimatedTokens;
 
-  /// Priority of this region for token allocation and eviction.
-  final ContextPriority priority;
+  /// Allocation class this region belongs to; null resolves to the class
+  /// table's default class. Policy fields left null inherit from the class.
+  final String? classId;
 
-  /// Lifetime boundary of this context region.
-  final ContextLifetime lifetime;
+  /// Priority override for allocation and eviction; null = inherit from the
+  /// region's [ContextClass] (the distinction between "unset" and "explicitly
+  /// default" is what makes class inheritance implementable).
+  final ContextPriority? priority;
 
-  /// Whether this region is pinned to prevent anti-eviction during budget pressure.
+  /// Lifetime override; null = inherit from the region's class.
+  final ContextLifetime? lifetime;
+
+  /// Whether this region is explicitly pinned (a runtime action, like mlock).
+  /// A class's `pinnedByDefault` applies at allocation time and does not
+  /// change this stored flag.
   final bool isPinned;
 
   /// Optional utility score (0.0 to 1.0) indicating relevance/recency.
@@ -49,9 +58,8 @@ class ContextRegion {
   /// Custom metadata tags.
   final Map<String, dynamic> metadata;
 
-  /// The strongest transformation this region may undergo under budget
-  /// pressure. Defaults to [ContextCompressibility.none] (never altered).
-  final ContextCompressibility compressibility;
+  /// Compressibility override; null = inherit from the region's class.
+  final ContextCompressibility? compressibility;
 
   /// Flattening sequence hint: allocation *selection* is priority-driven, but
   /// included regions render into messages sorted by [order] (stable).
@@ -70,15 +78,42 @@ class ContextRegion {
     required this.label,
     required this.messages,
     required this.estimatedTokens,
-    this.priority = ContextPriority.medium,
-    this.lifetime = ContextLifetime.session,
+    this.classId,
+    this.priority,
+    this.lifetime,
     this.isPinned = false,
     this.utility = 1.0,
     this.metadata = const {},
-    this.compressibility = ContextCompressibility.none,
+    this.compressibility,
     this.order = 0,
     this.compression,
   });
+
+  // ── Policy resolution ────────────────────────────────────────────────────
+  // Class-aware call sites resolve against the region's ContextClass; legacy
+  // (class-unaware) call sites use the *OrDefault views, which reproduce the
+  // pre-class defaults.
+
+  /// Effective priority under [cls].
+  ContextPriority effectivePriority(ContextClass cls) =>
+      priority ?? cls.priority;
+
+  /// Effective lifetime under [cls].
+  ContextLifetime effectiveLifetime(ContextClass cls) =>
+      lifetime ?? cls.lifetime;
+
+  /// Effective compressibility under [cls].
+  ContextCompressibility effectiveCompressibility(ContextClass cls) =>
+      compressibility ?? cls.compressibility;
+
+  /// Effective pinning under [cls]: explicit pin wins, else the class default.
+  bool effectivePinned(ContextClass cls) => isPinned || cls.pinnedByDefault;
+
+  /// Legacy default views for class-unaware call sites.
+  ContextPriority get priorityOrDefault => priority ?? ContextPriority.medium;
+  ContextLifetime get lifetimeOrDefault => lifetime ?? ContextLifetime.session;
+  ContextCompressibility get compressibilityOrDefault =>
+      compressibility ?? ContextCompressibility.none;
 
   /// Factory to construct a region from text content.
   factory ContextRegion.text({
@@ -87,12 +122,13 @@ class ContextRegion {
     required Role role,
     required String text,
     int? estimatedTokens,
-    ContextPriority priority = ContextPriority.medium,
-    ContextLifetime lifetime = ContextLifetime.session,
+    String? classId,
+    ContextPriority? priority,
+    ContextLifetime? lifetime,
     bool isPinned = false,
     double utility = 1.0,
     Map<String, dynamic> metadata = const {},
-    ContextCompressibility compressibility = ContextCompressibility.none,
+    ContextCompressibility? compressibility,
     int order = 0,
   }) {
     final msg = ChatMessage(role: role, parts: [TextPart(text)]);
@@ -102,6 +138,7 @@ class ContextRegion {
       label: label,
       messages: [msg],
       estimatedTokens: tokens,
+      classId: classId,
       priority: priority,
       lifetime: lifetime,
       isPinned: isPinned,
@@ -112,11 +149,14 @@ class ContextRegion {
     );
   }
 
+  /// Note: for the nullable policy fields, `null` means "keep the current
+  /// value" — copyWith cannot clear an override back to inherit.
   ContextRegion copyWith({
     String? id,
     String? label,
     List<ChatMessage>? messages,
     int? estimatedTokens,
+    String? classId,
     ContextPriority? priority,
     ContextLifetime? lifetime,
     bool? isPinned,
@@ -132,6 +172,7 @@ class ContextRegion {
       label: label ?? this.label,
       messages: messages ?? List.from(this.messages),
       estimatedTokens: estimatedTokens ?? this.estimatedTokens,
+      classId: classId ?? this.classId,
       priority: priority ?? this.priority,
       lifetime: lifetime ?? this.lifetime,
       isPinned: isPinned ?? this.isPinned,
@@ -145,5 +186,7 @@ class ContextRegion {
 
   @override
   String toString() =>
-      'ContextRegion(id: $id, label: "$label", tokens: ~$estimatedTokens, priority: ${priority.name}, pinned: $isPinned)';
+      'ContextRegion(id: $id, label: "$label", tokens: ~$estimatedTokens, '
+      'class: ${classId ?? '(default)'}, '
+      'priority: ${priority?.name ?? 'inherit'}, pinned: $isPinned)';
 }

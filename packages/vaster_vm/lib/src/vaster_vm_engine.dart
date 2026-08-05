@@ -426,6 +426,9 @@ class VasterVMEngine implements VasterVirtualMachine {
       targetModel: model,
       config: config,
       cancelToken: cancelToken,
+      // Forward cache hints — this path silently dropped them before, so
+      // pinned-region cache breakpoints never reached session-backed prompts.
+      cacheHints: cacheHints ?? const [],
     );
 
     _meterCall(

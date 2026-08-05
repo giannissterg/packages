@@ -45,7 +45,14 @@ final class VbcDecodeException implements Exception {
 /// program shipping, and leaves file I/O to CLI-level callers.
 final class VbcCodec {
   static const int magic = 0x56424301; // "VBC" 0x01
-  static const int formatVersion = 1;
+
+  /// v1: pool, programName, instructions.
+  /// v2: pool, programName, header value (context-class JSON or null),
+  ///     instructions.
+  static const int formatVersion = 2;
+
+  /// Oldest container version this codec still decodes.
+  static const int minSupportedVersion = 1;
   static const int _headerLength = 4 + 2 + 2 + 32;
 
   // Value tags.
@@ -89,6 +96,7 @@ final class VbcCodec {
     }
 
     intern(program.programName);
+    collectStrings(program.contextClasses);
     final instructionMaps =
         program.instructions.map((i) => i.toJson()).toList(growable: false);
     for (final map in instructionMaps) {
@@ -104,6 +112,8 @@ final class VbcCodec {
       payload.add(bytes);
     }
     _writeVarint(payload, pool[program.programName]!);
+    // v2 header: the program's context-class table (or null).
+    _writeValue(payload, program.contextClasses, pool);
     _writeVarint(payload, instructionMaps.length);
     for (final map in instructionMaps) {
       _writeValue(payload, map, pool);
@@ -174,9 +184,10 @@ final class VbcCodec {
       throw const VbcDecodeException('Bad magic: not a VBC program.');
     }
     final version = header.getUint16(4, Endian.big);
-    if (version != formatVersion) {
+    if (version < minSupportedVersion || version > formatVersion) {
       throw VbcDecodeException(
-          'Unsupported VBC version $version (supported: $formatVersion).');
+          'Unsupported VBC version $version (supported: '
+          '$minSupportedVersion–$formatVersion).');
     }
 
     final storedDigest = bytes.sublist(8, 40);
@@ -204,6 +215,13 @@ final class VbcCodec {
       }
 
       final programName = poolAt(reader.readVarint());
+      Map<String, dynamic>? contextClasses;
+      if (version >= 2) {
+        final header = _readValue(reader, poolAt);
+        if (header is Map) {
+          contextClasses = Map<String, dynamic>.from(header);
+        }
+      }
       final instructionCount = reader.readVarint();
       final instructions = List<VasterInstruction>.generate(
         instructionCount,
@@ -219,6 +237,7 @@ final class VbcCodec {
 
       return VasterProgram(
         programName: programName,
+        contextClasses: contextClasses,
         instructions: instructions,
       );
     } on VbcDecodeException {

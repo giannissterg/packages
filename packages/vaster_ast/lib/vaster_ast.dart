@@ -5,7 +5,14 @@ import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model/vaster_model.dart';
 
 export 'package:vaster_context/vaster_context.dart'
-    show ContextPriority, ContextLifetime, ContextCompressibility;
+    show
+        ContextPriority,
+        ContextLifetime,
+        ContextCompressibility,
+        ContextClass,
+        ContextClassTable,
+        BudgetShare,
+        EvictionPolicy;
 export 'package:vaster_model/vaster_model.dart' show RetryPolicy;
 
 part 'src/build_context.dart';

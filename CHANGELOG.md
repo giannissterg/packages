@@ -47,6 +47,24 @@ Breaking DX overhaul of the AST surface, plus new runtime semantics.
   from the review text — a real claude-cli calibration run showed backends
   without schema enforcement re-reviewing the artifact and overriding the
   reviewer's verdict.
+- **Context class system**: context is now managed like memory — the
+  compiled prompt is *linked*, not concatenated. New `ContextClass` /
+  `BudgetShare` / `ContextClassTable` primitives (segment table with bands,
+  cgroups-style hard-min/soft-weight shares, per-class eviction policies,
+  cache-stable segments); a class-aware allocation strategy with
+  deterministic `(band, order, id)` layout, reservation-then-weighted-surplus
+  admission, tail-only cuts for cache-stable bands, and a hard
+  `ContextOverflowError` for unevictable overflow (previously admitted
+  silently past the window). Region policy fields became nullable overrides
+  inheriting from their class. Class tables are static program-header
+  metadata (`VasterProgram.contextClasses`, VBC format v2) declared via the
+  `ContextClasses` AST node — never instructions; the analyzer rejects
+  undefined class references and `vaster audit` prints the segment map.
+  ABI wiring: agent system instructions finally reach
+  `ModelRequest.systemInstruction` (multiple system regions concatenate
+  instead of dropping), tool reservations derive from real definitions,
+  session-path cache hints are no longer dropped, and compaction respects
+  class policy (system class is immutable).
 - **Usage fidelity**: `UsageMetadata` gained cache read/write and thought
   token breakdowns, wire-reported `costUsd`, and a measured-vs-estimated
   `source` marker; every backend parser reports full-fidelity usage
