@@ -1,7 +1,6 @@
 // ignore_for_file: avoid_print
 import 'dart:convert';
 
-import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_replay/vaster_replay.dart';
 
