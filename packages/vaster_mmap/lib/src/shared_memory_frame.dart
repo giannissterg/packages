@@ -76,6 +76,8 @@ class SharedMemoryFrame {
 
     final rawPtr = PosixShmBindings.mmap(
         nullptr, totalSize, protRead | protWrite, mapShared, fd, 0);
+    // The mapping outlives the descriptor — close it now, success or not.
+    PosixShmBindings.close(fd);
     if (rawPtr == mapFailed) {
       throw StateError('Failed mmap for frame "$name".');
     }
@@ -124,11 +126,13 @@ class SharedMemoryFrame {
     final headerPtr = PosixShmBindings.mmap(
         nullptr, headerSize, protRead | protWrite, mapShared, fd, 0);
     if (headerPtr == mapFailed) {
+      PosixShmBindings.close(fd);
       throw StateError('Failed header mmap for frame "$name".');
     }
     final header = headerPtr.cast<FrameHeader>().ref;
     if (header.magic != frameMagic) {
       PosixShmBindings.munmap(headerPtr, headerSize);
+      PosixShmBindings.close(fd);
       throw StateError('Segment "$name" is not a Vaster frame.');
     }
     final payloadLength = header.payloadLength;
@@ -138,6 +142,8 @@ class SharedMemoryFrame {
     final totalSize = headerSize + payloadLength;
     final rawPtr = PosixShmBindings.mmap(
         nullptr, totalSize, protRead | protWrite, mapShared, fd, 0);
+    // Full mapping established (or failed) — the descriptor is done either way.
+    PosixShmBindings.close(fd);
     if (rawPtr == mapFailed) {
       throw StateError('Failed mmap for frame "$name".');
     }

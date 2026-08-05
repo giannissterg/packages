@@ -80,8 +80,8 @@ constructor-graph rule, and the ABI-conventions homes
 - `ExecutionStepFrame.modelOutput` is never populated (documented P7 gap);
   either populate it from the tape during recording or delete the field.
 
-### 8. Rebuild `SharedMemoryRing` (vaster_mmap)
-The POSIX shared-memory ring is poorly structured and has correctness holes,
+### 8. Rebuild `SharedMemoryRing` (vaster_mmap) — ✅ done 2026-08-05
+The POSIX shared-memory ring was poorly structured and had correctness holes,
 not just style debt:
 
 - **No backpressure**: `writePacket` never checks free space against `tail` —

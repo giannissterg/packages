@@ -1,9 +1,15 @@
 import 'dart:ffi';
+import 'dart:io';
 import 'package:ffi/ffi.dart';
 
-// POSIX System Constants for macOS / Linux
+// POSIX open flags. O_RDWR is 0x2 everywhere, but the creation flags DIFFER
+// per platform — Darwin's O_CREAT (0x0200) is Linux's O_APPEND-adjacent
+// territory, and using the wrong value silently creates nothing. Resolve at
+// runtime from the actual host.
 const int oRdcwr = 0x0002;
-const int oCreat = 0x0200;
+final int oCreat = Platform.isMacOS ? 0x0200 : 0x40;
+final int oExcl = Platform.isMacOS ? 0x0800 : 0x80;
+
 const int protRead = 0x01;
 const int protWrite = 0x02;
 const int mapShared = 0x0001;
@@ -32,6 +38,9 @@ typedef DartOpen = int Function(Pointer<Utf8> path, int oflag, int mode);
 typedef NativeShmUnlink = Int32 Function(Pointer<Utf8> name);
 typedef DartShmUnlink = int Function(Pointer<Utf8> name);
 
+typedef NativeClose = Int32 Function(Int32 fd);
+typedef DartClose = int Function(int fd);
+
 typedef NativeFtruncate = Int32 Function(Int32 fd, Int64 length);
 typedef DartFtruncate = int Function(int fd, int length);
 
@@ -41,13 +50,14 @@ typedef DartMmap = Pointer<Void> Function(Pointer<Void> addr, int len, int prot,
 typedef NativeMunmap = Int32 Function(Pointer<Void> addr, Size len);
 typedef DartMunmap = int Function(Pointer<Void> addr, int len);
 
-/// FFI Bindings helper to low-level POSIX shared memory and semaphore APIs.
+/// FFI Bindings helper to low-level POSIX shared memory APIs.
 class PosixShmBindings {
   static final DynamicLibrary _libc = DynamicLibrary.process();
 
   static final DartShmOpen shmOpen = _libc.lookupFunction<NativeShmOpen, DartShmOpen>('shm_open');
   static final DartOpen open = _libc.lookupFunction<NativeOpen, DartOpen>('open');
   static final DartShmUnlink shmUnlink = _libc.lookupFunction<NativeShmUnlink, DartShmUnlink>('shm_unlink');
+  static final DartClose close = _libc.lookupFunction<NativeClose, DartClose>('close');
   static final DartFtruncate ftruncate = _libc.lookupFunction<NativeFtruncate, DartFtruncate>('ftruncate');
   static final DartMmap mmap = _libc.lookupFunction<NativeMmap, DartMmap>('mmap');
   static final DartMunmap munmap = _libc.lookupFunction<NativeMunmap, DartMunmap>('munmap');

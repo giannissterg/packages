@@ -1,184 +1,221 @@
 import 'dart:convert';
 import 'dart:ffi';
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:ffi/ffi.dart';
 
-import 'ffi/posix_shm_bindings.dart';
+import 'ring_buffer.dart';
+import 'shm_segment.dart';
 
-/// Structure layout of the POSIX Shared Memory Header block.
-base class ShmHeader extends Struct {
+/// Layout of the shared ring header at the base of the segment.
+///
+/// `head`/`tail` are aligned 32-bit words — aligned word stores are
+/// single-copy-atomic on x86-64 and ARM64, which is what the SPSC publication
+/// discipline in [RingBuffer] relies on. (The old header carried a `status`
+/// word that nothing ever read; it is gone.)
+base class ShmRingHeader extends Struct {
   @Uint32()
   external int magic; // 0x56415354 ("VAST")
 
   @Uint32()
-  external int ringSize; // Total payload capacity (e.g. 4,194,304 bytes)
+  external int version; // layout version — see [shmRingVersion]
 
   @Uint32()
-  external int head; // Write offset pointer
+  external int capacity; // payload region size in bytes
 
   @Uint32()
-  external int tail; // Read offset pointer
+  external int head; // producer cursor
 
   @Uint32()
-  external int status; // 0 = Idle, 1 = Ready, 2 = Busy
+  external int tail; // consumer cursor
 }
 
-const int defaultShmCapacity = 4 * 1024 * 1024; // 4MB Shared RAM Page
 const int shmMagic = 0x56415354; // "VAST"
 
-/// High-speed zero-copy Shared Memory Ring Buffer wrapping mapped RAM pages.
+/// Header layout version. v2: versioned header, little-endian frame
+/// prefixes, no dead status word.
+const int shmRingVersion = 2;
+
+const int defaultShmCapacity = 4 * 1024 * 1024; // 4MB payload region
+
+/// [RingIndices] backed by the shared header words.
+final class _ShmRingIndices implements RingIndices {
+  final Pointer<ShmRingHeader> _header;
+
+  _ShmRingIndices(this._header);
+
+  @override
+  int get head => _header.ref.head;
+  @override
+  set head(int value) => _header.ref.head = value;
+
+  @override
+  int get tail => _header.ref.tail;
+  @override
+  set tail(int value) => _header.ref.tail = value;
+}
+
+/// Single-producer / single-consumer frame ring over POSIX shared memory.
+///
+/// A thin composition of the two real layers:
+/// - [ShmSegment] owns the mapping lifecycle (create-vs-attach, fd hygiene,
+///   unlink-on-close only for the owner);
+/// - [RingBuffer] owns every byte of protocol (framing, backpressure,
+///   two-segment copies, corruption guards) and is fully unit-tested with no
+///   FFI in sight.
+///
+/// ### Concurrency contract
+/// One producer process/isolate writes, one consumer reads (see
+/// [RingBuffer]'s SPSC contract). For duplex traffic use two rings, one per
+/// direction — sharing one ring both ways is what the old half-duplex mode
+/// did and it forces consumers to skip their own frames.
+///
+/// ### Backpressure
+/// [writePacket] throws [RingFullException] when the consumer is not
+/// draining; [tryWritePacket] returns false instead. The ring never
+/// overwrites unread frames.
 class SharedMemoryRing {
-  final String shmName;
+  final ShmSegment _segment;
+  final RingBuffer _ring;
+
+  /// Payload capacity in bytes.
   final int capacity;
-  late final int _fd;
-  late final Pointer<Uint8> _basePtr;
-  late final Pointer<ShmHeader> _headerPtr;
-  late final Pointer<Uint8> _payloadPtr;
-  late final File? _fallbackFile;
 
-  SharedMemoryRing({
-    required this.shmName,
-    this.capacity = defaultShmCapacity,
+  SharedMemoryRing._(this._segment, this._ring, this.capacity);
+
+  String get shmName => _segment.name;
+
+  /// True when this instance created the segment; the owner unlinks it on
+  /// [close], attachers merely detach.
+  bool get isOwner => _segment.isOwner;
+
+  bool get isEmpty => _ring.isEmpty;
+
+  /// Bytes available to the producer right now.
+  int get freeBytes => _ring.freeBytes;
+
+  /// Largest single payload this ring can ever carry.
+  int get maxFrameLength => _ring.maxFrameLength;
+
+  static int get _headerSize => sizeOf<ShmRingHeader>();
+
+  /// Opens the named ring, creating it when absent (create-or-attach).
+  ///
+  /// The creator initializes the header; an attacher validates magic,
+  /// version, and that [capacity] matches what the creator declared —
+  /// validation happens against the header page only, *before* any payload
+  /// byte is touched, so a mismatched attach throws instead of faulting.
+  factory SharedMemoryRing({
+    required String shmName,
+    int capacity = defaultShmCapacity,
   }) {
-    final cleanName = shmName.startsWith('/') ? shmName : '/$shmName';
-    final cName = cleanName.toNativeUtf8();
+    if (capacity < RingBuffer.minCapacity) {
+      throw ArgumentError.value(capacity, 'capacity',
+          'must be >= ${RingBuffer.minCapacity} bytes');
+    }
 
-    int fd = -1;
-    File? tempFile;
+    final segment =
+        ShmSegment.open(name: shmName, size: _headerSize + capacity);
+    final header = segment.base.cast<ShmRingHeader>();
 
+    if (segment.isOwner) {
+      header.ref
+        ..magic = shmMagic
+        ..version = shmRingVersion
+        ..capacity = capacity
+        ..head = 0
+        ..tail = 0;
+    } else {
+      _validateHeader(header, segment, expectedCapacity: capacity);
+    }
+
+    return SharedMemoryRing._(segment, _ringOver(segment, capacity), capacity);
+  }
+
+  /// Attaches to an existing ring without knowing its capacity.
+  ///
+  /// Probes the header first (a header-sized mapping touches only the
+  /// segment's first page, which every live segment backs), reads the
+  /// creator's capacity, then maps in full. Throws [StateError] when the
+  /// ring does not exist.
+  factory SharedMemoryRing.attach(String shmName) {
+    final probe = ShmSegment.open(name: shmName, size: _headerSize);
+    if (probe.isOwner) {
+      // We just created a bogus header-sized segment: it did not exist.
+      probe.close(unlink: true);
+      throw StateError('Shared memory ring "$shmName" does not exist.');
+    }
+    final int capacity;
     try {
-      // Try native POSIX shm_open first
-      fd = PosixShmBindings.shmOpen(
-        cName,
-        oRdcwr | oCreat,
-        mode0666,
-      );
-    } catch (_) {}
-
-    // Fallback to POSIX memory-mapped file if shm_open is restricted
-    if (fd < 0) {
-      final tmpPath = '${Directory.systemTemp.path}/${shmName.replaceAll('/', '_')}.shm';
-      tempFile = File(tmpPath);
-      if (!tempFile.existsSync()) {
-        tempFile.createSync(recursive: true);
-      }
-      final cPath = tmpPath.toNativeUtf8();
-      fd = PosixShmBindings.open(cPath, oRdcwr | oCreat, mode0666);
-      calloc.free(cPath);
+      final header = probe.base.cast<ShmRingHeader>();
+      _validateHeader(header, probe);
+      capacity = header.ref.capacity;
+    } finally {
+      probe.close(unlink: false);
     }
 
-    _fd = fd;
-    _fallbackFile = tempFile;
+    final segment =
+        ShmSegment.open(name: shmName, size: _headerSize + capacity);
+    return SharedMemoryRing._(segment, _ringOver(segment, capacity), capacity);
+  }
 
-    final totalSize = sizeOf<ShmHeader>() + capacity;
-    PosixShmBindings.ftruncate(_fd, totalSize);
+  static void _validateHeader(
+    Pointer<ShmRingHeader> header,
+    ShmSegment segment, {
+    int? expectedCapacity,
+  }) {
+    final h = header.ref;
+    void fail(String reason) {
+      segment.close(unlink: false);
+      throw StateError('Segment "${segment.name}" $reason');
+    }
 
-    final rawPtr = PosixShmBindings.mmap(
-      nullptr,
-      totalSize,
-      protRead | protWrite,
-      mapShared,
-      _fd,
-      0,
+    if (h.magic != shmMagic) {
+      fail('is not a Vaster ring (magic 0x${h.magic.toRadixString(16)}). '
+          'A stale fallback file from a crashed peer looks like this — '
+          'delete it and retry.');
+    }
+    if (h.version != shmRingVersion) {
+      fail('uses ring layout v${h.version}; this build speaks '
+          'v$shmRingVersion.');
+    }
+    if (expectedCapacity != null && h.capacity != expectedCapacity) {
+      fail('was created with capacity ${h.capacity}, not $expectedCapacity — '
+          'attach with the creator\'s capacity.');
+    }
+  }
+
+  static RingBuffer _ringOver(ShmSegment segment, int capacity) {
+    final payload = Pointer<Uint8>.fromAddress(
+        segment.base.address + _headerSize);
+    return RingBuffer(
+      data: payload.asTypedList(capacity),
+      indices: _ShmRingIndices(segment.base.cast<ShmRingHeader>()),
     );
-
-    if (rawPtr == mapFailed) {
-      calloc.free(cName);
-      throw StateError('Failed mmap on POSIX segment "$shmName"');
-    }
-
-    _basePtr = rawPtr.cast<Uint8>();
-    _headerPtr = rawPtr.cast<ShmHeader>();
-    _payloadPtr = Pointer.fromAddress(_basePtr.address + sizeOf<ShmHeader>());
-
-    // Initialize header metadata if new segment
-    if (_headerPtr.ref.magic != shmMagic) {
-      _headerPtr.ref.magic = shmMagic;
-      _headerPtr.ref.ringSize = capacity;
-      _headerPtr.ref.head = 0;
-      _headerPtr.ref.tail = 0;
-      _headerPtr.ref.status = 0;
-    }
-
-    calloc.free(cName);
   }
 
-  /// Writes a binary payload directly into shared RAM pages with zero-copy header pointers.
-  void writePacket(List<int> bytes) {
-    final payloadLength = bytes.length;
-    if (payloadLength > capacity) {
-      throw ArgumentError('Payload size ($payloadLength bytes) exceeds ring capacity ($capacity bytes)');
-    }
+  /// Writes one binary frame; throws [RingFullException] when it does not
+  /// fit (the consumer is not draining).
+  void writePacket(List<int> bytes) => _ring.write(bytes);
 
-    final currentHead = _headerPtr.ref.head;
-    final view = _payloadPtr.asTypedList(capacity);
+  /// Writes one binary frame if it fits; returns false otherwise.
+  bool tryWritePacket(List<int> bytes) => _ring.tryWrite(bytes);
 
-    // Write 4-byte payload length prefix
-    final lenBytes = ByteData(4)..setUint32(0, payloadLength, Endian.big);
-    for (var i = 0; i < 4; i++) {
-      view[(currentHead + i) % capacity] = lenBytes.getUint8(i);
-    }
+  /// Reads the next binary frame, or null when the ring is empty.
+  Uint8List? readPacket() => _ring.read();
 
-    // Write binary payload bytes
-    for (var i = 0; i < payloadLength; i++) {
-      view[(currentHead + 4 + i) % capacity] = bytes[i];
-    }
+  /// Writes a UTF-8 string frame (same backpressure as [writePacket]).
+  void writeString(String text) => writePacket(utf8.encode(text));
 
-    _headerPtr.ref.head = (currentHead + 4 + payloadLength) % capacity;
-    _headerPtr.ref.status = 1; // Signal Ready
-  }
+  /// Writes a UTF-8 string frame if it fits; returns false otherwise.
+  bool tryWriteString(String text) => tryWritePacket(utf8.encode(text));
 
-  /// Reads a binary payload frame directly from shared RAM pages.
-  Uint8List? readPacket() {
-    final currentHead = _headerPtr.ref.head;
-    final currentTail = _headerPtr.ref.tail;
-
-    if (currentHead == currentTail) return null; // No data available
-
-    final view = _payloadPtr.asTypedList(capacity);
-
-    // Read 4-byte payload length prefix
-    final lenBytes = ByteData(4);
-    for (var i = 0; i < 4; i++) {
-      lenBytes.setUint8(i, view[(currentTail + i) % capacity]);
-    }
-    final payloadLength = lenBytes.getUint32(0, Endian.big);
-
-    final payload = Uint8List(payloadLength);
-    for (var i = 0; i < payloadLength; i++) {
-      payload[i] = view[(currentTail + 4 + i) % capacity];
-    }
-
-    _headerPtr.ref.tail = (currentTail + 4 + payloadLength) % capacity;
-    return payload;
-  }
-
-  /// Writes a UTF-8 text string frame directly to shared RAM pages.
-  void writeString(String text) {
-    writePacket(utf8.encode(text));
-  }
-
-  /// Reads a UTF-8 text string frame directly from shared RAM pages.
+  /// Reads the next frame as a UTF-8 string, or null when empty.
   String? readString() {
     final bytes = readPacket();
-    if (bytes == null) return null;
-    return utf8.decode(bytes);
+    return bytes == null ? null : utf8.decode(bytes);
   }
 
-  /// Closes and unmaps shared memory pointers.
-  void close() {
-    final totalSize = sizeOf<ShmHeader>() + capacity;
-    PosixShmBindings.munmap(_basePtr.cast<Void>(), totalSize);
-    final cleanName = shmName.startsWith('/') ? shmName : '/$shmName';
-    final cName = cleanName.toNativeUtf8();
-    PosixShmBindings.shmUnlink(cName);
-    calloc.free(cName);
-    final fallback = _fallbackFile;
-    if (fallback != null && fallback.existsSync()) {
-      try {
-        fallback.deleteSync();
-      } catch (_) {}
-    }
-  }
+  /// Unmaps the ring. The segment is destroyed when [unlink] is true,
+  /// defaulting to [isOwner] — an attacher's close no longer tears down the
+  /// ring its peer is still using. Idempotent.
+  void close({bool? unlink}) => _segment.close(unlink: unlink);
 }
