@@ -23,6 +23,7 @@ dependencies:
   vaster_model_rpc:
   vaster_model_rpc_server:
   vaster_policy:
+  vaster_replay:
   vaster_runtime:
   vaster_scheduler:
   vaster_vm:

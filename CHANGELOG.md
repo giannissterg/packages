@@ -47,6 +47,14 @@ Breaking DX overhaul of the AST surface, plus new runtime semantics.
   from the review text — a real claude-cli calibration run showed backends
   without schema enforcement re-reviewing the artifact and overriding the
   reviewer's verdict.
+- Consolidation: the recorded real-model SDD run is now a committed replay
+  fixture (`sdd_fidelity.replay.json`) — a zero-cost CI lock asserting the
+  frontend still lowers to the exact prompts the model saw and that usage
+  accounting replays to the token (450,302) and the cent ($0.825917).
+  `vaster run --cores` exposes the VM's virtual core count. Composable
+  `build()` expansions gained direct unit coverage in vaster_ast.
+  Note: the installed gemini CLI hangs headless (auth-gated), so its live
+  stats schema remains unverified; the parser handles both known schemas.
 - **Typed dataflow** (`Binding` / `Template` / `Cond`): the declarative
   tier's stringly register plumbing is gone. `output:` slots take `Binding`
   objects (the wire compiles away to an ISA register — Rule 1 intact);

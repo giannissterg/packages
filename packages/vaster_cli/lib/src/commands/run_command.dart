@@ -73,6 +73,13 @@ class RunCommand extends VasterCommand {
           'calls are answered from its tape — zero tokens, zero network. '
           'Overrides --backend.',
     );
+    parser.addOption(
+      'cores',
+      abbr: 'c',
+      help: 'Virtual core count for the VM scheduler: how many scheduled '
+          'quanta may be in flight concurrently (model I/O overlaps across '
+          'jobs). Default 1.',
+    );
   }
 
   @override
@@ -202,7 +209,10 @@ class RunCommand extends VasterCommand {
 
     // 3. Bootstrap and execute.
     final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: model));
+        config: VMConfig(
+      defaultModel: model,
+      cores: int.tryParse(results['cores'] as String? ?? '') ?? 1,
+    ));
     final usageMeter = _UsageMeter();
     final usageSub = vm.eventBus.on<ModelUsageEvent>().listen(usageMeter.add);
     final budget = ExecutionBudget.unlimited();
