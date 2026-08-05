@@ -1,3 +1,8 @@
+# One suite at a time: llama_backend_init and model loading race when
+# several test isolates bind libllama concurrently, and real-inference
+# determinism assertions shouldn't share CPU with each other either.
+concurrency: 1
+
 tags:
   llama:
     description: >-

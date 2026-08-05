@@ -10,14 +10,17 @@ import 'package:vaster_vm/vaster_vm.dart';
 import 'dart:io' show File, Platform;
 
 import '../vaster_command.dart';
+import 'kv_prewarmer.dart';
 
-/// A resolved backend: the model, plus the zero-copy KV controller when
-/// the backend has one (`llama`) — hosts use it to prewarm pinned regions
-/// into shared frames at park time so a resume starts warm.
+/// A resolved backend: the model, plus the zero-copy prewarm capability
+/// when the backend has one (`llama`) — hosts use it to materialize
+/// pinned regions into physical KV state at park time so a resume starts
+/// warm. The resolver owns the concrete pairing of controller and
+/// renderer; consumers see only the capability.
 final class ResolvedBackend {
   final VasterModel model;
-  final LlamaFfiKvCacheController? kvController;
-  const ResolvedBackend(this.model, {this.kvController});
+  final KvPrewarmer? kvPrewarmer;
+  const ResolvedBackend(this.model, {this.kvPrewarmer});
 }
 
 /// Fallback GGUF used by `--backend llama` when neither `--model` nor
@@ -62,7 +65,12 @@ Future<ResolvedBackend> resolveBackendModel({
     return ResolvedBackend(
       LlamaFfiVasterModel(
           worker: worker, kvController: kv, modelName: 'llama-ffi:$stem'),
-      kvController: kv,
+      kvPrewarmer: KvPrewarmer(
+        controller: kv,
+        // The alignment contract: prewarm renders exactly what this
+        // model's prompt composer renders.
+        renderMessages: LlamaFfiVasterModel.renderMessages,
+      ),
     );
   }
 

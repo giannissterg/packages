@@ -5,6 +5,7 @@ import 'package:vaster_model/vaster_model.dart';
 
 import 'kv_frame_ref.dart';
 import 'shared_memory_ring.dart';
+import 'sidecar_envelope.dart';
 
 /// No sidecar answered on the response ring within the timeout. The
 /// transport reports absence honestly — there is no fabricated fallback
@@ -101,17 +102,9 @@ class MmapVasterModel implements VasterModel {
       }
     }
 
-    final payloadMap = {
-      'action': 'generate',
-      'protocol': 2,
-      'systemInstruction': request.systemInstruction?.text,
-      'messages': request.messages.map((m) => m.toJson()).toList(),
-      if (frameRefs.isNotEmpty)
-        'kvFrames': frameRefs.map((r) => r.toJson()).toList(),
-    };
-
     // Write zero-copy request frame into shared RAM pages.
-    ring.writeString(jsonEncode(payloadMap));
+    ring.writeString(
+        jsonEncode(SidecarEnvelope.encodeGenerate(request, frameRefs)));
 
     // Poll the response ring for a sidecar answer. No answer is an error —
     // the transport never fabricates success.

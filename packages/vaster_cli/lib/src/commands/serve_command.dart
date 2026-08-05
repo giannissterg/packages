@@ -126,27 +126,29 @@ class ServeCommand extends VasterCommand {
   /// FFI engine and serves envelopes over shared-memory rings; clients
   /// connect with `MmapVasterModel` against the same ring names. Bulk
   /// context rides as named KV frames, never through the rings.
+  ///
+  /// Construction goes through the shared backend resolver — one owner
+  /// for model-path resolution and the worker/controller/model chain.
   Future<int> _serveLlamaOverRings(CommandContext context) async {
     final results = context.parsedResults;
     final out = context.stdoutSink;
 
-    final modelPath = results['model'] as String? ??
-        Platform.environment['VASTER_LLAMA_MODEL'] ??
-        defaultLlamaModelPath();
-    if (!File(modelPath).existsSync()) {
-      context.stderrSink.writeln(
-          'Error: model file not found at "$modelPath" (pass --model '
-          '<path.gguf> or set VASTER_LLAMA_MODEL).');
+    final LlamaFfiVasterModel model;
+    try {
+      final resolved = await resolveBackendModel(
+          results: results, context: context, err: context.stderrSink);
+      model = resolved.model as LlamaFfiVasterModel;
+    } on StateError catch (e) {
+      context.stderrSink.writeln('Error: ${e.message}');
       return 1;
     }
+    final worker = model.worker;
     final ringPrefix = results['ring'] as String? ?? 'vaster_llama';
 
-    final worker = await LlamaWorker.spawn(modelPath: modelPath);
-    final kv = LlamaFfiKvCacheController(worker: worker);
     final requestRing = SharedMemoryRing(shmName: '${ringPrefix}_req');
     final responseRing = SharedMemoryRing(shmName: '${ringPrefix}_res');
     final host = LlamaSidecarHost(
-      model: LlamaFfiVasterModel(worker: worker, kvController: kv),
+      model: model,
       requestRing: requestRing,
       responseRing: responseRing,
     );
@@ -154,7 +156,7 @@ class ServeCommand extends VasterCommand {
     out.writeln('======================================================================');
     out.writeln('  VASTER LLAMA SIDECAR — ZERO-COPY SHARED-MEMORY TRANSPORT');
     out.writeln('  Rings   : ${ringPrefix}_req / ${ringPrefix}_res');
-    out.writeln('  Model   : $modelPath');
+    out.writeln('  Model   : ${model.modelName}');
     out.writeln('======================================================================\n');
     out.writeln('✓ Sidecar is ONLINE — clients: MmapVasterModel on the same rings.');
     out.writeln('Press Ctrl+C to stop.\n');

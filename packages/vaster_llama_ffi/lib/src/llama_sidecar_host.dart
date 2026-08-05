@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:vaster_mmap/vaster_mmap.dart';
-import 'package:vaster_model/vaster_model.dart';
 
 import 'llama_ffi_vaster_model.dart';
 
@@ -60,40 +59,17 @@ final class LlamaSidecarHost {
   Future<String> _answer(String payload) async {
     try {
       final envelope = jsonDecode(payload) as Map<String, dynamic>;
-      if (envelope['action'] != 'generate') {
-        return jsonEncode(
-            {'error': 'unsupported action "${envelope['action']}"'});
+      final action = SidecarEnvelope.actionOf(envelope);
+      if (action != 'generate') {
+        return jsonEncode({'error': 'unsupported action "$action"'});
       }
-      final request = _decodeRequest(envelope);
-      final response = await model.generate(request);
+      // The shared codec rebuilds the request; kvFrames refs arrive as
+      // cache hints the model's controller resolves against named frames.
+      final response =
+          await model.generate(SidecarEnvelope.decodeGenerate(envelope));
       return jsonEncode(response.toJson());
     } on Object catch (e) {
       return jsonEncode({'error': e.toString()});
     }
-  }
-
-  /// Rebuilds a [ModelRequest] from the wire envelope. `kvFrames` refs
-  /// become cache hints — the model's controller re-resolves them by
-  /// fingerprint and restores state from the named frames' pages.
-  static ModelRequest _decodeRequest(Map<String, dynamic> envelope) {
-    final system = envelope['systemInstruction'] as String?;
-    final frames = (envelope['kvFrames'] as List? ?? const [])
-        .cast<Map<String, dynamic>>()
-        .map(KvFrameRef.fromJson)
-        .toList();
-    return ModelRequest(
-      systemInstruction:
-          system == null || system.isEmpty ? null : ChatMessage.system(system),
-      messages: (envelope['messages'] as List? ?? const [])
-          .cast<Map<String, dynamic>>()
-          .map(ChatMessage.fromJson)
-          .toList(),
-      cacheHints: [
-        for (final ref in frames)
-          ContextCacheHint(
-              regionId: ref.frameName,
-              contentFingerprint: ref.contentFingerprint),
-      ],
-    );
   }
 }

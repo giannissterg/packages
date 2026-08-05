@@ -10,7 +10,6 @@ import 'package:vaster_dis/tracer.dart';
 
 import '../vaster_command.dart';
 import 'backend_resolver.dart';
-import 'kv_prewarmer.dart';
 
 class RunCommand extends VasterCommand {
   @override
@@ -248,10 +247,10 @@ class RunCommand extends VasterCommand {
       out.writeln('  checkpoint: $path');
       // Zero-copy prewarm: pinned regions become shared KV frames so the
       // resuming process restores state instead of re-decoding the prefix.
-      final kv = resolved.kvController;
-      if (kv != null) {
-        final (regions, tokens) = await prewarmPinnedRegions(
-            contextManager: vm.contextManager, controller: kv);
+      final prewarmer = resolved.kvPrewarmer;
+      if (prewarmer != null) {
+        final (regions, tokens) =
+            await prewarmer.prewarmPinnedRegions(vm.contextManager);
         if (regions > 0) {
           out.writeln('  kv-prewarm: $regions pinned region(s) → '
               'shared frames ($tokens tokens)');
