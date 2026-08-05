@@ -250,3 +250,41 @@ story, since work must survive worker loss.
 | This quarter | A (durable execution), B started (`vaster check` MVP) |
 | Following | C (cache planning), D (reliability), E (eval harness) |
 | Later | F (distribution) |
+
+
+---
+
+## The road to 1.0
+
+**Definition: 1.0 means the promises are contracts.** Anything the README
+claims is enforced by a test, bounded by `vaster check`, measured by
+`vaster eval`, and stable across versions. Concretely, seven gates:
+
+1. **Frozen formats with migration guarantees.** VBC, `MachineSnapshot`,
+   `VasterContinuation`, `MachineCheckpoint`, and the replay envelope get a
+   written spec and a compatibility promise: a checkpoint captured on 1.x
+   resumes on any 1.y ≥ x (versioned migration, never silent rejection).
+2. **The portability claim becomes testable.** An ISA reference document and
+   a conformance suite a second-language runtime could pass — the suite
+   exists at 1.0 even if the second runtime does not.
+3. **Outside users exist.** Published to pub.dev, a docs site with the
+   10-minute getting-started, ≥3 runnable examples, and at least one real
+   workload owned by someone who is not us.
+4. **Real-model reliability is engineered, not hoped.** Thread D shipped:
+   declarative retry/fallback/idempotency (`Resilient` node, model chains),
+   because the prove-it run showed real backends differ from fakes in kind.
+   Gate: a benchmark set of workflows with PUBLISHED eval success rates and
+   costs on ≥2 real backends, run in CI on recorded tapes and periodically
+   live.
+5. **The bold claim redeemed or cut.** The llama.cpp sidecar moves real KV
+   state over the shm substrate end-to-end — or zero-copy is explicitly
+   descoped from 1.0 marketing. No skeleton claims in a 1.0.
+6. **Hardened surface.** Fuzzed VBC decoder, an interpolation-injection
+   suite beyond the single lock test, and a sandbox isolation audit.
+7. **Operational completeness.** TT-P4 debugger resume, OTel export,
+   per-backend calibrated estimates (including the CLI-agentic overhead
+   factor the prove-it run measured), and eval auto-respond for gated
+   pipelines.
+
+Everything else — distribution, multi-node, cache planning beyond
+measurement — is explicitly post-1.0.
