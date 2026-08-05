@@ -89,6 +89,55 @@ class ContextRegion {
     this.compression,
   });
 
+  /// Serializes the full region (checkpoint fidelity: every policy override,
+  /// the null-vs-explicit distinction included via key omission).
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'label': label,
+        'messages': [for (final m in messages) m.toJson()],
+        'estimatedTokens': estimatedTokens,
+        if (classId != null) 'classId': classId,
+        if (priority != null) 'priority': priority!.name,
+        if (lifetime != null) 'lifetime': lifetime!.name,
+        'isPinned': isPinned,
+        'utility': utility,
+        if (metadata.isNotEmpty) 'metadata': metadata,
+        if (compressibility != null) 'compressibility': compressibility!.name,
+        'order': order,
+        if (compression != null) 'compression': compression!.toJson(),
+      };
+
+  factory ContextRegion.fromJson(Map<String, dynamic> json) => ContextRegion(
+        id: json['id'] as String,
+        label: json['label'] as String,
+        messages: [
+          for (final m in json['messages'] as List? ?? const [])
+            ChatMessage.fromJson(Map<String, dynamic>.from(m as Map)),
+        ],
+        estimatedTokens: (json['estimatedTokens'] as num?)?.toInt() ?? 0,
+        classId: json['classId'] as String?,
+        priority: json['priority'] == null
+            ? null
+            : ContextPriority.values.byName(json['priority'] as String),
+        lifetime: json['lifetime'] == null
+            ? null
+            : ContextLifetime.values.byName(json['lifetime'] as String),
+        isPinned: json['isPinned'] as bool? ?? false,
+        utility: (json['utility'] as num?)?.toDouble() ?? 1.0,
+        metadata: json['metadata'] == null
+            ? const {}
+            : Map<String, dynamic>.from(json['metadata'] as Map),
+        compressibility: json['compressibility'] == null
+            ? null
+            : ContextCompressibility.values
+                .byName(json['compressibility'] as String),
+        order: (json['order'] as num?)?.toInt() ?? 0,
+        compression: json['compression'] == null
+            ? null
+            : CompressionInfo.fromJson(
+                Map<String, dynamic>.from(json['compression'] as Map)),
+      );
+
   // ── Policy resolution ────────────────────────────────────────────────────
   // Class-aware call sites resolve against the region's ContextClass; legacy
   // (class-unaware) call sites use the *OrDefault views, which reproduce the

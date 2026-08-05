@@ -51,6 +51,22 @@ class MemoryVasterFileSystem implements VasterFileSystem {
     _timestamps[norm] = DateTime.now();
   }
 
+  /// Exports every file as base64 (checkpoint capture) — binary-safe.
+  Map<String, String> exportFilesBase64() => {
+        for (final entry in _storage.entries) entry.key: base64Encode(entry.value),
+      };
+
+  /// Imports files previously exported with [exportFilesBase64], replacing
+  /// same-path entries (checkpoint restore).
+  void importFilesBase64(Map<String, String> files) {
+    final now = DateTime.now();
+    for (final entry in files.entries) {
+      final norm = _normalizePath(entry.key);
+      _storage[norm] = base64Decode(entry.value);
+      _timestamps[norm] = now;
+    }
+  }
+
   @override
   Future<FileDescriptor?> getDescriptor(String path) async {
     final norm = _normalizePath(path);

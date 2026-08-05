@@ -35,6 +35,31 @@ final class CompressionInfo {
     this.originalMessages,
   }) : compressedAt = compressedAt ?? DateTime.now();
 
+  Map<String, dynamic> toJson() => {
+        'compressorId': compressorId,
+        'tokensBefore': tokensBefore,
+        'sourceFingerprint': sourceFingerprint,
+        'compressedAt': compressedAt.toIso8601String(),
+        'lossy': lossy,
+        if (originalMessages != null)
+          'originalMessages': [for (final m in originalMessages!) m.toJson()],
+      };
+
+  factory CompressionInfo.fromJson(Map<String, dynamic> json) =>
+      CompressionInfo(
+        compressorId: json['compressorId'] as String,
+        tokensBefore: (json['tokensBefore'] as num).toInt(),
+        sourceFingerprint: json['sourceFingerprint'] as String,
+        compressedAt: DateTime.parse(json['compressedAt'] as String),
+        lossy: json['lossy'] as bool? ?? true,
+        originalMessages: json['originalMessages'] == null
+            ? null
+            : [
+                for (final m in json['originalMessages'] as List)
+                  ChatMessage.fromJson(Map<String, dynamic>.from(m as Map)),
+              ],
+      );
+
   @override
   String toString() =>
       'CompressionInfo($compressorId, ${tokensBefore}tok before, lossy: $lossy)';

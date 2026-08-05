@@ -56,6 +56,20 @@ class ResourceTracker {
   }
 
   /// Increments tool call count by [count] and checks quota limit.
+  /// Restores previously consumed meters (checkpoint resume). Sets raw
+  /// counters WITHOUT quota checks: the values were legal when captured, and
+  /// a resume must not re-trip a quota the original run already survived —
+  /// the next real consumption enforces as usual.
+  void restoreConsumed({
+    required int tokens,
+    required double cost,
+    required int toolCalls,
+  }) {
+    _consumedTokens = tokens;
+    _consumedCost = cost;
+    _toolCallCount = toolCalls;
+  }
+
   void recordToolCall({int count = 1}) {
     _toolCallCount += count;
     if (_quota.maxToolCallsPerTask != null && _toolCallCount > _quota.maxToolCallsPerTask!) {
