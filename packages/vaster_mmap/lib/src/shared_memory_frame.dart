@@ -107,6 +107,41 @@ final class SharedMemoryFrame {
     return SharedMemoryFrame._(segment, existingLength, header.ref.meta);
   }
 
+  /// Creates the named frame sized for a [payloadLength]-byte payload the
+  /// caller will fill *after* creation — through [payloadPointer] (native
+  /// writers like `llama_state_seq_get_data`) or [bytes]. When a peer
+  /// already materialized the name, validates and attaches exactly like
+  /// [create]; check [isOwner] to know whether filling is yours to do.
+  ///
+  /// Single-writer discipline: the frame is publishable to peers only once
+  /// the owner's fill completes — same content-at-rest contract as [create],
+  /// which fills before returning.
+  factory SharedMemoryFrame.allocate(String name,
+      {required int payloadLength, int meta = 0}) {
+    final segment =
+        ShmSegment.open(name: name, size: _headerSize + payloadLength);
+    final header = segment.base.cast<FrameHeader>();
+
+    if (segment.isOwner) {
+      frameTag.stamp(segment);
+      header.ref
+        ..payloadLength = payloadLength
+        ..meta = meta;
+      return SharedMemoryFrame._(segment, payloadLength, meta);
+    }
+
+    frameTag.validate(segment);
+    final existingLength = header.ref.payloadLength;
+    if (existingLength != payloadLength) {
+      segment.close(unlink: false);
+      throw StateError(
+          'Frame "$name" already exists with a $existingLength-byte payload; '
+          'refusing a $payloadLength-byte allocation — '
+          'content-addressed names must not collide.');
+    }
+    return SharedMemoryFrame._(segment, existingLength, header.ref.meta);
+  }
+
   /// Attaches to an existing named frame. Probes the header first (touching
   /// only the segment's first page), learns the payload length, then maps in
   /// full. Throws [StateError] when the frame does not exist or the segment
@@ -131,6 +166,13 @@ final class SharedMemoryFrame {
 
   /// Zero-copy view of the payload — backed directly by the shared pages.
   Uint8List get bytes => _segment.view(_headerSize, payloadLength);
+
+  /// Native address of the payload region — for FFI writers/readers that
+  /// move state directly between an inference engine and the shared pages
+  /// (e.g. `llama_state_seq_get_data`/`set_data`) without staging through
+  /// the Dart heap. Valid for [payloadLength] bytes until [close].
+  Pointer<Uint8> get payloadPointer =>
+      Pointer<Uint8>.fromAddress(_segment.base.address + _headerSize);
 
   /// Detaches from the frame; with [unlink] the underlying segment is
   /// destroyed (eviction). Detach is the default for creator and attacher

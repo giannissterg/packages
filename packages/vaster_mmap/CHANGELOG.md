@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- `SharedMemoryFrame.allocate` — create a frame at an exact payload size and
+  fill it *after* creation, and `SharedMemoryFrame.payloadPointer` — the
+  native address of the payload region. Together they are the FFI write
+  path: an inference engine's state-export call writes directly into the
+  shared pages with no Dart-heap staging (ZC-P1).
+- Cross-isolate substrate proofs: a genuinely parallel producer isolate
+  attaching segments/rings/frames by name through the full `shm_open`
+  ladder — SPSC publication order under real concurrency, duplex
+  request/response, attacher-close-never-unlinks, allocate-attach
+  idempotency.
+
 ## 0.3.0
 
 - **Composition over parallel monoliths** across the whole package:
