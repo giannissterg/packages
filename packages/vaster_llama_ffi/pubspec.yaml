@@ -9,8 +9,12 @@ environment:
 
 dependencies:
   ffi: ^2.1.0
+  vaster_kv:
+    path: ../vaster_kv
   vaster_mmap:
     path: ../vaster_mmap
+  vaster_model:
+    path: ../vaster_model
 
 dev_dependencies:
   lints: ^6.0.0

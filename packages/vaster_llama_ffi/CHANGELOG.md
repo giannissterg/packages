@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- ZC-P3: the zero-copy model layer.
+  - `LlamaFfiKvCacheController` — `KvCacheController` whose frames hold
+    real KV tensor state: materialize prefills and exports directly into a
+    content-addressed frame's pages; restore hands attached pages back to
+    the engine; lookup falls back to named-segment attach (cross-process
+    discovery); evict unlinks. Idempotent per fingerprint.
+  - `LlamaFfiVasterModel` — `VasterModel` honoring cache hints
+    *physically*: a resolving hint restores KV state from shared pages and
+    only the prompt remainder is decoded. Engine-measured usage
+    (`cacheReadTokenCount` = skipped prefix tokens); prompt composition
+    keeps stable content first (prefix trust boundary documented, MMU
+    token-exact validation lands in ZC-P5). Proven by test: warm output
+    is token-identical to cold on stories15M.
+  - Worker gains `decodeText`, `prefillContinuation` (restored-prefix
+    reuse incl. the exact-cover tail-re-decode case), `generateSteps`;
+    engine gains `dropTail`.
+
 - Initial package (ZC-P2): in-process llama.cpp inference over `dart:ffi`.
   - `LlamaBindings` — hand-written symbol surface transcribed from the
     installed `llama.h` (brew build 10280, validated by the ZC-P0 probe);

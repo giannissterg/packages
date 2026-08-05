@@ -97,6 +97,30 @@ final class LlamaWorker {
   Future<List<int>> tokenize(String text) async =>
       ((await _request('tokenize', {'text': text})) as List).cast<int>();
 
+  /// Tokenizes and decodes [text] into the sequence as-is (no reuse
+  /// logic). Returns the token count decoded.
+  Future<int> decodeText(String text) async =>
+      await _request('decodeText', {'text': text}) as int;
+
+  /// Prefills [text], reusing whatever prefix the sequence already holds
+  /// (a restored KV state): tokens `[0, tokensDecoded)` are assumed to be
+  /// the restored prefix and only the remainder is decoded. Returns
+  /// `(promptTokens, reusedTokens)`. With an empty sequence this is a
+  /// plain full prefill (`reusedTokens == 0`).
+  Future<(int, int)> prefillContinuation(String text) async {
+    final r = (await _request('prefillContinuation', {'text': text}))! as List;
+    return (r[0] as int, r[1] as int);
+  }
+
+  /// Greedily generates from the current logits. Returns
+  /// `(text, generatedTokens, hitLimit)` — [hitLimit] when [maxTokens] or
+  /// the context window stopped generation rather than end-of-generation.
+  Future<(String, int, bool)> generateSteps({int maxTokens = 64}) async {
+    final r =
+        (await _request('generateSteps', {'maxTokens': maxTokens}))! as List;
+    return (r[0] as String, r[1] as int, r[2] as bool);
+  }
+
   /// Exports sequence state directly into a shared-memory frame named
   /// [frameName] (created at exact state size; `meta` holds the token
   /// count). Returns `(stateBytes, tokenCount)`.
@@ -209,6 +233,44 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
           maxTokens: request['maxTokens']! as int);
     case 'tokenize':
       return engine.tokenize(request['text']! as String);
+    case 'decodeText':
+      final tokens = engine.tokenize(request['text']! as String);
+      engine.prefill(tokens);
+      return tokens.length;
+    case 'prefillContinuation':
+      final all = engine.tokenize(request['text']! as String);
+      var reused = engine.tokensDecoded;
+      if (reused > all.length) {
+        // The restored prefix is longer than this prompt — reuse is
+        // impossible; start cold rather than decode at wrong positions.
+        engine.reset();
+        reused = 0;
+      }
+      if (reused == all.length && reused > 0) {
+        // Prompt == restored prefix exactly. Logits don't travel with KV
+        // state, so re-decode the final token to regenerate them.
+        engine.dropTail(1);
+        reused = engine.tokensDecoded;
+      }
+      engine.prefill(all.sublist(engine.tokensDecoded));
+      return [all.length, reused];
+    case 'generateSteps':
+      final maxTokens = request['maxTokens']! as int;
+      final out = StringBuffer();
+      var generated = 0;
+      var hitLimit = true; // loop exits without a break == limit reached
+      for (var i = 0; i < maxTokens; i++) {
+        final token = engine.sampleGreedy();
+        if (engine.isEndOfGeneration(token)) {
+          hitLimit = false;
+          break;
+        }
+        out.write(engine.pieceOf(token));
+        generated++;
+        if (engine.tokensDecoded >= engine.contextLength) break;
+        engine.decodeOne(token);
+      }
+      return [out.toString(), generated, hitLimit];
     case 'exportState':
       final frameName = request['frame']! as String;
       final size = engine.stateSize;

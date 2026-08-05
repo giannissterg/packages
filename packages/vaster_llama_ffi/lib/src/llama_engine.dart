@@ -281,6 +281,18 @@ final class LlamaEngine {
     }
   }
 
+  /// Removes the last [count] tokens' KV entries from the sequence — used
+  /// to re-decode a tail token and regenerate logits when a restored
+  /// prefix already covers the whole prompt (logits don't travel with
+  /// state).
+  void dropTail(int count) {
+    _checkLive();
+    final from = (_tokensDecoded - count).clamp(0, _tokensDecoded);
+    _b.memorySeqRm(_memory, 0, from, -1);
+    _tokensDecoded = from;
+    _logitsReady = false;
+  }
+
   /// Clears sequence 0 — an empty context, ready for a fresh prefill.
   void reset() {
     _checkLive();

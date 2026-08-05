@@ -1,0 +1,128 @@
+import 'package:vaster_model/vaster_model.dart';
+
+import 'llama_engine.dart';
+import 'llama_ffi_kv_cache_controller.dart';
+import 'llama_worker.dart';
+
+/// [VasterModel] backed by in-process llama.cpp inference ([LlamaWorker])
+/// with zero-copy KV reuse through shared-memory frames.
+///
+/// Cache hints are honored physically: a hint whose fingerprint resolves
+/// through the [kvController] restores real KV state from an attached
+/// frame's pages, and only the prompt's remainder is decoded. Usage is
+/// engine-measured — `cacheReadTokenCount` is the number of prompt tokens
+/// whose decode was skipped because their state came from the frame.
+///
+/// ### Prefix trust boundary
+/// KV state is positional: reuse assumes the composed prompt's leading
+/// `tokenCount` tokens equal the materialized content's tokens.
+/// [composePrompt] renders stable content (system instruction, earlier
+/// turns) first to keep prefixes byte-identical across calls — the same
+/// convention as the HTTP backend. Token-exact prefix validation arrives
+/// with the ContextMmu wiring (ZC-P5); until then a mismatched hint
+/// produces a wrong-context completion, not a crash, and only if its
+/// fingerprint collides — fingerprints are content hashes, so honest
+/// hints are safe.
+final class LlamaFfiVasterModel implements VasterModel {
+  final LlamaWorker worker;
+
+  /// When present, cache hints restore real KV state; when null, hints
+  /// are ignored and every call decodes cold.
+  final LlamaFfiKvCacheController? kvController;
+
+  @override
+  final String modelName;
+
+  @override
+  final ModelCapabilities capabilities;
+
+  /// Generation cap when the request's `GenerationConfig` doesn't set one.
+  final int defaultMaxOutputTokens;
+
+  LlamaFfiVasterModel({
+    required this.worker,
+    this.kvController,
+    this.modelName = 'llama-ffi',
+    int maxContextTokens = 2048,
+    this.defaultMaxOutputTokens = 256,
+  }) : capabilities = ModelCapabilities(
+          maxContextTokens: maxContextTokens,
+          maxOutputTokens: defaultMaxOutputTokens,
+          supportsStreaming: true,
+          supportsFunctionCalling: false,
+          supportsVision: false,
+          supportsSystemInstruction: true,
+          supportsReasoning: false,
+          reportsCostUsd: false,
+        );
+
+  /// Flattens the typed conversation into a plain prompt. Stable content
+  /// (system instruction, earlier turns) renders first so materialized
+  /// prefixes stay byte-identical across calls — required for KV reuse.
+  static String composePrompt(ModelRequest request) {
+    final buffer = StringBuffer();
+    final system = request.systemInstruction?.text.trim();
+    if (system != null && system.isNotEmpty) {
+      buffer.writeln(system);
+      buffer.writeln();
+    }
+    for (final message in request.messages) {
+      final text = message.text.trim();
+      if (text.isEmpty) continue;
+      buffer.writeln('${message.role.name}: $text');
+    }
+    buffer.write('model:');
+    return buffer.toString();
+  }
+
+  @override
+  Future<ModelResponse> generate(ModelRequest request) async {
+    final prompt = composePrompt(request);
+    await worker.reset();
+
+    // Physical cache restore: first hint whose frame exists wins.
+    final kv = kvController;
+    if (kv != null) {
+      for (final hint in request.cacheHints) {
+        final handle = await kv.lookup(hint.contentFingerprint);
+        if (handle == null) continue;
+        try {
+          await kv.restore(handle);
+        } on LlamaStateIncompatibleException {
+          continue; // stale build/model — fall through to a cold decode
+        }
+        break;
+      }
+    }
+
+    final (promptTokens, reusedTokens) =
+        await worker.prefillContinuation(prompt);
+    final maxTokens =
+        request.generationConfig.maxOutputTokens ?? defaultMaxOutputTokens;
+    final (text, generatedTokens, hitLimit) =
+        await worker.generateSteps(maxTokens: maxTokens);
+
+    return ModelResponse(
+      message: ChatMessage.model(text),
+      finishReason: hitLimit ? FinishReason.maxTokens : FinishReason.stop,
+      usage: UsageMetadata(
+        promptTokenCount: promptTokens,
+        candidatesTokenCount: generatedTokens,
+        cacheReadTokenCount: reusedTokens,
+        source: UsageSource.measured,
+      ),
+    );
+  }
+
+  @override
+  Stream<ModelResponseChunk> generateStream(ModelRequest request) async* {
+    // One cumulative chunk — honest streaming (token-by-token across the
+    // isolate channel) is deferred until something needs it.
+    final response = await generate(request);
+    yield ModelResponseChunk(
+      textDelta: response.text,
+      finishReason: response.finishReason,
+      usage: response.usage,
+    );
+  }
+}
