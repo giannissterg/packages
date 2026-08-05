@@ -777,9 +777,11 @@ void main() {
       expect(budget.consumedTokens, greaterThan(0));
     });
 
-    test('Extract on a missing key leaves the target unset (documented '
-        'tolerance)', () async {
-      final (runtime, _, _) = await boot();
+    test('Extract on a missing key leaves the target unset AND publishes a '
+        'typed warning', () async {
+      final (runtime, vm, _) = await boot();
+      final warnings = <RuntimeWarningEvent>[];
+      vm.eventBus.on<RuntimeWarningEvent>().listen(warnings.add);
       final program = compiler.compile(const Pipeline(
         name: 'extract_miss',
         children: [
@@ -796,9 +798,16 @@ void main() {
       expect(state.status, RuntimeStatus.halted,
           reason: 'a missing key is tolerated, not a trap');
       expect(state.registers.containsKey('missing'), isFalse,
-          reason: 'locked-in semantics: silent no-op leaves the register '
-              'unset (candidate for a warning event — see stress-test '
-              'findings)');
+          reason: 'locked-in semantics: a failed extraction leaves the '
+              'register unset');
+      await Future<void>.delayed(Duration.zero);
+      final miss =
+          warnings.where((w) => w.code == 'extract_key_missing').toList();
+      expect(miss, hasLength(1),
+          reason: 'tolerance without observability is how failures vanish');
+      expect(miss.single.message, contains('no_such_field'));
+      expect(miss.single.message, contains('verdict'),
+          reason: 'the warning must list the keys that WERE present');
     });
   });
 

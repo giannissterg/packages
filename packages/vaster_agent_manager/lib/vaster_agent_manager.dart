@@ -2,4 +2,5 @@
 library;
 
 export 'package:vaster_agent/vaster_agent.dart';
+export 'src/agent_lifecycle.dart';
 export 'src/agent_manager_interface.dart';

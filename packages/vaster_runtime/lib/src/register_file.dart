@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'extract_outcome.dart';
+
 /// The VM's named register bank.
 ///
 /// All data read/write operations during ISA instruction execution go through
@@ -29,21 +31,41 @@ class RegisterFile {
     _data.addAll(snapshot);
   }
 
-  /// JSON-extracts [jsonKey] from the value at [sourceVar] and writes the
-  /// result into [targetVar]. Silently no-ops on missing keys or parse errors.
-  void jsonExtract({
+  /// JSON-extracts [jsonKey] from the value at [sourceVar] into [targetVar].
+  ///
+  /// Tolerant but never silent: every failure shape is returned as a typed
+  /// [ExtractOutcome] for the caller to surface (the engine publishes runtime
+  /// warnings). On any non-[ExtractOk] outcome the target register is left
+  /// unset — locked-in semantics the stress suite asserts.
+  ExtractOutcome jsonExtract({
     required String sourceVar,
     required String jsonKey,
     required String targetVar,
   }) {
     final raw = _data[sourceVar];
-    if (raw == null) return;
+    if (raw == null) return ExtractSourceMissing(sourceVar: sourceVar);
+
+    final Object? decoded;
     try {
-      final decoded = raw is Map ? raw : jsonDecode(raw.toString());
-      if (decoded is Map && decoded.containsKey(jsonKey)) {
-        _data[targetVar] = decoded[jsonKey];
-      }
-    } catch (_) {}
+      decoded = raw is Map ? raw : jsonDecode(raw.toString());
+    } on FormatException catch (e) {
+      return ExtractParseFailure(sourceVar: sourceVar, detail: e.message);
+    }
+    if (decoded is! Map) {
+      return ExtractParseFailure(
+          sourceVar: sourceVar,
+          detail: 'value is ${decoded.runtimeType}, not a JSON object');
+    }
+    if (!decoded.containsKey(jsonKey)) {
+      return ExtractKeyMissing(
+        sourceVar: sourceVar,
+        jsonKey: jsonKey,
+        availableKeys: [for (final k in decoded.keys) k.toString()],
+      );
+    }
+
+    _data[targetVar] = decoded[jsonKey];
+    return ExtractOk(decoded[jsonKey]);
   }
 
   /// Concatenates the string values of [sourceVars] (in order) into [targetVar].

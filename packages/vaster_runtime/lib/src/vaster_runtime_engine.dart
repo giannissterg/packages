@@ -20,6 +20,7 @@ import 'package:vaster_vm_api/vaster_vm_api.dart';
 import 'cache_hint_tracker.dart';
 import 'call_stack.dart';
 import 'decision_arbiter.dart';
+import 'extract_outcome.dart';
 import 'hitl_controller.dart';
 import 'policy_guard.dart';
 import 'register_file.dart';
@@ -117,6 +118,16 @@ class VasterRuntime {
 
   /// ISA `${name}` register interpolation (see RegisterInterpolation spec).
   final RegisterInterpolator _interpolator;
+
+  /// Publishes one extraction warning (same pattern as unresolved
+  /// interpolation: tolerated at runtime, visible in telemetry).
+  void _warnExtract(String code, String message) =>
+      vm.eventBus.publish(RuntimeWarningEvent(
+        eventId: 'evt_warn_${code}_$_pc',
+        code: code,
+        message: message,
+        pc: _pc,
+      ));
 
   /// Resolves an interpolated instruction field, surfacing unresolvable
   /// references as runtime warnings instead of failing.
@@ -932,11 +943,34 @@ class VasterRuntime {
         _registers.write(op.targetVar, _compare(left, op.operator, right));
 
       case JsonExtractOp op:
-        _registers.jsonExtract(
+        // Tolerant but observable: a failed extraction never traps (model
+        // output is untrusted), but each failure shape publishes a typed
+        // warning at the point of failure instead of surfacing later as a
+        // mystery unresolved interpolation.
+        final outcome = _registers.jsonExtract(
           sourceVar: op.sourceVar,
           jsonKey: op.jsonKey,
           targetVar: op.targetVar,
         );
+        switch (outcome) {
+          case ExtractOk():
+            break;
+          case ExtractSourceMissing(:final sourceVar):
+            _warnExtract('extract_source_missing',
+                'JsonExtract source register "$sourceVar" is unset.');
+          case ExtractParseFailure(:final sourceVar, :final detail):
+            _warnExtract('extract_parse_error',
+                'JsonExtract source "$sourceVar" is not a JSON object: $detail');
+          case ExtractKeyMissing(
+              :final sourceVar,
+              :final jsonKey,
+              :final availableKeys
+            ):
+            _warnExtract(
+                'extract_key_missing',
+                'JsonExtract key "$jsonKey" not found in "$sourceVar" '
+                '(available: ${availableKeys.join(', ')}).');
+        }
 
       case ConcatRegisterOp op:
         _registers.concat(targetVar: op.targetVar, sourceVars: op.sourceVars);

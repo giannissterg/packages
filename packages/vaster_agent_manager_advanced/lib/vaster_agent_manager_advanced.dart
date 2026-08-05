@@ -3,3 +3,4 @@ library;
 
 export 'package:vaster_agent_manager/vaster_agent_manager.dart';
 export 'src/advanced_agent_manager.dart';
+export 'src/agent_mailbox.dart';

@@ -1,5 +1,12 @@
 ## Unreleased
 
+- `RegisterFile.jsonExtract` returns a sealed `ExtractOutcome`
+  (`ExtractOk` / `ExtractSourceMissing` / `ExtractParseFailure` /
+  `ExtractKeyMissing` with available keys) instead of silently no-oping;
+  the engine publishes typed `RuntimeWarningEvent`s (`extract_source_missing`,
+  `extract_parse_error`, `extract_key_missing`) while keeping the tolerant
+  no-trap semantics.
+
 - **BREAKING**: `VasterRuntime` builds its full collaborator graph eagerly in
   a factory constructor (no `late final` lazy initialization); metering routes
   through one `ModelCallMeter` (host budget + program quota) instead of six
