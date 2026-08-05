@@ -1,6 +1,6 @@
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_session/vaster_session.dart';
-import 'agent_descriptor.dart';
+import 'package:vaster_agent_descriptor/vaster_agent_descriptor.dart';
 import 'agent_output.dart';
 import 'agent_task.dart';
 

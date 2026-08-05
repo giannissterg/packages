@@ -1,4 +1,4 @@
-import 'package:vaster_agent/vaster_agent.dart';
+import 'package:vaster_agent_descriptor/vaster_agent_descriptor.dart';
 import 'human_interaction.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_policy/vaster_policy.dart';

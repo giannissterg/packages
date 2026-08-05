@@ -12,6 +12,5 @@ dependencies:
   vaster_model:
 
 dev_dependencies:
-  http_multi_server: ^3.2.1
   lints: ^6.0.0
   test: ^1.25.6

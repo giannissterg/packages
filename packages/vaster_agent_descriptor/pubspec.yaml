@@ -1,0 +1,15 @@
+name: vaster_agent_descriptor
+description: The serializable AgentDescriptor value object — a leaf shared by the agent runtime and the ISA, so the instruction set's dependency closure stays minimal.
+version: 0.2.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  vaster_policy:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

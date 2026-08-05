@@ -26,4 +26,3 @@ dev_dependencies:
   vaster_continuation:
   vaster_continuation_manager:
   vaster_model_fake:
-  vaster_policy_engine:

@@ -8,6 +8,7 @@ environment:
   sdk: ^3.13.0-282.1.beta
 
 dependencies:
+  vaster_agent_descriptor:
   vaster_model:
   vaster_policy:
   vaster_session:
