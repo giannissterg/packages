@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.0
 
 - New sealed `AgentLifecycle` (`AgentIdle` / `AgentRunning` with active
   taskId + queue depth / `AgentPaused` / `AgentTerminated`) with an

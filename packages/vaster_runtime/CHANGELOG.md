@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.0
 
 - `RegisterFile.jsonExtract` returns a sealed `ExtractOutcome`
   (`ExtractOk` / `ExtractSourceMissing` / `ExtractParseFailure` /

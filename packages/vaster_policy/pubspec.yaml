@@ -1,6 +1,6 @@
 name: vaster_policy
 description: Core capability-based security and policy domain model for Vaster VM.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

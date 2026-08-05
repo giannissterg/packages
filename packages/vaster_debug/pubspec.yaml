@@ -1,6 +1,6 @@
 name: vaster_debug
 description: Time-travel debugging for Vaster — checkpointed DebugSession over recorded envelopes with verified tape materialization.
-version: 0.2.0
+version: 0.3.0
 publish_to: none
 resolution: workspace
 

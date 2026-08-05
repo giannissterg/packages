@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - `nodes.dart` split into part files along its seams: `nodes_declarative`,
   `nodes_context`, `nodes_control_flow`, `nodes_lowering` (same library, no

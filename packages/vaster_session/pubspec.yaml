@@ -1,6 +1,6 @@
 name: vaster_session
 description: Model conversation session state, turn history, and execution binding for Vaster.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

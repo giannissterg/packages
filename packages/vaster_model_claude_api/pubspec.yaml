@@ -1,6 +1,6 @@
 name: vaster_model_claude_api
 description: Compiler-level Claude Messages API backend for the VasterModel interface — typed tool ABI, structured outputs, prompt-cache lowering, and exact token accounting.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

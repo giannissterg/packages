@@ -1,6 +1,6 @@
 name: vaster_token_estimate
 description: Heuristic token estimation for Vaster — the single home for length-based token counts, always labeled as estimates.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

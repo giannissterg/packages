@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.0
 
 - **BREAKING**: `submitProgram` requires `policy` and `budget`
   (`customBudget` renamed) — no silent unlimited-policy fallback.

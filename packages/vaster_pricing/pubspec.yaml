@@ -1,6 +1,6 @@
 name: vaster_pricing
 description: Monetary pricing for Vaster — per-token rate tables and cost resolution for model usage. Wire-reported cost always wins over computed rates.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

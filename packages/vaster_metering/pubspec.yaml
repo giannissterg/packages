@@ -1,6 +1,6 @@
 name: vaster_metering
 description: Unified model-call metering for Vaster — one pipeline resolving cost, publishing usage telemetry, and charging every meter a call must pay.
-version: 0.2.0
+version: 0.3.0
 publish_to: none
 resolution: workspace
 

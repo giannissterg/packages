@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - **Composition over parallel monoliths** across the whole package:
   - `ShmSegment.attach` — attach-only opening (throws when the segment does

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.0
 
 - `SummarizingCompressor` gains an `onUsage` hook reporting each
   summarization call's token usage to its owner — compaction is no longer

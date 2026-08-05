@@ -1,6 +1,6 @@
 name: vaster_model_rpc
 description: Out-of-process Unix Domain Socket RPC client implementation of VasterModel interface.
-version: 0.2.0
+version: 0.3.0
 publish_to: none
 resolution: workspace
 

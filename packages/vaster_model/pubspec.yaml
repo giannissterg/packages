@@ -1,6 +1,6 @@
 name: vaster_model
 description: Provider-agnostic model interfaces, messages, parts, and declarations for Vaster.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

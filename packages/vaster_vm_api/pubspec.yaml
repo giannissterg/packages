@@ -1,6 +1,6 @@
 name: vaster_vm_api
 description: The VasterVirtualMachine interface and VM configuration — the subsystem surface the runtime programs against, extracted so vaster_runtime and vaster_vm form no dependency cycle.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

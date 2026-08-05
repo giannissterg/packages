@@ -1,6 +1,6 @@
 name: vaster_tool
 description: Executable tool primitives, descriptors, and results for Vaster.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

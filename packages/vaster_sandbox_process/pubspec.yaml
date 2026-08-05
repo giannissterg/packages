@@ -1,6 +1,6 @@
 name: vaster_sandbox_process
 description: CLI Process code sandbox backend implementation.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

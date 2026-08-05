@@ -1,6 +1,6 @@
 name: vaster_policy_engine
 description: Policy evaluation engine and hierarchical containment for Vaster VM.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

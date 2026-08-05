@@ -1,6 +1,6 @@
 name: vaster_vm
 description: Master LLM Virtual Machine orchestrator combining all Vaster sub-systems.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

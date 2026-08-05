@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - `VfsSyscalls`: the single implementation of the built-in
   `write_file`/`read_file` tools, shared by the runtime's policy-gated tool

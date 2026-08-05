@@ -1,6 +1,6 @@
 name: vaster_resources
 description: Resource quotas, token limits, tool call bounds, and execution tracker for Vaster.
-version: 0.2.0
+version: 0.3.0
 
 resolution: workspace
 

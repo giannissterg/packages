@@ -1,10 +1,11 @@
 # Vaster Roadmap
 
-_Last updated: 2026-08-05, after the architectural-review sprint (AR-1..AR-5)._
+_Last updated: 2026-08-05 (evening), after the stress campaign and the
+extract/actor fixes._
 
 ## Where we are
 
-The kernel is in place and honest:
+The kernel is in place, honest, and now battle-tested:
 
 - **Full pipeline**: declarative Flutter-style AST (typed `Binding`/`Template`/`Cond`,
   scope-provided defaults) → compiler → serializable ISA (VBC binary v2) →
@@ -19,7 +20,28 @@ The kernel is in place and honest:
   and prefix-stability (`cacheStable`) invariants; class-aware linker.
 - **Determinism**: recording/replay envelopes, fingerprinted model tapes, a
   committed CI fixture, and a two-tier time-travel debugger (`vaster debug`).
-- **514 → 520 tests green**, analyzer clean, 56 workspace packages.
+- **Stress-proven**: the launch-war-room suite drives every subsystem in one
+  program across three assertion layers (static, dataflow, accounting) plus
+  adversarial waves — including a security lock on single-pass interpolation
+  and loud replay-divergence failure.
+- **Actors + sealed data**: per-agent mailbox serialization (one session, one
+  transcript, one task at a time), sealed `AgentLifecycle` and
+  `ExtractOutcome` — failure shapes are data, not silence.
+- **576 tests green**, analyzer clean, 58 workspace packages.
+
+## Evolution threads (the compounding order)
+
+1. **Lock in** — v0.3.0 tag, CI, rules.md codification. Everything after is
+   safer because of it.
+2. **Durable execution** — checkpoints → `vaster resume` → gates that survive
+   process death. The thread that changes what Vaster *is*.
+3. **`vaster check`** — binding dominance, cost bounds, policy proofs. The
+   guarantee no orchestration framework has.
+4. **Zero-copy completion** — the real llama.cpp sidecar over the (now
+   correct) ring + frame substrate; cache-aware context planning.
+5. **Illegal states unrepresentable** — sealed `TaskOutcome`, sealed runtime
+   status, typed `Schema` DSL, mailbox/inbox unification, supervisor restart
+   policies.
 
 ---
 

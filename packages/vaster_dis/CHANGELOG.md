@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.0
 
 - `ExecutionTracer` moved here from `vaster_runtime` behind the dedicated
   `package:vaster_dis/tracer.dart` entrypoint — the core disassembler barrel

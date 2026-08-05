@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.0
 
 - **Actor semantics**: tasks for the same agent are serialized FIFO through
   a per-agent `AgentMailbox` (one session, one transcript, one task at a

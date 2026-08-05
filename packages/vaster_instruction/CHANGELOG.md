@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.0
 
 - New `register_conventions.dart`: `hitlStatusRegister` / `hitlStatusSuffix`
   and `decideRationaleRegister` / `decideRationaleSuffix` — the ABI

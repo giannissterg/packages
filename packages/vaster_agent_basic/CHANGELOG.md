@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.0
 
 - New optional `onTurnUsage` construction hook reporting each model turn's
   usage (measured or labeled estimate) to the wiring owner.

@@ -1,6 +1,6 @@
 name: vaster_workspace
 description: Vaster LLM Virtual Machine Workspace.
-version: 0.2.0
+version: 0.3.0
 
 environment:
   sdk: ^3.13.0-282.1.beta
