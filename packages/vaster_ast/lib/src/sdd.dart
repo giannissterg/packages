@@ -57,6 +57,16 @@ class SddConventions {
   });
 
   String get specPath => '$root/$specFile';
+
+  /// Namespaces an artifact path's filename under the enclosing
+  /// [BindingScope]: `/workspace/spec.md` → `/workspace/checkout_spec.md`.
+  static String scopedPath(BuildContext context, String path) {
+    final ns = context.tryRead<BindingScopeData>()?.namespace ?? '';
+    if (ns.isEmpty) return path;
+    final slash = path.lastIndexOf('/');
+    return '${path.substring(0, slash + 1)}${ns}_${path.substring(slash + 1)}';
+  }
+
   String get planPath => '$root/$planFile';
   String get reviewPath => '$root/$reviewFile';
   String get verifyPath => '$root/$verifyFile';
@@ -75,19 +85,25 @@ class Clarify extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
   final int? maxQuestions;
-  final Binding output;
+
+  /// Defaults to `clarifications`, namespaced by the enclosing
+  /// [BindingScope].
+  final Binding? output;
 
   const Clarify({
     required this.topic,
     this.agent,
     this.agentId,
     this.maxQuestions,
-    this.output = const Binding('clarifications'),
+    this.output,
   }) : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
+    final output = this.output ?? context.scopedBinding('clarifications');
+    final question = context.scopedBinding('clarify_question');
+    final answer = context.scopedBinding('clarify_answer');
     return Sequence([
       InputsHeader(values: {output.name: '(nothing gathered yet)'}),
       DecideLoop(
@@ -105,7 +121,7 @@ class Clarify extends ComposableNode {
           Task(
             agent: agent,
             agentId: agentId,
-            output: const Binding('clarify_question'),
+            output: question,
             prompt: Template([
               'You are gathering requirements about: $topic\n'
                   'Clarifications so far:\n',
@@ -114,10 +130,10 @@ class Clarify extends ComposableNode {
                   'Reply with only the question.',
             ]),
           ),
-          const AskHuman(
+          AskHuman(
             requestId: 'clarify',
-            prompt: Template([Binding('clarify_question')]),
-            output: Binding('clarify_answer'),
+            prompt: Template([question]),
+            output: answer,
           ),
           Task(
             agent: agent,
@@ -128,9 +144,9 @@ class Clarify extends ComposableNode {
                   'Notes so far:\n',
               output,
               '\n\nQ: ',
-              const Binding('clarify_question'),
+              question,
               '\nA: ',
-              const Binding('clarify_answer'),
+              answer,
               '\n\nReply with the complete updated notes in Markdown.'
                   '$_documentOnly',
             ]),
@@ -177,19 +193,20 @@ class Verify extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
-    const verification = Binding('verification');
+    final verification = context.scopedBinding('verification');
     return Sequence([
       Execute(envId: envId, code: run, output: verification),
       WriteFile(
-          path: Template.text(conventions.verifyPath),
-          content: const Template([verification])),
+          path: Template.text(
+              SddConventions.scopedPath(context, conventions.verifyPath)),
+          content: Template([verification])),
       Decide(
-        prompt: const Template([
+        prompt: Template([
           'Below is the output of the verification run. Did verification '
               'pass — no failures, errors, or unmet expectations?\n\nOutput:\n',
           verification,
         ]),
-        output: const Binding('verification_verdict'),
+        output: context.scopedBinding('verification_verdict'),
         defaultPath: 'fail',
         paths: [
           DecisionPath(
@@ -218,6 +235,9 @@ class Specify extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
 
+  /// Defaults to `spec`, namespaced by the enclosing [BindingScope].
+  final Binding? output;
+
   /// Artifact path override (default: the conventions' spec path).
   final String? artifact;
 
@@ -226,13 +246,14 @@ class Specify extends ComposableNode {
     this.agent,
     this.agentId,
     this.artifact,
+    this.output,
   }) : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
-    const spec = Binding('spec');
+    final spec = output ?? context.scopedBinding('spec');
     return Sequence([
       Task(
         agent: agent,
@@ -244,8 +265,9 @@ class Specify extends ComposableNode {
             'acceptance criteria.\n\nGoal: $goal$_documentOnly'),
       ),
       WriteFile(
-          path: Template.text(artifact ?? conventions.specPath),
-          content: const Template([spec])),
+          path: Template.text(SddConventions.scopedPath(
+              context, artifact ?? conventions.specPath)),
+          content: Template([spec])),
     ]);
   }
 }
@@ -257,6 +279,9 @@ class Specify extends ComposableNode {
 class Plan extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
+
+  /// Defaults to `plan`, namespaced by the enclosing [BindingScope].
+  final Binding? output;
 
   /// Spec artifact to read (default: the conventions' spec path).
   final String? from;
@@ -275,17 +300,20 @@ class Plan extends ComposableNode {
     this.from,
     this.artifact,
     this.addressing,
+    this.output,
   }) : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
-    const specDoc = Binding('spec_doc');
-    const plan = Binding('plan');
+    final specDoc = context.scopedBinding('spec_doc');
+    final plan = output ?? context.scopedBinding('plan');
     return Sequence([
       ReadFile(
-          path: Template.text(from ?? conventions.specPath), output: specDoc),
+          path: Template.text(SddConventions.scopedPath(
+              context, from ?? conventions.specPath)),
+          output: specDoc),
       Task(
         agent: agent,
         agentId: agentId,
@@ -305,8 +333,9 @@ class Plan extends ComposableNode {
         ]),
       ),
       WriteFile(
-          path: Template.text(artifact ?? conventions.planPath),
-          content: const Template([plan])),
+          path: Template.text(SddConventions.scopedPath(
+              context, artifact ?? conventions.planPath)),
+          content: Template([plan])),
     ]);
   }
 }
@@ -357,10 +386,12 @@ class Implement extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
+    final planDoc = context.scopedBinding('plan_doc');
     return Sequence([
       ReadFile(
-          path: Template.text(from ?? conventions.planPath),
-          output: const Binding('plan_doc')),
+          path: Template.text(SddConventions.scopedPath(
+              context, from ?? conventions.planPath)),
+          output: planDoc),
       FanOut(
         tasks: [
           for (final ws in workstreams)
@@ -371,7 +402,7 @@ class Implement extends ComposableNode {
               prompt: 'Execute your workstream of the implementation plan '
                   'below. Own it end to end and produce the deliverable in '
                   'Markdown.\n\nYour workstream: ${ws.focus}\n\n'
-                  'Plan:\n\${plan_doc}$_documentOnly',
+                  'Plan:\n\${${planDoc.name}}$_documentOnly',
             ),
         ],
       ),
@@ -431,6 +462,13 @@ class Review extends ComposableNode {
   /// Review-round bound when [revise] is set.
   final int? maxRounds;
 
+  /// Defaults to `review`, namespaced by the enclosing [BindingScope].
+  final Binding? output;
+
+  /// Defaults to `review_verdict`, namespaced by the enclosing
+  /// [BindingScope].
+  final Binding? verdict;
+
   const Review({
     this.agent,
     this.agentId,
@@ -442,6 +480,8 @@ class Review extends ComposableNode {
     this.onRevise = const [],
     this.revise,
     this.maxRounds,
+    this.output,
+    this.verdict,
   })  : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId'),
         assert(revise == null || !gate,
@@ -452,9 +492,11 @@ class Review extends ComposableNode {
     assert(revise == null || onRevise.isEmpty,
         'Provide either revise (loop) or onRevise (terminal), not both');
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
-    final target = of ?? conventions.planPath;
-    const reviewTarget = Binding('review_target');
-    const review = Binding('review');
+    final target =
+        SddConventions.scopedPath(context, of ?? conventions.planPath);
+    final reviewTarget = context.scopedBinding('review_target');
+    final review = output ?? context.scopedBinding('review');
+    final reviewVerdict = verdict ?? context.scopedBinding('review_verdict');
     final reviewSteps = <VasterNode>[
       ReadFile(path: Template.text(target), output: reviewTarget),
       Task(
@@ -473,13 +515,14 @@ class Review extends ComposableNode {
         ]),
       ),
       WriteFile(
-          path: Template.text(artifact ?? conventions.reviewPath),
-          content: const Template([review])),
+          path: Template.text(SddConventions.scopedPath(
+              context, artifact ?? conventions.reviewPath)),
+          content: Template([review])),
     ];
     // Calibration note (claude-cli recording, 2026-08-04): backends without
     // schema enforcement will happily re-review the artifact and override the
     // reviewer's verdict. The decider must apply the review, not redo it.
-    const decidePrompt = Template([
+    final decidePrompt = Template([
       'Based on this review, should the artifact be approved or sent back '
           'for revision? Approve unless the review names blocking issues. '
           'Do not re-review the artifact yourself — judge only from the '
@@ -514,7 +557,7 @@ class Review extends ComposableNode {
         ...reviewSteps,
         DecideLoop(
           prompt: decidePrompt,
-          output: const Binding('review_verdict'),
+          output: reviewVerdict,
           body: const [],
           continueLabel: 'revise',
           continueDescription: reviseDescription,
@@ -535,7 +578,7 @@ class Review extends ComposableNode {
       ...reviewSteps,
       Decide(
         prompt: decidePrompt,
-        output: const Binding('review_verdict'),
+        output: reviewVerdict,
         defaultPath: 'approve',
         paths: [
           DecisionPath(

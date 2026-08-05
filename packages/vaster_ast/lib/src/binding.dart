@@ -134,3 +134,44 @@ final class CondNot extends Cond {
   final Cond inner;
   const CondNot._(this.inner) : super._();
 }
+
+/// Namespace carrier injected by [BindingScope]; composables mint their
+/// *default* bindings through `context.scopedBinding(...)` so explicit
+/// [Binding] declarations are the exception (cross-scope wiring), not the
+/// rule — the `Theme.of` pattern applied to dataflow.
+final class BindingScopeData {
+  final String namespace;
+  const BindingScopeData(this.namespace);
+}
+
+/// Scopes default binding names (and phase artifact conventions) for the
+/// wrapped subtree. Nested scopes compose (`outer_inner`).
+///
+/// ```dart
+/// BindingScope(
+///   namespace: 'checkout',
+///   child: Sequence([
+///     Specify(goal: ...),   // binds checkout_spec
+///     Plan(),               // reads it from the same scope
+///     Review(),             // checkout_review / checkout_review_verdict
+///   ]),
+/// )
+/// ```
+class BindingScope extends ComposableNode {
+  final String namespace;
+  final VasterNode child;
+
+  const BindingScope({required this.namespace, required this.child});
+
+  @override
+  VasterNode build(BuildContext context) {
+    final parent = context.tryRead<BindingScopeData>();
+    final full = parent == null || parent.namespace.isEmpty
+        ? namespace
+        : '${parent.namespace}_$namespace';
+    return Provider<BindingScopeData>(
+      value: BindingScopeData(full),
+      children: [child],
+    );
+  }
+}

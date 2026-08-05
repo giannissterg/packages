@@ -65,6 +65,13 @@ class BuildContext {
     return read<T>();
   }
 
+  /// Mints a [Binding] with [name], namespaced by the enclosing
+  /// [BindingScope] (if any). Composables use this for their DEFAULT
+  /// bindings so scopes compose without collisions; explicit Binding
+  /// parameters always win over scoped defaults.
+  Binding scopedBinding(String name) =>
+      Binding(name).inNamespace(tryRead<BindingScopeData>()?.namespace ?? '');
+
   /// Reads a typed value of [T] or returns `null` if not provided.
   T? tryRead<T>() => typedValues[T] as T?;
 
