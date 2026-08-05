@@ -114,8 +114,8 @@ class AdvancedAgentManager implements AgentManager {
   Future<VasterAgent> createAgent({
     required AgentDescriptor descriptor,
     required VasterModel model,
-    ContextManager? contextManager,
-    ToolManager? toolManager,
+    required ContextManager contextManager,
+    required ToolManager toolManager,
     String? parentAgentId,
   }) async {
     if (parentAgentId != null) {
@@ -126,11 +126,11 @@ class AdvancedAgentManager implements AgentManager {
       }
     }
 
-    final sessionId = 'sess_${descriptor.agentId}';
+    final sessionId = AgentDescriptor.sessionIdFor(descriptor.agentId);
     final session = await sessionManager.createSession(
       sessionId: sessionId,
       model: model,
-      contextManager: contextManager ?? BasicContextManager(),
+      contextManager: contextManager,
     );
 
     // Project the agent's system instruction into the heap as a system-class
@@ -151,7 +151,7 @@ class AdvancedAgentManager implements AgentManager {
       descriptor: descriptor,
       session: session,
       resourceTracker: resourceTracker,
-      toolManager: toolManager ?? BasicToolManager(),
+      toolManager: toolManager,
       onTurnUsage: onTurnUsage,
     );
 

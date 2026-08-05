@@ -10,6 +10,7 @@ environment:
 dependencies:
   vaster_context:
   vaster_domain:
+  vaster_instruction:
   vaster_model:
 
 dev_dependencies:

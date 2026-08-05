@@ -4,6 +4,8 @@ import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
+import 'package:vaster_context_manager/vaster_context_manager.dart';
+import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
 void main() {
   group('AdvancedAgentManager', () {
@@ -37,6 +39,8 @@ void main() {
           systemInstruction: 'Root',
         ),
         model: fakeModel,
+        contextManager: BasicContextManager(),
+        toolManager: BasicToolManager(),
       );
 
       final childAg = await agentManager.createAgent(
@@ -47,6 +51,8 @@ void main() {
           systemInstruction: 'Worker',
         ),
         model: fakeModel,
+        contextManager: BasicContextManager(),
+        toolManager: BasicToolManager(),
         parentAgentId: rootAg.agentId,
       );
 
@@ -78,6 +84,8 @@ void main() {
           systemInstruction: 'W1',
         ),
         model: fakeModel,
+        contextManager: BasicContextManager(),
+        toolManager: BasicToolManager(),
       );
 
       await agentManager.createAgent(
@@ -88,6 +96,8 @@ void main() {
           systemInstruction: 'W2',
         ),
         model: fakeModel,
+        contextManager: BasicContextManager(),
+        toolManager: BasicToolManager(),
       );
 
       final outputs = await agentManager.dispatchParallelTasks([
@@ -112,6 +122,8 @@ void main() {
           systemInstruction: 'W',
         ),
         model: fakeModel,
+        contextManager: BasicContextManager(),
+        toolManager: BasicToolManager(),
       );
 
       await agentManager.dispatchTask(
@@ -134,17 +146,23 @@ void main() {
       final a1 = await agentManager.createAgent(
         descriptor: const AgentDescriptor(agentId: 'a1', name: 'A1', role: 'R1', systemInstruction: 'S1'),
         model: fakeModel,
+        contextManager: BasicContextManager(),
+        toolManager: BasicToolManager(),
       );
 
       final a2 = await agentManager.createAgent(
         descriptor: const AgentDescriptor(agentId: 'a2', name: 'A2', role: 'R2', systemInstruction: 'S2'),
         model: fakeModel,
+        contextManager: BasicContextManager(),
+        toolManager: BasicToolManager(),
         parentAgentId: a1.agentId,
       );
 
       final a3 = await agentManager.createAgent(
         descriptor: const AgentDescriptor(agentId: 'a3', name: 'A3', role: 'R3', systemInstruction: 'S3'),
         model: fakeModel,
+        contextManager: BasicContextManager(),
+        toolManager: BasicToolManager(),
         parentAgentId: a2.agentId,
       );
 
@@ -152,6 +170,8 @@ void main() {
         () => agentManager.createAgent(
           descriptor: const AgentDescriptor(agentId: 'a4', name: 'A4', role: 'R4', systemInstruction: 'S4'),
           model: fakeModel,
+          contextManager: BasicContextManager(),
+          toolManager: BasicToolManager(),
           parentAgentId: a3.agentId,
         ),
         throwsA(isA<StateError>()),

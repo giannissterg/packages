@@ -7,6 +7,7 @@ import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
+import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
 void main() {
   group('Multi-Subagent Context Propagation & Supervision', () {
@@ -55,6 +56,7 @@ void main() {
           systemInstruction: 'You lead the team.',
         ),
         model: fakeModel,
+        toolManager: BasicToolManager(),
         contextManager: contextManager,
       );
 
@@ -67,6 +69,7 @@ void main() {
           systemInstruction: 'You write Dart backend code.',
         ),
         model: fakeModel,
+        toolManager: BasicToolManager(),
         contextManager: contextManager,
         parentAgentId: leadAgent.agentId,
       );
@@ -80,6 +83,7 @@ void main() {
           systemInstruction: 'You write unit tests.',
         ),
         model: fakeModel,
+        toolManager: BasicToolManager(),
         contextManager: contextManager,
         parentAgentId: leadAgent.agentId,
       );

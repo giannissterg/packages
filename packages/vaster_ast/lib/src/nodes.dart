@@ -643,7 +643,7 @@ class ApprovalGate extends ComposableNode {
         timeoutMs: timeoutMs,
       ),
       When(
-        condition: Cond.isTrue(Binding('${requestId}_status')),
+        condition: Cond.isTrue(Binding(hitlStatusRegister(requestId))),
         then: onApprove,
         otherwise: onReject,
       ),

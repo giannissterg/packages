@@ -42,11 +42,16 @@ abstract interface class AgentManager {
   AgentState getAgentState(String agentId);
 
   /// Spawns a new [VasterAgent] bound to a new session in `SessionManager`.
+  ///
+  /// [contextManager] and [toolManager] are required owned collaborators
+  /// (Rule 5): the caller decides the agent's context topology and tool
+  /// surface explicitly — pass `BasicContextManager()` / `BasicToolManager()`
+  /// for a bare agent rather than relying on a hidden default.
   Future<VasterAgent> createAgent({
     required AgentDescriptor descriptor,
     required VasterModel model,
-    ContextManager? contextManager,
-    ToolManager? toolManager,
+    required ContextManager contextManager,
+    required ToolManager toolManager,
   });
 
   /// Dispatches an [AgentTask] to a target agent by ID or [AgentDescriptor].

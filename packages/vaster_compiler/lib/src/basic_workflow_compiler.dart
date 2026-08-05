@@ -544,7 +544,8 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
             ),
           ),
         );
-        ir.emit(CreateSessionOp(sessionId: 'sess_${n.role.roleId}'));
+        ir.emit(CreateSessionOp(
+            sessionId: AgentDescriptor.sessionIdFor(n.role.roleId)));
 
       case MountHeader n:
         final mount = n.mount;
@@ -595,7 +596,8 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
       case TaskExecution n:
         final reg = _bindingName(n.output, state);
-        ir.emit(SetSessionOp(sessionId: 'sess_${n.agentId}'));
+        ir.emit(
+            SetSessionOp(sessionId: AgentDescriptor.sessionIdFor(n.agentId)));
         ir.emit(
           DispatchAgentTaskOp(
             agentId: n.agentId,

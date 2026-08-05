@@ -39,6 +39,12 @@ class AgentDescriptor {
     this.metadata = const {},
   });
 
+  /// ABI naming convention: the model session provisioned for the agent with
+  /// [agentId]. The workflow compiler emits session ops against this name and
+  /// the agent manager provisions under it — both must agree, so the rule
+  /// lives here in the one leaf package every layer already imports.
+  static String sessionIdFor(String agentId) => 'sess_$agentId';
+
   Map<String, dynamic> toJson() => {
         'agentId': agentId,
         'name': name,

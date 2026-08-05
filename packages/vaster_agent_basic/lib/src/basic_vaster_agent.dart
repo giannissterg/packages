@@ -102,12 +102,23 @@ class BasicVasterAgent implements VasterAgent {
         // b. Build ModelRequest — agent owns this, not the session.
         // A responseSchema forwarded via task metadata becomes a structured-
         // output constraint (typed return value for the dispatching ISA op).
+        // Cache hints forwarded the same way become cache breakpoints on the
+        // agent's own requests — the dispatching runtime pins regions, and
+        // without this the agent's (largest) prompts never hit the cache.
         final responseSchema = task.metadata['responseSchema'];
+        final hintsMeta = task.metadata['cacheHints'];
+        final cacheHints = [
+          if (hintsMeta is List)
+            for (final h in hintsMeta)
+              if (h is Map)
+                ContextCacheHint.fromJson(Map<String, dynamic>.from(h)),
+        ];
         final request = ModelRequest(
           systemInstruction: systemInstruction,
           messages: messages,
           tools: resolvedTools,
           cancelToken: cancelToken,
+          cacheHints: cacheHints,
           generationConfig: responseSchema is Map
               ? GenerationConfig(
                   responseSchema: Map<String, dynamic>.from(responseSchema))

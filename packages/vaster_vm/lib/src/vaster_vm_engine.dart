@@ -240,18 +240,16 @@ class VasterVMEngine implements VasterVirtualMachine {
   /// runtime never schedules jobs; only hosts do.
   ProgramExecutionJob submitProgram(
     VasterProgram program, {
-    ExecutionPolicy? policy,
-    ExecutionBudget? customBudget,
+    required ExecutionPolicy policy,
+    required ExecutionBudget budget,
     TaskPriority priority = TaskPriority.normal,
   }) {
     final jobId = 'job_${_jobs.length + 1}_${program.programName}';
-    final jobBudget = customBudget ?? rootBudget.createChildBudget();
-    final activePolicy = policy ?? ExecutionPolicy.unlimited;
 
     final runtime = VasterRuntime(
       vm: this,
-      policy: activePolicy,
-      budget: jobBudget,
+      policy: policy,
+      budget: budget,
       scheduler: scheduler,
     );
 
@@ -259,7 +257,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       jobId: jobId,
       program: program,
       runtime: runtime,
-      budget: jobBudget,
+      budget: budget,
       priority: priority,
       lastState: const RuntimeState(pc: 0, status: RuntimeStatus.idle),
     );
@@ -638,7 +636,7 @@ class VasterVMEngine implements VasterVirtualMachine {
   }) async {
     resourceTracker.checkDeadline();
 
-    String targetAgentId = agentId ?? 'default_root_agent';
+    String targetAgentId = agentId ?? VasterVirtualMachine.defaultRootAgentId;
     var targetAgent = agentManager.getAgent(targetAgentId);
 
     targetAgent ??= await createAgent(

@@ -3,6 +3,8 @@ import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
+import 'package:vaster_context_manager/vaster_context_manager.dart';
+import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
 void main() async {
   print('=== Vaster Advanced Agent Manager Example ===');
@@ -28,6 +30,8 @@ void main() async {
       systemInstruction: 'Lead',
     ),
     model: model,
+    contextManager: BasicContextManager(),
+    toolManager: BasicToolManager(),
   );
 
   await manager.createAgent(
@@ -38,6 +42,8 @@ void main() async {
       systemInstruction: 'W1',
     ),
     model: model,
+    contextManager: BasicContextManager(),
+    toolManager: BasicToolManager(),
     parentAgentId: root.agentId,
   );
 

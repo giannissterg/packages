@@ -618,14 +618,17 @@ class VasterRuntime {
       case DispatchParallelTasksOp op:
         if (vm.agentManager is AdvancedAgentManager) {
           final manager = vm.agentManager as AdvancedAgentManager;
-          final dispatches = op.dispatches
-              .map((d) => (
-                    agentId: d.agentId,
-                    task: AgentTask(
-                        taskId: 'parallel_$_pc',
-                        inputPrompt: _interp(d.taskPrompt)),
-                  ))
-              .toList();
+          // Each dispatch gets its own taskId — a shared id would collide in
+          // event streams and output correlation across the parallel batch.
+          final dispatches = [
+            for (var i = 0; i < op.dispatches.length; i++)
+              (
+                agentId: op.dispatches[i].agentId,
+                task: AgentTask(
+                    taskId: 'parallel_${_pc}_$i',
+                    inputPrompt: _interp(op.dispatches[i].taskPrompt)),
+              ),
+          ];
           final outputs = await manager.dispatchParallelTasks(dispatches);
           // Parallel work is not free work: charge the summed usage of every
           // task tree (previously this path charged nothing at all).
@@ -895,7 +898,8 @@ class VasterRuntime {
         if (op.outputVar != null) {
           _registers.write(op.outputVar!, branch.label);
           if (outcome.rationale != null) {
-            _registers.write('${op.outputVar!}_rationale', outcome.rationale);
+            _registers.write(
+                decideRationaleRegister(op.outputVar!), outcome.rationale);
           }
         }
         vm.eventBus.publish(DecisionMadeEvent(

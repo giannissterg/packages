@@ -134,7 +134,16 @@ abstract interface class VasterVirtualMachine {
     String? parentAgentId,
   });
 
+  /// Agent provisioned on demand when [runAgentTask] is called with no
+  /// [agentId] — the VM's general-purpose root agent. Named here so the
+  /// get-or-create fallback is a documented ABI convention, not a magic
+  /// string buried in the engine.
+  static const String defaultRootAgentId = 'default_root_agent';
+
   /// Dispatches an agent task and enforces resource quotas.
+  ///
+  /// With no [agentId], the task goes to [defaultRootAgentId], which is
+  /// created on first use.
   Future<AgentOutput> runAgentTask(
     AgentTask task, {
     String? agentId,

@@ -232,13 +232,13 @@ class ProgramAnalyzer {
           final outputVar = request.outputVar;
           if (outputVar != null) {
             written.add(outputVar);
-            written.add('${outputVar}_status');
+            written.add(hitlStatusRegister(outputVar));
           }
         case DecideOp(:final outputVar):
           // The engine writes the chosen label and the model's rationale.
           if (outputVar != null) {
             written.add(outputVar);
-            written.add('${outputVar}_rationale');
+            written.add(decideRationaleRegister(outputVar));
           }
         case SetSessionOp(:final sessionId):
           if (!createdSessions.contains(sessionId)) {
@@ -293,8 +293,8 @@ class ProgramAnalyzer {
     // ── Unused registers (skip well-known sinks) ─────────────────────────
     for (final register in written.difference(read)) {
       if (register == '__output__' ||
-          register.endsWith('_status') ||
-          register.endsWith('_rationale')) {
+          register.endsWith(hitlStatusSuffix) ||
+          register.endsWith(decideRationaleSuffix)) {
         continue;
       }
       diagnostics.add(CompileDiagnostic(

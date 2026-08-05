@@ -35,8 +35,14 @@ void main() {
       );
 
       // Submit both programs with different priorities
-      final job1 = vm.submitProgram(program1, priority: TaskPriority.high);
-      final job2 = vm.submitProgram(program2, priority: TaskPriority.normal);
+      final job1 = vm.submitProgram(program1,
+          policy: ExecutionPolicy.unlimited,
+          budget: vm.rootBudget.createChildBudget(),
+          priority: TaskPriority.high);
+      final job2 = vm.submitProgram(program2,
+          policy: ExecutionPolicy.unlimited,
+          budget: vm.rootBudget.createChildBudget(),
+          priority: TaskPriority.normal);
 
       expect(job1.isDone, isFalse);
       expect(job2.isDone, isFalse);
@@ -72,7 +78,9 @@ void main() {
         ],
       );
 
-      final job = vm.submitProgram(program);
+      final job = vm.submitProgram(program,
+          policy: ExecutionPolicy.unlimited,
+          budget: vm.rootBudget.createChildBudget());
 
       // The submitted quantum sits in the queue in the `queued` state and its
       // completer resolves with the quantum's RuntimeState once dispatched.
@@ -106,7 +114,8 @@ void main() {
 
       final job = vm.submitProgram(
         program,
-        customBudget: ExecutionBudget(maxTokens: 0),
+        policy: ExecutionPolicy.unlimited,
+        budget: ExecutionBudget(maxTokens: 0),
       );
 
       final results = await vm.runScheduledJobs();
@@ -129,14 +138,22 @@ void main() {
         config: VMConfig(defaultModel: slowModel, cores: 2),
       );
 
-      final jobA = smpVm.submitProgram(const VasterProgram(
-        programName: 'io_a',
-        instructions: [PromptOp(promptText: 'A turn'), HaltOp()],
-      ));
-      final jobB = smpVm.submitProgram(const VasterProgram(
-        programName: 'io_b',
-        instructions: [PromptOp(promptText: 'B turn'), HaltOp()],
-      ));
+      final jobA = smpVm.submitProgram(
+        const VasterProgram(
+          programName: 'io_a',
+          instructions: [PromptOp(promptText: 'A turn'), HaltOp()],
+        ),
+        policy: ExecutionPolicy.unlimited,
+        budget: smpVm.rootBudget.createChildBudget(),
+      );
+      final jobB = smpVm.submitProgram(
+        const VasterProgram(
+          programName: 'io_b',
+          instructions: [PromptOp(promptText: 'B turn'), HaltOp()],
+        ),
+        policy: ExecutionPolicy.unlimited,
+        budget: smpVm.rootBudget.createChildBudget(),
+      );
 
       final results = await smpVm.runScheduledJobs(stepQuantum: 4);
 
@@ -168,7 +185,9 @@ void main() {
         ],
       );
 
-      final job = vm.submitProgram(program);
+      final job = vm.submitProgram(program,
+          policy: ExecutionPolicy.unlimited,
+          budget: vm.rootBudget.createChildBudget());
       final results = await vm.runScheduledJobs();
 
       expect(results[job.jobId]!.status, equals(RuntimeStatus.pausedForHuman));
