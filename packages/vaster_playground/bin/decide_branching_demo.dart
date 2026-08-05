@@ -28,18 +28,18 @@ Future<void> main() async {
     name: 'incident_triage',
     children: const [
       Decide(
-        prompt: 'An alert fired for elevated error rates on the payments '
-            'service. How should this incident be handled?',
+        prompt: Template.text('An alert fired for elevated error rates on the payments '
+            'service. How should this incident be handled?'),
         paths: [
           DecisionPath(
             label: 'auto_fix',
             description: 'transient and safe to remediate automatically',
-            children: [Prompt('Roll back the last deploy and verify.')],
+            children: [Prompt(Template.text('Roll back the last deploy and verify.'))],
           ),
           DecisionPath(
             label: 'escalate',
             description: 'potentially customer-impacting, page a human',
-            children: [Prompt('Page the on-call engineer with a summary.')],
+            children: [Prompt(Template.text('Page the on-call engineer with a summary.'))],
           ),
         ],
       ),

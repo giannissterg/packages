@@ -53,7 +53,7 @@ void main() {
           ],
           synthesize: Task(
             agentId: 'cartographer',
-            prompt: r'Merge the surveys.\nNorth: ${north}\nSouth: ${south}',
+            prompt: Template([r'Merge the surveys.\nNorth: ', Binding('north'), r'\nSouth: ', Binding('south')]),
             output: Binding('map'),
           ),
         ),
@@ -99,11 +99,11 @@ void main() {
         RefineLoop(
           worker: Task(
               agentId: 'writer',
-              prompt: r'Draft the announcement. Critique so far: ${critique}',
+              prompt: Template([r'Draft the announcement. Critique so far: ', Binding('critique')]),
               output: Binding('draft')),
           critic: Task(
               agentId: 'editor',
-              prompt: r'Critique this draft: ${draft}',
+              prompt: Template([r'Critique this draft: ', Binding('draft')]),
               output: Binding('critique')),
           maxRounds: 5,
         ),
@@ -138,18 +138,18 @@ void main() {
       roles: [role('billing_agent'), role('tech_agent')],
       children: const [
         Router(
-          prompt: 'A customer reports being double-charged after an app crash.',
+          prompt: Template.text('A customer reports being double-charged after an app crash.'),
           routes: [
             RouteCase(
                 label: 'billing',
                 description: 'payment or invoice issues',
                 agentId: 'billing_agent',
-                prompt: 'Resolve the billing issue.'),
+                prompt: Template.text('Resolve the billing issue.')),
             RouteCase(
                 label: 'technical',
                 description: 'crashes and product defects',
                 agentId: 'tech_agent',
-                prompt: 'Diagnose the crash.'),
+                prompt: Template.text('Diagnose the crash.')),
           ],
         ),
       ],
@@ -176,9 +176,9 @@ void main() {
       name: 'resilient_exhaust',
       children: const [
         Resilient(
-          child: ReadFile(path: '/nowhere/missing.txt'),
+          child: ReadFile(path: Template.text('/nowhere/missing.txt')),
           attempts: 3,
-          onExhausted: [Prompt(r'All attempts failed: ${retry_error_3}')],
+          onExhausted: [Prompt(Template([r'All attempts failed: ', Binding('retry_error_3')]))],
         ),
       ],
     ));

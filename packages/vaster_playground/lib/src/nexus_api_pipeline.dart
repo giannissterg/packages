@@ -47,8 +47,8 @@ const nexusApiPipeline = Pipeline(
 
     // Write the project brief to VFS — the single source of truth
     WriteFile(
-      path: '/workspace/brief.md',
-      content: '''
+      path: Template.text('/workspace/brief.md'),
+      content: Template.text('''
 # Nexus API — Project Brief
 
 ## Overview
@@ -74,7 +74,7 @@ The platform exposes a unified gateway for downstream microservices.
 - Database: PostgreSQL with connection pooling
 - Cache: Redis for session and rate-limit state
 - Deployment: Kubernetes on GCP
-''',
+'''),
     ),
 
     // ── Typed context injection ───────────────────────────────────────────────
@@ -117,18 +117,18 @@ The platform exposes a unified gateway for downstream microservices.
         // ── Phase 7: Human Approval Gate & Delivery Component ────────────────
         ApprovalGate(
           requestId: 'nexus_release_approval',
-          prompt: 'Approve production deployment of Nexus API release v1.0.0?',
+          prompt: Template.text('Approve production deployment of Nexus API release v1.0.0?'),
           onApprove: [
             DeliveryReportComponent(),
             WriteFile(
-              path: '/workspace/reports/delivery_report.md',
-              content: '\${delivery_report}',
+              path: Template.text('/workspace/reports/delivery_report.md'),
+              content: Template([Binding('delivery_report')]),
             ),
           ],
           onReject: [
             WriteFile(
-              path: '/workspace/reports/delivery_report.md',
-              content: 'Deployment rejected by human approval gate.',
+              path: Template.text('/workspace/reports/delivery_report.md'),
+              content: Template.text('Deployment rejected by human approval gate.'),
             ),
           ],
         ),

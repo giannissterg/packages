@@ -27,10 +27,10 @@ class SecurityAuditComponent extends ComposableNode {
   VasterNode build(BuildContext context) {
     return Transaction(
       children: [
-        ReadFile(path: sourceFilePath),
+        ReadFile(path: Template.text(sourceFilePath)),
         Task(
           agentId: auditorRoleId,
-          prompt: 'Audit $sourceFilePath for security vulnerabilities.',
+          prompt: Template.text('Audit $sourceFilePath for security vulnerabilities.'),
         ),
         const Output(),
       ],
@@ -45,7 +45,7 @@ class DbConnectComponent extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final config = context.read<DatabaseConfig>();
-    return Prompt('Connect to ${config.host}:${config.port}');
+    return Prompt(Template.text('Connect to ${config.host}:${config.port}'));
   }
 }
 
@@ -61,7 +61,7 @@ void main() {
         spec: PipelineSpec(name: 'demo'),
         children: [
           Mount(mount: StorageMount(mountPrefix: '/mem')),
-          Prompt('Hello'),
+          Prompt(Template.text('Hello')),
           Output(),
         ],
       );
@@ -145,7 +145,7 @@ void main() {
       final expanded = component.build(ctx);
 
       expect(expanded, isA<Prompt>());
-      expect((expanded as Prompt).prompt, equals('Connect to analytics.internal:9000'));
+      expect((expanded as Prompt).prompt.lower(), equals('Connect to analytics.internal:9000'));
     });
 
     test('ProviderNode.applyToContext() injects typed value preserving T', () {

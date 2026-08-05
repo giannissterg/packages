@@ -52,7 +52,7 @@ void main() {
         children: [
           Agent(
               role: architect,
-              child: Task(prompt: 'design the notes app', outputSchema: schema)),
+              child: Task(prompt: Template.text('design the notes app'), outputSchema: schema)),
         ],
       ));
 

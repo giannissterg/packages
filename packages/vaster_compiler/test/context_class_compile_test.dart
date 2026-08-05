@@ -23,9 +23,9 @@ void main() {
             ],
             child: Knowledge(
               label: 'API reference',
-              text: 'GET /v1/things returns things.',
+              text: Template.text('GET /v1/things returns things.'),
               className: 'domain_docs',
-              child: Prompt('Summarize the API.'),
+              child: Prompt(Template.text('Summarize the API.')),
             ),
           ),
         ],
@@ -56,7 +56,7 @@ void main() {
         name: 'k',
         children: [
           Knowledge(
-              label: 'Doc', text: 'x', child: Prompt('go')),
+              label: 'Doc', text: Template.text('x'), child: Prompt(Template.text('go'))),
         ],
       );
       final result = const BasicWorkflowCompiler().compileWithDiagnostics(pipeline);

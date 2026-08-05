@@ -12,9 +12,9 @@ class CodeReviewComponent extends ComposableNode {
   VasterNode build(BuildContext context) {
     return Transaction(
       children: [
-        ReadFile(path: filePath),
+        ReadFile(path: Template.text(filePath)),
         // Task automatically reads enclosing AgentRole from context!
-        const Task(prompt: 'Review the code for quality and security issues.'),
+        const Task(prompt: Template.text('Review the code for quality and security issues.')),
         const Output(),
       ],
     );
@@ -51,14 +51,14 @@ void main() {
     children: [
       // Write spec document
       const WriteFile(
-        path: '/workspace/spec.md',
-        content: '# Auth Service Spec\nImplement JWT-based authentication.',
+        path: Template.text('/workspace/spec.md'),
+        content: Template.text('# Auth Service Spec\nImplement JWT-based authentication.'),
       ),
 
       // Architect Agent Scope
       Agent(
         role: architectRole,
-        child: const Task(prompt: 'Design an Auth Service from /workspace/spec.md.'),
+        child: const Task(prompt: Template.text('Design an Auth Service from /workspace/spec.md.')),
       ),
 
       // Developer Agent Scope
@@ -66,8 +66,8 @@ void main() {
         role: developerRole,
         child: Transaction(
           children: [
-            const Task(prompt: 'Implement the Auth Service based on the design.'),
-            const WriteFile(path: '/workspace/auth.dart', content: '// Auth implementation'),
+            const Task(prompt: Template.text('Implement the Auth Service based on the design.')),
+            const WriteFile(path: Template.text('/workspace/auth.dart'), content: Template.text('// Auth implementation')),
           ],
         ),
       ),

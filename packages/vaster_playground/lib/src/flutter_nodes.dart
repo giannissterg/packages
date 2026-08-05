@@ -58,12 +58,12 @@ abstract final class AppTheme {
 
     return Transaction(children: [
       WriteFile(
-        path: '/workspace/lib/core/theme/app_colors.dart',
-        content: colorsContent,
+        path: Template.text('/workspace/lib/core/theme/app_colors.dart'),
+        content: Template.text(colorsContent),
       ),
       WriteFile(
-        path: '/workspace/lib/core/theme/app_theme.dart',
-        content: themeContent,
+        path: Template.text('/workspace/lib/core/theme/app_theme.dart'),
+        content: Template.text(themeContent),
       ),
     ]);
   }
@@ -146,8 +146,8 @@ class FlutterDomainModelNode extends ComposableNode {
 
     return Transaction(children: [
       WriteFile(
-        path: '/workspace/lib/features/$featureName/domain/${entityName.toLowerCase()}.dart',
-        content: buffer.toString(),
+        path: Template.text('/workspace/lib/features/$featureName/domain/${entityName.toLowerCase()}.dart'),
+        content: Template.text(buffer.toString()),
       ),
     ]);
   }
@@ -258,16 +258,16 @@ class ${blocName}Bloc extends Bloc<${blocName}Event, ${blocName}State> {
 
     return Transaction(children: [
       WriteFile(
-        path: '/workspace/lib/features/$featureName/presentation/bloc/${featureName}_state.dart',
-        content: stateContent,
+        path: Template.text('/workspace/lib/features/$featureName/presentation/bloc/${featureName}_state.dart'),
+        content: Template.text(stateContent),
       ),
       WriteFile(
-        path: '/workspace/lib/features/$featureName/presentation/bloc/${featureName}_event.dart',
-        content: eventContent,
+        path: Template.text('/workspace/lib/features/$featureName/presentation/bloc/${featureName}_event.dart'),
+        content: Template.text(eventContent),
       ),
       WriteFile(
-        path: '/workspace/lib/features/$featureName/presentation/bloc/${featureName}_bloc.dart',
-        content: blocContent,
+        path: Template.text('/workspace/lib/features/$featureName/presentation/bloc/${featureName}_bloc.dart'),
+        content: Template.text(blocContent),
       ),
     ]);
   }
@@ -352,8 +352,8 @@ class ${pascalFeature}Page extends StatelessWidget {
 
     return Transaction(children: [
       WriteFile(
-        path: '/workspace/lib/features/$featureName/presentation/pages/${featureName}_page.dart',
-        content: pageContent,
+        path: Template.text('/workspace/lib/features/$featureName/presentation/pages/${featureName}_page.dart'),
+        content: Template.text(pageContent),
       ),
     ]);
   }
@@ -400,8 +400,8 @@ void main() {
 
     return Transaction(children: [
       WriteFile(
-        path: '/workspace/test/features/$featureName/${featureName}_page_test.dart',
-        content: testContent,
+        path: Template.text('/workspace/test/features/$featureName/${featureName}_page_test.dart'),
+        content: Template.text(testContent),
       ),
     ]);
   }

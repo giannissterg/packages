@@ -91,10 +91,13 @@ class Clarify extends ComposableNode {
     return Sequence([
       InputsHeader(values: {output.name: '(nothing gathered yet)'}),
       DecideLoop(
-        prompt: 'You are gathering requirements about: $topic\n\n'
-            'Clarifications so far:\n\${${output.name}}\n\n'
-            'Do you have enough information to write a specification, or '
-            'should you ask another question?',
+        prompt: Template([
+          'You are gathering requirements about: $topic\n\n'
+              'Clarifications so far:\n',
+          output,
+          '\n\nDo you have enough information to write a specification, or '
+              'should you ask another question?',
+        ]),
         continueLabel: 'ask',
         continueDescription: 'important information is still missing',
         maxIterations: maxQuestions,
@@ -103,25 +106,34 @@ class Clarify extends ComposableNode {
             agent: agent,
             agentId: agentId,
             output: const Binding('clarify_question'),
-            prompt: 'You are gathering requirements about: $topic\n'
-                'Clarifications so far:\n\${${output.name}}\n\n'
-                'Ask the single most important unanswered question. Reply '
-                'with only the question.',
+            prompt: Template([
+              'You are gathering requirements about: $topic\n'
+                  'Clarifications so far:\n',
+              output,
+              '\n\nAsk the single most important unanswered question. '
+                  'Reply with only the question.',
+            ]),
           ),
           const AskHuman(
             requestId: 'clarify',
-            prompt: r'${clarify_question}',
+            prompt: Template([Binding('clarify_question')]),
             output: Binding('clarify_answer'),
           ),
           Task(
             agent: agent,
             agentId: agentId,
             output: output,
-            prompt: 'Update the clarification notes with the new exchange.\n\n'
-                'Notes so far:\n\${${output.name}}\n\n'
-                'Q: \${clarify_question}\nA: \${clarify_answer}\n\n'
-                'Reply with the complete updated notes in Markdown.'
-                '$_documentOnly',
+            prompt: Template([
+              'Update the clarification notes with the new exchange.\n\n'
+                  'Notes so far:\n',
+              output,
+              '\n\nQ: ',
+              const Binding('clarify_question'),
+              '\nA: ',
+              const Binding('clarify_answer'),
+              '\n\nReply with the complete updated notes in Markdown.'
+                  '$_documentOnly',
+            ]),
           ),
         ],
         exits: const [
@@ -146,8 +158,8 @@ class Clarify extends ComposableNode {
 /// `WriteFile(verifyPath, '${verification}')` → `Decide(pass/fail,
 /// output: const Binding('verification_verdict'), defaultPath: 'fail')`.
 class Verify extends ComposableNode {
-  /// Code or command to execute in the sandbox (supports `${...}`).
-  final String run;
+  /// Code or command to execute in the sandbox.
+  final Template run;
 
   /// Sandbox environment id; omit to inherit the enclosing [Sandbox] scope.
   final String? envId;
@@ -165,13 +177,18 @@ class Verify extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
+    const verification = Binding('verification');
     return Sequence([
-      Execute(envId: envId, code: run, output: const Binding('verification')),
-      WriteFile(path: conventions.verifyPath, content: r'${verification}'),
+      Execute(envId: envId, code: run, output: verification),
+      WriteFile(
+          path: Template.text(conventions.verifyPath),
+          content: const Template([verification])),
       Decide(
-        prompt: 'Below is the output of the verification run. Did '
-            'verification pass — no failures, errors, or unmet '
-            'expectations?\n\nOutput:\n\${verification}',
+        prompt: const Template([
+          'Below is the output of the verification run. Did verification '
+              'pass — no failures, errors, or unmet expectations?\n\nOutput:\n',
+          verification,
+        ]),
         output: const Binding('verification_verdict'),
         defaultPath: 'fail',
         paths: [
@@ -215,16 +232,20 @@ class Specify extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
+    const spec = Binding('spec');
     return Sequence([
       Task(
         agent: agent,
         agentId: agentId,
-        output: const Binding('spec'),
-        prompt: 'Write a complete, reviewable specification in Markdown for '
+        output: spec,
+        prompt: Template.text(
+            'Write a complete, reviewable specification in Markdown for '
             'the following goal. Cover scope, requirements, non-goals, and '
-            'acceptance criteria.\n\nGoal: $goal$_documentOnly',
+            'acceptance criteria.\n\nGoal: $goal$_documentOnly'),
       ),
-      WriteFile(path: artifact ?? conventions.specPath, content: r'${spec}'),
+      WriteFile(
+          path: Template.text(artifact ?? conventions.specPath),
+          content: const Template([spec])),
     ]);
   }
 }
@@ -246,7 +267,7 @@ class Plan extends ComposableNode {
   /// Binding name of a critique to address (e.g. `'review'` inside a
   /// `Review(revise: Plan(...))` loop). When set, the bound review is
   /// embedded and the planner is instructed to fix every blocking issue.
-  final String? addressing;
+  final Binding? addressing;
 
   const Plan({
     this.agent,
@@ -260,22 +281,32 @@ class Plan extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
-    final addressingClause = addressing == null
-        ? ''
-        : '\n\nA review of the previous version follows — address every '
-            'blocking issue it names:\n\${$addressing}';
+    const specDoc = Binding('spec_doc');
+    const plan = Binding('plan');
     return Sequence([
-      ReadFile(path: from ?? conventions.specPath, output: const Binding('spec_doc')),
+      ReadFile(
+          path: Template.text(from ?? conventions.specPath), output: specDoc),
       Task(
         agent: agent,
         agentId: agentId,
-        output: const Binding('plan'),
-        prompt: 'Produce a concrete implementation plan in Markdown for the '
-            'specification below: ordered milestones, workstreams with clear '
-            'boundaries, file-level changes, and verification steps.\n\n'
-            'Specification:\n\${spec_doc}$addressingClause$_documentOnly',
+        output: plan,
+        prompt: Template([
+          'Produce a concrete implementation plan in Markdown for the '
+              'specification below: ordered milestones, workstreams with '
+              'clear boundaries, file-level changes, and verification '
+              'steps.\n\nSpecification:\n',
+          specDoc,
+          if (addressing != null) ...[
+            '\n\nA review of the previous version follows — address every '
+                'blocking issue it names:\n',
+            addressing!,
+          ],
+          _documentOnly,
+        ]),
       ),
-      WriteFile(path: artifact ?? conventions.planPath, content: r'${plan}'),
+      WriteFile(
+          path: Template.text(artifact ?? conventions.planPath),
+          content: const Template([plan])),
     ]);
   }
 }
@@ -288,8 +319,8 @@ class Workstream {
   /// What this workstream owns (embedded in the agent's prompt).
   final String focus;
 
-  /// Binding name for the workstream's result.
-  final String output;
+  /// Binding for the workstream's result.
+  final Binding output;
 
   /// Optional artifact path the result is written to.
   final String? artifact;
@@ -327,13 +358,16 @@ class Implement extends ComposableNode {
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
     return Sequence([
-      ReadFile(path: from ?? conventions.planPath, output: const Binding('plan_doc')),
+      ReadFile(
+          path: Template.text(from ?? conventions.planPath),
+          output: const Binding('plan_doc')),
       FanOut(
         tasks: [
           for (final ws in workstreams)
+            // ParallelTaskEntry is a vaster_domain spec type — string tier.
             ParallelTaskEntry(
               agentId: ws.agent?.roleId ?? ws.agentId ?? 'default',
-              output: ws.output,
+              output: ws.output.name,
               prompt: 'Execute your workstream of the implementation plan '
                   'below. Own it end to end and produce the deliverable in '
                   'Markdown.\n\nYour workstream: ${ws.focus}\n\n'
@@ -343,7 +377,9 @@ class Implement extends ComposableNode {
       ),
       for (final ws in workstreams)
         if (ws.artifact != null)
-          WriteFile(path: ws.artifact!, content: '\${${ws.output}}'),
+          WriteFile(
+              path: Template.text(ws.artifact!),
+              content: Template([ws.output])),
       ?integrate,
     ]);
   }
@@ -417,31 +453,40 @@ class Review extends ComposableNode {
         'Provide either revise (loop) or onRevise (terminal), not both');
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
     final target = of ?? conventions.planPath;
+    const reviewTarget = Binding('review_target');
+    const review = Binding('review');
     final reviewSteps = <VasterNode>[
-      ReadFile(path: target, output: const Binding('review_target')),
+      ReadFile(path: Template.text(target), output: reviewTarget),
       Task(
         agent: agent,
         agentId: agentId,
-        output: const Binding('review'),
-        prompt: 'Review the artifact below: correctness, completeness, '
-            'risks, and whether it meets its stated goal. Hold it to a '
-            'shipping standard, not a perfection standard — note minor '
-            'improvements, but recommend revision only for issues that '
-            'genuinely block the goal. End with a clear APPROVE or REVISE '
-            'recommendation.\n\n'
-            'Artifact ($target):\n\${review_target}$_documentOnly',
+        output: review,
+        prompt: Template([
+          'Review the artifact below: correctness, completeness, '
+              'risks, and whether it meets its stated goal. Hold it to a '
+              'shipping standard, not a perfection standard — note minor '
+              'improvements, but recommend revision only for issues that '
+              'genuinely block the goal. End with a clear APPROVE or REVISE '
+              'recommendation.\n\nArtifact ($target):\n',
+          reviewTarget,
+          _documentOnly,
+        ]),
       ),
-      WriteFile(path: artifact ?? conventions.reviewPath, content: r'${review}'),
+      WriteFile(
+          path: Template.text(artifact ?? conventions.reviewPath),
+          content: const Template([review])),
     ];
     // Calibration note (claude-cli recording, 2026-08-04): backends without
     // schema enforcement will happily re-review the artifact and override the
     // reviewer's verdict. The decider must apply the review, not redo it.
-    const decidePrompt =
-        'Based on this review, should the artifact be approved or sent back '
-        'for revision? Approve unless the review names blocking issues. '
-        'Do not re-review the artifact yourself — judge only from the review '
-        'text, deferring to its own recommendation when it states one.'
-        '\n\nReview:\n\${review}';
+    const decidePrompt = Template([
+      'Based on this review, should the artifact be approved or sent back '
+          'for revision? Approve unless the review names blocking issues. '
+          'Do not re-review the artifact yourself — judge only from the '
+          'review text, deferring to its own recommendation when it states '
+          'one.\n\nReview:\n',
+      review,
+    ]);
     const approveDescription =
         'no blocking issues — minor notes can ride along';
     const reviseDescription = 'blocking issues must be fixed first';
@@ -451,7 +496,11 @@ class Review extends ComposableNode {
         ...reviewSteps,
         ApprovalGate(
           requestId: requestId,
-          prompt: 'A review of $target is ready:\n\n\${review}\n\nApprove?',
+          prompt: Template([
+            'A review of $target is ready:\n\n',
+            review,
+            '\n\nApprove?',
+          ]),
           onApprove: onApprove,
           onReject: onRevise,
         ),

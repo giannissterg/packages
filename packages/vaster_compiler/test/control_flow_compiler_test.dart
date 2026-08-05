@@ -16,7 +16,7 @@ void main() {
   group('Repeat lowering', () {
     test('emits counter init, compare, body, increment, and back-jump', () {
       final program = compiler.compile(pipeline(const [
-        Repeat(times: 3, counter: 'i', children: [Prompt('body')]),
+        Repeat(times: 3, counter: 'i', children: [Prompt(Template.text('body'))]),
       ]));
       final instructions = program.instructions;
 
@@ -45,7 +45,7 @@ void main() {
   group('While lowering', () {
     test('emits maxIterations guard compare and user-condition jumpIf', () {
       final program = compiler.compile(pipeline(const [
-        While(condition: 'go', maxIterations: 7, children: [Prompt('body')]),
+        While(condition: 'go', maxIterations: 7, children: [Prompt(Template.text('body'))]),
       ]));
       final instructions = program.instructions;
 
@@ -67,8 +67,8 @@ void main() {
     test('push/pop handler bracket the try block; target lands on catch', () {
       final program = compiler.compile(pipeline(const [
         TryCatch(
-          tryChildren: [Prompt('try body')],
-          catchChildren: [Prompt('catch body')],
+          tryChildren: [Prompt(Template.text('try body'))],
+          catchChildren: [Prompt(Template.text('catch body'))],
           error: 'err',
         ),
       ]));
@@ -94,7 +94,7 @@ void main() {
   group('Subroutine lowering', () {
     test('body is emitted after halt; call targets it; return closes it', () {
       final program = compiler.compile(pipeline(const [
-        DefineSubroutine(name: 'greet', children: [Prompt('hello sub')]),
+        DefineSubroutine(name: 'greet', children: [Prompt(Template.text('hello sub'))]),
         CallSubroutine(name: 'greet'),
         Output(),
       ]));
@@ -119,7 +119,7 @@ void main() {
     test('forward call (call before definition) resolves', () {
       final program = compiler.compile(pipeline(const [
         CallSubroutine(name: 'later'),
-        DefineSubroutine(name: 'later', children: [Prompt('defined later')]),
+        DefineSubroutine(name: 'later', children: [Prompt(Template.text('defined later'))]),
       ]));
       expect(program.instructions.whereType<CallOp>().single.functionName, 'later');
     });
@@ -142,9 +142,9 @@ void main() {
   group('Analyzer integration', () {
     test('control-flow programs produce no error diagnostics', () {
       final result = compiler.compileWithDiagnostics(pipeline(const [
-        Repeat(times: 2, children: [Prompt('a')]),
-        TryCatch(tryChildren: [Prompt('b')], catchChildren: [Prompt('c')]),
-        DefineSubroutine(name: 's', children: [Prompt('d')]),
+        Repeat(times: 2, children: [Prompt(Template.text('a'))]),
+        TryCatch(tryChildren: [Prompt(Template.text('b'))], catchChildren: [Prompt(Template.text('c'))]),
+        DefineSubroutine(name: 's', children: [Prompt(Template.text('d'))]),
         CallSubroutine(name: 's'),
       ]));
       expect(result.hasErrors, isFalse,
@@ -157,7 +157,7 @@ void main() {
         options: CompilerOptions(optimize: true),
       );
       final program = optimizing.compile(pipeline(const [
-        DefineSubroutine(name: 'kept', children: [Prompt('kept body')]),
+        DefineSubroutine(name: 'kept', children: [Prompt(Template.text('kept body'))]),
         CallSubroutine(name: 'kept'),
       ]));
       final call = program.instructions.whereType<CallOp>().single;
@@ -175,15 +175,15 @@ void main() {
     test('branch targets land on each path; paths rejoin after the node', () {
       final program = compiler.compile(pipeline(const [
         Decide(
-          prompt: 'Ship it?',
+          prompt: Template.text('Ship it?'),
           paths: [
             DecisionPath(label: 'ship', description: 'ready to go',
-                children: [Prompt('announce release')]),
+                children: [Prompt(Template.text('announce release'))]),
             DecisionPath(label: 'hold', description: 'not yet',
-                children: [Prompt('file blockers')]),
+                children: [Prompt(Template.text('file blockers'))]),
           ],
         ),
-        Prompt('after join'),
+        Prompt(Template.text('after join')),
       ]));
       final instructions = program.instructions;
 
@@ -208,7 +208,7 @@ void main() {
 
     test('the chosen label flows to Output() positionally', () {
       final program = compiler.compile(pipeline(const [
-        Decide(prompt: 'pick', paths: [
+        Decide(prompt: Template.text('pick'), paths: [
           DecisionPath(label: 'a', description: 'first'),
           DecisionPath(label: 'b', description: 'second'),
         ]),
@@ -223,11 +223,11 @@ void main() {
       const optimizing =
           BasicWorkflowCompiler(options: CompilerOptions(optimize: true));
       final program = optimizing.compile(pipeline(const [
-        Decide(prompt: 'pick', paths: [
+        Decide(prompt: Template.text('pick'), paths: [
           DecisionPath(label: 'a', description: 'first',
-              children: [Prompt('path a body')]),
+              children: [Prompt(Template.text('path a body'))]),
           DecisionPath(label: 'b', description: 'second',
-              children: [Prompt('path b body')]),
+              children: [Prompt(Template.text('path b body'))]),
         ]),
       ]));
 
@@ -244,7 +244,7 @@ void main() {
         Provider<DecisionPolicy>(
           value: DecisionPolicy(defaultPath: 'b'),
           children: [
-            Decide(prompt: 'pick', paths: [
+            Decide(prompt: Template.text('pick'), paths: [
               DecisionPath(label: 'a', description: 'first'),
               DecisionPath(label: 'b', description: 'second'),
             ]),
@@ -292,12 +292,12 @@ void main() {
     test('continue branch is a back-edge; exhaustion routes to an exit', () {
       final program = compiler.compile(pipeline(const [
         DecideLoop(
-          prompt: 'Keep going?',
-          body: [Prompt('work step')],
+          prompt: Template.text('Keep going?'),
+          body: [Prompt(Template.text('work step'))],
           maxIterations: 3,
           exits: [
             DecisionPath(label: 'done', description: 'complete',
-                children: [Prompt('wrap up')]),
+                children: [Prompt(Template.text('wrap up'))]),
           ],
         ),
       ]));
@@ -331,11 +331,11 @@ void main() {
     test('onContinue lowers on the continue edge, before the back-jump', () {
       final program = compiler.compile(pipeline(const [
         DecideLoop(
-          prompt: 'good enough?',
+          prompt: Template.text('good enough?'),
           body: [],
           continueLabel: 'revise',
           continueDescription: 'fix it first',
-          onContinue: [Prompt('apply the fixes')],
+          onContinue: [Prompt(Template.text('apply the fixes'))],
           exits: [DecisionPath(label: 'approve', description: 'ship it')],
           defaultPath: 'approve',
           maxIterations: 3,
@@ -371,9 +371,9 @@ void main() {
           Plan(agentId: 'lead'),
           Review(
             agentId: 'reviewer',
-            revise: Plan(agentId: 'lead', addressing: 'review'),
+            revise: Plan(agentId: 'lead', addressing: Binding('review')),
             maxRounds: 2,
-            onApprove: [Prompt('proceed to implementation')],
+            onApprove: [Prompt(Template.text('proceed to implementation'))],
           ),
         ],
       ));
@@ -409,8 +409,8 @@ void main() {
               value: const DecisionPolicy(maxIterations: 5),
               children: [
                 DecideLoop(
-                  prompt: 'go?',
-                  body: const [Prompt('step')],
+                  prompt: Template.text('go?'),
+                  body: const [Prompt(Template.text('step'))],
                   maxIterations: nodeMax,
                   exits: const [
                     DecisionPath(label: 'done', description: 'complete'),

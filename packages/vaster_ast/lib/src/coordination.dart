@@ -105,9 +105,12 @@ class RefineLoop extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     return DecideLoop(
-      prompt: 'Latest critique:\n\${${critiqueOutput.name}}\n\n'
-          'Given this critique, does the work meet the bar, or is another '
-          'revision pass needed?',
+      prompt: Template([
+        'Latest critique:\n',
+        critiqueOutput,
+        '\n\nGiven this critique, does the work meet the bar, or is another '
+            'revision pass needed?',
+      ]),
       continueLabel: 'revise',
       continueDescription: 'the critique lists issues that must be addressed',
       body: [worker, critic],
@@ -132,7 +135,7 @@ class RouteCase {
   final String description;
   final AgentRole? agent;
   final String? agentId;
-  final String prompt;
+  final Template prompt;
   final Binding? output;
 
   const RouteCase({
@@ -153,7 +156,7 @@ class RouteCase {
 /// Expands to: `Decide(paths: [DecisionPath(label, description,
 /// children: [Task(agent, prompt, output)])], defaultPath: defaultRoute)`.
 class Router extends ComposableNode {
-  final String prompt;
+  final Template prompt;
   final List<RouteCase> routes;
   final String? defaultRoute;
   final Binding? output;
@@ -211,7 +214,7 @@ class Router extends ComposableNode {
 class Produce extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
-  final String prompt;
+  final Template prompt;
   final Map<String, dynamic> schema;
   final Binding output;
   final String? artifact;
@@ -243,7 +246,7 @@ class Produce extends ComposableNode {
       for (final entry in extract.entries)
         Extract(from: output, field: entry.key, output: entry.value),
       if (artifact != null)
-        WriteFile(path: artifact!, content: '\${${output.name}}'),
+        WriteFile(path: Template.text(artifact!), content: Template([output])),
     ]);
   }
 }

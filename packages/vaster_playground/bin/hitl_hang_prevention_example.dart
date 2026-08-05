@@ -33,22 +33,22 @@ void main() async {
         role: engineerRole,
         child: const Sequence([
           WriteFile(
-            path: '/workspace/prod_config.json',
-            content: '{"db": "production_cluster", "replicas": 5}',
+            path: Template.text('/workspace/prod_config.json'),
+            content: Template.text('{"db": "production_cluster", "replicas": 5}'),
           ),
-          Task(prompt: 'Prepare deployment configuration.'),
+          Task(prompt: Template.text('Prepare deployment configuration.')),
         ]),
       ),
 
       // Human Approval Gate
       const ApprovalGate(
         requestId: 'prod_deploy_gate',
-        prompt: 'Approve execution of production cluster deployment?',
+        prompt: Template.text('Approve execution of production cluster deployment?'),
         onApprove: [
-          WriteFile(path: '/workspace/deploy.log', content: 'Deployed to production cluster successfully.'),
+          WriteFile(path: Template.text('/workspace/deploy.log'), content: Template.text('Deployed to production cluster successfully.')),
         ],
         onReject: [
-          WriteFile(path: '/workspace/deploy.log', content: 'Deployment rejected by operator.'),
+          WriteFile(path: Template.text('/workspace/deploy.log'), content: Template.text('Deployment rejected by operator.')),
         ],
       ),
 

@@ -32,7 +32,7 @@ void main() async {
         maxDuration: Duration(minutes: 1),
         child: Agent(
           role: analystRole,
-          child: Task(prompt: 'Analyze sales data and summarize findings.'),
+          child: Task(prompt: Template.text('Analyze sales data and summarize findings.')),
         ),
       ),
     ],
@@ -72,7 +72,7 @@ void main() async {
         maxTokens: 5,
         child: Agent(
           role: analystRole,
-          child: Task(prompt: 'Analyze sales data and summarize findings.'),
+          child: Task(prompt: Template.text('Analyze sales data and summarize findings.')),
         ),
       ),
     ],

@@ -56,7 +56,7 @@ void main() async {
           role: engineerRole,
           child: Task(
               prompt:
-                  'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
+                  Template.text('Create a deployment configuration file at /workspace/deploy.json and verify its content.')),
         ),
       ),
 

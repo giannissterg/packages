@@ -58,8 +58,8 @@ void main() async {
       Agent(
         role: devRole,
         child: Sequence([
-          Task(prompt: 'Analyze the system architecture'),
-          Task(prompt: 'Generate production code'),
+          Task(prompt: Template.text('Analyze the system architecture')),
+          Task(prompt: Template.text('Generate production code')),
         ]),
       ),
     ],

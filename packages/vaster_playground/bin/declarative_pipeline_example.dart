@@ -33,7 +33,7 @@ class SecurityAuditComponent extends ComposableNode {
         : 'Audit ${app.appName} (${app.environment}) standard checks.';
 
     return Transaction(children: [
-      Prompt(promptClause),
+      Prompt(Template.text(promptClause)),
     ]);
   }
 }
@@ -62,8 +62,8 @@ void main() async {
     mounts: const [StorageMount(mountPrefix: '/workspace')],
     roles: const [secAuditorRole],
     children: [
-      const WriteFile(path: '/workspace/app_spec.txt', content: 'Nexus App Specification'),
-      const ReadFile(path: '/workspace/app_spec.txt'),
+      const WriteFile(path: Template.text('/workspace/app_spec.txt'), content: Template.text('Nexus App Specification')),
+      const ReadFile(path: Template.text('/workspace/app_spec.txt')),
 
       // Inject typed configuration into context tree using Provider<T>
       Provider<AppConfig>(
@@ -88,7 +88,7 @@ void main() async {
                       SecurityAuditComponent(),
 
                       // Task automatically inherits secAuditorRole from context!
-                      Task(prompt: 'Produce final compliance report.'),
+                      Task(prompt: Template.text('Produce final compliance report.')),
                     ]),
                   ),
               ),
@@ -97,8 +97,8 @@ void main() async {
               Component((context) {
                 final app = context.get<AppConfig>();
                 return WriteFile(
-                  path: '/workspace/audit.log',
-                  content: 'Audit logged for ${app.appName}',
+                  path: Template.text('/workspace/audit.log'),
+                  content: Template.text('Audit logged for ${app.appName}'),
                 );
               }),
             ],
@@ -109,9 +109,9 @@ void main() async {
       // Human-in-the-Loop approval gate
       const ApprovalGate(
         requestId: 'deploy_gate',
-        prompt: 'Approve deployment of NexusCloud to production?',
+        prompt: Template.text('Approve deployment of NexusCloud to production?'),
         onApprove: [
-          WriteFile(path: '/workspace/deploy.log', content: 'Deployed successfully.'),
+          WriteFile(path: Template.text('/workspace/deploy.log'), content: Template.text('Deployed successfully.')),
         ],
       ),
 

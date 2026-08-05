@@ -70,27 +70,29 @@ void main() async {
           const Agent(
             role: architectRole,
             child: Task(
-              prompt:
-                  'Analyze the Flutter project structure and propose a design for a new Notes feature.',
+              prompt: Template.text(
+                  'Analyze the Flutter project structure and propose a design for a new Notes feature.'),
             ),
           ),
 
           // Phase 2: Human Approval Gate
           const ApprovalGate(
             requestId: 'gemini_flutter_approval',
-            prompt: 'Approve live Gemini AI autonomous code generation for notes_feature in flutter_test_app?',
+            prompt: Template.text(
+                'Approve live Gemini AI autonomous code generation for notes_feature in flutter_test_app?'),
             onApprove: [
               // Phase 3: Autonomous LLM Coding by Senior Flutter Developer
               Agent(
                 role: developerRole,
                 child: Task(
-                  prompt:
-                      'Write a Flutter notes feature in /workspace/lib/features/notes_feature/ domain entity note_item.dart.',
+                  prompt: Template.text(
+                      'Write a Flutter notes feature in /workspace/lib/features/notes_feature/ domain entity note_item.dart.'),
                 ),
               ),
               WriteFile(
-                path: '/workspace/lib/features/notes_feature/domain/note_item.dart',
-                content: '''
+                path: Template.text(
+                    '/workspace/lib/features/notes_feature/domain/note_item.dart'),
+                content: Template.text('''
 import 'package:flutter/foundation.dart';
 
 @immutable
@@ -131,11 +133,12 @@ class NoteItem {
     );
   }
 }
-''',
+'''),
               ),
               WriteFile(
-                path: '/workspace/test/features/notes_feature/note_item_test.dart',
-                content: '''
+                path: Template.text(
+                    '/workspace/test/features/notes_feature/note_item_test.dart'),
+                content: Template.text('''
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_test_app/features/notes_feature/domain/note_item.dart';
 
@@ -155,13 +158,14 @@ void main() {
     expect(restored.title, equals(note.title));
   });
 }
-''',
+'''),
               ),
             ],
             onReject: [
               WriteFile(
-                path: '/workspace/reports/approval_status.txt',
-                content: 'Execution cancelled by user at Approval Gate.',
+                path: Template.text('/workspace/reports/approval_status.txt'),
+                content:
+                    Template.text('Execution cancelled by user at Approval Gate.'),
               ),
             ],
           ),

@@ -32,9 +32,9 @@ void main() {
           ],
           child: Knowledge(
             label: 'API reference',
-            text: 'The Things API exposes GET /v1/things.',
+            text: Template.text('The Things API exposes GET /v1/things.'),
             className: 'domain_docs',
-            child: Task(prompt: 'What endpoints exist?', agent: analyst),
+            child: Task(prompt: Template.text('What endpoints exist?'), agent: analyst),
           ),
         ),
       ],

@@ -119,10 +119,10 @@ void main() {
         name: 'verify_e2e',
         children: const [
           Verify(
-            run: 'dart test',
+            run: Template.text('dart test'),
             envId: 'ci_box',
-            onPass: [Prompt('announce the release')],
-            onFail: [Prompt('open a remediation task')],
+            onPass: [Prompt(Template.text('announce the release'))],
+            onFail: [Prompt(Template.text('open a remediation task'))],
           ),
         ],
       ));

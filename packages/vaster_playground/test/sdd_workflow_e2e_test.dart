@@ -84,26 +84,23 @@ void main() {
                 Workstream(
                     agent: backend,
                     focus: 'the sync API service',
-                    output: 'backend_result',
+                    output: Binding('backend_result'),
                     artifact: '/workspace/backend.md'),
                 Workstream(
                     agent: frontend,
                     focus: 'the sync UI client',
-                    output: 'frontend_result',
+                    output: Binding('frontend_result'),
                     artifact: '/workspace/frontend.md'),
               ],
               integrate: Task(
                 agent: lead,
-                prompt: 'Write the release notes.\n'
-                    r'Backend: ${backend_result}'
-                    '\n'
-                    r'Frontend: ${frontend_result}',
+                prompt: Template(['Write the release notes.\n', r'Backend: ', Binding('backend_result'), '\n', r'Frontend: ', Binding('frontend_result')]),
                 output: Binding('release_notes'),
               ),
             ),
             Output(from: Binding('release_notes')),
           ],
-          onRevise: [Prompt('Log: the plan needs revision.')],
+          onRevise: [Prompt(Template.text('Log: the plan needs revision.'))],
         ),
       ],
     );
@@ -189,9 +186,9 @@ void main() {
         Plan(agent: lead),
         Review(
           agent: reviewer,
-          revise: Plan(agent: lead, addressing: 'review'),
+          revise: Plan(agent: lead, addressing: Binding('review')),
           maxRounds: 3,
-          onApprove: [Prompt('kick off implementation')],
+          onApprove: [Prompt(Template.text('kick off implementation'))],
         ),
       ],
     ));
@@ -250,10 +247,10 @@ void main() {
           agent: reviewer,
           onApprove: [
             Implement(workstreams: [
-              Workstream(agent: backend, focus: 'build it', output: 'built'),
+              Workstream(agent: backend, focus: 'build it', output: Binding('built')),
             ]),
           ],
-          onRevise: [Prompt('Log: revision requested.')],
+          onRevise: [Prompt(Template.text('Log: revision requested.'))],
         ),
       ],
     ));

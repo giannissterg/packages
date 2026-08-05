@@ -18,7 +18,7 @@ void main() {
       final program = compiler.compile(pipeline([
         AgentTeam(
           roles: [for (var i = 0; i < 7; i++) role('agent_$i')],
-          children: const [Task(agentId: 'agent_0', prompt: 'go')],
+          children: const [Task(agentId: 'agent_0', prompt: Template.text('go'))],
         ),
       ]));
       expect(program.instructions.whereType<CreateAgentOp>(), hasLength(7));
@@ -51,7 +51,7 @@ void main() {
             ],
             synthesize: Task(
               agentId: 'lead',
-              prompt: r'Combine: ${part_a} and ${part_b}',
+              prompt: Template([r'Combine: ', Binding('part_a'), r' and ', Binding('part_b')]),
               output: Binding('combined'),
             ),
           ),
@@ -73,7 +73,7 @@ void main() {
               ParallelTaskEntry(agentId: 'b', prompt: 'part B', output: 'part_b'),
             ],
             synthesize: Task(
-                agentId: 'lead', prompt: r'Combine: ${part_a} and ${part_b}'),
+                agentId: 'lead', prompt: Template([r'Combine: ', Binding('part_a'), r' and ', Binding('part_b')])),
           ),
         ]),
       ]));
@@ -91,11 +91,11 @@ void main() {
           const RefineLoop(
             worker: Task(
                 agentId: 'writer',
-                prompt: r'Draft the post. Critique so far: ${critique}',
+                prompt: Template([r'Draft the post. Critique so far: ', Binding('critique')]),
                 output: Binding('draft')),
             critic: Task(
                 agentId: 'editor',
-                prompt: r'Critique this draft: ${draft}',
+                prompt: Template([r'Critique this draft: ', Binding('draft')]),
                 output: Binding('critique')),
             maxRounds: 4,
           ),
@@ -118,18 +118,18 @@ void main() {
       final program = compiler.compile(pipeline([
         AgentTeam(roles: [role('fixer'), role('oncall')], children: [
           const Router(
-            prompt: 'Triage this incident.',
+            prompt: Template.text('Triage this incident.'),
             routes: [
               RouteCase(
                   label: 'auto',
                   description: 'safe to auto-remediate',
                   agentId: 'fixer',
-                  prompt: 'Fix it.'),
+                  prompt: Template.text('Fix it.')),
               RouteCase(
                   label: 'page',
                   description: 'needs a human',
                   agentId: 'oncall',
-                  prompt: 'Investigate.'),
+                  prompt: Template.text('Investigate.')),
             ],
             defaultRoute: 'page',
           ),
@@ -147,9 +147,9 @@ void main() {
     test('unrolls into nested handlers, one per attempt', () {
       final program = compiler.compile(pipeline([
         const Resilient(
-          child: ReadFile(path: '/fragile/data.txt'),
+          child: ReadFile(path: Template.text('/fragile/data.txt')),
           attempts: 3,
-          onExhausted: [Prompt('report the failure')],
+          onExhausted: [Prompt(Template.text('report the failure'))],
         ),
       ]));
       expect(program.instructions.whereType<PushErrorHandlerOp>(), hasLength(3));
@@ -168,7 +168,7 @@ void main() {
               value: const RetryPolicy(maxAttempts: 5),
               children: [
                 Resilient(
-                  child: const ReadFile(path: '/x'),
+                  child: const ReadFile(path: Template.text('/x')),
                   attempts: nodeAttempts,
                 ),
               ],
@@ -195,11 +195,11 @@ void main() {
   group('Sequence', () {
     test('lowers to exactly its children — no instructions of its own', () {
       final flat = compiler.compile(pipeline(const [
-        Prompt('a'),
-        Prompt('b'),
+        Prompt(Template.text('a')),
+        Prompt(Template.text('b')),
       ]));
       final wrapped = compiler.compile(pipeline(const [
-        Sequence([Prompt('a'), Prompt('b')]),
+        Sequence([Prompt(Template.text('a')), Prompt(Template.text('b'))]),
       ]));
       expect(wrapped.instructions.length, equals(flat.instructions.length));
     });
@@ -210,11 +210,11 @@ void main() {
       final program = compiler.compile(pipeline(const [
         Knowledge(
           label: 'Project Brief',
-          text: 'Build a notes app.',
+          text: Template.text('Build a notes app.'),
           pinned: true,
-          child: Prompt('design it'),
+          child: Prompt(Template.text('design it')),
         ),
-        Prompt('after the scope'),
+        Prompt(Template.text('after the scope')),
       ]));
       final instructions = program.instructions;
 
@@ -241,7 +241,7 @@ void main() {
       final program = compiler.compile(pipeline(const [
         ContextBudget(
           maxTokens: 12000,
-          child: Prompt('long-running work'),
+          child: Prompt(Template.text('long-running work')),
         ),
       ]));
       final compressPc =
@@ -259,7 +259,7 @@ void main() {
         AgentTeam(roles: [role('architect')], children: const [
           Produce(
             agentId: 'architect',
-            prompt: 'Design the storage layer.',
+            prompt: Template.text('Design the storage layer.'),
             schema: {
               'type': 'object',
               'properties': {
@@ -313,10 +313,10 @@ void main() {
     test('Verify judges sandbox output with fail as the safe default', () {
       final program = compiler.compile(pipeline(const [
         Verify(
-          run: 'dart test',
+          run: Template.text('dart test'),
           envId: 'ci_box',
-          onPass: [Prompt('ship it')],
-          onFail: [Prompt('open a fix task')],
+          onPass: [Prompt(Template.text('ship it'))],
+          onFail: [Prompt(Template.text('open a fix task'))],
         ),
       ]));
       final instructions = program.instructions;
@@ -341,12 +341,12 @@ void main() {
 
     test('id override disambiguates same-label scopes; from binds content', () {
       final program = compiler.compile(pipeline(const [
-        Prompt('produce the notes', output: Binding('notes')),
+        Prompt(Template.text('produce the notes'), output: Binding('notes')),
         Knowledge(
           label: 'notes',
           from: Binding('notes'),
           id: 'k1',
-          child: Prompt('use them'),
+          child: Prompt(Template.text('use them')),
         ),
       ]));
       final add = program.instructions.whereType<AddContextOp>().single;

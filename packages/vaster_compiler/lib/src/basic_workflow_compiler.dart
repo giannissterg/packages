@@ -158,18 +158,20 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       case Prompt n:
         final reg = _binding(n.output, state);
         ir.emit(PromptOp(
-          promptText: n.prompt,
+          promptText: _template(n.prompt, state),
           outputVar: reg,
           responseSchema: n.outputSchema,
         ));
         state.lastOutputRegister = reg;
 
       case WriteFile n:
-        ir.emit(WriteFileOp(vfsPath: n.path, content: n.content));
+        ir.emit(WriteFileOp(
+            vfsPath: _template(n.path, state),
+            content: _template(n.content, state)));
 
       case ReadFile n:
         final reg = _binding(n.output, state);
-        ir.emit(ReadFileOp(vfsPath: n.path, outputVar: reg));
+        ir.emit(ReadFileOp(vfsPath: _template(n.path, state), outputVar: reg));
         state.lastOutputRegister = reg;
 
       case ParallelTasks n:
@@ -244,7 +246,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ];
 
         ir.decide(
-          n.prompt,
+          _template(n.prompt, state),
           [
             for (var i = 0; i < n.paths.length; i++)
               IrDecideBranch(
@@ -317,7 +319,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.jump(exitLabels[exhaustIndex]);
         ir.bind(decideLabel);
         ir.decide(
-          n.prompt,
+          _template(n.prompt, state),
           [
             IrDecideBranch(
                 n.continueLabel, n.continueDescription, continueTarget),
@@ -495,7 +497,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
             request: HumanInteractionRequest(
               requestId: n.requestId,
               type: HumanInteractionType.question,
-              prompt: n.prompt,
+              prompt: _template(n.prompt, state),
               options: n.options,
               outputVar: reg,
             ),
@@ -633,6 +635,42 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
   /// whose slots are already register names.
   String _bindingName(String? requested, _CompilerState state) =>
       _binding(requested == null ? null : Binding(requested), state);
+
+  /// Lowers a [Template] to the ISA's `${name}` interpolation string.
+  /// Binding parts become `${name}`; text parts pass through verbatim.
+  /// Non-String/non-Binding parts are compile errors; a raw `${` inside a
+  /// text part draws a warning (declarative code should use Binding parts —
+  /// raw interpolation belongs to the primitives tier).
+  String _template(Template template, _CompilerState state) {
+    final buffer = StringBuffer();
+    for (final part in template.parts) {
+      switch (part) {
+        case Binding b:
+          buffer.write('\${${b.name}}');
+        case String s:
+          if (s.contains(r'${')) {
+            state.diagnostics.add(CompileDiagnostic(
+              severity: CompileSeverity.warning,
+              code: 'raw_interpolation_in_template',
+              message: 'Template text contains raw "\${…}" — use a Binding '
+                  'part instead ("${_truncateForDiag(s)}").',
+            ));
+          }
+          buffer.write(s);
+        default:
+          state.diagnostics.add(CompileDiagnostic(
+            severity: CompileSeverity.error,
+            code: 'invalid_template_part',
+            message: 'Template parts must be String or Binding; got '
+                '${part.runtimeType}.',
+          ));
+      }
+    }
+    return buffer.toString();
+  }
+
+  static String _truncateForDiag(String s) =>
+      s.length <= 40 ? s : '${s.substring(0, 40)}…';
 
   /// Resolves an author-declared [Binding] to its ISA register name,
   /// validating the reserved `__` prefix, or allocates an auto register.

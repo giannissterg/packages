@@ -36,14 +36,14 @@ Future<void> main() async {
         value: DecisionPolicy(maxIterations: 5),
         children: [
           DecideLoop(
-            prompt: 'Is the refactor complete and are all findings addressed?',
+            prompt: Template.text('Is the refactor complete and are all findings addressed?'),
             continueDescription: 'open findings remain — run another pass',
-            body: [Prompt('Run the next refactoring pass and list findings.')],
+            body: [Prompt(Template.text('Run the next refactoring pass and list findings.'))],
             exits: [
               DecisionPath(
                 label: 'done',
                 description: 'the refactor is complete',
-                children: [Prompt('Summarize everything that changed.')],
+                children: [Prompt(Template.text('Summarize everything that changed.'))],
               ),
             ],
           ),

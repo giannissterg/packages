@@ -43,12 +43,12 @@ void main() {
 
     final program = compiler.compile(pipeline(const [
       Decide(
-        prompt: 'How should this incident be handled?',
+        prompt: Template.text('How should this incident be handled?'),
         paths: [
           DecisionPath(label: 'auto_fix', description: 'safe to fix automatically',
-              children: [Prompt('apply the automatic fix')]),
+              children: [Prompt(Template.text('apply the automatic fix'))]),
           DecisionPath(label: 'escalate', description: 'needs a human',
-              children: [Prompt('page the on-call engineer')]),
+              children: [Prompt(Template.text('page the on-call engineer'))]),
         ],
       ),
       Output(),
@@ -83,12 +83,12 @@ void main() {
 
     final program = compiler.compile(pipeline(const [
       DecideLoop(
-        prompt: 'Is the task complete?',
+        prompt: Template.text('Is the task complete?'),
         continueDescription: 'more work is needed',
-        body: [Prompt('do the next work step')],
+        body: [Prompt(Template.text('do the next work step'))],
         exits: [
           DecisionPath(label: 'done', description: 'task complete',
-              children: [Prompt('summarize the result')]),
+              children: [Prompt(Template.text('summarize the result'))]),
         ],
       ),
     ]));
@@ -123,9 +123,9 @@ void main() {
         value: DecisionPolicy(maxIterations: 3),
         children: [
           DecideLoop(
-            prompt: 'Keep going?',
+            prompt: Template.text('Keep going?'),
             continueDescription: 'more work is needed',
-            body: [Prompt('do the next work step')],
+            body: [Prompt(Template.text('do the next work step'))],
             exits: [
               DecisionPath(label: 'done', description: 'task complete'),
             ],

@@ -114,8 +114,8 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.prompt, contains('OWASP Top 10'));
-      expect(taskNode.prompt, contains('5'));
+      expect(taskNode.prompt.lower(), contains('OWASP Top 10'));
+      expect(taskNode.prompt.lower(), contains('5'));
     });
 
     test('SecurityAuditComponent omits OWASP clause when not required', () {
@@ -135,7 +135,7 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.prompt, isNot(contains('OWASP Top 10')));
+      expect(taskNode.prompt.lower(), isNot(contains('OWASP Top 10')));
     });
 
     test('TestSuiteComponent reads both ProjectConfig and QualityGate', () {
@@ -150,8 +150,8 @@ void main() {
       final expanded = component.build(context);
       final tx = expanded as Transaction;
       final taskNode = tx.children.whereType<Task>().first;
-      expect(taskNode.prompt, contains('95%'));
-      expect(taskNode.prompt, contains('NexusAPI'));
+      expect(taskNode.prompt.lower(), contains('95%'));
+      expect(taskNode.prompt.lower(), contains('NexusAPI'));
     });
   });
 
@@ -238,16 +238,16 @@ void main() {
           ),
           // Write a topic brief to VFS
           WriteFile(
-            path: '/workspace/topic.txt',
-            content: 'Topic: Evaluate the trade-offs between microservices and monolithic architecture.',
+            path: Template.text('/workspace/topic.txt'),
+            content: Template.text('Topic: Evaluate the trade-offs between microservices and monolithic architecture.'),
           ),
           // Researcher reads the brief and produces a summary
-          ReadFile(path: '/workspace/topic.txt'),
+          ReadFile(path: Template.text('/workspace/topic.txt')),
           Task(
             agentId: 'researcher',
-            prompt: 'Research the following topic and produce a summary:\n\n\${topic_brief}',
+            prompt: Template(['Research the following topic and produce a summary:\n\n', Binding('topic_brief')]),
           ),
-          WriteFile(path: '/workspace/research.md', content: '\${research_summary}'),
+          WriteFile(path: Template.text('/workspace/research.md'), content: Template([Binding('research_summary')])),
           // Two reviewers review in parallel
           ParallelTasks(
             entries: [
@@ -266,9 +266,9 @@ void main() {
           // Human approval gate before finalizing
           ApprovalGate(
             requestId: 'research_approval',
-            prompt: 'Approve the research summary and reviews?',
+            prompt: Template.text('Approve the research summary and reviews?'),
             onApprove: [
-              WriteFile(path: '/workspace/final_report.md', content: 'Approved!\n\n\${research_summary}'),
+              WriteFile(path: Template.text('/workspace/final_report.md'), content: Template(['Approved!\n\n', Binding('research_summary')])),
             ],
           ),
         ],

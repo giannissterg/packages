@@ -44,17 +44,17 @@ void main(List<String> args) async {
     roles: const [researcherRole],
     children: [
       const WriteFile(
-        path: '/workspace/query.txt',
-        content: 'Explain the core architectural innovations of Google Antigravity AI agents.',
+        path: Template.text('/workspace/query.txt'),
+        content: Template.text('Explain the core architectural innovations of Google Antigravity AI agents.'),
       ),
-      const ReadFile(path: '/workspace/query.txt'),
+      const ReadFile(path: Template.text('/workspace/query.txt')),
 
       // Agent Scope Provider wrapping Task
       Agent(
         role: researcherRole,
         child: const Task(
             prompt:
-                'Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.'),
+                Template.text('Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.')),
       ),
 
       const Output(),

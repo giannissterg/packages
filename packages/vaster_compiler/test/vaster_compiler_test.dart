@@ -24,7 +24,7 @@ class BootstrapStorageComponent extends ComposableNode {
     return Transaction(
       children: [
         Mount(mount: StorageMount(mountPrefix: prefix)),
-        WriteFile(path: '$prefix/readme.md', content: 'Pipeline: ${context.pipelineSpec.name}'),
+        WriteFile(path: Template.text('$prefix/readme.md'), content: Template.text('Pipeline: ${context.pipelineSpec.name}')),
       ],
     );
   }
@@ -43,7 +43,7 @@ class PolicyAwareReviewComponent extends ComposableNode {
     final modeLabel = policy.strictMode ? '[STRICT]' : '[LENIENT]';
     return Task(
       agentId: auditorRoleId,
-      prompt: '$modeLabel Review $filePath (max issues: ${policy.maxIssues})',
+      prompt: Template.text('$modeLabel Review $filePath (max issues: ${policy.maxIssues})'),
     );
   }
 }
@@ -69,7 +69,7 @@ void main() {
           ),
           Task(
             agentId: 'architect',
-            prompt: 'Design the Auth Service API.',
+            prompt: Template.text('Design the Auth Service API.'),
           ),
           Output(),
         ],
@@ -91,7 +91,7 @@ void main() {
         spec: PipelineSpec(name: 'composable_pipeline'),
         children: [
           BootstrapStorageComponent(prefix: '/mem'),
-          Prompt('Summarize'),
+          Prompt(Template.text('Summarize')),
         ],
       );
 
@@ -126,7 +126,7 @@ void main() {
         spec: PipelineSpec(name: 'tx_pipeline'),
         children: [
           Transaction(
-            children: [WriteFile(path: '/mem/spec.md', content: 'v1')],
+            children: [WriteFile(path: Template.text('/mem/spec.md'), content: Template.text('v1'))],
           ),
         ],
       );
@@ -179,7 +179,7 @@ void main() {
               PolicyAwareReviewComponent(filePath: '/src/db.dart', auditorRoleId: 'db_auditor'),
             ],
           ),
-          Prompt('End of pipeline'),
+          Prompt(Template.text('End of pipeline')),
         ],
       );
 
@@ -208,9 +208,9 @@ void main() {
         spec: PipelineSpec(name: 'e2e_pipeline'),
         children: [
           Mount(mount: StorageMount(mountPrefix: '/mem')),
-          WriteFile(path: '/mem/brief.txt', content: 'Build a REST API'),
-          ReadFile(path: '/mem/brief.txt'),
-          Prompt('Analyze the brief'),
+          WriteFile(path: Template.text('/mem/brief.txt'), content: Template.text('Build a REST API')),
+          ReadFile(path: Template.text('/mem/brief.txt')),
+          Prompt(Template.text('Analyze the brief')),
           Output(),
         ],
       );

@@ -73,26 +73,23 @@ Future<void> main() async {
               Workstream(
                   agent: backend,
                   focus: 'the export API service',
-                  output: 'backend_result',
+                  output: Binding('backend_result'),
                   artifact: '/workspace/deliverables/backend.md'),
               Workstream(
                   agent: frontend,
                   focus: 'the export dialog UI',
-                  output: 'frontend_result',
+                  output: Binding('frontend_result'),
                   artifact: '/workspace/deliverables/frontend.md'),
             ],
             integrate: Task(
               agent: lead,
-              prompt: 'Write the release notes.\n'
-                  r'Backend: ${backend_result}'
-                  '\n'
-                  r'Frontend: ${frontend_result}',
+              prompt: Template(['Write the release notes.\n', r'Backend: ', Binding('backend_result'), '\n', r'Frontend: ', Binding('frontend_result')]),
               output: Binding('release_notes'),
             ),
           ),
           Output(from: Binding('release_notes')),
         ],
-        onRevise: [Prompt('Log: plan sent back for revision.')],
+        onRevise: [Prompt(Template.text('Log: plan sent back for revision.'))],
       ),
     ],
   );

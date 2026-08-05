@@ -34,32 +34,32 @@ void main() {
           maxTokens: 50000,
           maxCost: 2.5,
           child: Sequence([
-            WriteFile(path: '/workspace/brief.md', content: 'the brief'),
-            ReadFile(path: '/workspace/brief.md', output: Binding('brief')),
-            WriteFile(path: r'/workspace/${brief}.md', content: 'dynamic'),
+            WriteFile(path: Template.text('/workspace/brief.md'), content: Template.text('the brief')),
+            ReadFile(path: Template.text('/workspace/brief.md'), output: Binding('brief')),
+            WriteFile(path: Template([r'/workspace/', Binding('brief'), r'.md']), content: Template.text('dynamic')),
             Sandbox(
               env: CodeEnvironment(envId: 'ci', timeoutMs: 5000),
-              child: Execute(code: 'run checks', output: Binding('checks')),
+              child: Execute(code: Template.text('run checks'), output: Binding('checks')),
             ),
             Router(
-              prompt: 'Who owns this incident?',
+              prompt: Template.text('Who owns this incident?'),
               routes: [
                 RouteCase(
                     label: 'infra',
                     description: 'infrastructure',
                     agentId: 'sre',
-                    prompt: 'Investigate.'),
+                    prompt: Template.text('Investigate.')),
                 RouteCase(
                     label: 'triage',
                     description: 'needs routing',
                     agentId: 'triager',
-                    prompt: 'Route it.'),
+                    prompt: Template.text('Route it.')),
               ],
               defaultRoute: 'triage',
             ),
             ApprovalGate(
               requestId: 'ship_gate',
-              prompt: 'Ship it?',
+              prompt: Template.text('Ship it?'),
               onApprove: [
                 SendMessage(fromId: 'triager', toId: 'sre', payload: {'go': true}),
               ],
@@ -107,7 +107,7 @@ void main() {
 
   test('a fully static program reports an empty decision surface', () {
     final program = compiler.compile(Pipeline(name: 'static', children: const [
-      Prompt('just one turn'),
+      Prompt(Template.text('just one turn')),
       Output(),
     ]));
     final audit = CapabilityAudit.of(program);

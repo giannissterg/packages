@@ -38,3 +38,48 @@ final class Binding {
   @override
   String toString() => 'Binding($name)';
 }
+
+/// Typed prompt/content template: a const list mixing literal text
+/// ([String]) and interpolated values ([Binding]).
+///
+/// ```dart
+/// Task(prompt: Template(['Review this plan:\n', plan]), output: review)
+/// Prompt(Template.text('Summarize the findings.'))
+/// ```
+///
+/// Templates compile down to the ISA's `${name}` interpolation strings —
+/// the runtime is untouched; what changes is that a reference is an object
+/// you can navigate and rename, and an unresolvable reference is
+/// structurally impossible. Any part that is neither `String` nor `Binding`
+/// is a compile error; a raw `${` inside a text part draws a warning
+/// (use a `Binding` part — raw interpolation belongs to the primitives
+/// tier).
+final class Template {
+  // Dart const constructors cannot wrap a parameter in a list literal, so
+  // the two forms store separately and [parts] unifies them.
+  final List<Object>? _parts;
+  final String? _text;
+
+  const Template(List<Object> parts)
+      : _parts = parts,
+        _text = null;
+
+  /// Pure-text template.
+  const Template.text(String text)
+      : _text = text,
+        _parts = null;
+
+  /// The template's parts: `String` literals and `Binding` references.
+  List<Object> get parts => _parts ?? [_text!];
+
+  /// Joins to the ISA `${name}` interpolation string. Sugar nodes use this
+  /// when feeding primitives/lowering headers; the compiler adds part
+  /// validation diagnostics around the same join.
+  String lower() => parts
+      .map((p) => p is Binding ? '\${${p.name}}' : p.toString())
+      .join();
+
+  @override
+  String toString() =>
+      'Template(${parts.map((p) => p is Binding ? p : "'$p'").join(', ')})';
+}

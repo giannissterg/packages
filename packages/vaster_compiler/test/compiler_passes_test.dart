@@ -14,11 +14,11 @@ void main() {
   group('Label IR & control-flow assembly', () {
     test('When compiles to the canonical layout (jumpIf/else/jump/then)', () {
       final program = const BasicWorkflowCompiler().compile(_pipeline([
-        const Prompt('cond producer'), // writes __auto_reg_0
+        const Prompt(Template.text('cond producer')), // writes __auto_reg_0
         const When(
           condition: '__auto_reg_0',
-          then: [WriteFile(path: '/mem/t.txt', content: 'then')],
-          otherwise: [WriteFile(path: '/mem/e.txt', content: 'else')],
+          then: [WriteFile(path: Template.text('/mem/t.txt'), content: Template.text('then'))],
+          otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('else'))],
         ),
       ]));
 
@@ -37,18 +37,18 @@ void main() {
 
     test('nested When produces correct jump targets (old emitter miscompiled this)', () {
       final program = const BasicWorkflowCompiler().compile(_pipeline([
-        const Prompt('outer cond'), // __auto_reg_0
-        const Prompt('inner cond'), // __auto_reg_1
+        const Prompt(Template.text('outer cond')), // __auto_reg_0
+        const Prompt(Template.text('inner cond')), // __auto_reg_1
         const When(
           condition: '__auto_reg_0',
           then: [
             When(
               condition: '__auto_reg_1',
-              then: [WriteFile(path: '/mem/tt.txt', content: 'then-then')],
-              otherwise: [WriteFile(path: '/mem/te.txt', content: 'then-else')],
+              then: [WriteFile(path: Template.text('/mem/tt.txt'), content: Template.text('then-then'))],
+              otherwise: [WriteFile(path: Template.text('/mem/te.txt'), content: Template.text('then-else'))],
             ),
           ],
-          otherwise: [WriteFile(path: '/mem/e.txt', content: 'else')],
+          otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('else'))],
         ),
       ]));
 
@@ -86,10 +86,10 @@ void main() {
       final result = compiler.compileWithDiagnostics(_pipeline([
         const When(
           condition: 'never_written',
-          then: [WriteFile(path: '/mem/a.txt', content: 'x')],
+          then: [WriteFile(path: Template.text('/mem/a.txt'), content: Template.text('x'))],
           otherwise: [],
         ),
-        const Task(agentId: 'ghost', prompt: 'do something'),
+        const Task(agentId: 'ghost', prompt: Template.text('do something')),
       ]));
 
       expect(result.hasErrors, isFalse);
@@ -111,7 +111,7 @@ void main() {
           name: 'clean',
           roles: const [architect],
           children: const [
-            Agent(role: architect, child: Task(prompt: 'design the app')),
+            Agent(role: architect, child: Task(prompt: Template.text('design the app'))),
           ],
         ),
       );
@@ -169,7 +169,7 @@ void main() {
           children: [
             Agent(
                 role: architect,
-                child: Task(prompt: 'design it', outputSchema: schema)),
+                child: Task(prompt: Template.text('design it'), outputSchema: schema)),
           ],
         ),
       );
@@ -229,11 +229,11 @@ void main() {
       // The jump targets the very next instruction — a no-op, eliminable.
       // (With an empty *else* the jump is load-bearing: it skips the then.)
       final pipeline = _pipeline([
-        const Prompt('cond'),
+        const Prompt(Template.text('cond')),
         const When(
           condition: '__auto_reg_0',
           then: [],
-          otherwise: [WriteFile(path: '/mem/e.txt', content: 'e')],
+          otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('e'))],
         ),
       ]);
 

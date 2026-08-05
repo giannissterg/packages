@@ -45,7 +45,7 @@ void main() {
 
     test('compiled Repeat runs its body exactly `times` times', () async {
       final program = compiler.compile(pipeline(const [
-        Repeat(times: 4, children: [Prompt('loop body prompt')]),
+        Repeat(times: 4, children: [Prompt(Template.text('loop body prompt'))]),
       ]));
 
       final state = await runtime.executeProgram(program);
@@ -59,7 +59,7 @@ void main() {
         While(
           condition: 'always',
           maxIterations: 3,
-          children: [Prompt('while body')],
+          children: [Prompt(Template.text('while body'))],
         ),
       ]));
 
@@ -74,7 +74,7 @@ void main() {
 
     test('compiled While never runs the body on a falsy condition', () async {
       final program = compiler.compile(pipeline(const [
-        While(condition: 'unset', children: [Prompt('never')]),
+        While(condition: 'unset', children: [Prompt(Template.text('never'))]),
       ]));
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
@@ -85,8 +85,8 @@ void main() {
         () async {
       final program = compiler.compile(pipeline(const [
         TryCatch(
-          tryChildren: [ReadFile(path: '/not_mounted/missing.txt')],
-          catchChildren: [Prompt('recovering from failure')],
+          tryChildren: [ReadFile(path: Template.text('/not_mounted/missing.txt'))],
+          catchChildren: [Prompt(Template.text('recovering from failure'))],
           error: 'err',
         ),
         Output(),
@@ -104,7 +104,7 @@ void main() {
 
     test('the same error without TryCatch traps the VM', () async {
       final program = compiler.compile(pipeline(const [
-        ReadFile(path: '/not_mounted/missing.txt'),
+        ReadFile(path: Template.text('/not_mounted/missing.txt')),
       ]));
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.error);
@@ -114,10 +114,10 @@ void main() {
     test('a popped handler no longer catches later errors', () async {
       final program = compiler.compile(pipeline(const [
         TryCatch(
-          tryChildren: [Prompt('fine')],
-          catchChildren: [Prompt('should not run')],
+          tryChildren: [Prompt(Template.text('fine'))],
+          catchChildren: [Prompt(Template.text('should not run'))],
         ),
-        ReadFile(path: '/not_mounted/after_try.txt'),
+        ReadFile(path: Template.text('/not_mounted/after_try.txt')),
       ]));
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.error,
@@ -130,8 +130,8 @@ void main() {
 
       final program = compiler.compile(pipeline(const [
         TryCatch(
-          tryChildren: [WriteFile(path: '/mnt/x.txt', content: 'data')],
-          catchChildren: [Prompt('must never run')],
+          tryChildren: [WriteFile(path: Template.text('/mnt/x.txt'), content: Template.text('data'))],
+          catchChildren: [Prompt(Template.text('must never run'))],
         ),
       ]));
 
@@ -156,7 +156,7 @@ void main() {
       );
 
       final program = compiler.compile(pipeline(const [
-        DefineSubroutine(name: 'greet', children: [Prompt('hello sub')]),
+        DefineSubroutine(name: 'greet', children: [Prompt(Template.text('hello sub'))]),
         CallSubroutine(name: 'greet'),
         Output(),
       ]));
@@ -169,9 +169,9 @@ void main() {
 
     test('execution continues after a subroutine returns', () async {
       final program = compiler.compile(pipeline(const [
-        DefineSubroutine(name: 'noop', children: [Prompt('inside sub')]),
+        DefineSubroutine(name: 'noop', children: [Prompt(Template.text('inside sub'))]),
         CallSubroutine(name: 'noop'),
-        Prompt('back in main'),
+        Prompt(Template.text('back in main')),
       ]));
 
       final state = await runtime.executeProgram(program);

@@ -76,29 +76,29 @@ Future<void> main() async {
         children: const [
           Knowledge(
             label: 'incident runbook',
-            text: 'Sev1 = total outage. Sev2 = degraded core flow. Always '
-                'identify the triggering change before communicating.',
+            text: Template.text('Sev1 = total outage. Sev2 = degraded core flow. Always '
+            'identify the triggering change before communicating.'),
             pinned: true,
             child: ContextBudget(
               maxTokens: 16000,
               child: Sequence([
                 // 1. Model-steered triage to the right responder.
                 Router(
-                  prompt: 'A customer reports checkout failures since 14:00. '
-                      'Which responder should own the investigation?',
+                  prompt: Template.text('A customer reports checkout failures since 14:00. '
+            'Which responder should own the investigation?'),
                   routes: [
                     RouteCase(
                         label: 'infrastructure',
                         description: 'outages, capacity, networking',
                         agent: sre,
-                        prompt: 'Investigate the infrastructure angle.',
+                        prompt: Template.text('Investigate the infrastructure angle.'),
                         output: Binding('triage_note')),
                     RouteCase(
                         label: 'application',
                         description: 'defects in application code',
                         agent: appdev,
-                        prompt: 'Own the incident: coordinate the '
-                            'investigation of the checkout failures.',
+                        prompt: Template.text('Own the incident: coordinate the '
+            'investigation of the checkout failures.'),
                         output: Binding('triage_note')),
                   ],
                   defaultRoute: 'infrastructure',
@@ -120,9 +120,7 @@ Future<void> main() async {
                   ],
                   synthesize: Task(
                       agent: appdev,
-                      prompt: 'Merge the findings into a root-cause '
-                          'statement.\nMetrics: \${metrics_findings}\n'
-                          'Logs: \${logs_findings}',
+                      prompt: Template(['Merge the findings into a root-cause ', 'statement.\nMetrics: ', Binding('metrics_findings'), '\n', 'Logs: ', Binding('logs_findings')]),
                       output: Binding('root_cause')),
                 ),
 
@@ -130,13 +128,11 @@ Future<void> main() async {
                 RefineLoop(
                   worker: Task(
                       agent: writer,
-                      prompt: 'Draft the customer notice for this incident.\n'
-                          'Root cause: \${root_cause}\n'
-                          'Critique so far: \${critique}',
+                      prompt: Template(['Draft the customer notice for this incident.\n', 'Root cause: ', Binding('root_cause'), '\n', 'Critique so far: ', Binding('critique')]),
                       output: Binding('notice')),
                   critic: Task(
                       agent: editor,
-                      prompt: 'Critique this notice: \${notice}',
+                      prompt: Template(['Critique this notice: ', Binding('notice')]),
                       output: Binding('critique')),
                   maxRounds: 4,
                 ),
@@ -144,8 +140,7 @@ Future<void> main() async {
                 // 4. Schema-typed incident report artifact.
                 Produce(
                   agent: appdev,
-                  prompt: 'Produce the final incident report as JSON.\n'
-                      'Root cause: \${root_cause}\nNotice: \${notice}',
+                  prompt: Template(['Produce the final incident report as JSON.\n', 'Root cause: ', Binding('root_cause'), '\nNotice: ', Binding('notice')]),
                   schema: {
                     'type': 'object',
                     'properties': {

@@ -52,7 +52,7 @@ void main() {
           ),
           const Agent(
               role: architect,
-              child: Task(prompt: 'Design the notes app architecture')),
+              child: Task(prompt: Template.text('Design the notes app architecture'))),
           const CompressContext(targetTokens: 100000),
           const EvictContext(regionId: 'meeting_log'),
           const Output(),
@@ -113,7 +113,7 @@ void main() {
         children: const [
           Knowledge(
             label: 'house rules',
-            text: 'Answer tersely.',
+            text: Template.text('Answer tersely.'),
             pinned: true,
             child: YieldHuman(
               requestId: 'mid_scope',

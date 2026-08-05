@@ -262,7 +262,7 @@ final class BudgetConstraint {
 class Task extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
-  final String prompt;
+  final Template prompt;
   final Binding? output;
 
   /// Optional JSON Schema typing this task's output — the workflow-language
@@ -287,7 +287,7 @@ class Task extends ComposableNode {
         'default';
     return TaskExecution(
       agentId: id,
-      prompt: prompt,
+      prompt: prompt.lower(),
       output: output?.name,
       outputSchema: outputSchema,
     );
@@ -303,7 +303,7 @@ final class ParallelTasks extends VasterNode {
 
 /// Sends a direct prompt turn to the model.
 final class Prompt extends VasterNode {
-  final String prompt;
+  final Template prompt;
 
   /// Binding for the response; auto-allocated when omitted.
   final Binding? output;
@@ -317,8 +317,8 @@ final class Prompt extends VasterNode {
 /// Writes content to a VFS path. Both [path] and [content] support
 /// `${name}` interpolation.
 final class WriteFile extends VasterNode {
-  final String path;
-  final String content;
+  final Template path;
+  final Template content;
 
   const WriteFile({required this.path, required this.content});
 }
@@ -326,7 +326,7 @@ final class WriteFile extends VasterNode {
 /// Reads a VFS path into [output] (auto-allocated when omitted). [path]
 /// supports `${name}` interpolation.
 final class ReadFile extends VasterNode {
-  final String path;
+  final Template path;
   final Binding? output;
 
   const ReadFile({required this.path, this.output});
@@ -357,7 +357,7 @@ class Sandbox extends ComposableNode {
 /// inherit the enclosing [Sandbox] scope.
 class Execute extends ComposableNode {
   final String? envId;
-  final String code;
+  final Template code;
   final Binding? output;
 
   const Execute({this.envId, required this.code, this.output});
@@ -365,7 +365,7 @@ class Execute extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final id = envId ?? context.tryRead<CodeEnvironment>()?.envId ?? 'default';
-    return ExecuteExecution(envId: id, code: code, output: output?.name);
+    return ExecuteExecution(envId: id, code: code.lower(), output: output?.name);
   }
 }
 
@@ -504,7 +504,7 @@ class DecisionPolicy {
 /// decision surface. The chosen label becomes the node's produced value,
 /// bound to [output] when set.
 final class Decide extends VasterNode {
-  final String prompt;
+  final Template prompt;
   final List<DecisionPath> paths;
 
   /// Path taken when the model's answer is unresolvable; overrides
@@ -533,7 +533,7 @@ final class Decide extends VasterNode {
 /// else 8) is exhausted, the loop is forced out through [defaultPath] when it
 /// names an exit, otherwise through the first exit.
 final class DecideLoop extends VasterNode {
-  final String prompt;
+  final Template prompt;
   final List<VasterNode> body;
   final String continueLabel;
   final String continueDescription;
@@ -593,7 +593,7 @@ final class YieldHuman extends VasterNode {
 /// binds to [output] (auto-allocated when omitted).
 final class AskHuman extends VasterNode {
   final String requestId;
-  final String prompt;
+  final Template prompt;
   final List<String> options;
   final Binding? output;
 
@@ -609,7 +609,7 @@ final class AskHuman extends VasterNode {
 /// approve/reject branches.
 class ApprovalGate extends ComposableNode {
   final String requestId;
-  final String prompt;
+  final Template prompt;
   final List<VasterNode> onApprove;
   final List<VasterNode> onReject;
   final int? timeoutMs;
@@ -628,7 +628,7 @@ class ApprovalGate extends ComposableNode {
       YieldHuman(
         requestId: requestId,
         interactionType: 'approval',
-        prompt: prompt,
+        prompt: prompt.lower(),
         options: const ['approve', 'reject'],
         output: requestId,
         timeoutMs: timeoutMs,
@@ -704,7 +704,7 @@ final class Provider<T> extends VasterNode {
 /// ```
 class Knowledge extends ComposableNode {
   final String label;
-  final String text;
+  final Template text;
   final Binding? from;
 
   /// Context class this knowledge belongs to (defaults to `knowledge`).
@@ -721,7 +721,7 @@ class Knowledge extends ComposableNode {
 
   const Knowledge({
     required this.label,
-    this.text = '',
+    this.text = const Template.text(''),
     this.from,
     this.className = ContextClassTable.knowledgeClassName,
     this.priority,
@@ -741,7 +741,7 @@ class Knowledge extends ComposableNode {
       AddContext(
         regionId: regionId,
         label: label,
-        text: text,
+        text: text.lower(),
         from: from?.name,
         className: className,
         priority: priority,

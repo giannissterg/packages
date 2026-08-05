@@ -8,7 +8,7 @@ void main() {
     test('compiles away to its register name', () {
       const spec = Binding('spec');
       const pipeline = Pipeline(name: 'b', children: [
-        Prompt('Write the spec.', output: spec),
+        Prompt(Template.text('Write the spec.'), output: spec),
       ]);
       final program = const BasicWorkflowCompiler().compile(pipeline);
       final op = program.instructions.whereType<PromptOp>().first;
@@ -17,7 +17,7 @@ void main() {
 
     test('reserved __ prefix is a compile error', () {
       const pipeline = Pipeline(name: 'r', children: [
-        Prompt('x', output: Binding('__sneaky')),
+        Prompt(Template.text('x'), output: Binding('__sneaky')),
       ]);
       final result =
           const BasicWorkflowCompiler().compileWithDiagnostics(pipeline);
@@ -32,8 +32,8 @@ void main() {
       final program = const BasicWorkflowCompiler().compile(const Pipeline(
         name: 'wire',
         children: [
-          Prompt('produce', output: Binding('x')),
-          Prompt(r'consume ${x}', output: Binding('y')),
+          Prompt(Template.text('produce'), output: Binding('x')),
+          Prompt(Template([r'consume ', Binding('x')]), output: Binding('y')),
         ],
       ));
       final ops = program.instructions.whereType<PromptOp>().toList();
@@ -45,12 +45,34 @@ void main() {
       expect(const Binding('spec').inNamespace('').name, equals('spec'));
     });
 
+    test('invalid template parts are compile errors', () {
+      final result = const BasicWorkflowCompiler().compileWithDiagnostics(
+        const Pipeline(name: 'bad', children: [
+          Prompt(Template(['ok ', 42])),
+        ]),
+      );
+      expect(result.diagnostics.map((d) => d.code),
+          contains('invalid_template_part'));
+    });
+
+    test('raw \${} inside template text draws a warning', () {
+      final result = const BasicWorkflowCompiler().compileWithDiagnostics(
+        const Pipeline(name: 'rawref', children: [
+          Prompt(Template.text(r'sneaky ${direct_register}')),
+        ]),
+      );
+      expect(result.diagnostics.map((d) => d.code),
+          contains('raw_interpolation_in_template'));
+      // Warning, not error — the escape hatch still compiles.
+      expect(result.hasErrors, isFalse);
+    });
+
     test('a fully-const pipeline with bindings still compiles', () {
       // Const-constructibility is a DX invariant — Binding must not break it.
       const result = Binding('answer');
       const pipeline = Pipeline(name: 'const_check', children: [
         Inputs({Binding('question'): 'why?'}),
-        Prompt(r'Answer: ${question}', output: result),
+        Prompt(Template([r'Answer: ', Binding('question')]), output: result),
       ]);
       final program = const BasicWorkflowCompiler().compile(pipeline);
       expect(program.instructions.whereType<PromptOp>().first.outputVar,

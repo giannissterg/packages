@@ -29,12 +29,12 @@ void main() {
         children: const [
           ApprovalGate(
             requestId: 'ast_gate_001',
-            prompt: 'Approve AST Pipeline execution?',
+            prompt: Template.text('Approve AST Pipeline execution?'),
             onApprove: [
-              WriteFile(path: '/mem/ast_res.txt', content: 'AST_APPROVED'),
+              WriteFile(path: Template.text('/mem/ast_res.txt'), content: Template.text('AST_APPROVED')),
             ],
             onReject: [
-              WriteFile(path: '/mem/ast_res.txt', content: 'AST_REJECTED'),
+              WriteFile(path: Template.text('/mem/ast_res.txt'), content: Template.text('AST_REJECTED')),
             ],
           ),
         ],
