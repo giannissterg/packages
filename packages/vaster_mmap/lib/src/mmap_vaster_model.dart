@@ -51,8 +51,10 @@ class MmapVasterModel implements VasterModel {
   /// Ring the request envelope is written to.
   final SharedMemoryRing ring;
 
-  /// Ring the sidecar's response is read from. Defaults to [ring]
-  /// (half-duplex legacy mode); use a second ring for true duplex.
+  /// Ring the sidecar's response is read from — always distinct from
+  /// [ring]. Rings are SPSC (Rule 9): sharing one ring both ways makes
+  /// the client a second consumer racing the sidecar for its own request
+  /// (the race the removed fake-success stub used to hide).
   final SharedMemoryRing responseRing;
 
   /// Optional resolver lowering cache hints to shared-memory frame refs.
@@ -69,12 +71,12 @@ class MmapVasterModel implements VasterModel {
 
   MmapVasterModel({
     required this.ring,
-    SharedMemoryRing? responseRing,
+    required this.responseRing,
     this.frameResolver,
     this.responseTimeout = const Duration(seconds: 60),
     this.pollInterval = const Duration(milliseconds: 2),
     this.targetModelName = 'mmap-llm-sidecar',
-  }) : responseRing = responseRing ?? ring;
+  });
 
   @override
   String get modelName => targetModelName;
@@ -114,7 +116,7 @@ class MmapVasterModel implements VasterModel {
       if (payload != null) {
         final parsed = _tryParseResponse(payload);
         if (parsed != null) return parsed;
-        // Not a response (e.g. our own request on a shared ring) — keep polling.
+        // Unrecognized payload — keep polling until the deadline.
       } else {
         await Future<void>.delayed(pollInterval);
       }

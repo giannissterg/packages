@@ -50,7 +50,7 @@ class MmapKvCacheController implements KvCacheController, KvFrameResolver {
   String get backendId => 'mmap';
 
   String _segmentName(String fingerprint) =>
-      '$namePrefix${fingerprint.substring(0, fingerprint.length < 16 ? fingerprint.length : 16)}';
+      kvFrameName(prefix: namePrefix, fingerprint: fingerprint);
 
   KvCacheHandle _handleFor(String fingerprint, SharedMemoryFrame frame) =>
       KvCacheHandle(

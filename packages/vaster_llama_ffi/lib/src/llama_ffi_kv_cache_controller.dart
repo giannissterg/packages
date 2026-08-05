@@ -24,14 +24,18 @@ final class LlamaFfiKvCacheController
     implements KvCacheController, KvFrameResolver {
   final LlamaWorker worker;
 
-  /// Frame-name prefix; the name is `prefix + first 16 fingerprint chars`
-  /// (matching `MmapKvCacheController`'s convention).
+  /// Frame-name prefix, fed through [kvFrameName] (the convention's one
+  /// home in `vaster_mmap`). The default is distinct from raw-content
+  /// controllers' `vaster_kv_` — these frames hold llama engine *state*,
+  /// and the payload kind is part of the naming contract. Ring-transport
+  /// clients resolving against this controller's frames must use the
+  /// same prefix.
   final String namePrefix;
 
   final Map<String, KvCacheHandle> _known = {};
 
   LlamaFfiKvCacheController(
-      {required this.worker, this.namePrefix = 'vaster_kv_'});
+      {required this.worker, this.namePrefix = 'vaster_kv_llama_'});
 
   @override
   String get backendId => 'llama-ffi';
@@ -44,7 +48,7 @@ final class LlamaFfiKvCacheController
       );
 
   String _frameName(String fingerprint) =>
-      '$namePrefix${fingerprint.length > 16 ? fingerprint.substring(0, 16) : fingerprint}';
+      kvFrameName(prefix: namePrefix, fingerprint: fingerprint);
 
   @override
   Future<KvCacheHandle?> lookup(String contentFingerprint) async {
@@ -80,10 +84,11 @@ final class LlamaFfiKvCacheController
     final existing = await lookup(contentFingerprint);
     if (existing != null) return existing;
 
-    await worker.reset();
-    await worker.decodeText(content);
+    // One atomic worker op — reset, decode, export cannot interleave
+    // with a generate (a poisoned frame would persist cross-process).
     final name = _frameName(contentFingerprint);
-    final (sizeBytes, tokenCount) = await worker.exportStateToFrame(name);
+    final (sizeBytes, tokenCount) =
+        await worker.materializeToFrame(content: content, frameName: name);
     final handle = KvCacheHandle(
       handleId: name,
       contentFingerprint: contentFingerprint,

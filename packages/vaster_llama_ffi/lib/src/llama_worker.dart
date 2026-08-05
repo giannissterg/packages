@@ -63,19 +63,25 @@ final class LlamaWorker {
       }
     });
 
-    final isolate = await Isolate.spawn(
-      _workerMain,
-      _WorkerConfig(
-        replyTo: responses.sendPort,
-        modelPath: modelPath,
-        libraryPath: libraryPath,
-        contextLength: contextLength,
-        batchSize: batchSize,
-        threads: threads,
-        gpuLayers: gpuLayers,
-      ),
-      debugName: 'llama-worker',
-    );
+    final Isolate isolate;
+    try {
+      isolate = await Isolate.spawn(
+        _workerMain,
+        _WorkerConfig(
+          replyTo: responses.sendPort,
+          modelPath: modelPath,
+          libraryPath: libraryPath,
+          contextLength: contextLength,
+          batchSize: batchSize,
+          threads: threads,
+          gpuLayers: gpuLayers,
+        ),
+        debugName: 'llama-worker',
+      );
+    } on Object {
+      responses.close(); // unwind: an unclosed port pins this isolate alive
+      rethrow;
+    }
 
     final SendPort commands;
     try {
@@ -128,6 +134,42 @@ final class LlamaWorker {
     final r =
         (await _request('exportState', {'frame': frameName}))! as List;
     return (r[0] as int, r[1] as int);
+  }
+
+  /// **Atomic** materialize: reset → decode [content] → export state into
+  /// the frame named [frameName], as ONE mailbox operation — no other
+  /// request can interleave and poison the published frame. Returns
+  /// `(stateBytes, tokenCount)`.
+  Future<(int, int)> materializeToFrame(
+      {required String content, required String frameName}) async {
+    final r = (await _request(
+        'materialize', {'text': content, 'frame': frameName}))! as List;
+    return (r[0] as int, r[1] as int);
+  }
+
+  /// **Atomic** full generation: reset → optional state restore from
+  /// [restoreFrame] → continuation prefill of [text] → greedy generation,
+  /// as ONE mailbox operation. An incompatible frame degrades to a cold
+  /// decode inside the same operation. Returns
+  /// `(promptTokens, reusedTokens, generatedText, generatedTokens,
+  /// hitLimit)`.
+  Future<(int, int, String, int, bool)> runGenerate({
+    required String text,
+    required int maxTokens,
+    String? restoreFrame,
+  }) async {
+    final r = (await _request('runGenerate', {
+      'text': text,
+      'maxTokens': maxTokens,
+      'restoreFrame': restoreFrame,
+    }))! as List;
+    return (
+      r[0] as int,
+      r[1] as int,
+      r[2] as String,
+      r[3] as int,
+      r[4] as bool
+    );
   }
 
   /// Restores sequence state from the frame named [frameName]. Returns the
@@ -238,39 +280,55 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       engine.prefill(tokens);
       return tokens.length;
     case 'prefillContinuation':
-      final all = engine.tokenize(request['text']! as String);
-      var reused = engine.tokensDecoded;
-      if (reused > all.length) {
-        // The restored prefix is longer than this prompt — reuse is
-        // impossible; start cold rather than decode at wrong positions.
-        engine.reset();
-        reused = 0;
-      }
-      if (reused == all.length && reused > 0) {
-        // Prompt == restored prefix exactly. Logits don't travel with KV
-        // state, so re-decode the final token to regenerate them.
-        engine.dropTail(1);
-        reused = engine.tokensDecoded;
-      }
-      engine.prefill(all.sublist(engine.tokensDecoded));
-      return [all.length, reused];
+      final (promptTokens, reused) =
+          _prefillContinuation(engine, request['text']! as String);
+      return [promptTokens, reused];
     case 'generateSteps':
-      final maxTokens = request['maxTokens']! as int;
-      final out = StringBuffer();
-      var generated = 0;
-      var hitLimit = true; // loop exits without a break == limit reached
-      for (var i = 0; i < maxTokens; i++) {
-        final token = engine.sampleGreedy();
-        if (engine.isEndOfGeneration(token)) {
-          hitLimit = false;
-          break;
+      final (text, generated, hitLimit) =
+          _generateSteps(engine, request['maxTokens']! as int);
+      return [text, generated, hitLimit];
+    case 'materialize':
+      // Atomic at the mailbox: nothing interleaves between reset, decode
+      // and export, so the published content-addressed frame can never
+      // hold state from a half-finished neighbor operation.
+      engine.reset();
+      engine.prefill(engine.tokenize(request['text']! as String));
+      final frame = SharedMemoryFrame.allocate(request['frame']! as String,
+          payloadLength: engine.stateSize, meta: engine.tokensDecoded);
+      try {
+        if (frame.isOwner) {
+          engine.exportStateInto(frame.payloadPointer, frame.payloadLength);
         }
-        out.write(engine.pieceOf(token));
-        generated++;
-        if (engine.tokensDecoded >= engine.contextLength) break;
-        engine.decodeOne(token);
+        return [frame.payloadLength, engine.tokensDecoded];
+      } finally {
+        frame.close(unlink: false);
       }
-      return [out.toString(), generated, hitLimit];
+    case 'runGenerate':
+      // Atomic at the mailbox: restore → continuation prefill → generate
+      // as one operation, so a concurrent materialize cannot corrupt the
+      // sequence mid-generation (or vice versa).
+      engine.reset();
+      final restoreFrame = request['restoreFrame'] as String?;
+      if (restoreFrame != null) {
+        try {
+          final attached = SharedMemoryFrame.attach(restoreFrame);
+          try {
+            engine.importStateFrom(
+                attached.payloadPointer, attached.payloadLength);
+          } finally {
+            attached.close(unlink: false);
+          }
+        } on LlamaStateIncompatibleException {
+          engine.reset(); // stale build/model — degrade to a cold decode
+        } on StateError {
+          // Frame vanished between lookup and attach — cold decode.
+        }
+      }
+      final (promptTokens, reused) =
+          _prefillContinuation(engine, request['text']! as String);
+      final (text, generated, hitLimit) =
+          _generateSteps(engine, request['maxTokens']! as int);
+      return [promptTokens, reused, text, generated, hitLimit];
     case 'exportState':
       final frameName = request['frame']! as String;
       final size = engine.stateSize;
@@ -303,4 +361,44 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
     default:
       throw StateError('Unknown worker op "${request['op']}".');
   }
+}
+
+/// Continuation prefill: tokens `[0, tokensDecoded)` are the (restored)
+/// prefix; only the remainder is decoded. Handles the impossible-reuse
+/// case (restored prefix longer than the prompt → cold) and the
+/// exact-cover case (re-decode the tail token — logits don't travel with
+/// KV state). Returns `(promptTokens, reusedTokens)`.
+(int, int) _prefillContinuation(LlamaEngine engine, String text) {
+  final all = engine.tokenize(text);
+  var reused = engine.tokensDecoded;
+  if (reused > all.length) {
+    engine.reset();
+    reused = 0;
+  }
+  if (reused == all.length && reused > 0) {
+    engine.dropTail(1);
+    reused = engine.tokensDecoded;
+  }
+  engine.prefill(all.sublist(engine.tokensDecoded));
+  return (all.length, reused);
+}
+
+/// Greedy generation from the current logits. Returns
+/// `(text, generatedTokens, hitLimit)`.
+(String, int, bool) _generateSteps(LlamaEngine engine, int maxTokens) {
+  final out = StringBuffer();
+  var generated = 0;
+  var hitLimit = true; // loop exits without a break == limit reached
+  for (var i = 0; i < maxTokens; i++) {
+    final token = engine.sampleGreedy();
+    if (engine.isEndOfGeneration(token)) {
+      hitLimit = false;
+      break;
+    }
+    out.write(engine.pieceOf(token));
+    generated++;
+    if (engine.tokensDecoded >= engine.contextLength) break;
+    engine.decodeOne(token);
+  }
+  return (out.toString(), generated, hitLimit);
 }

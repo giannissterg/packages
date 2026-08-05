@@ -39,7 +39,7 @@
         }
       }
     },
-    "suspendedAt": "2026-08-06T02:10:01.624507"
+    "suspendedAt": "2026-08-06T02:36:06.508876"
   },
   "sessions": [],
   "contextRegions": [
@@ -69,6 +69,6 @@
   },
   "budgetConsumedTokens": 279,
   "budgetConsumedCost": 0.0,
-  "budgetConsumedDurationMs": 255,
-  "capturedAt": "2026-08-06T02:10:01.625656"
+  "budgetConsumedDurationMs": 243,
+  "capturedAt": "2026-08-06T02:36:06.509992"
 }

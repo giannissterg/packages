@@ -32,7 +32,7 @@ class ResumeCommand extends VasterCommand {
     parser.addOption(
       'backend',
       help: 'Model backend to resume on '
-          '(fake|claude-api|claude-cli|gemini|gemini-cli|rpc).',
+          '(fake|claude-api|claude-cli|gemini|gemini-cli|llama|rpc).',
     );
     parser.addOption('model', help: 'Backend-specific model name.');
     parser.addOption(
@@ -100,9 +100,9 @@ class ResumeCommand extends VasterCommand {
       };
     }
 
-    final model =
-        (await resolveBackendModel(results: results, context: context, err: err))
-            .model;
+    final resolved =
+        await resolveBackendModel(results: results, context: context, err: err);
+    final model = resolved.model;
     final program = checkpoint.decodeProgram();
 
     out.writeln('======================================================================');
@@ -155,10 +155,22 @@ class ResumeCommand extends VasterCommand {
         out.writeln('  awaiting: ${request.prompt}');
         out.writeln('  checkpoint: $path');
         out.writeln('  resume: vaster resume $path --respond approve');
+        // Same zero-copy prewarm as `vaster run`'s park: regions pinned
+        // since the last park get frames too.
+        final prewarmer = resolved.kvPrewarmer;
+        if (prewarmer != null) {
+          final (regions, tokens) =
+              await prewarmer.prewarmPinnedRegions(vm.contextManager);
+          if (regions > 0) {
+            out.writeln('  kv-prewarm: $regions pinned region(s) → '
+                'shared frames ($tokens tokens)');
+          }
+        }
         tracer?.detach();
         await Future<void>.delayed(Duration.zero);
         await usageSub.cancel();
         await vm.shutdown();
+        await resolved.dispose();
         return 3;
       }
       out.writeln('\n── HUMAN INTERACTION REQUIRED ──────────────────────────');
@@ -173,6 +185,7 @@ class ResumeCommand extends VasterCommand {
         tracer?.detach();
         await usageSub.cancel();
         await vm.shutdown();
+        await resolved.dispose();
         return 2;
       }
       final reply = switch (answer.toLowerCase()) {
@@ -215,6 +228,7 @@ class ResumeCommand extends VasterCommand {
     }
 
     await vm.shutdown();
+    await resolved.dispose();
     return state.status == RuntimeStatus.halted ? 0 : 1;
   }
 }

@@ -20,8 +20,17 @@ import 'kv_prewarmer.dart';
 final class ResolvedBackend {
   final VasterModel model;
   final KvPrewarmer? kvPrewarmer;
-  const ResolvedBackend(this.model, {this.kvPrewarmer});
+
+  /// Releases resources the RESOLVER acquired (e.g. the llama worker
+  /// isolate). The resolver spawned them, the resolver's result owns
+  /// their teardown — hosts call this instead of reaching through the
+  /// model for internals.
+  final Future<void> Function() dispose;
+
+  const ResolvedBackend(this.model, {this.kvPrewarmer, required this.dispose});
 }
+
+Future<void> _noDispose() async {}
 
 /// Fallback GGUF used by `--backend llama` when neither `--model` nor
 /// `VASTER_LLAMA_MODEL` names one.
@@ -71,10 +80,11 @@ Future<ResolvedBackend> resolveBackendModel({
         // model's prompt composer renders.
         renderMessages: LlamaFfiVasterModel.renderMessages,
       ),
+      dispose: worker.close,
     );
   }
 
-  return ResolvedBackend(switch (backend) {
+  return ResolvedBackend(dispose: _noDispose, switch (backend) {
     'claude-api' => resilient(ClaudeApiVasterModel(
         targetModel: results['model'] as String? ?? 'claude-opus-5')),
     'claude-cli' => resilient(ClaudeCliVasterModel(

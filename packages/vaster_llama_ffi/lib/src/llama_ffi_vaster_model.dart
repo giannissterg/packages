@@ -1,6 +1,5 @@
 import 'package:vaster_model/vaster_model.dart';
 
-import 'llama_engine.dart';
 import 'llama_ffi_kv_cache_controller.dart';
 import 'llama_worker.dart';
 
@@ -90,29 +89,28 @@ final class LlamaFfiVasterModel implements VasterModel {
   @override
   Future<ModelResponse> generate(ModelRequest request) async {
     final prompt = composePrompt(request);
-    await worker.reset();
 
-    // Physical cache restore: first hint whose frame exists wins.
+    // Physical cache restore: the first hint whose frame exists wins. The
+    // frame NAME is resolved here; the restore itself happens inside the
+    // worker's single atomic generate op (an incompatible frame degrades
+    // to a cold decode there).
+    String? restoreFrame;
     final kv = kvController;
     if (kv != null) {
       for (final hint in request.cacheHints) {
-        final handle = await kv.lookup(hint.contentFingerprint);
-        if (handle == null) continue;
-        try {
-          await kv.restore(handle);
-        } on LlamaStateIncompatibleException {
-          continue; // stale build/model — fall through to a cold decode
+        final ref = await kv.resolveFrame(hint.contentFingerprint);
+        if (ref != null) {
+          restoreFrame = ref.frameName;
+          break;
         }
-        break;
       }
     }
 
-    final (promptTokens, reusedTokens) =
-        await worker.prefillContinuation(prompt);
     final maxTokens =
         request.generationConfig.maxOutputTokens ?? defaultMaxOutputTokens;
-    final (text, generatedTokens, hitLimit) =
-        await worker.generateSteps(maxTokens: maxTokens);
+    final (promptTokens, reusedTokens, text, generatedTokens, hitLimit) =
+        await worker.runGenerate(
+            text: prompt, maxTokens: maxTokens, restoreFrame: restoreFrame);
 
     return ModelResponse(
       message: ChatMessage.model(text),

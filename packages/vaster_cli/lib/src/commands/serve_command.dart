@@ -133,47 +133,53 @@ class ServeCommand extends VasterCommand {
     final results = context.parsedResults;
     final out = context.stdoutSink;
 
-    final LlamaFfiVasterModel model;
+    final ResolvedBackend resolved;
     try {
-      final resolved = await resolveBackendModel(
+      resolved = await resolveBackendModel(
           results: results, context: context, err: context.stderrSink);
-      model = resolved.model as LlamaFfiVasterModel;
     } on StateError catch (e) {
       context.stderrSink.writeln('Error: ${e.message}');
       return 1;
     }
-    final worker = model.worker;
+    final model = resolved.model as LlamaFfiVasterModel;
     final ringPrefix = results['ring'] as String? ?? 'vaster_llama';
 
-    final requestRing = SharedMemoryRing(shmName: '${ringPrefix}_req');
-    final responseRing = SharedMemoryRing(shmName: '${ringPrefix}_res');
-    final host = LlamaSidecarHost(
-      model: model,
-      requestRing: requestRing,
-      responseRing: responseRing,
-    );
+    // Unwind discipline (Rule 5): every acquisition below is released on
+    // every exit path — including a serve-loop failure (e.g. RingFull
+    // from a client that stopped draining).
+    SharedMemoryRing? requestRing;
+    SharedMemoryRing? responseRing;
+    StreamSubscription<Object?>? sub;
+    try {
+      requestRing = SharedMemoryRing(shmName: '${ringPrefix}_req');
+      responseRing = SharedMemoryRing(shmName: '${ringPrefix}_res');
+      final host = LlamaSidecarHost(
+        model: model,
+        requestRing: requestRing,
+        responseRing: responseRing,
+      );
 
-    out.writeln('======================================================================');
-    out.writeln('  VASTER LLAMA SIDECAR — ZERO-COPY SHARED-MEMORY TRANSPORT');
-    out.writeln('  Rings   : ${ringPrefix}_req / ${ringPrefix}_res');
-    out.writeln('  Model   : ${model.modelName}');
-    out.writeln('======================================================================\n');
-    out.writeln('✓ Sidecar is ONLINE — clients: MmapVasterModel on the same rings.');
-    out.writeln('Press Ctrl+C to stop.\n');
+      out.writeln('======================================================================');
+      out.writeln('  VASTER LLAMA SIDECAR — ZERO-COPY SHARED-MEMORY TRANSPORT');
+      out.writeln('  Rings   : ${ringPrefix}_req / ${ringPrefix}_res');
+      out.writeln('  Model   : ${model.modelName}');
+      out.writeln('======================================================================\n');
+      out.writeln('✓ Sidecar is ONLINE — clients: MmapVasterModel on the same rings.');
+      out.writeln('Press Ctrl+C to stop.\n');
 
-    final serving = host.serve();
-    late StreamSubscription sub;
-    sub = ProcessSignal.sigint.watch().listen((_) async {
-      out.writeln('\nStopping llama sidecar...');
-      host.stop();
+      final serving = host.serve();
+      sub = ProcessSignal.sigint.watch().listen((_) {
+        out.writeln('\nStopping llama sidecar...');
+        host.stop();
+      });
       await serving;
-      await worker.close();
-      requestRing.close();
-      responseRing.close();
-      await sub.cancel();
       out.writeln('✓ Sidecar stopped.');
-    });
-    await serving;
-    return 0;
+      return 0;
+    } finally {
+      await sub?.cancel();
+      requestRing?.close();
+      responseRing?.close();
+      await resolved.dispose();
+    }
   }
 }

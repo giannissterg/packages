@@ -263,6 +263,7 @@ class RunCommand extends VasterCommand {
       await usageSub.cancel();
       await eventSub?.cancel();
       await vm.shutdown();
+      await resolved.dispose();
       return 3;
     }
 
@@ -283,6 +284,7 @@ class RunCommand extends VasterCommand {
         recorder?.detach();
         await eventSub?.cancel();
         await vm.shutdown();
+        await resolved.dispose();
         return 2;
       }
       final response = switch (answer.toLowerCase()) {
@@ -350,6 +352,7 @@ class RunCommand extends VasterCommand {
     }
 
     await vm.shutdown();
+    await resolved.dispose();
     return state.status == RuntimeStatus.halted ? 0 : 1;
   }
 }

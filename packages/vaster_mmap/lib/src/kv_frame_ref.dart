@@ -1,5 +1,19 @@
 import 'dart:async';
 
+/// **The one home of the KV frame-name convention** (rules.md Rule 1/9):
+/// a frame's segment name is `prefix` + the first 16 fingerprint
+/// characters. Every KV controller derives names through this function —
+/// never inline — so producers and cross-process discoverers cannot
+/// drift.
+///
+/// Prefixes are **per payload producer**: raw-content frames
+/// (`vaster_kv_`) and engine-state frames (e.g. `vaster_kv_llama_`) must
+/// use distinct prefixes, because the payload *kind* is part of the
+/// contract — a text frame squatting on a state frame's name would make
+/// discovery lie about what is restorable.
+String kvFrameName({required String prefix, required String fingerprint}) =>
+    '$prefix${fingerprint.length > 16 ? fingerprint.substring(0, 16) : fingerprint}';
+
 /// A wire reference to a materialized [SharedMemoryFrame] — what crosses the
 /// IPC ring *instead of* the context bytes themselves.
 ///
