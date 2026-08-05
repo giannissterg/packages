@@ -35,6 +35,42 @@ void main() {
     expect(buffer.toString(), contains('Dart SDK Version'));
   });
 
+  test('vaster debug drives a scripted time-travel session', () async {
+    final fixture = File(
+        '../vaster_playground/test/fixtures/sdd_fidelity.replay.json');
+    if (!fixture.existsSync()) {
+      // Workspace-root invocation.
+      expect(
+          File('packages/vaster_playground/test/fixtures/sdd_fidelity.replay.json')
+              .existsSync(),
+          isTrue);
+    }
+    final envelopePath = fixture.existsSync()
+        ? fixture.path
+        : 'packages/vaster_playground/test/fixtures/sdd_fidelity.replay.json';
+
+    final buffer = StringBuffer();
+    final exitCode = await runner.run([
+      'debug',
+      envelopePath,
+      '--script',
+      'info; tape; seek 8; diff; l; seek 20; result; q',
+    ], stdoutSink: buffer);
+
+    final output = buffer.toString();
+    expect(exitCode, equals(0));
+    expect(output, contains('VASTER TIME-TRAVEL DEBUGGER'));
+    expect(output, contains('result  : review'));
+    // Tape view shows real recorded usage and wire cost.
+    expect(output, contains(r'$0.3812'));
+    // The dispatch step's delta shows the spec binding being written.
+    expect(output, contains('spec'));
+    // Listing renders through the shared disassembler with a cursor.
+    expect(output, contains('→'));
+    // The declared result at the final step is the recorded review.
+    expect(output, contains('APPROVE'));
+  });
+
   test('vaster unknown command returns exit code 1', () async {
     final errBuffer = StringBuffer();
     final exitCode = await runner.run(['unknown_cmd'], stderrSink: errBuffer);
