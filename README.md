@@ -138,6 +138,12 @@ vaster run my_pipeline.vbc --trace --events --record envelope.json
 # from the tape — zero tokens, zero network. Agent regression tests in CI.
 vaster run my_pipeline.vbc --replay envelope.json
 
+# Time-travel debug a recorded run: step forward/back through it,
+# inspecting registers, VFS files, and context segments at any step —
+# `cat` shows a file only if it existed AT that point in the run
+vaster debug envelope.json
+vaster debug envelope.json --script "seek 8; diff; cat /workspace/spec.md"
+
 # Disassemble compiled ISA bytecode
 vaster disassemble my_pipeline.vbc
 

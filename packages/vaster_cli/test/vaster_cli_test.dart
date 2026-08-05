@@ -71,6 +71,53 @@ void main() {
     expect(output, contains('APPROVE'));
   });
 
+  test('record-then-debug round trip on a fresh offline run', () async {
+    final tmp = Directory.systemTemp.createTempSync('vaster_debug_e2e_');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+
+    // A small program: write, read, prompt, result.
+    final program = VasterProgram(
+      programName: 'debug_e2e',
+      resultBinding: 'answer',
+      instructions: const [
+        MountFsOp(mountPrefix: '/mem'),
+        WriteFileOp(vfsPath: '/mem/q.txt', content: 'what is up?'),
+        ReadFileOp(vfsPath: '/mem/q.txt', outputVar: 'q'),
+        PromptOp(promptText: r'Answer: ${q}', outputVar: 'answer'),
+        HaltOp(),
+      ],
+    );
+    final programPath = '${tmp.path}/prog.vbc';
+    File(programPath).writeAsBytesSync(program.toBytes());
+    final envelopePath = '${tmp.path}/run.replay.json';
+
+    // 1. Record a fake-backend run.
+    final runOut = StringBuffer();
+    final runExit = await runner.run(
+        ['run', programPath, '--record', envelopePath],
+        stdoutSink: runOut);
+    expect(runExit, equals(0));
+    expect(File(envelopePath).existsSync(), isTrue);
+
+    // 2. Time-travel the recording we just made.
+    final dbgOut = StringBuffer();
+    final dbgErr = StringBuffer();
+    final dbgExit = await runner.run([
+      'debug',
+      envelopePath,
+      '--script',
+      'seek 1; cat /mem/q.txt; b 1; cat /mem/q.txt; seek 4; result; q',
+    ], stdoutSink: dbgOut, stderrSink: dbgErr);
+
+    final output = dbgOut.toString();
+    expect(dbgExit, equals(0));
+    // At step 1 the file exists; stepping BACK before the write, it doesn't.
+    expect(output, contains('what is up?'));
+    expect(dbgErr.toString(), contains('File not found'));
+    // The declared result at the end carries the fake model's answer.
+    expect(output, contains('Answer:'));
+  });
+
   test('vaster unknown command returns exit code 1', () async {
     final errBuffer = StringBuffer();
     final exitCode = await runner.run(['unknown_cmd'], stderrSink: errBuffer);

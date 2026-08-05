@@ -47,6 +47,20 @@ Breaking DX overhaul of the AST surface, plus new runtime semantics.
   from the review text — a real claude-cli calibration run showed backends
   without schema enforcement re-reviewing the artifact and overriding the
   reviewer's verdict.
+- **Time-travel debugger** (`vaster debug <envelope>`): step forward and
+  BACK through a recorded run, inspecting registers (with per-step deltas),
+  call stacks, VFS files, and context segments at any step — a file `cat`
+  succeeds only if it existed at that point in the run. Journal views are
+  instant and pure; VFS/context views materialize by re-executing the
+  program against the model tape on a fresh in-memory VM, step-for-step
+  verified against the journal (`ReplayDivergence` names the exact step on
+  any mismatch). Envelopes now embed their program; frames carry call
+  stacks; the engine journals trapped/recovered instructions; disk-mounted
+  programs are refused (replay would touch the real filesystem) and sandbox
+  /HITL programs degrade with explicit warnings. `--script` drives
+  non-interactive sessions (CI-tested against the committed real-model
+  recording). Live resume ("fork history onto a real backend") is the
+  documented follow-up.
 - Consolidation: the recorded real-model SDD run is now a committed replay
   fixture (`sdd_fidelity.replay.json`) — a zero-cost CI lock asserting the
   frontend still lowers to the exact prompts the model saw and that usage
