@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- New `vaster check <program>` — static verification: binding dominance,
+  worst-case cost bound (`--model`, `--max-cost` gating), and policy proofs
+  (`--policy read-only|unlimited|<file>`), with `--json` output.
+
 - New `vaster resume <checkpoint.json>` — continue a durably parked pipeline
   in a fresh VM on any backend (`--respond approve|reject|<text>`,
   `--trace`, `--checkpoint-dir` to re-park at the next gate).

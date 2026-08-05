@@ -29,6 +29,8 @@ dependencies:
   vaster_vm:
 
 dev_dependencies:
+  vaster_check:
+    path: ../vaster_check
   vaster_checkpoint:
   vaster_debug:
   lints: ^6.0.0

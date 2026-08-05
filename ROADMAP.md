@@ -38,8 +38,11 @@ The kernel is in place, honest, and now battle-tested:
    enforcement), `vaster run --checkpoint-dir`, `vaster resume`; the
    war-room pipeline dies at its gate and launches from JSON in a fresh VM,
    live or tape-driven.
-3. **`vaster check`** — binding dominance, cost bounds, policy proofs. The
-   guarantee no orchestration framework has.
+3. **`vaster check`** — ✅ delivered 2026-08-06: `vaster_check` package +
+   CLI verb. Definite assignment over the CFG, worst-case cost bounds
+   (loop-recognized, honest about unbounded), policy proofs
+   (proven-violation vs unprovable-dynamic), `--max-cost` CI gating; the
+   compiled war room checks clean with a finite bound.
 4. **Zero-copy completion** — the real llama.cpp sidecar over the (now
    correct) ring + frame substrate; cache-aware context planning.
 5. **Illegal states unrepresentable** — sealed `TaskOutcome`, sealed runtime

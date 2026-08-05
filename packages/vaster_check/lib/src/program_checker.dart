@@ -1,0 +1,66 @@
+import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_policy/vaster_policy.dart';
+import 'package:vaster_pricing/vaster_pricing.dart';
+
+import 'check_finding.dart';
+import 'check_report.dart';
+import 'control_flow_graph.dart';
+import 'cost_bound.dart';
+import 'definite_assignment.dart';
+import 'policy_prover.dart';
+
+/// The static verifier: one call, three analyses, a sealed report.
+final class ProgramChecker {
+  final PricingCatalog pricingCatalog;
+
+  /// Policy to prove against; null skips policy analysis.
+  final ExecutionPolicy? policy;
+
+  /// Model the cost bound is rated against; null yields a tokens-only bound.
+  final String? modelName;
+
+  /// Per-call response allowance for the cost bound.
+  final int responseAllowanceTokens;
+
+  const ProgramChecker({
+    required this.pricingCatalog,
+    this.policy,
+    this.modelName,
+    this.responseAllowanceTokens = 1024,
+  });
+
+  CheckReport check(VasterProgram program) {
+    final cfg = ControlFlowGraph.of(program);
+    final findings = <CheckFinding>[];
+
+    // Unreachable code (info-level, from the shared CFG).
+    final reachable = cfg.reachable();
+    for (var pc = 0; pc < program.instructions.length; pc++) {
+      if (!reachable.contains(pc)) {
+        findings.add(UnreachableInstruction(
+            pc: pc, opcode: program.instructions[pc].opcode.name));
+      }
+    }
+
+    findings.addAll(DefiniteAssignment(cfg).analyze());
+
+    final (costBound, costFindings) = CostAnalyzer(
+      pricingCatalog: pricingCatalog,
+      modelName: modelName,
+      responseAllowanceTokens: responseAllowanceTokens,
+    ).analyze(cfg);
+    findings.addAll(costFindings);
+
+    final activePolicy = policy;
+    if (activePolicy != null) {
+      findings.addAll(PolicyProver(activePolicy).analyze(cfg));
+    }
+
+    findings.sort((a, b) {
+      final bySeverity = a.severity.index.compareTo(b.severity.index);
+      if (bySeverity != 0) return bySeverity;
+      return (a.pc ?? -1).compareTo(b.pc ?? -1);
+    });
+    return CheckReport(findings: findings, costBound: costBound);
+  }
+}
