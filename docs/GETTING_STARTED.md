@@ -14,7 +14,7 @@ the tree it's committed to.
 ```bash
 git clone https://github.com/giannissterg/packages.git vaster && cd vaster
 dart pub get
-dart pub global activate --source path packages/vaster_cli
+dart pub global activate --source path packages/host/vaster_cli
 ```
 
 The last line puts `vaster` on your PATH (via `~/.pub-cache/bin`). If you
@@ -34,7 +34,7 @@ summary: Vaster compiles pipelines to bytecode whose execution can suspend
 to a checkpoint and resume in a fresh process.
 ```
 
-Open [`example_01_hello_pipeline.dart`](../packages/vaster_playground/bin/example_01_hello_pipeline.dart)
+Open [`example_01_hello_pipeline.dart`](../packages/host/vaster_playground/bin/example_01_hello_pipeline.dart)
 — it's one page. The shape to internalize:
 
 - A `Pipeline` is a declarative tree. `output: Binding('bullets')` binds a
@@ -165,7 +165,7 @@ with `--replay`) are also debuggable. The repo ships a recorded fixture
 from a real paid Gemini run — step through it:
 
 ```bash
-vaster debug packages/vaster_playground/test/fixtures/sdd_fidelity.replay.json \
+vaster debug packages/host/vaster_playground/test/fixtures/sdd_fidelity.replay.json \
     --script "seek 20; vfs /workspace; cat /workspace/spec.md"
 ```
 
@@ -195,7 +195,7 @@ files that didn't exist yet, don't. Drop `--script` for the interactive
   <expected>` runs hermetic trials and reports success rate with real
   metered cost.
 - **The full example catalog**:
-  [packages/vaster_playground](../packages/vaster_playground) — fan-out,
+  [packages/host/vaster_playground](../packages/host/vaster_playground) — fan-out,
   worker/critic loops, agent teams, the SDD workflow kit, RPC sidecars.
 - **The constitution**: [rules.md](../rules.md) — the architectural law
   the codebase is held to. [ROADMAP.md](../ROADMAP.md) — where this is

@@ -13,8 +13,9 @@
 set -u
 
 fail=0
-for dir in packages/*/; do
-  name=$(basename "$dir")
+for dir in packages/*/*/; do
+  name=${dir#packages/}
+  name=${name%/}
   if ! find "$dir/test" -name '*_test.dart' -print -quit 2>/dev/null | grep -q .; then
     continue
   fi

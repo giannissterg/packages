@@ -1,0 +1,119 @@
+name: vaster
+description: Vaster LLM Virtual Machine — Declarative AST, ISA Compiler, Bytecode Engine, Multi-Agent Sessions, Continuations, and Sidecar RPC.
+version: 0.4.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  vaster_token_estimate:
+  vaster_sandbox_process:
+  vaster_sandbox_manager:
+  vaster_sandbox_isolate:
+  vaster_metering:
+  vaster_pricing:
+  vaster_agent_manager_advanced:
+  vaster_agent:
+    path: ../../subsystems/vaster_agent
+  vaster_agent_basic:
+    path: ../../subsystems/vaster_agent_basic
+  vaster_agent_manager:
+    path: ../../subsystems/vaster_agent_manager
+  vaster_agent_messaging:
+    path: ../../subsystems/vaster_agent_messaging
+  vaster_ast:
+    path: ../../compiler/vaster_ast
+  vaster_budget:
+    path: ../../runtime/vaster_budget
+  vaster_calibration:
+    path: ../../analysis/vaster_calibration
+  vaster_cli:
+    path: ../../host/vaster_cli
+  vaster_compiler:
+    path: ../../compiler/vaster_compiler
+  vaster_context:
+    path: ../../subsystems/vaster_context
+  vaster_context_manager:
+    path: ../../subsystems/vaster_context_manager
+  vaster_context_mmu:
+    path: ../../bridges/vaster_context_mmu
+  vaster_continuation:
+    path: ../../bridges/vaster_continuation
+  vaster_continuation_manager:
+    path: ../../bridges/vaster_continuation_manager
+  vaster_debug:
+    path: ../../analysis/vaster_debug
+  vaster_dis:
+    path: ../../analysis/vaster_dis
+  vaster_domain:
+    path: ../../compiler/vaster_domain
+  vaster_events:
+    path: ../../runtime/vaster_events
+  vaster_filesystem:
+    path: ../../subsystems/vaster_filesystem
+  vaster_filesystem_local:
+    path: ../../subsystems/vaster_filesystem_local
+  vaster_filesystem_manager:
+    path: ../../subsystems/vaster_filesystem_manager
+  vaster_filesystem_memory:
+    path: ../../subsystems/vaster_filesystem_memory
+  vaster_instruction:
+    path: ../../isa/vaster_instruction
+  vaster_model:
+    path: ../../model/vaster_model
+  vaster_model_fake:
+    path: ../../backends/vaster_model_fake
+  vaster_kv:
+    path: ../../model/vaster_kv
+  vaster_kv_mmap:
+    path: ../../backends/vaster_kv_mmap
+  vaster_llama_ffi:
+    path: ../../backends/vaster_llama_ffi
+  vaster_mmap:
+    path: ../../transports/vaster_mmap
+  vaster_model_claude_api:
+    path: ../../backends/vaster_model_claude_api
+  vaster_model_llama_cpp:
+    path: ../../backends/vaster_model_llama_cpp
+  vaster_model_claude_cli:
+    path: ../../backends/vaster_model_claude_cli
+  vaster_model_gemini_cli:
+    path: ../../backends/vaster_model_gemini_cli
+  vaster_model_google_ai:
+    path: ../../backends/vaster_model_google_ai
+  vaster_model_rpc:
+    path: ../../transports/vaster_model_rpc
+  vaster_model_rpc_server:
+    path: ../../transports/vaster_model_rpc_server
+  vaster_policy:
+    path: ../../runtime/vaster_policy
+  vaster_policy_engine:
+    path: ../../runtime/vaster_policy_engine
+  vaster_replay:
+    path: ../../bridges/vaster_replay
+  vaster_resources:
+    path: ../../runtime/vaster_resources
+  vaster_runtime:
+    path: ../../runtime/vaster_runtime
+  vaster_sandbox:
+    path: ../../subsystems/vaster_sandbox
+  vaster_sandbox_ffi:
+    path: ../../subsystems/vaster_sandbox_ffi
+  vaster_scheduler:
+    path: ../../runtime/vaster_scheduler
+  vaster_session:
+    path: ../../subsystems/vaster_session
+  vaster_session_manager:
+    path: ../../subsystems/vaster_session_manager
+  vaster_tool:
+    path: ../../subsystems/vaster_tool
+  vaster_tool_manager:
+    path: ../../subsystems/vaster_tool_manager
+  vaster_vm:
+    path: ../../runtime/vaster_vm
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

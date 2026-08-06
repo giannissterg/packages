@@ -1,0 +1,70 @@
+name: vaster_cli
+description: Official command-line interface for running, disassembling, serving, and inspecting Vaster LLM Virtual Machine pipelines.
+version: 0.4.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+executables:
+  vaster: vaster_cli
+
+dependencies:
+  args: ^2.6.0
+  vaster_compiler:
+    path: ../../compiler/vaster_compiler
+  vaster_instruction:
+    path: ../../isa/vaster_instruction
+  vaster_calibration:
+    path: ../../analysis/vaster_calibration
+  vaster_check:
+    path: ../../analysis/vaster_check
+  vaster_eval:
+    path: ../../analysis/vaster_eval
+  vaster_policy:
+    path: ../../runtime/vaster_policy
+  vaster_pricing:
+    path: ../../model/vaster_pricing
+  vaster_checkpoint:
+    path: ../../bridges/vaster_checkpoint
+  vaster_debug:
+    path: ../../analysis/vaster_debug
+  vaster_dis:
+    path: ../../analysis/vaster_dis
+  vaster_context_manager:
+    path: ../../subsystems/vaster_context_manager
+  vaster_context_mmu:
+    path: ../../bridges/vaster_context_mmu
+  vaster_kv:
+    path: ../../model/vaster_kv
+  vaster_token_estimate:
+    path: ../../model/vaster_token_estimate
+  vaster_llama_ffi:
+    path: ../../backends/vaster_llama_ffi
+  vaster_mmap:
+    path: ../../transports/vaster_mmap
+  vaster_model:
+    path: ../../model/vaster_model
+  vaster_model_claude_api:
+    path: ../../backends/vaster_model_claude_api
+  vaster_model_claude_cli:
+    path: ../../backends/vaster_model_claude_cli
+  vaster_model_fake:
+    path: ../../backends/vaster_model_fake
+  vaster_model_gemini_cli:
+    path: ../../backends/vaster_model_gemini_cli
+  vaster_model_google_ai:
+    path: ../../backends/vaster_model_google_ai
+  vaster_model_rpc:
+    path: ../../transports/vaster_model_rpc
+  vaster_model_rpc_server:
+    path: ../../transports/vaster_model_rpc_server
+  vaster_replay:
+    path: ../../bridges/vaster_replay
+  vaster_vm:
+    path: ../../runtime/vaster_vm
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

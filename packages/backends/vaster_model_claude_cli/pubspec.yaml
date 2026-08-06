@@ -1,0 +1,19 @@
+name: vaster_model_claude_cli
+description: Claude Code CLI backend implementation for the VasterModel interface.
+version: 0.4.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  vaster_model:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
+  vaster_model_rpc:
+    path: ../../transports/vaster_model_rpc
+  vaster_model_rpc_server:
+    path: ../../transports/vaster_model_rpc_server

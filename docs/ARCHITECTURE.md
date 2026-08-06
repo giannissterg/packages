@@ -1,6 +1,8 @@
 # Vaster Architecture — the map
 
-_The map, not the law: [rules.md](../rules.md) is binding; this document
+_The package tree mirrors this map physically —
+`packages/<group>/<package>` — so the layer diagram below is also the
+directory listing. The map, not the law: [rules.md](../rules.md) is binding; this document
 shows where everything lives and why, so placement decisions are read,
 not re-derived. If this file and rules.md disagree, rules.md wins._
 

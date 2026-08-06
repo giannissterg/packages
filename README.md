@@ -125,7 +125,7 @@ dart run vaster_playground:example_01_hello_pipeline
 ```
 
 The whole loop in one file (this exact code is kept compiling by
-[`readme_quickstart_check.dart`](packages/vaster_playground/bin/readme_quickstart_check.dart)):
+[`readme_quickstart_check.dart`](packages/host/vaster_playground/bin/readme_quickstart_check.dart)):
 
 ```dart
 import 'package:vaster_ast/vaster_ast.dart';
@@ -198,13 +198,13 @@ Next steps:
   tour: compile an artifact, audit it, statically check it (including a
   proof that a hostile policy *would* fail), park it at a human gate, kill
   the process, resume it, and time-travel debug a recorded run.
-- **[packages/vaster_playground](packages/vaster_playground)** — runnable
+- **[packages/host/vaster_playground](packages/host/vaster_playground)** — runnable
   examples, from the three-file on-ramp to full coordination showcases.
 
 ## The `vaster` CLI
 
 ```bash
-dart pub global activate --source path packages/vaster_cli   # once; or use `dart run vaster_cli:vaster_cli …`
+dart pub global activate --source path packages/host/vaster_cli   # once; or use `dart run vaster_cli:vaster_cli …`
 ```
 
 | Verb | What it does |
@@ -246,19 +246,34 @@ taught us: [docs/PROVE_IT.md](docs/PROVE_IT.md).
 
 ## Repository layout
 
-~60 single-responsibility workspace packages under [`packages/`](packages).
-The map, by layer: **frontend** `vaster_ast`, `vaster_domain`,
-`vaster_compiler` · **ISA** `vaster_instruction` (VBC codec),
-`vaster_dis` · **machine** `vaster_vm`, `vaster_vm_api`, `vaster_runtime`,
-`vaster_machine_state` · **durability** `vaster_continuation`,
-`vaster_checkpoint`, `vaster_replay`, `vaster_debug` · **verification &
-measurement** `vaster_check`, `vaster_eval` · **subsystems** sessions,
-context, agents, tools, sandboxes, filesystems, policy, budget, events,
-metering, pricing, token estimation · **backends** `vaster_model_*` ·
-**CLI** `vaster_cli` · **examples** `vaster_playground`. The full map —
-layers, the placement law applied, and which tests enforce which
-boundaries — is [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md);
-architectural law lives in [rules.md](rules.md).
+64 packages in a grouped tree — the directory structure IS the
+architecture (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
+
+```text
+packages/
+├─ compiler/     the Dart-coupled frontend (ast · domain · compiler)
+├─ isa/          the pivot: vaster_instruction — compiler emits it,
+│                runtime executes it (+ VBC codec)
+├─ model/        model-domain leaves: request/response types, pricing,
+│                token estimation, KV contracts + the KV State Image
+├─ runtime/      the machine: runtime · vm(+api) · machine_state ·
+│                scheduler · budget · policy(+engine) · events ·
+│                metering · resources
+├─ subsystems/   what the machine composes: sessions · context · tools ·
+│                agents · sandboxes · filesystems
+├─ bridges/      the only two-sided components: context_mmu ·
+│                continuation(+manager) · checkpoint · replay
+├─ backends/     model implementations (fake, Claude, Gemini, llama.cpp
+│                HTTP + FFI, KV-over-mmap)
+├─ transports/   bytes only: shm segments/rings/frames · UDS RPC
+├─ analysis/     over artifacts, never live state: check · eval ·
+│                calibration · dis · debug
+└─ host/         cli · playground · the vaster umbrella
+```
+
+Rule 1's compiler/runtime boundary is physical: a dependency reaching
+into `compiler/` from below is visible in the tree and rejected by the
+architecture guard tests. Law lives in [rules.md](rules.md).
 
 ## License
 

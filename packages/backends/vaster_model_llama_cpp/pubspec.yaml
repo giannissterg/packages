@@ -1,0 +1,19 @@
+name: vaster_model_llama_cpp
+description: llama.cpp server backend for VasterModel with real KV-cache slot control — the state-addressed physical context backend for Vaster.
+version: 0.4.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  http: ^1.2.0
+  vaster_kv:
+    path: ../../model/vaster_kv
+  vaster_model:
+    path: ../../model/vaster_model
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
