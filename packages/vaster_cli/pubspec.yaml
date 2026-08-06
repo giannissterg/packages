@@ -16,6 +16,8 @@ dependencies:
     path: ../vaster_compiler
   vaster_instruction:
     path: ../vaster_instruction
+  vaster_calibration:
+    path: ../vaster_calibration
   vaster_check:
     path: ../vaster_check
   vaster_eval:
@@ -36,6 +38,8 @@ dependencies:
     path: ../vaster_context_mmu
   vaster_kv:
     path: ../vaster_kv
+  vaster_token_estimate:
+    path: ../vaster_token_estimate
   vaster_llama_ffi:
     path: ../vaster_llama_ffi
   vaster_mmap:

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- `vaster check` pairs fitted calibration with the bound (Rule 10.6 —
+  the host owns the pairing): new `--backend` names the intended
+  execution backend for profile lookup (falls back to a `--model`
+  profile, then the heuristic), and the report says which estimate
+  produced the bound. The prove-it loop closes: `--backend claude-cli`
+  bounds release_scribe-shaped calls at $0.1146 where the measured
+  reality was $0.1157 — within 1%, where the API-shaped bound was 2.2x
+  low.
+
 - `KvPrewarmer` delegates to `ContextMmu` (PV-P4): the page table owns
   hit/fault/invalidation — the prewarmer had been a hand-rolled copy of
   the bind loop minus invalidation. Park output now reports real

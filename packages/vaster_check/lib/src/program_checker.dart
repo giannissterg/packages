@@ -1,6 +1,7 @@
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_pricing/vaster_pricing.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 import 'check_finding.dart';
 import 'check_report.dart';
@@ -22,11 +23,19 @@ final class ProgramChecker {
   /// Per-call response allowance for the cost bound.
   final int responseAllowanceTokens;
 
+  /// See [CostAnalyzer.estimator] / [CostAnalyzer.callOverheadFactor] —
+  /// pass-throughs so hosts compose calibration without touching the
+  /// analyzer directly.
+  final TokenEstimator estimator;
+  final double callOverheadFactor;
+
   const ProgramChecker({
     required this.pricingCatalog,
     this.policy,
     this.modelName,
     this.responseAllowanceTokens = 1024,
+    this.estimator = const HeuristicTokenEstimator(),
+    this.callOverheadFactor = 1.0,
   });
 
   CheckReport check(VasterProgram program) {
@@ -48,6 +57,8 @@ final class ProgramChecker {
       pricingCatalog: pricingCatalog,
       modelName: modelName,
       responseAllowanceTokens: responseAllowanceTokens,
+      estimator: estimator,
+      callOverheadFactor: callOverheadFactor,
     ).analyze(cfg);
     findings.addAll(costFindings);
 

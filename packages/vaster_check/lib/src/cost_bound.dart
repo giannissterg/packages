@@ -50,6 +50,18 @@ final class CostBound {
 final class CostAnalyzer {
   final PricingCatalog pricingCatalog;
 
+  /// Token estimation seam — the canonical heuristic by default, a
+  /// calibrated (or exact) estimator when the host composes one in
+  /// (`vaster_calibration` profiles are paired with backends by the CLI,
+  /// never here: the analyzer knows the seam, not the profiles).
+  final TokenEstimator estimator;
+
+  /// Whole-call overhead multiplier for backends whose harness does work
+  /// beyond the visible prompt (CLI-agentic backends explore the repo in
+  /// their own loop — the prove-it run measured the API-shaped bound low
+  /// by 2.23x). `1.0` = the bound models API-shaped calls, as before.
+  final double callOverheadFactor;
+
   /// Model the program is rated against (SelectModelOp switching is folded
   /// conservatively into this single rate — pass the most expensive model
   /// the program can select).
@@ -63,6 +75,8 @@ final class CostAnalyzer {
     required this.pricingCatalog,
     this.modelName,
     this.responseAllowanceTokens = 1024,
+    this.estimator = const HeuristicTokenEstimator(),
+    this.callOverheadFactor = 1.0,
   });
 
   (CostBound, List<CheckFinding>) analyze(ControlFlowGraph cfg) {
@@ -112,20 +126,20 @@ final class CostAnalyzer {
           }
           calls += m;
           tokens += m *
-              (TokenEstimate.forText(op.promptText) +
+              (estimator.forText(op.promptText) +
                   responseAllowanceTokens);
         case DecideOp op:
           if (inUnbounded) unboundedCallSeen = true;
           calls += m;
           tokens += m *
-              (TokenEstimate.forText(op.prompt) + responseAllowanceTokens);
+              (estimator.forText(op.prompt) + responseAllowanceTokens);
         case DispatchAgentTaskOp op:
           if (inUnbounded) unboundedCallSeen = true;
           final turns = agentLoopCeiling[op.agentId] ?? 10;
           calls += m * turns;
           tokens += m *
               turns *
-              (TokenEstimate.forText(op.taskPrompt) +
+              (estimator.forText(op.taskPrompt) +
                   responseAllowanceTokens);
         case DispatchParallelTasksOp op:
           if (inUnbounded) unboundedCallSeen = true;
@@ -134,7 +148,7 @@ final class CostAnalyzer {
             calls += m * turns;
             tokens += m *
                 turns *
-                (TokenEstimate.forText(d.taskPrompt) +
+                (estimator.forText(d.taskPrompt) +
                     responseAllowanceTokens);
           }
         default:
@@ -142,13 +156,20 @@ final class CostAnalyzer {
       }
     }
 
+    // Harness overhead scales the whole call, prompt and response alike
+    // (the prove-it measurement was of total wire usage vs the bound).
+    final adjustedTokens = (tokens * callOverheadFactor).ceil();
+
     double? cost;
     final name = modelName;
     if (name != null && !unboundedCallSeen) {
       cost = pricingCatalog.resolveCostUsd(
         UsageMetadata(
-          promptTokenCount: tokens - calls * responseAllowanceTokens,
-          candidatesTokenCount: calls * responseAllowanceTokens,
+          promptTokenCount:
+              ((tokens - calls * responseAllowanceTokens) * callOverheadFactor)
+                  .ceil(),
+          candidatesTokenCount:
+              (calls * responseAllowanceTokens * callOverheadFactor).ceil(),
           source: UsageSource.estimated,
         ),
         name,
@@ -158,7 +179,7 @@ final class CostAnalyzer {
     return (
       CostBound(
         maxModelCalls: calls,
-        maxTokens: tokens,
+        maxTokens: adjustedTokens,
         maxCostUsd: cost,
         unbounded: unboundedCallSeen,
       ),

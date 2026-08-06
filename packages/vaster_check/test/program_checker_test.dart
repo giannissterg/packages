@@ -3,7 +3,9 @@ import 'package:vaster_check/vaster_check.dart';
 import 'package:vaster_agent_descriptor/vaster_agent_descriptor.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_policy/vaster_policy.dart';
+import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_pricing/vaster_pricing.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// The three proofs, against hand-assembled ISA (Rule 1).
 void main() {
@@ -253,4 +255,67 @@ void main() {
               'a proof');
     });
   });
+
+  group('cost bound composes the estimation seam', () {
+    const program = VasterProgram(
+      programName: 'one_call',
+      instructions: [
+        PromptOp(promptText: 'a prompt of some length for the bound'),
+        HaltOp(),
+      ],
+    );
+
+    test('defaults are byte-identical to the heuristic era', () {
+      final plain = checker().check(program).costBound;
+      final explicitDefault = ProgramChecker(
+        pricingCatalog: PricingCatalog.builtin,
+        estimator: const HeuristicTokenEstimator(),
+        callOverheadFactor: 1.0,
+      ).check(program).costBound;
+      expect(explicitDefault.maxTokens, plain.maxTokens);
+      expect(plain.maxTokens,
+          TokenEstimate.forText('a prompt of some length for the bound') + 1024);
+    });
+
+    test('a composed estimator changes the token bound', () {
+      final calibrated = ProgramChecker(
+        pricingCatalog: PricingCatalog.builtin,
+        estimator: _FixedRatioEstimator(2.0),
+      ).check(program).costBound;
+      expect(
+          calibrated.maxTokens,
+          ('a prompt of some length for the bound'.length / 2).ceil() + 1024,
+          reason: 'the analyzer estimates through the seam, not the statics');
+    });
+
+    test('the harness overhead factor scales the whole bound', () {
+      final api = checker(model: 'claude-opus-5').check(program).costBound;
+      final agentic = ProgramChecker(
+        pricingCatalog: PricingCatalog.builtin,
+        modelName: 'claude-opus-5',
+        callOverheadFactor: 2.23,
+      ).check(program).costBound;
+      expect(agentic.maxTokens, (api.maxTokens * 2.23).ceil());
+      expect(agentic.maxCostUsd, greaterThan(api.maxCostUsd! * 2.2),
+          reason: 'the prove-it lesson, priced in: CLI-agentic calls cost '
+              'more than their visible prompt');
+    });
+  });
+}
+
+/// Minimal seam implementation for the test: fixed chars-per-token.
+final class _FixedRatioEstimator implements TokenEstimator {
+  final double charsPerToken;
+  const _FixedRatioEstimator(this.charsPerToken);
+  @override
+  int forText(String text) => (text.length / charsPerToken).ceil();
+  @override
+  int forMessages(Iterable<ChatMessage> messages) =>
+      messages.fold(0, (s, m) => s + forText(m.text));
+  @override
+  UsageMetadata forExchange({required String prompt, required String output}) =>
+      UsageMetadata(
+          promptTokenCount: forText(prompt),
+          candidatesTokenCount: forText(output),
+          source: UsageSource.estimated);
 }
