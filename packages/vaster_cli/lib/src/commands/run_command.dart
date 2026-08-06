@@ -249,11 +249,12 @@ class RunCommand extends VasterCommand {
       // resuming process restores state instead of re-decoding the prefix.
       final prewarmer = resolved.kvPrewarmer;
       if (prewarmer != null) {
-        final (regions, tokens) =
-            await prewarmer.prewarmPinnedRegions(vm.contextManager);
-        if (regions > 0) {
-          out.writeln('  kv-prewarm: $regions pinned region(s) → '
-              'shared frames ($tokens tokens)');
+        final stats = await prewarmer.prewarmPinnedRegions(vm.contextManager);
+        if (stats.faults + stats.hits > 0) {
+          out.writeln('  kv-prewarm: ${stats.faults} region(s) materialized '
+              '(${stats.tokensMaterialized} tokens)'
+              '${stats.hits > 0 ? ', ${stats.hits} already warm' : ''}'
+              '${stats.invalidations > 0 ? ', ${stats.invalidations} stale mapping(s) evicted' : ''}');
         }
       }
       out.writeln('  resume: vaster resume $path --respond approve');

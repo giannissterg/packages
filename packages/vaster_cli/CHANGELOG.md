@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `KvPrewarmer` delegates to `ContextMmu` (PV-P4): the page table owns
+  hit/fault/invalidation — the prewarmer had been a hand-rolled copy of
+  the bind loop minus invalidation. Park output now reports real
+  `MmuStats`: regions materialized (with tokens), page hits ("already
+  warm"), and stale mappings evicted.
+
 - `vaster serve` decouples backend from transport: `--backend gemini|
   claude|claude-api|llama` × `--transport socket|shm` in any pairing —
   llama can be served over the Unix socket, and any backend over

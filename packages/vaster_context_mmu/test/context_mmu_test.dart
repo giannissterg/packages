@@ -133,4 +133,91 @@ void main() {
       expect(stats.faults, equals(1));
     });
   });
+
+  group('contentRenderer (the alignment contract hook)', () {
+    ContextRegion region() => ContextRegion(
+          id: 'r1',
+          label: 'facts',
+          messages: [ChatMessage.user('Bo is a small brown dog.')],
+          estimatedTokens: 8,
+        );
+
+    test('default renderer materializes the canonical content', () async {
+      final manager = BasicContextManager();
+      manager.addRegion(region());
+      manager.pinRegion('r1');
+
+      final captured = <String>[];
+      final mmu = ContextMmu(controller: _CapturingController(captured));
+      await mmu.bindPinnedRegions(manager);
+      expect(captured.single, ContextMmu.regionContent(region()),
+          reason: 'fingerprint-derivation form by default');
+    });
+
+    test('an injected renderer shapes the payload, never the key', () async {
+      final manager = BasicContextManager();
+      manager.addRegion(region());
+      manager.pinRegion('r1');
+
+      final captured = <String>[];
+      final stats = MmuStats();
+      final mmu = ContextMmu(
+        controller: _CapturingController(captured),
+        contentRenderer: (r) =>
+            r.messages.map((m) => 'user: ${m.text}\n').join(),
+      );
+      final hints = await mmu.bindPinnedRegions(manager, stats: stats);
+      expect(captured.single, 'user: Bo is a small brown dog.\n',
+          reason: 'the backend-rendered form is what gets materialized');
+      expect(hints.single.contentFingerprint,
+          manager.getCacheDescriptor('r1')!.contentFingerprint,
+          reason: 'the page-table key stays the canonical fingerprint — '
+              'provenance addressing');
+      expect(stats.tokensMaterialized, greaterThan(0));
+    });
+  });
+}
+
+/// Records what materialize receives; token count = word count.
+final class _CapturingController implements KvCacheController {
+  final List<String> captured;
+  final Map<String, KvCacheHandle> _store = {};
+  _CapturingController(this.captured);
+
+  @override
+  String get backendId => 'capturing';
+
+  @override
+  KvCacheCapabilities get capabilities => const KvCacheCapabilities(
+      isStateAddressed: true,
+      supportsPersistence: false,
+      supportsEviction: true);
+
+  @override
+  Future<KvCacheHandle?> lookup(String contentFingerprint) async =>
+      _store[contentFingerprint];
+
+  @override
+  Future<KvCacheHandle> materialize(
+      {required String contentFingerprint,
+      required String content,
+      int? tokenEstimate}) async {
+    captured.add(content);
+    return _store[contentFingerprint] = KvCacheHandle(
+      handleId: 'h_$contentFingerprint',
+      contentFingerprint: contentFingerprint,
+      tokenCount: content.split(' ').length,
+      backend: backendId,
+    );
+  }
+
+  @override
+  Future<void> restore(KvCacheHandle handle) async {}
+
+  @override
+  Future<void> evict(KvCacheHandle handle) async =>
+      _store.remove(handle.contentFingerprint);
+
+  @override
+  Future<List<KvCacheHandle>> list() async => _store.values.toList();
 }

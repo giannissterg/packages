@@ -15,9 +15,14 @@ class MmuStats {
   /// Stale mappings dropped because region content changed under the same id.
   int invalidations = 0;
 
+  /// Tokens materialized by this pass's faults — the prefill cost paid
+  /// now so later consumers restore instead of re-decoding.
+  int tokensMaterialized = 0;
+
   @override
-  String toString() =>
-      'MmuStats(hits: $hits, faults: $faults, invalidations: $invalidations)';
+  String toString() => 'MmuStats(hits: $hits, faults: $faults, '
+      'invalidations: $invalidations, '
+      'tokensMaterialized: $tokensMaterialized)';
 }
 
 /// The Context Memory Management Unit: lowers Vaster's *virtual* context
@@ -41,10 +46,21 @@ class MmuStats {
 class ContextMmu {
   final KvCacheController controller;
 
+  /// Renders a region into the exact content that gets materialized —
+  /// **the alignment contract hook**. The default, [regionContent], is
+  /// the canonical fingerprint-derivation form. Backends whose prompt
+  /// composition *renders* regions (e.g. the llama backend's
+  /// `role: text` flattening) inject their own renderer so the
+  /// materialized state is a token-exact prefix of the prompts it will
+  /// be validated against. Fingerprints always key on the canonical
+  /// content regardless — the renderer shapes the *payload*, never the
+  /// page-table key (provenance addressing).
+  final String Function(ContextRegion region) contentRenderer;
+
   /// Live page table: regionId -> physical handle.
   final Map<String, KvCacheHandle> _pageTable = {};
 
-  ContextMmu({required this.controller});
+  ContextMmu({required this.controller, this.contentRenderer = regionContent});
 
   /// Read-only view of the current mappings.
   Map<String, KvCacheHandle> get pageTable => Map.unmodifiable(_pageTable);
@@ -81,10 +97,11 @@ class ContextMmu {
       } else {
         handle = await controller.materialize(
           contentFingerprint: descriptor.contentFingerprint,
-          content: regionContent(region),
+          content: contentRenderer(region),
           tokenEstimate: region.estimatedTokens,
         );
         stats?.faults++;
+        stats?.tokensMaterialized += handle.tokenCount;
       }
       _pageTable[descriptor.regionId] = handle;
 

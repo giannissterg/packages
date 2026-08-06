@@ -159,11 +159,13 @@ class ResumeCommand extends VasterCommand {
         // since the last park get frames too.
         final prewarmer = resolved.kvPrewarmer;
         if (prewarmer != null) {
-          final (regions, tokens) =
+          final stats =
               await prewarmer.prewarmPinnedRegions(vm.contextManager);
-          if (regions > 0) {
-            out.writeln('  kv-prewarm: $regions pinned region(s) → '
-                'shared frames ($tokens tokens)');
+          if (stats.faults + stats.hits > 0) {
+            out.writeln('  kv-prewarm: ${stats.faults} region(s) '
+                'materialized (${stats.tokensMaterialized} tokens)'
+                '${stats.hits > 0 ? ', ${stats.hits} already warm' : ''}'
+                '${stats.invalidations > 0 ? ', ${stats.invalidations} stale mapping(s) evicted' : ''}');
           }
         }
         tracer?.detach();
