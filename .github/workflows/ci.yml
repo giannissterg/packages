@@ -41,7 +41,9 @@ jobs:
         # The sweep includes the committed SDD fidelity fixture replay —
         # a zero-cost end-to-end run of compiler → runtime → metering
         # against real recorded model traffic (exact token/cost totals) —
-        # and every architectural guard test (vaster_kv leaf guard,
+        # the reliability benchmark set (vaster_benchmarks: gate 4's
+        # tape + fault-injection evidence, docs/RELIABILITY.md), and
+        # every architectural guard test (vaster_kv leaf guard,
         # checkpoint-anywhere gauntlet, KV State Image golden bytes,
         # quickstart anti-rot mirror). See docs/ARCHITECTURE.md's
         # enforcement table.

@@ -1,0 +1,25 @@
+name: vaster_benchmarks
+description: The reliability benchmark set — gate 4's evidence. Recorded-tape CI runs and the live-run protocol.
+version: 0.1.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+executables:
+  vaster-benchmarks-export: export
+
+dependencies:
+  vaster_ast:
+  vaster_compiler:
+  vaster_domain:
+  vaster_eval:
+  vaster_model:
+  vaster_model_fake:
+  vaster_replay:
+  vaster_vm:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

@@ -78,5 +78,6 @@ workspace:
   - packages/analysis/vaster_eval
   # host
   - packages/host/vaster
+  - packages/host/vaster_benchmarks
   - packages/host/vaster_cli
   - packages/host/vaster_playground

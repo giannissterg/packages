@@ -269,10 +269,12 @@ Post-P4 gap closures: ✅ GAP-1 open transactions survive checkpoint/pause
 (and unpaired transaction ops warn); ✅ GAP-2 agent dispatches join the
 effect ledger — a retried attempt replays completed tasks (parallel
 batches replay successes, re-run only failures), never re-charging.
-Remaining in this thread: GAP-3 agent reliability parity (dedup inside
-agent-internal tool loops, descriptor-level fallback chains — see
-~/.claude/plans/rel-open-gaps.md), then REL-P5's published benchmark
-evals to close gate 4.
+REL-P5 ✅: the published benchmark set (`vaster_benchmarks`,
+`docs/RELIABILITY.md`) closes gate 4 — recorded tapes from two real
+backends in CI, fault injection for the semantics, documented live-run
+protocol. Remaining in this thread: GAP-3 agent reliability parity
+(dedup inside agent-internal tool loops, descriptor-level fallback
+chains — see ~/.claude/plans/rel-open-gaps.md).
 
 ### E. Multi-run evaluation harness — ✅ delivered (vaster_eval; see above)
 Replay gave us determinism for one run; the next level is *comparing* runs.
@@ -322,12 +324,17 @@ claims is enforced by a test, bounded by `vaster check`, measured by
 3. **Outside users exist.** Published to pub.dev, a docs site with the
    10-minute getting-started, ≥3 runnable examples, and at least one real
    workload owned by someone who is not us.
-4. **Real-model reliability is engineered, not hoped.** Thread D shipped:
-   declarative retry/fallback/idempotency (`Resilient` node, model chains),
-   because the prove-it run showed real backends differ from fakes in kind.
-   Gate: a benchmark set of workflows with PUBLISHED eval success rates and
-   costs on ≥2 real backends, run in CI on recorded tapes and periodically
-   live.
+4. **Real-model reliability is engineered, not hoped.** ✅ DELIVERED
+   (REL-P1..P5 + GAP-1/2; evidence: `docs/RELIABILITY.md`). Thread D
+   shipped — sealed outcomes, priced retries, attributed fallback chains,
+   the effect ledger, real transaction unwinding — and the gate closed the
+   way this project closes gates: `vaster_benchmarks` runs the published
+   set in CI at zero cost (recorded tapes from TWO real backends,
+   claude-cli and llama-ffi, locked to exact recorded totals; fault
+   injection proving the P2/P3/P4 semantics every push), with the
+   documented protocol for periodic live runs. Gate residue: run the live
+   protocol at each tagged release and append to the published history;
+   GAP-3 (agent-internal parity) tracked in the gaps plan.
 5. **The bold claim redeemed or cut.** ✅ REDEEMED (thread 4 + PV): real KV
    state moves engine → shared pages → engine as spec'd, validated images;
    warm resume measured live. Gate residue for 1.0: keep the transcripts
