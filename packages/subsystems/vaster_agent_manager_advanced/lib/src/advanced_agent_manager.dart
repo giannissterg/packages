@@ -241,7 +241,7 @@ class AdvancedAgentManager implements AgentManager {
       eventBus.publish(ModelFinishedEvent(
         eventId: 'evt_finish_${task.taskId}',
         sessionId: entry.agent.session.sessionId,
-        finishReason: 'stop',
+        finishReason: output.isSuccess ? 'stop' : 'error',
         totalTokens: aggregate.totalTokenCount > 0
             ? aggregate.totalTokenCount
             : TokenEstimate.forText(output.outputText),
@@ -286,8 +286,7 @@ class AdvancedAgentManager implements AgentManager {
         taskId: task.taskId,
         agentId: agentId,
         outputText: '',
-        isSuccess: false,
-        errorDetails: reason,
+        outcome: TaskRefused(reason: reason),
       );
 
   @override

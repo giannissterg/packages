@@ -32,7 +32,6 @@ void main() {
         taskId: 't_100',
         agentId: 'ag_1',
         outputText: 'Quantum computing summary...',
-        isSuccess: true,
       );
 
       final json = output.toJson();
@@ -104,6 +103,59 @@ void main() {
       expect(aggregate.promptTokenCount, equals(40 + 20 + 10 + 10));
       expect(aggregate.candidatesTokenCount, equals(4 + 2 + 1 + 1));
       expect(aggregate.source, equals(UsageSource.measured));
+    });
+  });
+
+  group('TaskOutcome (sealed)', () {
+    test('every variant round-trips with its data', () {
+      const outcomes = <TaskOutcome>[
+        TaskCompleted(),
+        TaskModelFailure(message: 'HTTP 500', transient: true),
+        TaskQuotaExceeded(
+            resourceType: 'tokens',
+            currentUsage: 900,
+            quotaLimit: 1000,
+            message: 'over'),
+        TaskCancelled(message: 'caller cancelled'),
+        TaskRefused(reason: 'agent paused'),
+        TaskFailure(error: 'boom', stackTrace: 'st'),
+      ];
+      for (final outcome in outcomes) {
+        final restored = TaskOutcome.fromJson(outcome.toJson());
+        expect(restored.kind, outcome.kind);
+        expect(restored.isSuccess, outcome.isSuccess);
+        expect(restored.detail, outcome.detail);
+      }
+    });
+
+    test('AgentOutput projections derive from the outcome', () {
+      const failed = AgentOutput(
+        taskId: 't',
+        agentId: 'a',
+        outputText: '',
+        outcome: TaskModelFailure(message: 'HTTP 429', transient: true),
+      );
+      expect(failed.isSuccess, isFalse);
+      expect(failed.errorDetails, 'HTTP 429');
+      final restored = AgentOutput.fromJson(failed.toJson());
+      expect(restored.outcome, isA<TaskModelFailure>());
+      expect((restored.outcome as TaskModelFailure).transient, isTrue,
+          reason: 'the retry classification survives the wire');
+    });
+
+    test('legacy payloads without an outcome derive one honestly', () {
+      final legacyFailure = AgentOutput.fromJson({
+        'taskId': 't',
+        'agentId': 'a',
+        'outputText': '',
+        'isSuccess': false,
+        'errorDetails': 'old-style error',
+      });
+      expect(legacyFailure.outcome, isA<TaskFailure>());
+      expect(legacyFailure.errorDetails, 'old-style error');
+      final legacySuccess = AgentOutput.fromJson(
+          {'taskId': 't', 'agentId': 'a', 'outputText': 'ok'});
+      expect(legacySuccess.outcome, isA<TaskCompleted>());
     });
   });
 }

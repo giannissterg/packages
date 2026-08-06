@@ -1,3 +1,15 @@
+/// An operation observed a cancellation request. Cancellation is a
+/// caller's decision, not an error — it gets a real type so downstream
+/// classification (sealed `TaskOutcome`, retry policies) never has to
+/// match message prefixes. Implements [StateError]'s shape loosely via
+/// [message] for readability, but catch THIS type.
+final class CancelledException implements Exception {
+  final String message;
+  const CancelledException(this.message);
+  @override
+  String toString() => 'CancelledException: $message';
+}
+
 /// Lightweight token handle to signal and observe cancellation requests across asynchronous operations.
 class CancellationToken {
   bool _isCancelled = false;
@@ -15,10 +27,10 @@ class CancellationToken {
     _reason = reason;
   }
 
-  /// Throws a [StateError] if cancellation has been requested.
+  /// Throws a [CancelledException] if cancellation has been requested.
   void throwIfCancelled() {
     if (_isCancelled) {
-      throw StateError(_reason != null
+      throw CancelledException(_reason != null
           ? 'Operation cancelled: $_reason'
           : 'Operation was cancelled.');
     }

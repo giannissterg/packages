@@ -3,6 +3,7 @@ library;
 
 export 'src/call_stack.dart';
 export 'src/cache_hint_tracker.dart';
+export 'src/agent_task_exception.dart';
 export 'src/decision_arbiter.dart';
 export 'src/extract_outcome.dart';
 export 'src/hitl_controller.dart';

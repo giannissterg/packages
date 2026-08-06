@@ -125,8 +125,29 @@ class BasicVasterAgent implements VasterAgent {
               : const GenerationConfig(),
         );
 
-        // c. Generate and track token usage
-        response = await session.model.generate(request);
+        // c. Generate and track token usage. The model call is its own
+        //    classification boundary: its failures become
+        //    TaskModelFailure with the transient bit — the datum
+        //    Resilient's retry decision reads.
+        try {
+          response = await session.model.generate(request);
+        } on CancelledException {
+          rethrow;
+        } on QuotaExceededException {
+          rethrow;
+        } catch (e) {
+          watch.stop();
+          return AgentOutput(
+            taskId: task.taskId,
+            agentId: agentId,
+            outputText: '',
+            outcome: TaskModelFailure(
+                message: '$e', transient: defaultIsTransient(e)),
+            subagentOutputs: subagentOutputs,
+            usage: taskUsage,
+            executionDuration: watch.elapsed,
+          );
+        }
         final turnUsage = response.usage.totalTokenCount > 0
             ? response.usage
             : TokenEstimate.forExchange(
@@ -173,7 +194,17 @@ class BasicVasterAgent implements VasterAgent {
         taskId: task.taskId,
         agentId: agentId,
         outputText: response?.text ?? '',
-        isSuccess: true,
+        subagentOutputs: subagentOutputs,
+        usage: taskUsage,
+        executionDuration: watch.elapsed,
+      );
+    } on CancelledException catch (e) {
+      watch.stop();
+      return AgentOutput(
+        taskId: task.taskId,
+        agentId: agentId,
+        outputText: '',
+        outcome: TaskCancelled(message: e.message),
         subagentOutputs: subagentOutputs,
         usage: taskUsage,
         executionDuration: watch.elapsed,
@@ -184,11 +215,16 @@ class BasicVasterAgent implements VasterAgent {
         taskId: task.taskId,
         agentId: agentId,
         outputText: '',
-        isSuccess: false,
+        // The discriminator survives as data now, not prose.
+        outcome: TaskQuotaExceeded(
+          resourceType: e.resourceType,
+          currentUsage: e.currentUsage,
+          quotaLimit: e.quotaLimit,
+          message: e.message,
+        ),
         subagentOutputs: subagentOutputs,
         usage: taskUsage,
         executionDuration: watch.elapsed,
-        errorDetails: 'Quota exceeded: ${e.message}',
       );
     } catch (e, st) {
       watch.stop();
@@ -196,11 +232,10 @@ class BasicVasterAgent implements VasterAgent {
         taskId: task.taskId,
         agentId: agentId,
         outputText: '',
-        isSuccess: false,
+        outcome: TaskFailure(error: '$e', stackTrace: '$st'),
         subagentOutputs: subagentOutputs,
         usage: taskUsage,
         executionDuration: watch.elapsed,
-        errorDetails: '$e\n$st',
       );
     }
   }

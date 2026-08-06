@@ -76,7 +76,7 @@ void main() {
       final cancelToken = CancellationToken()..cancel('Stop prompt');
       expect(
         () => vm.prompt('Test cancelled', model: fakeModel, cancelToken: cancelToken),
-        throwsA(isA<StateError>()),
+        throwsA(isA<CancelledException>()),
       );
     });
 

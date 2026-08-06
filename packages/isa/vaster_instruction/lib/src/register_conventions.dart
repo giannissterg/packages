@@ -21,3 +21,14 @@ const String decideRationaleSuffix = '_rationale';
 /// The rationale register for a [DecideOp] [outputVar].
 String decideRationaleRegister(String outputVar) =>
     '$outputVar$decideRationaleSuffix';
+
+/// Suffix of the task-outcome register written alongside a
+/// [DispatchAgentTaskOp]/[DispatchParallelTasksOp] output register: the
+/// sealed `TaskOutcome`'s stable KIND string (`completed`,
+/// `model-failure`, `quota-exceeded`, `cancelled`, `refused`,
+/// `failure`). The ISA carries the kind as a plain register string — it
+/// never references the sealed type (Rule 1 handles-and-descriptors).
+const String taskOutcomeSuffix = '_outcome';
+
+/// The outcome-kind register for a dispatch [outputVar].
+String taskOutcomeRegister(String outputVar) => '$outputVar$taskOutcomeSuffix';

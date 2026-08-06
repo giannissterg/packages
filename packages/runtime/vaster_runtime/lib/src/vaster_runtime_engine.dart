@@ -20,6 +20,7 @@ import 'package:vaster_vm_api/vaster_vm_api.dart';
 
 import 'cache_hint_tracker.dart';
 import 'call_stack.dart';
+import 'agent_task_exception.dart';
 import 'decision_arbiter.dart';
 import 'extract_outcome.dart';
 import 'hitl_controller.dart';
@@ -677,6 +678,23 @@ class VasterRuntime {
           modelName: vm.config.defaultModel.modelName,
           callSite: 'isa_agent_task',
         );
+        // The sibling outcome register carries the sealed outcome's KIND
+        // (ABI convention: taskOutcomeRegister) — observable data even
+        // when a handler recovers the failure.
+        if (op.outputVar != null) {
+          _registers.write(
+              taskOutcomeRegister(op.outputVar!), output.outcome.kind);
+        }
+        // Failure is a program error, not an empty register: route it to
+        // the error-handler stack (TryCatch / Resilient) or trap. This is
+        // what makes agent failures recoverable at all.
+        if (!output.isSuccess) {
+          throw AgentTaskException(
+            agentId: op.agentId,
+            taskId: output.taskId,
+            outcome: output.outcome,
+          );
+        }
         if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
       case DispatchParallelTasksOp op:
@@ -696,16 +714,33 @@ class VasterRuntime {
         // Parallel work is not free work: charge the summed usage of every
         // task tree (previously this path charged nothing at all).
         var parallelUsage = const UsageMetadata();
+        AgentTaskException? firstFailure;
         for (int i = 0; i < outputs.length; i++) {
           parallelUsage += outputs[i].aggregateUsage;
           final v = op.dispatches[i].outputVar;
-          if (v != null) _registers.write(v, outputs[i].outputText);
+          if (v != null) {
+            _registers.write(taskOutcomeRegister(v), outputs[i].outcome.kind);
+            if (outputs[i].isSuccess) {
+              _registers.write(v, outputs[i].outputText);
+            }
+          }
+          if (!outputs[i].isSuccess) {
+            firstFailure ??= AgentTaskException(
+              agentId: op.dispatches[i].agentId,
+              taskId: outputs[i].taskId,
+              outcome: outputs[i].outcome,
+            );
+          }
         }
         _meter.charge(
           usage: parallelUsage,
           modelName: vm.config.defaultModel.modelName,
           callSite: 'isa_parallel_tasks',
         );
+        // Every sibling outcome register is written first (successes keep
+        // their outputs), THEN the first failure raises — a handler sees
+        // the whole batch's outcomes.
+        if (firstFailure != null) throw firstFailure;
 
       case SendMessageOp op:
         vm.messagingHub.sendMessage(AgentMessage(

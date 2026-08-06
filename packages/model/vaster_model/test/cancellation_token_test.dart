@@ -11,7 +11,7 @@ void main() {
       token.cancel('User requested stop');
       expect(token.isCancelled, isTrue);
       expect(token.reason, equals('User requested stop'));
-      expect(() => token.throwIfCancelled(), throwsA(isA<StateError>()));
+      expect(() => token.throwIfCancelled(), throwsA(isA<CancelledException>()));
     });
   });
 }

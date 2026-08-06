@@ -1,6 +1,12 @@
 import 'package:vaster_model/vaster_model.dart';
 
+import 'task_outcome.dart';
+
 /// Execution result payload returned by an agent task execution.
+///
+/// How the task ended is the sealed [outcome] — `isSuccess` and
+/// `errorDetails` are projections kept for callers that only need the
+/// bool/string view (the `MachinePhase.asStatus` compatibility move).
 class AgentOutput {
   /// Matching task identifier.
   final String taskId;
@@ -11,8 +17,8 @@ class AgentOutput {
   /// Final response text produced by agent.
   final String outputText;
 
-  /// Whether task execution was successful.
-  final bool isSuccess;
+  /// How the task ended — sealed, carrying the failure's data.
+  final TaskOutcome outcome;
 
   /// Results returned by spawned subagents during this task.
   final List<AgentOutput> subagentOutputs;
@@ -24,19 +30,21 @@ class AgentOutput {
   /// Total execution duration.
   final Duration executionDuration;
 
-  /// Error details if [isSuccess] is false.
-  final String? errorDetails;
-
   const AgentOutput({
     required this.taskId,
     required this.agentId,
     required this.outputText,
-    this.isSuccess = true,
+    this.outcome = const TaskCompleted(),
     this.subagentOutputs = const [],
     this.usage = const UsageMetadata(),
     this.executionDuration = Duration.zero,
-    this.errorDetails,
   });
+
+  /// Projection of [outcome] — prefer switching on the sealed type.
+  bool get isSuccess => outcome.isSuccess;
+
+  /// Projection of [outcome] — the failure detail, null on success.
+  String? get errorDetails => outcome.isSuccess ? null : outcome.detail;
 
   /// Usage of the whole task tree: this agent's own calls plus every
   /// subagent's, each counted exactly once.
@@ -47,6 +55,8 @@ class AgentOutput {
         'taskId': taskId,
         'agentId': agentId,
         'outputText': outputText,
+        'outcome': outcome.toJson(),
+        // Legacy projections stay on the wire for older readers.
         'isSuccess': isSuccess,
         'subagentOutputs': subagentOutputs.map((s) => s.toJson()).toList(),
         if (usage.totalTokenCount != 0 || usage.costUsd != null)
@@ -57,11 +67,21 @@ class AgentOutput {
 
   factory AgentOutput.fromJson(Map<String, dynamic> json) {
     final usageRaw = json['usage'] as Map<String, dynamic>?;
+    final outcomeRaw = json['outcome'] as Map<String, dynamic>?;
+    // Legacy payloads (no outcome object): derive from the old bool +
+    // string pair — never let a malformed payload masquerade as success
+    // when it carried error details.
+    final legacySuccess = json['isSuccess'] as bool? ?? true;
+    final legacyError = json['errorDetails'] as String?;
     return AgentOutput(
       taskId: json['taskId'] as String? ?? '',
       agentId: json['agentId'] as String? ?? '',
       outputText: json['outputText'] as String? ?? '',
-      isSuccess: json['isSuccess'] as bool? ?? true,
+      outcome: outcomeRaw != null
+          ? TaskOutcome.fromJson(outcomeRaw)
+          : legacySuccess && legacyError == null
+              ? const TaskCompleted()
+              : TaskFailure(error: legacyError ?? 'unspecified failure'),
       subagentOutputs: (json['subagentOutputs'] as List?)
               ?.map((e) => AgentOutput.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -71,11 +91,10 @@ class AgentOutput {
           : const UsageMetadata(),
       executionDuration:
           Duration(milliseconds: json['executionDurationMs'] as int? ?? 0),
-      errorDetails: json['errorDetails'] as String?,
     );
   }
 
   @override
-  String toString() =>
-      'AgentOutput(taskId: "$taskId", agentId: "$agentId", success: $isSuccess, subagents: ${subagentOutputs.length})';
+  String toString() => 'AgentOutput(taskId: "$taskId", agentId: "$agentId", '
+      'outcome: ${outcome.kind}, subagents: ${subagentOutputs.length})';
 }
