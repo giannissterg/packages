@@ -3,8 +3,11 @@ library;
 
 import 'dart:io';
 
+import 'dart:typed_data';
+
 import 'package:test/test.dart';
 import 'package:vaster_llama_ffi/vaster_llama_ffi.dart';
+import 'package:vaster_mmap/vaster_mmap.dart';
 import 'package:vaster_model/vaster_model.dart';
 
 /// ZC-P3: the VasterModel + KV controller layer on real inference.
@@ -142,6 +145,70 @@ void main() {
       ]));
       expect(response.text, isNotEmpty);
       expect(response.usage.cacheReadTokenCount, 0);
+    });
+
+    test('a NON-prefix frame under a valid hint: rejected outcome, cold '
+        'output — the previously-unwritable test', () async {
+      // Materialize content that is NOT a prefix of the composed prompt,
+      // under the fingerprint the hint will carry. Before validation this
+      // silently produced a wrong-context completion.
+      await kv.materialize(
+          contentFingerprint: fingerprint,
+          content: 'user: Entirely unrelated facts about spaceships.\n');
+
+      final cold = await model.generate(request());
+      final hinted = await model.generate(request(hints: [
+        ContextCacheHint(
+            regionId: 'knowledge', contentFingerprint: fingerprint),
+      ]));
+
+      expect(hinted.usage.cacheReadTokenCount, 0,
+          reason: 'no token was reused');
+      final raw = hinted.rawResponse as Map?;
+      final reuse = raw?['kvReuse'] as Map?;
+      expect(reuse?['result'], 'rejected');
+      expect(reuse?['reason'], 'prefix-mismatch');
+      expect(reuse?['divergenceIndex'], isA<int>());
+      expect(hinted.text, cold.text,
+          reason: 'the rejection decoded cold — output identical to a '
+              'never-hinted call, never a wrong-context completion');
+    });
+
+    test('validated reuse surfaces its outcome in rawResponse too',
+        () async {
+      final content = '$pinnedKnowledge\n';
+      final handle = await kv.materialize(
+          contentFingerprint: fingerprint, content: content);
+      final warm = await model.generate(request(hints: [
+        ContextCacheHint(
+            regionId: 'knowledge', contentFingerprint: fingerprint),
+      ]));
+      final reuse = (warm.rawResponse as Map)['kvReuse'] as Map;
+      expect(reuse['result'], 'validated');
+      expect(reuse['reusedTokens'], handle.tokenCount);
+    });
+
+    test('an unparseable squatter on the frame name is reclaimed by lookup',
+        () async {
+      // A raw (pre-format) frame squatting on the controller's derived
+      // name — the migration-deadlock shape caught live in ZC/PV.
+      final name = kvFrameName(
+          prefix: '${kv.namePrefix}'
+              '${(await worker.engineTag()).toRadixString(16)}_',
+          fingerprint: fingerprint);
+      SharedMemoryFrame.create(
+              name, Uint8List.fromList(List.filled(64, 7)))
+          .close(unlink: false);
+
+      expect(await kv.lookup(fingerprint), isNull,
+          reason: 'an unparseable payload is not a hit');
+      expect(() => SharedMemoryFrame.attach(name), throwsStateError,
+          reason: 'the squatter was unlinked so the name is reusable');
+
+      // …and materialize now succeeds where it would have deadlocked.
+      final handle = await kv.materialize(
+          contentFingerprint: fingerprint, content: pinnedKnowledge);
+      expect(handle.tokenCount, greaterThan(0));
     });
 
     test('single-chunk stream carries final usage', () async {

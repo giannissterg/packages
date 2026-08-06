@@ -223,6 +223,67 @@ void main() {
     });
   }, skip: skip);
 
+  group('adversarial reuse (PV-P3)', () {
+    late LlamaEngine engine;
+    setUp(() => engine = LlamaEngine.load(modelPath: modelPath));
+    tearDown(() => engine.dispose());
+
+    test('BPE seam re-merging is caught: content ending mid-word', () {
+      // 'Once upon a t' tokenizes its tail as a fragment; in the full
+      // prompt the same characters belong to ' time'. String-prefix
+      // checking would pass this — token-exact validation must not.
+      final seamTokens = engine.tokenize('Once upon a t');
+      engine.prefill(seamTokens);
+      final image = _exportImage(engine, seamTokens, 'fp-seam');
+      addTearDown(image.free);
+
+      final other = LlamaEngine.load(modelPath: modelPath);
+      addTearDown(other.dispose);
+      final fullTokens = other.tokenize('Once upon a time there was a dog');
+      expect('Once upon a time'.startsWith('Once upon a t'), isTrue,
+          reason: 'the STRING is a prefix — that is exactly the trap');
+
+      final reuse = other.continueFromImage(
+          image: image.image,
+          statePointer: image.statePointer,
+          promptTokens: fullTokens);
+      expect(reuse, isA<KvReuseRejected>(),
+          reason: 'the token streams diverge at the seam even though the '
+              'strings agree');
+      expect((reuse as KvReuseRejected).reason, 'prefix-mismatch');
+      expect(other.tokensDecoded, fullTokens.length, reason: 'cold decode');
+    });
+
+    test('cross-model reuse is rejected by engineTag before any restore',
+        () {
+      final smolPath =
+          '${Platform.environment['HOME']}/models/SmolLM2-135M-Instruct-Q4_K_M.gguf';
+      if (!File(smolPath).existsSync()) {
+        markTestSkipped('needs $smolPath (ZC-P0 demo tier)');
+        return;
+      }
+      // Materialize under stories15M…
+      final prefixTokens = engine.tokenize('Once upon a time');
+      engine.prefill(prefixTokens);
+      final image = _exportImage(engine, prefixTokens, 'fp-crossmodel');
+      addTearDown(image.free);
+
+      // …and attempt reuse under a DIFFERENT model. Restoring foreign
+      // state would be garbage even where tokenizers happened to agree;
+      // the tag rejects before the engine ever sees the state bytes.
+      final smol = LlamaEngine.load(modelPath: smolPath);
+      addTearDown(smol.dispose);
+      expect(smol.engineTag, isNot(engine.engineTag));
+      final prompt = smol.tokenize('Once upon a time there was a dog');
+      final reuse = smol.continueFromImage(
+          image: image.image,
+          statePointer: image.statePointer,
+          promptTokens: prompt) as KvReuseRejected;
+      expect(reuse.reason, 'engine-tag-mismatch');
+      expect(smol.tokensDecoded, prompt.length, reason: 'cold decode');
+    });
+  }, skip: skip);
+
   group('LlamaWorker (isolate host)', () {
     test('generates off the main isolate and round-trips state via a frame',
         () async {
