@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Checkpoints carry open VFS transaction frames (`openTransactions`,
+  GAP-1) — a checkpoint inside a `Transaction` (the default around every
+  `Task` since REL-P4) resumes with rollback protection intact instead of
+  silently committing the abandoned transaction by loss. Additive key:
+  pre-GAP-1 checkpoints stay byte-identical and restore as before. The
+  gauntlet now places capture boundaries inside a load-bearing
+  transaction.
+
 - Checkpoints carry the disk-mount table (`diskMounts`): a pre-suspension
   `MountFsOp`'s disk mount is re-established on resume instead of trapping
   (found by the first real-backend prove-it run; files survive restarts by

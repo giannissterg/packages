@@ -1,5 +1,10 @@
 ## Unreleased
 
+- Open transactions export/import (GAP-1): `exportTransactions()` /
+  `importTransactions()` serialize the open frames (outermost first, one
+  `{mountPrefix: {path: base64}}` per frame) so a checkpoint taken inside
+  a `Transaction` resumes with rollback protection intact — Rule 8's
+  every-stateful-subsystem-exports pattern.
 - **Transactions NEST** (REL-P4): `beginTransaction` pushes a frame;
   `commit`/`rollback` operate on the innermost. The old flat map made an
   inner begin silently clobber the outer snapshot and an inner commit

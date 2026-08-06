@@ -53,6 +53,27 @@ void main() {
     });
   });
 
+  group('transaction pairing is observable (Rule 2)', () {
+    test('an unpaired commit warns instead of silently no-opping', () async {
+      final (vm, runtime) = await boot(FakeVasterModel());
+      final warnings = <RuntimeWarningEvent>[];
+      final sub = vm.eventBus.on<RuntimeWarningEvent>().listen(warnings.add);
+
+      const program = VasterProgram(
+        programName: 'unpaired_commit',
+        instructions: [CommitOp(), HaltOp()],
+      );
+      final state = await runtime.executeProgram(program);
+      await sub.cancel();
+
+      expect(state.status, RuntimeStatus.halted);
+      expect(warnings.map((w) => w.code), contains('transaction_unpaired'),
+          reason: 'a commit with no open transaction means rollback '
+              'protection was silently lost somewhere — it must be visible');
+      await vm.shutdown();
+    });
+  });
+
   group('effect scopes — idempotency at the tool boundary', () {
     test('a retried attempt replays the executed tool call instead of '
         're-performing the side effect', () async {

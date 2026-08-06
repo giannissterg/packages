@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_domain/vaster_domain.dart';
-import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_replay/vaster_replay.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 

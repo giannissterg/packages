@@ -58,6 +58,13 @@ final class MachineCheckpoint {
   /// had established (found by the first real-backend prove-it run).
   final Map<String, String> diskMounts;
 
+  /// Open VFS transaction frames, outermost first — one
+  /// `{mountPrefix: {path: base64}}` map per frame (GAP-1). A checkpoint
+  /// taken inside a `Transaction` (the default around every `Task` since
+  /// REL-P4) must resume with rollback protection intact — dropping the
+  /// frames silently commits the abandoned transaction by loss.
+  final List<Map<String, Map<String, String>>> openTransactions;
+
   /// agentId → serialized [AgentMessage]s, read/unread state included.
   /// Undelivered actor messages are durable state (found by the
   /// machine-state review: a message sent before suspension was lost).
@@ -82,6 +89,7 @@ final class MachineCheckpoint {
     required this.contextRegions,
     required this.memoryMounts,
     this.diskMounts = const {},
+    this.openTransactions = const [],
     this.messageInboxes = const {},
     required this.budgetConsumedTokens,
     required this.budgetConsumedCost,
@@ -123,6 +131,7 @@ final class MachineCheckpoint {
             entry.key:
                 (entry.value as LocalVasterFileSystem).rootDirectory.path,
       },
+      openTransactions: vm.fileSystemManager.exportTransactions(),
       messageInboxes: vm.messagingHub is BasicAgentMessagingHub
           ? (vm.messagingHub as BasicAgentMessagingHub).exportInboxes()
           : const {},
@@ -189,6 +198,9 @@ final class MachineCheckpoint {
             LocalVasterFileSystem(entry.value, mountPrefix: entry.key));
       }
     }
+    if (openTransactions.isNotEmpty) {
+      vm.fileSystemManager.importTransactions(openTransactions);
+    }
     if (messageInboxes.isNotEmpty &&
         vm.messagingHub is BasicAgentMessagingHub) {
       (vm.messagingHub as BasicAgentMessagingHub)
@@ -237,6 +249,9 @@ final class MachineCheckpoint {
         'contextRegions': contextRegions,
         'memoryMounts': memoryMounts,
         if (diskMounts.isNotEmpty) 'diskMounts': diskMounts,
+        // Emitted only when frames are open: pre-GAP-1 checkpoints stay
+        // byte-identical.
+        if (openTransactions.isNotEmpty) 'openTransactions': openTransactions,
         if (messageInboxes.isNotEmpty) 'messageInboxes': messageInboxes,
         'budgetConsumedTokens': budgetConsumedTokens,
         'budgetConsumedCost': budgetConsumedCost,
@@ -275,6 +290,16 @@ final class MachineCheckpoint {
         for (final entry in (json['diskMounts'] as Map? ?? const {}).entries)
           entry.key.toString(): entry.value.toString(),
       },
+      openTransactions: [
+        for (final frame in json['openTransactions'] as List? ?? const [])
+          {
+            for (final entry in (frame as Map).entries)
+              entry.key.toString(): {
+                for (final f in (entry.value as Map).entries)
+                  f.key.toString(): f.value.toString(),
+              },
+          },
+      ],
       messageInboxes: {
         for (final entry
             in (json['messageInboxes'] as Map? ?? const {}).entries)

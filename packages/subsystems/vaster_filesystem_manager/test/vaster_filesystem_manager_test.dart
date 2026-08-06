@@ -88,5 +88,30 @@ void main() {
       expect(await fs.readText('/data.json'), 'v2');
       expect(manager.transactionDepth, 0);
     });
+
+    test('open transactions export/import — rollback protection survives '
+        'a checkpoint (GAP-1)', () async {
+      final fs = MemoryVasterFileSystem();
+      await fs.writeText('/data.json', 'clean');
+      final manager = BasicFileSystemManager(mounts: {'/': fs});
+
+      await manager.beginTransaction();
+      await fs.writeText('/data.json', 'dirty');
+
+      // "Checkpoint": frames serialize; a fresh manager over the current
+      // (dirty) file state imports them.
+      final exported = manager.exportTransactions();
+      expect(exported, hasLength(1));
+
+      final fs2 = MemoryVasterFileSystem();
+      await fs2.writeText('/data.json', 'dirty');
+      final restored = BasicFileSystemManager(mounts: {'/': fs2});
+      restored.importTransactions(exported);
+      expect(restored.transactionDepth, 1);
+
+      // The restored transaction still knows how to undo.
+      await restored.rollback();
+      expect(await fs2.readText('/data.json'), 'clean');
+    });
   });
 }

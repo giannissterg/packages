@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Unpaired `CommitOp`/`RollbackOp` (no open transaction) publish a
+  `transaction_unpaired` warning (GAP-1, Rule 2) — an empty-stack commit
+  means rollback protection was lost somewhere, and that must be visible.
 - **Idempotency at the effect boundary (REL-P4).** The `EffectLedger`
   (componentized machine state, checkpoint-safe) records non-VFS tool
   results inside an effect scope; a retry attempt REPLAYS a recorded

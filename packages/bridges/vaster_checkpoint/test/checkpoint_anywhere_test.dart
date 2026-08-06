@@ -44,22 +44,33 @@ void main() {
               fallbacks: [
                 ModelDescriptor(provider: 'gauntlet_up', modelId: 'f'),
               ]), // 5
-          const PushEffectScopeOp(), // 6 (open across every capture below)
-          const PushErrorHandlerOp(targetPc: 14, errorVar: 'err'), // 7
+          const MountFsOp(mountPrefix: '/mem'), // 6
+          const WriteFileOp(vfsPath: '/mem/tx.txt', content: 'clean'), // 7
+          const PushEffectScopeOp(), // 8 (open across every capture below)
+          const PushErrorHandlerOp(targetPc: 18, errorVar: 'err'), // 9
           const SendMessageOp(
               senderId: 'a', recipientId: 'b', payload: {'note': 'durable'}),
-          // 8
-          const PromptOp(promptText: 'turn one', outputVar: 'r1'), // 9
-          const CallOp(targetPc: 15, functionName: 'sub'), // 10
-          const PopMessageOp(agentId: 'b', outputVar: 'inbox_out'), // 11
+          // 10
+          const PromptOp(promptText: 'turn one', outputVar: 'r1'), // 11
+          const CallOp(targetPc: 20, functionName: 'sub'), // 12
+          const PopMessageOp(agentId: 'b', outputVar: 'inbox_out'), // 13
+          // A transaction OPEN at the following capture boundaries — its
+          // rollback is load-bearing: the boom below must restore
+          // /mem/tx.txt to 'clean', so a restore that drops the open
+          // frame visibly changes final_out to contain 'dirty'.
+          const BeginTransactionOp(), // 14
+          const WriteFileOp(vfsPath: '/mem/tx.txt', content: 'dirty'), // 15
           const ReadFileOp(
-              vfsPath: '/not_mounted/boom.txt', outputVar: 'never'), // 12
-          const HaltOp(), // 13 (skipped: handler jumps to 14)
+              vfsPath: '/not_mounted/boom.txt', outputVar: 'never'), // 16
+          const HaltOp(), // 17 (skipped: handler jumps to 18)
+          const ReadFileOp(
+              vfsPath: '/mem/tx.txt', outputVar: 'tx_state'), // 18 (catch)
           const ConcatRegisterOp(
               targetVar: 'final_out',
-              sourceVars: ['r1', 'sub_out', 'inbox_out']), // 14 + halt below
-          const SetRegisterOp(registerName: 'sub_out', value: 'sub_ran'), // 15
-          const ReturnSubroutineOp(), // 16
+              sourceVars: ['r1', 'sub_out', 'inbox_out', 'tx_state']),
+          // 19 + halt below
+          const SetRegisterOp(registerName: 'sub_out', value: 'sub_ran'), // 20
+          const ReturnSubroutineOp(), // 21
         ],
       );
 
@@ -104,6 +115,12 @@ void main() {
     expect(referenceOut, contains('served by fallback'),
         reason: 'the gauntlet prompt must be served THROUGH the chain — '
             'otherwise the fallback state is never load-bearing');
+    expect(referenceOut, contains('clean'),
+        reason: 'the abandoned transaction must roll back on the handler '
+            'path — final_out carries the restored file content');
+    expect(referenceOut, isNot(contains('dirty')),
+        reason: 'a partial in-transaction write must never survive the '
+            'catch');
     await vmRef.shutdown();
 
     // Capture a checkpoint at every instruction BOUNDARY — stepping one

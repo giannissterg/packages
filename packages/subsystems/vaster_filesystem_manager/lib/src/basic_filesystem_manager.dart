@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'filesystem_manager_interface.dart';
@@ -110,5 +112,33 @@ class BasicFileSystemManager implements FileSystemManager {
         await fs.restoreSnapshot(entry.value);
       }
     }
+  }
+
+  @override
+  List<Map<String, Map<String, String>>> exportTransactions() => [
+        for (final frame in _transactionFrames)
+          {
+            for (final entry in frame.entries)
+              entry.key: {
+                for (final file in entry.value.files.entries)
+                  file.key: base64Encode(file.value),
+              },
+          },
+      ];
+
+  @override
+  void importTransactions(List<Map<String, Map<String, String>>> frames) {
+    _transactionFrames
+      ..clear()
+      ..addAll([
+        for (final frame in frames)
+          {
+            for (final entry in frame.entries)
+              entry.key: FileSystemSnapshot(files: {
+                for (final file in entry.value.entries)
+                  file.key: base64Decode(file.value),
+              }),
+          },
+      ]);
   }
 }

@@ -35,4 +35,15 @@ abstract interface class FileSystemManager {
   /// failure is caught (REL-P4) — a caught error must not leave an
   /// abandoned transaction's writes behind.
   int get transactionDepth;
+
+  /// Serializes the open transaction frames, outermost first — one
+  /// `{mountPrefix: {path: base64 content}}` map per frame. Open
+  /// transactions are durable machine state (Rule 8): a checkpoint taken
+  /// inside a `Transaction` must restore with its rollback protection
+  /// intact, not silently commit-by-loss.
+  List<Map<String, Map<String, String>>> exportTransactions();
+
+  /// Restores frames previously exported with [exportTransactions],
+  /// replacing any currently open frames.
+  void importTransactions(List<Map<String, Map<String, String>>> frames);
 }

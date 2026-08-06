@@ -683,9 +683,29 @@ class VasterRuntime {
         await vm.fileSystemManager.beginTransaction();
 
       case CommitOp _:
+        // A commit with no open transaction means something dropped frames
+        // (a compiler pairing bug, or a restore that lost them) — the
+        // program believes it has rollback protection it does not have.
+        // Tolerated, but never silently (Rule 2).
+        if (vm.fileSystemManager.transactionDepth == 0) {
+          vm.eventBus.publish(RuntimeWarningEvent(
+            eventId: 'evt_warn_tx_unpaired_$_pc',
+            code: 'transaction_unpaired',
+            message: 'CommitOp at PC $_pc found no open transaction.',
+            pc: _pc,
+          ));
+        }
         await vm.fileSystemManager.commit();
 
       case RollbackOp _:
+        if (vm.fileSystemManager.transactionDepth == 0) {
+          vm.eventBus.publish(RuntimeWarningEvent(
+            eventId: 'evt_warn_tx_unpaired_$_pc',
+            code: 'transaction_unpaired',
+            message: 'RollbackOp at PC $_pc found no open transaction.',
+            pc: _pc,
+          ));
+        }
         await vm.fileSystemManager.rollback();
 
       // ── Effect scopes (REL-P4) ────────────────────────────────────────────
