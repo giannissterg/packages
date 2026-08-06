@@ -391,6 +391,7 @@ class VasterVMEngine implements VasterVirtualMachine {
           : TokenEstimate.forExchange(
               prompt: promptText, output: response.text),
       activeModel,
+      servedBy: response.servedBy,
     );
 
     // Turn boundary — same discipline as the session path: ephemeral
@@ -432,6 +433,7 @@ class VasterVMEngine implements VasterVirtualMachine {
               candidatesTokenCount: TokenEstimate.forText(response.text),
             ),
       activeModel,
+      servedBy: response.servedBy,
     );
 
     // Turn boundary — same discipline as the session path.
@@ -470,6 +472,7 @@ class VasterVMEngine implements VasterVirtualMachine {
           : TokenEstimate.forExchange(
               prompt: promptText, output: response.text),
       model ?? this.config.defaultModel,
+      servedBy: response.servedBy,
     );
 
     return response;
@@ -495,9 +498,15 @@ class VasterVMEngine implements VasterVirtualMachine {
   /// Meters one model call at the VM funnel through [meter]: one
   /// [ModelUsageEvent] published before charging (usage stays observable even
   /// when a quota trips), tokens charged, and cost charged when known.
-  void _meterCall(UsageMetadata usage, VasterModel model) => meter.charge(
+  ///
+  /// [servedBy] is the response's serving-model stamp — set when a fallback
+  /// chain member served the call, so attribution (and the catalog rate)
+  /// follows the model that really ran, not the chain's head.
+  void _meterCall(UsageMetadata usage, VasterModel model,
+          {String? servedBy}) =>
+      meter.charge(
         usage: usage,
-        modelName: model.modelName,
+        modelName: servedBy ?? model.modelName,
         callSite: 'vm_prompt',
       );
 

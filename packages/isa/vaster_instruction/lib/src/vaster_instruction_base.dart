@@ -218,6 +218,10 @@ sealed class VasterInstruction {
       InstructionOpcode.rollback => const RollbackOp(),
       InstructionOpcode.selectModel => SelectModelOp(
           descriptor: ModelDescriptor.fromJson(json['descriptor'] as Map<String, dynamic>? ?? {}),
+          fallbacks: [
+            for (final f in json['fallbacks'] as List? ?? const [])
+              ModelDescriptor.fromJson(Map<String, dynamic>.from(f as Map)),
+          ],
         ),
       InstructionOpcode.createSession => CreateSessionOp(
           sessionId: json['sessionId'] as String? ?? '',
@@ -856,17 +860,24 @@ final class RollbackOp extends VasterInstruction {
   Map<String, dynamic> toJson() => {'opcode': opcode.name};
 }
 
-/// Selects active LLM model descriptor.
+/// Selects active LLM model descriptor, with an optional ordered fallback
+/// chain: a model-kind failure on [descriptor] falls through to each member
+/// of [fallbacks] in turn (REL-P3). The chain is pure descriptor data —
+/// runtimes resolve members through their registry on use.
 final class SelectModelOp extends VasterInstruction {
   final ModelDescriptor descriptor;
+  final List<ModelDescriptor> fallbacks;
 
-  const SelectModelOp({required this.descriptor})
+  const SelectModelOp({required this.descriptor, this.fallbacks = const []})
       : super(InstructionOpcode.selectModel);
 
   @override
   Map<String, dynamic> toJson() => {
         'opcode': opcode.name,
         'descriptor': descriptor.toJson(),
+        // Emitted only when declared: pre-chain programs stay byte-identical.
+        if (fallbacks.isNotEmpty)
+          'fallbacks': [for (final f in fallbacks) f.toJson()],
       };
 }
 

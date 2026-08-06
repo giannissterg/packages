@@ -131,6 +131,37 @@ final class ModelUsageEvent extends RuntimeEvent {
       };
 }
 
+/// Emitted when a declared model fallback chain advances: [fromModel]
+/// failed with a model-kind error and execution falls through to [toModel]
+/// (REL-P3). One event per chain advance — a call that exhausts the whole
+/// chain emits one event per edge, then fails with the last error.
+final class ModelFallbackEvent extends RuntimeEvent {
+  final String fromModel;
+  final String toModel;
+
+  /// Text of the failure that triggered the fallthrough.
+  final String reason;
+
+  ModelFallbackEvent({
+    required super.eventId,
+    required this.fromModel,
+    required this.toModel,
+    required this.reason,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'model_fallback',
+        'eventId': eventId,
+        'fromModel': fromModel,
+        'toModel': toModel,
+        'reason': reason,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
 /// Emitted when a tool invocation is called by a model.
 final class ToolCalledEvent extends RuntimeEvent {
   final String callId;

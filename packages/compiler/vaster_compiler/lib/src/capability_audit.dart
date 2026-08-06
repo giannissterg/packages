@@ -37,8 +37,13 @@ final class CapabilityAudit {
 
   final Set<String> sessions;
 
-  /// Selected models as `provider:modelId` descriptor keys.
+  /// Selected models as `provider:modelId` descriptor keys — every model
+  /// the program can run on, fallback-chain members included.
   final Set<String> models;
+
+  /// Declared fallback chains (REL-P3), rendered `primary → fb1 → fb2` in
+  /// declaration order — the audit lists WHO can serve, and in what order.
+  final List<String> modelChains;
 
   /// Registered sandboxes: id → language (code-execution capability).
   final Map<String, String> sandboxes;
@@ -72,6 +77,7 @@ final class CapabilityAudit {
     required this.agents,
     required this.sessions,
     required this.models,
+    this.modelChains = const [],
     required this.sandboxes,
     required this.sandboxExecutions,
     required this.decisions,
@@ -91,6 +97,7 @@ final class CapabilityAudit {
     final agents = <String, String>{};
     final sessions = <String>{};
     final models = <String>{};
+    final modelChains = <String>[];
     final sandboxes = <String, String>{};
     var sandboxExecutions = 0;
     final decisions = <DecisionPoint>[];
@@ -115,8 +122,14 @@ final class CapabilityAudit {
           agents[descriptor.agentId] = descriptor.role;
         case CreateSessionOp(:final sessionId):
           sessions.add(sessionId);
-        case SelectModelOp(:final descriptor):
+        case SelectModelOp(:final descriptor, :final fallbacks):
           models.add(descriptor.descriptorKey);
+          models.addAll(fallbacks.map((f) => f.descriptorKey));
+          if (fallbacks.isNotEmpty) {
+            modelChains.add([descriptor, ...fallbacks]
+                .map((d) => d.descriptorKey)
+                .join(' → '));
+          }
         case RegisterSandboxOp(:final sandboxId, :final language):
           sandboxes[sandboxId] = language.name;
         case ExecSandboxOp():
@@ -151,6 +164,7 @@ final class CapabilityAudit {
       agents: agents,
       sessions: sessions,
       models: models,
+      modelChains: modelChains,
       sandboxes: sandboxes,
       sandboxExecutions: sandboxExecutions,
       decisions: decisions,
@@ -177,6 +191,7 @@ final class CapabilityAudit {
         'agents': agents,
         'sessions': sessions.toList()..sort(),
         'models': models.toList()..sort(),
+        if (modelChains.isNotEmpty) 'modelChains': modelChains,
         'sandboxes': sandboxes,
         'sandboxExecutions': sandboxExecutions,
         'decisions': [for (final d in decisions) d.toJson()],
@@ -225,8 +240,10 @@ final class CapabilityAudit {
             'syscalls remain available to tool loops)');
     section('Agents',
         agents.entries.map((e) => '${e.key}  (${e.value})'));
-    section('Models', models.toList()..sort(),
-        emptyNote: '(default model only)');
+    section('Models', [
+      ...models.toList()..sort(),
+      ...modelChains.map((c) => '$c  (fallback chain)'),
+    ], emptyNote: '(default model only)');
     section(
         'Sandboxes (code execution)',
         sandboxes.entries

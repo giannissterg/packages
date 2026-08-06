@@ -17,7 +17,10 @@ final class ProgramChecker {
   /// Policy to prove against; null skips policy analysis.
   final ExecutionPolicy? policy;
 
-  /// Model the cost bound is rated against; null yields a tokens-only bound.
+  /// Model the cost bound is rated against. Null derives the most expensive
+  /// model the program can select — fallback-chain members included
+  /// ([mostExpensiveSelectableModel]); a tokens-only bound only when nothing
+  /// in the program rates against the catalog.
   final String? modelName;
 
   /// Per-call response allowance for the cost bound.
@@ -53,9 +56,15 @@ final class ProgramChecker {
 
     findings.addAll(DefiniteAssignment(cfg).analyze());
 
+    // No caller-supplied rated model → derive it from the program itself:
+    // the most expensive model any SelectModelOp can reach, INCLUDING
+    // fallback-chain members (REL-P3). Declared resilience is priced at
+    // its worst member, exactly as the analyzer's docs promise.
+    final ratedModel =
+        modelName ?? mostExpensiveSelectableModel(program, pricingCatalog);
     final (costBound, costFindings) = CostAnalyzer(
       pricingCatalog: pricingCatalog,
-      modelName: modelName,
+      modelName: ratedModel,
       responseAllowanceTokens: responseAllowanceTokens,
       estimator: estimator,
       callOverheadFactor: callOverheadFactor,

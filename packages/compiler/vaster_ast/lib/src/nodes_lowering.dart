@@ -45,10 +45,12 @@ final class SandboxHeader extends VasterNode {
   const SandboxHeader({required this.env});
 }
 
-/// Lowering header: selects the active model.
+/// Lowering header: selects the active model, with an optional ordered
+/// fallback chain (REL-P3).
 final class SelectModelHeader extends VasterNode {
   final ModelDescriptor model;
-  const SelectModelHeader({required this.model});
+  final List<ModelDescriptor> fallbacks;
+  const SelectModelHeader({required this.model, this.fallbacks = const []});
 }
 
 /// Lowering header: binds [Inputs]/[Pipeline.inputs] values at runtime.

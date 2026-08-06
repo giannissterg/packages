@@ -400,20 +400,32 @@ final class Transaction extends VasterNode {
 }
 
 /// Model selection scope provider node.
+///
+/// [fallbacks] declares an ordered fallback chain (REL-P3): every model call
+/// under this scope tries [model] first; a model-kind failure falls through
+/// to each fallback in turn, each tried once. Cancellation never advances
+/// the chain, and a policy violation is uncatchable everywhere. Retrying the
+/// same model is [Resilient]'s job — `Resilient(child: SelectModel(...))`
+/// retries the whole chain per attempt. The chain compiles into the
+/// `SelectModelOp` as descriptor data: auditable (`vaster audit` lists it)
+/// and priced (`vaster check` rates against the most expensive member).
 class SelectModel extends ComposableNode {
   final ModelDescriptor model;
+
+  /// Ordered fallback descriptors tried after [model], first to last.
+  final List<ModelDescriptor> fallbacks;
 
   /// The subtree scoped to this model; omit to only switch the active model.
   final VasterNode? child;
 
-  const SelectModel({required this.model, this.child});
+  const SelectModel({required this.model, this.fallbacks = const [], this.child});
 
   @override
   VasterNode build(BuildContext context) {
     return Provider<ModelDescriptor>(
       value: model,
       children: [
-        SelectModelHeader(model: model),
+        SelectModelHeader(model: model, fallbacks: fallbacks),
         ?child,
       ],
     );

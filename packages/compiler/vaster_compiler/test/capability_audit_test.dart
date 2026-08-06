@@ -105,6 +105,42 @@ void main() {
     expect(pretty, contains('ship_gate'));
   });
 
+  test('audit lists a declared fallback chain, members and order (REL-P3)',
+      () {
+    final program = compiler.compile(Pipeline(
+      name: 'chained',
+      children: const [
+        SelectModel(
+          model: ModelDescriptor.geminiCli(modelId: 'gemini-2.5-pro'),
+          fallbacks: [
+            ModelDescriptor.geminiCli(modelId: 'gemini-2.5-flash'),
+            ModelDescriptor.fake(modelId: 'local'),
+          ],
+          child: Prompt(Template.text('go')),
+        ),
+      ],
+    ));
+
+    final audit = CapabilityAudit.of(program);
+
+    // Every member is a model the program can run on…
+    expect(
+        audit.models,
+        containsAll([
+          'gemini_cli:gemini-2.5-pro',
+          'gemini_cli:gemini-2.5-flash',
+          'fake:local',
+        ]));
+    // …and the chain itself is listed in declaration order.
+    expect(
+        audit.modelChains,
+        equals([
+          'gemini_cli:gemini-2.5-pro → gemini_cli:gemini-2.5-flash → fake:local'
+        ]));
+    expect(audit.toJson()['modelChains'], equals(audit.modelChains));
+    expect(audit.toPrettyString(), contains('(fallback chain)'));
+  });
+
   test('a fully static program reports an empty decision surface', () {
     final program = compiler.compile(Pipeline(name: 'static', children: const [
       Prompt(Template.text('just one turn')),

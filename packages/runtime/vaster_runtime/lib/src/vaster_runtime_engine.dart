@@ -103,12 +103,47 @@ class VasterRuntime {
   /// toolset, error handlers) — componentized machine state.
   final MachineContext _machineContext = MachineContext();
 
-  /// The live model is DERIVED from the descriptor in [_machineContext],
+  /// The live model is DERIVED from the descriptor(s) in [_machineContext],
   /// resolved through the VM registry on use — live objects are never
   /// machine state.
+  ///
+  /// A declared fallback chain (REL-P3) composes here: the resolved members
+  /// wrap in a [ResilientVasterModel] with a one-attempt policy — each
+  /// member tried once, a model-kind failure advancing to the next
+  /// (retrying the SAME model is `Resilient`'s compiled loop, not the
+  /// chain's job). Every advance publishes a typed [ModelFallbackEvent];
+  /// the serving member stamps [ModelResponse.servedBy] so metering
+  /// attributes the call to the model that really served it.
   VasterModel? get _activeModel {
     final descriptor = _machineContext.activeModelDescriptor;
-    return descriptor == null ? null : vm.modelRegistry.resolveModel(descriptor);
+    if (descriptor == null) return null;
+    final primary = vm.modelRegistry.resolveModel(descriptor);
+    final fallbackDescriptors = _machineContext.activeModelFallbacks;
+    if (primary == null || fallbackDescriptors.isEmpty) return primary;
+    final fallbacks = [
+      for (final f in fallbackDescriptors) vm.modelRegistry.resolveModel(f),
+    ].whereType<VasterModel>().toList();
+    if (fallbacks.isEmpty) return primary;
+    final chainNames = [
+      primary.modelName,
+      for (final f in fallbacks) f.modelName,
+    ];
+    return ResilientVasterModel(
+      primary: primary,
+      fallbacks: fallbacks,
+      retryPolicy: const RetryPolicy(maxAttempts: 1),
+      onRetry: (event) {
+        if (!event.switchingModel) return;
+        final i = chainNames.indexOf(event.modelName);
+        vm.eventBus.publish(ModelFallbackEvent(
+          eventId: 'evt_fallback_${_pc}_${event.modelName}',
+          fromModel: event.modelName,
+          toModel:
+              i >= 0 && i + 1 < chainNames.length ? chainNames[i + 1] : '',
+          reason: '${event.error}',
+        ));
+      },
+    );
   }
 
   String? get _activeSessionId => _machineContext.activeSessionId;
@@ -558,19 +593,23 @@ class VasterRuntime {
           );
         }
         // Charge real server-reported usage; the labeled estimate is only a
-        // fallback for backends that don't report tokens.
+        // fallback for backends that don't report tokens. The serving-model
+        // stamp wins attribution: a fallback-served call is priced at the
+        // fallback's rate, not the chain head's.
         _meter.charge(
           usage: response.usage.totalTokenCount > 0
               ? response.usage
               : TokenEstimate.forExchange(
                   prompt: promptText, output: response.text),
-          modelName: (_activeModel ?? vm.config.defaultModel).modelName,
+          modelName: response.servedBy ??
+              (_activeModel ?? vm.config.defaultModel).modelName,
           callSite: 'isa_prompt',
         );
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
 
       case SelectModelOp op:
         _machineContext.activeModelDescriptor = op.descriptor;
+        _machineContext.activeModelFallbacks = op.fallbacks;
 
       case CreateSessionOp op:
         await vm.createSession(

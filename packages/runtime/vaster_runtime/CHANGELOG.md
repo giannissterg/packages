@@ -1,3 +1,15 @@
+## Unreleased
+
+- Model fallback chains are runtime-enforced (REL-P3): `SelectModelOp`
+  fallbacks land in `MachineContext.activeModelFallbacks` (componentized
+  state — checkpoint/resume covered by the gauntlet), and the active model
+  resolves as a `ResilientVasterModel` composition with a one-attempt
+  policy: each member tried once, model-kind failures advance, cancellation
+  and policy violations never do. Every advance publishes a typed
+  `ModelFallbackEvent`; metering attributes each call to the response's
+  `servedBy` stamp — a fallback-served call is priced at the fallback's
+  rate, not the chain head's.
+
 ## 0.4.0
 
 - Sealed `MachinePhase` (`PhaseIdle/Running/Halted/PausedForHuman/Trapped/

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- With no caller-supplied rated model, `ProgramChecker` derives one: the
+  most expensive model the program can select, fallback-chain members
+  included (`mostExpensiveSelectableModel`). A chain whose pricey member
+  hides behind a cheap primary is priced at the pricey member's rate —
+  the analyzer's docs promised this rating discipline; now it is automatic.
+
 - Cost bounds compose the estimation seam: `CostAnalyzer`/
   `ProgramChecker` accept a `TokenEstimator` (canonical heuristic by
   default — byte-identical bounds) and a `callOverheadFactor` for

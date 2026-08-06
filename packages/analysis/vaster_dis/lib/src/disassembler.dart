@@ -252,7 +252,11 @@ class VasterDisassembler {
         return '--- TRANSACTION ROLLBACK ---';
 
       case SelectModelOp op:
-        return op.descriptor.descriptorKey;
+        return op.fallbacks.isEmpty
+            ? op.descriptor.descriptorKey
+            : [op.descriptor, ...op.fallbacks]
+                .map((d) => d.descriptorKey)
+                .join(' → ');
 
       case CreateSessionOp op:
         final modelStr = op.modelDescriptor != null ? ' model=${op.modelDescriptor!.descriptorKey}' : '';

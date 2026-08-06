@@ -24,10 +24,7 @@ final class DecisionArbiter {
   /// The runtime's shared metering pipeline (host budget + program quota).
   final ModelCallMeter meter;
 
-  const DecisionArbiter({
-    required this.vm,
-    required this.meter,
-  });
+  const DecisionArbiter({required this.vm, required this.meter});
 
   /// Asks the model to pick one of [branches] for [prompt].
   ///
@@ -41,10 +38,9 @@ final class DecisionArbiter {
     List<ContextCacheHint> cacheHints = const [],
   }) async {
     final labels = [for (final b in branches) b.label];
-    final menu = branches
-        .map((b) => '- ${b.label}: ${b.description}')
-        .join('\n');
-    final composed = '$prompt\n\n'
+    final menu = branches.map((b) => '- ${b.label}: ${b.description}').join('\n');
+    final composed =
+        '$prompt\n\n'
         'Choose exactly one of the following options:\n$menu\n\n'
         'Answer as JSON: {"choice": "<label>", "rationale": "<why>"}';
 
@@ -60,16 +56,20 @@ final class DecisionArbiter {
     final config = GenerationConfig(responseSchema: schema);
 
     final response = sessionId != null
-        ? await vm.promptInSession(sessionId, composed,
-            model: model, config: config, cacheHints: cacheHints)
-        : await vm.prompt(composed,
-            model: model, config: config, cacheHints: cacheHints);
+        ? await vm.promptInSession(
+            sessionId,
+            composed,
+            model: model,
+            config: config,
+            cacheHints: cacheHints,
+          )
+        : await vm.prompt(composed, model: model, config: config, cacheHints: cacheHints);
 
     meter.charge(
       usage: response.usage.totalTokenCount > 0
           ? response.usage
           : TokenEstimate.forExchange(prompt: composed, output: response.text),
-      modelName: (model ?? vm.config.defaultModel).modelName,
+      modelName: response.servedBy ?? (model ?? vm.config.defaultModel).modelName,
       callSite: 'isa_decide',
     );
 

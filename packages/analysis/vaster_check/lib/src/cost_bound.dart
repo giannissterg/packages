@@ -39,6 +39,30 @@ final class CostBound {
       };
 }
 
+/// The most expensive model any `SelectModelOp` in [program] can reach —
+/// primaries AND fallback-chain members (REL-P3: a declared chain can serve
+/// any call under its scope from any member, so the honest single rate is
+/// the worst one). Ranked by combined per-MTok rate (input + output);
+/// members the catalog cannot price are skipped. Null when nothing rates —
+/// the bound then stays honestly tokens-only.
+String? mostExpensiveSelectableModel(
+    VasterProgram program, PricingCatalog catalog) {
+  String? costliest;
+  double costliestRate = -1;
+  for (final op in program.instructions.whereType<SelectModelOp>()) {
+    for (final descriptor in [op.descriptor, ...op.fallbacks]) {
+      final pricing = catalog.lookup(descriptor.modelId);
+      if (pricing == null) continue;
+      final rate = pricing.inputUsdPerMTok + pricing.outputUsdPerMTok;
+      if (rate > costliestRate) {
+        costliestRate = rate;
+        costliest = descriptor.modelId;
+      }
+    }
+  }
+  return costliest;
+}
+
 /// Worst-case cost analysis: loop trip counts × per-call estimates × rates.
 ///
 /// Loop bounds are recognized from the compiler's canonical shape — a
@@ -64,7 +88,8 @@ final class CostAnalyzer {
 
   /// Model the program is rated against (SelectModelOp switching is folded
   /// conservatively into this single rate — pass the most expensive model
-  /// the program can select).
+  /// the program can select, INCLUDING fallback-chain members; see
+  /// [mostExpensiveSelectableModel] for the canonical derivation).
   final String? modelName;
 
   /// Response allowance per model call, in tokens (the static stand-in for

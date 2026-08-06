@@ -633,7 +633,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ));
 
       case SelectModelHeader n:
-        ir.emit(SelectModelOp(descriptor: n.model));
+        ir.emit(SelectModelOp(descriptor: n.model, fallbacks: n.fallbacks));
 
       case TaskExecution n:
         final reg = _bindingName(n.output, state);

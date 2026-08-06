@@ -16,11 +16,19 @@ class ModelResponse {
   /// Raw underlying provider payload object, if available.
   final Object? rawResponse;
 
+  /// Model name that actually produced this response, when it may differ
+  /// from the model the caller invoked — a fallback-chain decorator
+  /// ([ResilientVasterModel]) stamps the serving member here so metering
+  /// attributes (and prices) the call to the model that really served it.
+  /// Null means "the model you called served it", as always.
+  final String? servedBy;
+
   const ModelResponse({
     required this.message,
     this.finishReason = FinishReason.stop,
     this.usage = const UsageMetadata(),
     this.rawResponse,
+    this.servedBy,
   });
 
   /// Convenience getter for output text.
@@ -40,6 +48,9 @@ class ModelResponse {
         // replay tapes); host-object rawResponses are dropped as before.
         if (rawResponse is Map || rawResponse is List)
           'rawResponse': rawResponse,
+        // Emitted only when set: payloads from before this key existed stay
+        // byte-identical (tape/golden compatibility).
+        if (servedBy != null) 'servedBy': servedBy,
       };
 
   factory ModelResponse.fromJson(Map<String, dynamic> json) {
@@ -58,6 +69,7 @@ class ModelResponse {
           ? UsageMetadata.fromJson(usageRaw)
           : const UsageMetadata(),
       rawResponse: json['rawResponse'],
+      servedBy: json['servedBy'] as String?,
     );
   }
 

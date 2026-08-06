@@ -191,6 +191,55 @@ void main() {
       expect(report.costBound.maxModelCalls, 3,
           reason: 'one dispatch × the descriptor tool-loop ceiling');
     });
+
+    test('with no rated model, the bound derives the most expensive '
+        'selectable — fallback-chain members included (REL-P3)', () {
+      const program = VasterProgram(
+        programName: 'chained_cost',
+        instructions: [
+          SelectModelOp(
+            descriptor:
+                ModelDescriptor(provider: 'google_ai', modelId: 'gemini-2.5-flash'),
+            fallbacks: [
+              // The pricey member hides in the CHAIN, not the primary.
+              ModelDescriptor(provider: 'google_ai', modelId: 'gemini-2.5-pro'),
+            ],
+          ),
+          PromptOp(promptText: 'do the work'),
+          HaltOp(),
+        ],
+      );
+
+      expect(
+          mostExpensiveSelectableModel(program, PricingCatalog.builtin),
+          'gemini-2.5-pro');
+
+      final derived = checker().check(program).costBound;
+      final explicit =
+          checker(model: 'gemini-2.5-pro').check(program).costBound;
+      expect(derived.maxCostUsd, isNotNull,
+          reason: 'a program with priceable selections is never rated '
+              'tokens-only by default');
+      expect(derived.maxCostUsd, explicit.maxCostUsd,
+          reason: 'the derived rate IS the worst chain member\'s rate');
+    });
+
+    test('a program selecting no priceable model keeps the honest '
+        'tokens-only bound', () {
+      const program = VasterProgram(
+        programName: 'unpriceable',
+        instructions: [
+          SelectModelOp(
+            descriptor: ModelDescriptor(provider: 'x', modelId: 'mystery-model'),
+          ),
+          PromptOp(promptText: 'do the work'),
+          HaltOp(),
+        ],
+      );
+      expect(mostExpensiveSelectableModel(program, PricingCatalog.builtin),
+          isNull);
+      expect(checker().check(program).costBound.maxCostUsd, isNull);
+    });
   });
 
   group('policy proofs', () {

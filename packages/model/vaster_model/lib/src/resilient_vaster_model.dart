@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'cancellation_token.dart';
 import 'model_capabilities.dart';
 import 'model_request.dart';
 import 'model_response.dart';
@@ -77,6 +78,15 @@ bool defaultIsTransient(Object error) {
 /// different provider entirely. When every model is exhausted the last error
 /// rethrows.
 ///
+/// [CancelledException] is not a model failure — it is the caller's decision
+/// arriving through the cancel token — so it rethrows immediately: never
+/// retried, never advanced past. (Same philosophy as `TaskCancelled` in the
+/// sealed task-outcome hierarchy.)
+///
+/// Every returned response is stamped with [ModelResponse.servedBy] — the
+/// member that actually produced it — so metering downstream attributes the
+/// call (and its rate) to the serving model, not the chain's head.
+///
 /// Streaming: retry/fallback applies only until the first chunk is emitted.
 /// A mid-stream failure surfaces to the caller — chunks already delivered
 /// cannot be safely un-sent or re-spliced.
@@ -130,7 +140,9 @@ class ResilientVasterModel implements VasterModel {
 
       for (var attempt = 1; attempt <= retryPolicy.maxAttempts; attempt++) {
         try {
-          return await _withTimeout(model.generate(request));
+          return _stamped(await _withTimeout(model.generate(request)), model);
+        } on CancelledException {
+          rethrow; // caller's decision, not a model failure — never advance
         } catch (e, st) {
           lastError = e;
           lastStack = st;
@@ -185,6 +197,8 @@ class ResilientVasterModel implements VasterModel {
             yield chunk;
           }
           return;
+        } on CancelledException {
+          rethrow; // caller's decision, not a model failure — never advance
         } catch (e, st) {
           if (emitted) rethrow; // mid-stream: chunks already delivered
 
@@ -226,4 +240,17 @@ class ResilientVasterModel implements VasterModel {
     final timeout = retryPolicy.attemptTimeout;
     return timeout == null ? future : future.timeout(timeout);
   }
+
+  /// Stamps the serving member's name; an inner decorator's stamp wins
+  /// (nested chains — the innermost knows who really served).
+  ModelResponse _stamped(ModelResponse response, VasterModel model) =>
+      response.servedBy != null
+          ? response
+          : ModelResponse(
+              message: response.message,
+              finishReason: response.finishReason,
+              usage: response.usage,
+              rawResponse: response.rawResponse,
+              servedBy: model.modelName,
+            );
 }

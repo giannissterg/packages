@@ -255,12 +255,14 @@ cache-read share and cut $ / run on the recorded benchmarks.
 ### D. Reliability semantics (the runtime keeps promises)
 Today a model error mid-pipeline traps (or an error handler catches it).
 Production workflows need declared semantics: per-node **retry policies** with
-backoff, **model fallback chains** (`SelectModel` accepting an ordered list),
-**idempotency keys** on tool calls so retried turns do not double-execute side
-effects, and transactional VFS as the default around every `Task`. All of it
-belongs in the AST surface (`Resilient(child:, retries:, fallback:)` is
-already sketched in the NEST-vs-SEQUENCE doc) and lowers to ISA the runtime
-enforces.
+backoff (✅ REL-P2: `Resilient` compiles to the canonical priced loop),
+**model fallback chains** (✅ REL-P3: `SelectModel(fallbacks:)` — compiled
+descriptor data, runtime-enforced fallthrough on model-kind failure, typed
+`ModelFallbackEvent`s, serving-model metering attribution, audit lists the
+chain, check rates its most expensive member), **idempotency keys** on tool
+calls so retried turns do not double-execute side effects, and transactional
+VFS as the default around every `Task` (REL-P4, pending). All of it belongs
+in the AST surface and lowers to ISA the runtime enforces.
 
 ### E. Multi-run evaluation harness — ✅ delivered (vaster_eval; see above)
 Replay gave us determinism for one run; the next level is *comparing* runs.

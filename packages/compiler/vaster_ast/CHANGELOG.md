@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `SelectModel` accepts an ordered `fallbacks:` chain (REL-P3): a
+  model-kind failure under the scope falls through descriptor by
+  descriptor, each tried once. Cancellation never advances the chain;
+  retry-same-model remains `Resilient`'s loop — the two compose.
+
 - **BREAKING**: `Resilient` is a first-class node, not a desugar. It
   compiles to the canonical retry LOOP (constant code size — the old
   expansion was O(attempts × child)); the error register is a single

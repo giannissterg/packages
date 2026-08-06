@@ -120,6 +120,26 @@ void main() {
       expect(selectOps.first.descriptor, equals(descriptor));
     });
 
+    test('compiles SelectModel fallbacks into the op\'s chain (REL-P3)', () {
+      const primary = ModelDescriptor.geminiCli(modelId: 'gemini-2.5-pro');
+      const fb1 = ModelDescriptor.geminiCli(modelId: 'gemini-2.5-flash');
+      const fb2 = ModelDescriptor.fake(modelId: 'local');
+      final pipeline = Pipeline(
+        spec: const PipelineSpec(name: 'fallback_chain_pipeline'),
+        children: const [
+          SelectModel(model: primary, fallbacks: [fb1, fb2]),
+        ],
+      );
+
+      final program = compiler.compile(pipeline);
+      final op = program.instructions.whereType<SelectModelOp>().single;
+
+      // The declared chain compiles in ORDER — the runtime falls through
+      // first-to-last on model-kind failure.
+      expect(op.descriptor, equals(primary));
+      expect(op.fallbacks, equals(const [fb1, fb2]));
+    });
+
     test('compiles Transaction with BeginTransaction / Commit boundary', () {
       const pipeline = Pipeline(
         spec: PipelineSpec(name: 'tx_pipeline'),

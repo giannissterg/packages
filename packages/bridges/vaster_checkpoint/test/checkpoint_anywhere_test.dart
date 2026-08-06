@@ -19,9 +19,12 @@ import 'package:vaster_vm/vaster_vm.dart';
 ///    suspension is popped after resume.
 void main() {
   /// Exercises every state-mutating opcode family: quota, context, session,
-  /// model context, toolset, error handlers, subroutine frames, registers,
-  /// messaging — with post-state instructions that DEPEND on each piece, so
-  /// lost state changes the outcome.
+  /// model context (with a fallback chain — REL-P3), toolset, error
+  /// handlers, subroutine frames, registers, messaging — with post-state
+  /// instructions that DEPEND on each piece, so lost state changes the
+  /// outcome. The PromptOp only succeeds through the chain's fallback: a
+  /// restore that drops `activeModelFallbacks` retries the dead primary
+  /// alone and takes a different path.
   VasterProgram stateHeavyProgram() => VasterProgram(
         programName: 'state_gauntlet',
         resultBinding: 'final_out',
@@ -36,27 +39,46 @@ void main() {
             ToolDefinition(
                 name: 'noop', description: 'n', parametersSchema: {}),
           ]), // 4
-          const PushErrorHandlerOp(targetPc: 12, errorVar: 'err'), // 5
+          const SelectModelOp(
+              descriptor: ModelDescriptor(provider: 'gauntlet_down', modelId: 'p'),
+              fallbacks: [
+                ModelDescriptor(provider: 'gauntlet_up', modelId: 'f'),
+              ]), // 5
+          const PushErrorHandlerOp(targetPc: 13, errorVar: 'err'), // 6
           const SendMessageOp(
               senderId: 'a', recipientId: 'b', payload: {'note': 'durable'}),
-          // 6
-          const PromptOp(promptText: 'turn one', outputVar: 'r1'), // 7
-          const CallOp(targetPc: 13, functionName: 'sub'), // 8
-          const PopMessageOp(agentId: 'b', outputVar: 'inbox_out'), // 9
+          // 7
+          const PromptOp(promptText: 'turn one', outputVar: 'r1'), // 8
+          const CallOp(targetPc: 14, functionName: 'sub'), // 9
+          const PopMessageOp(agentId: 'b', outputVar: 'inbox_out'), // 10
           const ReadFileOp(
-              vfsPath: '/not_mounted/boom.txt', outputVar: 'never'), // 10
-          const HaltOp(), // 11 (skipped: handler jumps to 12)
+              vfsPath: '/not_mounted/boom.txt', outputVar: 'never'), // 11
+          const HaltOp(), // 12 (skipped: handler jumps to 13)
           const ConcatRegisterOp(
               targetVar: 'final_out',
-              sourceVars: ['r1', 'sub_out', 'inbox_out']), // 12 + halt below
-          const SetRegisterOp(registerName: 'sub_out', value: 'sub_ran'), // 13
-          const ReturnSubroutineOp(), // 14
+              sourceVars: ['r1', 'sub_out', 'inbox_out']), // 13 + halt below
+          const SetRegisterOp(registerName: 'sub_out', value: 'sub_ran'), // 14
+          const ReturnSubroutineOp(), // 15
         ],
       );
 
   Future<(VasterVMEngine, VasterRuntime)> boot() async {
     final vm = await VasterVMEngine.bootstrap(
         config: VMConfig(defaultModel: FakeVasterModel()));
+    // The gauntlet's model chain: a dead primary and a live fallback —
+    // registered identically in every fresh VM so only MACHINE state
+    // decides which one serves.
+    vm.modelRegistry.registerModel(
+      const ModelDescriptor(provider: 'gauntlet_down', modelId: 'p'),
+      FakeVasterModel(
+          modelName: 'gauntlet-down',
+          handler: (req) => throw StateError('API error 500 down')),
+    );
+    vm.modelRegistry.registerModel(
+      const ModelDescriptor(provider: 'gauntlet_up', modelId: 'f'),
+      FakeVasterModel(
+          modelName: 'gauntlet-up', defaultResponseText: 'served by fallback'),
+    );
     final runtime = VasterRuntime(
       vm: vm,
       policy: ExecutionPolicy.unlimited,
@@ -78,6 +100,9 @@ void main() {
         reason: 'reference error: ${reference.errorDetails}');
     final referenceOut = '${reference.registers['final_out']}';
     expect(referenceOut, isNotEmpty);
+    expect(referenceOut, contains('served by fallback'),
+        reason: 'the gauntlet prompt must be served THROUGH the chain — '
+            'otherwise the fallback state is never load-bearing');
     await vmRef.shutdown();
 
     // Capture a checkpoint at every instruction BOUNDARY — stepping one

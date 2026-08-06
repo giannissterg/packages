@@ -1,3 +1,9 @@
+## Unreleased
+
+- The prompt funnel's metering honors `ModelResponse.servedBy` (REL-P3):
+  when a fallback-chain member serves a call, usage is attributed (and
+  priced) to that member, not the model the caller invoked.
+
 ## 0.3.0
 
 - **BREAKING**: `submitProgram` requires `policy` and `budget`

@@ -115,7 +115,8 @@ final class ToolCallOrchestrator {
                 promptTokenCount: TokenEstimate.forMessages(transcript),
                 candidatesTokenCount: TokenEstimate.forText(response.text),
               ),
-        modelName: (model ?? vm.config.defaultModel).modelName,
+        modelName:
+            response.servedBy ?? (model ?? vm.config.defaultModel).modelName,
         callSite: 'isa_tool_loop',
       );
     }

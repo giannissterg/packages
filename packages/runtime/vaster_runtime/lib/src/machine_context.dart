@@ -16,6 +16,11 @@ import 'package:vaster_model/vaster_model.dart';
 final class MachineContext implements MachineStateComponent {
   String? activeSessionId;
   ModelDescriptor? activeModelDescriptor;
+
+  /// Ordered fallback chain after [activeModelDescriptor] (REL-P3) —
+  /// descriptors, never live models, same as the active descriptor itself.
+  List<ModelDescriptor> activeModelFallbacks = const [];
+
   List<ToolDefinition> programToolSet = const [];
   final List<ErrorHandlerFrame> errorHandlers = [];
 
@@ -23,6 +28,7 @@ final class MachineContext implements MachineStateComponent {
   void clear() {
     activeSessionId = null;
     activeModelDescriptor = null;
+    activeModelFallbacks = const [];
     programToolSet = const [];
     errorHandlers.clear();
   }
@@ -35,6 +41,10 @@ final class MachineContext implements MachineStateComponent {
         if (activeSessionId != null) 'activeSessionId': activeSessionId,
         if (activeModelDescriptor != null)
           'activeModelDescriptor': activeModelDescriptor!.toJson(),
+        if (activeModelFallbacks.isNotEmpty)
+          'activeModelFallbacks': [
+            for (final f in activeModelFallbacks) f.toJson()
+          ],
         if (programToolSet.isNotEmpty)
           'programToolSet': [for (final t in programToolSet) t.toJson()],
         if (errorHandlers.isNotEmpty)
@@ -49,6 +59,10 @@ final class MachineContext implements MachineStateComponent {
         ? null
         : ModelDescriptor.fromJson(
             Map<String, dynamic>.from(descriptor as Map));
+    activeModelFallbacks = [
+      for (final f in snapshot['activeModelFallbacks'] as List? ?? const [])
+        ModelDescriptor.fromJson(Map<String, dynamic>.from(f as Map)),
+    ];
     programToolSet = [
       for (final t in snapshot['programToolSet'] as List? ?? const [])
         ToolDefinition.fromJson(Map<String, dynamic>.from(t as Map)),

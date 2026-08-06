@@ -140,6 +140,50 @@ void main() {
       expect(primary.recordedRequests, hasLength(1));
     });
 
+    test('stamps servedBy with the member that actually served', () async {
+      final primary =
+          flaky(99, () => StateError('API error 500'), name: 'primary');
+      final backup = flaky(0, () => StateError('unused'),
+          name: 'backup', reply: 'from backup');
+
+      final chained = ResilientVasterModel(
+        primary: primary,
+        fallbacks: [backup],
+        retryPolicy: const RetryPolicy(maxAttempts: 1),
+        sleep: noSleep,
+      );
+      expect((await chained.generate(request())).servedBy, 'backup');
+
+      final healthy = ResilientVasterModel(
+        primary: flaky(0, () => StateError('unused'), name: 'primary'),
+        retryPolicy: const RetryPolicy(maxAttempts: 1),
+        sleep: noSleep,
+      );
+      expect((await healthy.generate(request())).servedBy, 'primary');
+    });
+
+    test('cancellation is a decision, not a model failure — never advances',
+        () async {
+      final primary = FakeVasterModel(
+        modelName: 'primary',
+        handler: (req) => throw const CancelledException('caller cancelled'),
+      );
+      final backup = flaky(0, () => StateError('unused'),
+          name: 'backup', reply: 'must never serve');
+      final model = ResilientVasterModel(
+        primary: primary,
+        fallbacks: [backup],
+        retryPolicy: const RetryPolicy(maxAttempts: 3),
+        sleep: noSleep,
+      );
+      await expectLater(
+          model.generate(request()), throwsA(isA<CancelledException>()));
+      expect(primary.recordedRequests, hasLength(1),
+          reason: 'cancellation must not be retried');
+      expect(backup.recordedRequests, isEmpty,
+          reason: 'cancellation must not advance the chain');
+    });
+
     test('per-attempt timeout converts a hang into a retry', () async {
       var calls = 0;
       final hanging = FakeVasterModel(
