@@ -281,11 +281,11 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       return tokens.length;
     case 'prefillContinuation':
       final (promptTokens, reused) =
-          _prefillContinuation(engine, request['text']! as String);
+          engine.prefillContinuation(request['text']! as String);
       return [promptTokens, reused];
     case 'generateSteps':
       final (text, generated, hitLimit) =
-          _generateSteps(engine, request['maxTokens']! as int);
+          engine.generateSteps(maxTokens: request['maxTokens']! as int);
       return [text, generated, hitLimit];
     case 'materialize':
       // Atomic at the mailbox: nothing interleaves between reset, decode
@@ -325,9 +325,9 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
         }
       }
       final (promptTokens, reused) =
-          _prefillContinuation(engine, request['text']! as String);
+          engine.prefillContinuation(request['text']! as String);
       final (text, generated, hitLimit) =
-          _generateSteps(engine, request['maxTokens']! as int);
+          engine.generateSteps(maxTokens: request['maxTokens']! as int);
       return [promptTokens, reused, text, generated, hitLimit];
     case 'exportState':
       final frameName = request['frame']! as String;
@@ -361,44 +361,4 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
     default:
       throw StateError('Unknown worker op "${request['op']}".');
   }
-}
-
-/// Continuation prefill: tokens `[0, tokensDecoded)` are the (restored)
-/// prefix; only the remainder is decoded. Handles the impossible-reuse
-/// case (restored prefix longer than the prompt → cold) and the
-/// exact-cover case (re-decode the tail token — logits don't travel with
-/// KV state). Returns `(promptTokens, reusedTokens)`.
-(int, int) _prefillContinuation(LlamaEngine engine, String text) {
-  final all = engine.tokenize(text);
-  var reused = engine.tokensDecoded;
-  if (reused > all.length) {
-    engine.reset();
-    reused = 0;
-  }
-  if (reused == all.length && reused > 0) {
-    engine.dropTail(1);
-    reused = engine.tokensDecoded;
-  }
-  engine.prefill(all.sublist(engine.tokensDecoded));
-  return (all.length, reused);
-}
-
-/// Greedy generation from the current logits. Returns
-/// `(text, generatedTokens, hitLimit)`.
-(String, int, bool) _generateSteps(LlamaEngine engine, int maxTokens) {
-  final out = StringBuffer();
-  var generated = 0;
-  var hitLimit = true; // loop exits without a break == limit reached
-  for (var i = 0; i < maxTokens; i++) {
-    final token = engine.sampleGreedy();
-    if (engine.isEndOfGeneration(token)) {
-      hitLimit = false;
-      break;
-    }
-    out.write(engine.pieceOf(token));
-    generated++;
-    if (engine.tokensDecoded >= engine.contextLength) break;
-    engine.decodeOne(token);
-  }
-  return (out.toString(), generated, hitLimit);
 }

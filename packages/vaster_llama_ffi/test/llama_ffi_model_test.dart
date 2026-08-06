@@ -86,7 +86,7 @@ void main() {
           worker: worker,
           namePrefix:
               'vkvm_${DateTime.now().microsecondsSinceEpoch % 100000}_');
-      model = LlamaFfiVasterModel(worker: worker, kvController: kv);
+      model = LlamaFfiVasterModel(worker: worker, frameResolver: kv);
     });
     tearDown(() async {
       for (final handle in await kv.list()) {

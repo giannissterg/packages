@@ -73,7 +73,7 @@ Future<ResolvedBackend> resolveBackendModel({
     final stem = modelPath.split('/').last.replaceAll('.gguf', '');
     return ResolvedBackend(
       LlamaFfiVasterModel(
-          worker: worker, kvController: kv, modelName: 'llama-ffi:$stem'),
+          worker: worker, frameResolver: kv, modelName: 'llama-ffi:$stem'),
       kvPrewarmer: KvPrewarmer(
         controller: kv,
         // The alignment contract: prewarm renders exactly what this

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Generation policy consolidated into `LlamaEngine`:
+  `prefillContinuation` (prefix reuse incl. impossible-reuse and
+  exact-cover tail re-decode) and `generateSteps` (THE greedy loop —
+  `generateText` and every worker op delegate to it) are engine methods
+  now; the worker's dispatch table is pure marshalling. One owner per
+  algorithm, covered by direct engine tests.
+- `LlamaFfiVasterModel.kvController` → `frameResolver`, narrowed to the
+  `KvFrameResolver` interface — the model only ever resolves fingerprints
+  to frame names (mirroring `MmapVasterModel.frameResolver`); the
+  concrete controller pairing is the host/resolver's business.
+
 - `LlamaSidecarHost` moved to `vaster_mmap` as the backend-agnostic
   `RingSidecarHost` — serving over rings is transport, not a llama
   concern. Pair it with `LlamaFfiVasterModel` for the zero-copy topology.

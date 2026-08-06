@@ -106,6 +106,43 @@ void main() {
           throwsA(isA<LlamaStateIncompatibleException>()));
     });
 
+    test('prefillContinuation reuses a restored prefix, decodes the rest',
+        () {
+      const full = 'Once upon a time there was a dog';
+      engine.prefill(engine.tokenize('Once upon a time'));
+      final restoredPrefix = engine.tokensDecoded;
+
+      final (promptTokens, reused) = engine.prefillContinuation(full);
+      expect(reused, restoredPrefix,
+          reason: 'the existing prefix was not re-decoded');
+      expect(promptTokens, engine.tokensDecoded,
+          reason: 'the remainder was decoded to exactly the prompt length');
+
+      // Exact cover: the prompt equals the sequence — the tail token is
+      // re-decoded (logits do not travel with KV state), nothing else.
+      final (again, reusedAgain) = engine.prefillContinuation(full);
+      expect(again, promptTokens);
+      expect(reusedAgain, promptTokens - 1);
+
+      // Impossible reuse: a shorter prompt cannot reuse a longer prefix —
+      // cold decode, never wrong-position decoding.
+      final (shortTokens, shortReused) =
+          engine.prefillContinuation('Once upon');
+      expect(shortReused, 0);
+      expect(engine.tokensDecoded, shortTokens);
+    });
+
+    test('generateSteps is the one loop generateText delegates to', () {
+      engine.prefill(engine.tokenize('Once upon a time'));
+      final (text, generated, _) = engine.generateSteps(maxTokens: 8);
+      expect(generated, greaterThan(0));
+
+      final other = LlamaEngine.load(modelPath: modelPath);
+      addTearDown(other.dispose);
+      expect(other.generateText('Once upon a time', maxTokens: 8), text,
+          reason: 'same prompt, same loop, same greedy tokens');
+    });
+
     test('reset clears the sequence for a fresh prefill', () {
       engine.prefill(engine.tokenize('Once upon a time'));
       expect(engine.tokensDecoded, greaterThan(0));

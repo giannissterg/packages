@@ -199,21 +199,62 @@ final class LlamaEngine {
   /// Decodes a single [token] (a sampled continuation step).
   void decodeOne(int token) => prefill([token]);
 
-  /// Convenience loop: prefill [prompt] (BOS-prefixed when the sequence is
-  /// empty), then greedily generate up to [maxTokens] tokens, stopping at
-  /// end-of-generation. Returns the generated text.
-  String generateText(String prompt, {int maxTokens = 64}) {
+  /// Continuation prefill: tokens `[0, tokensDecoded)` are taken to be
+  /// the sequence's (restored) prefix of [text], and only the remainder
+  /// is decoded. Handles the impossible-reuse case (restored prefix
+  /// longer than the prompt → reset and decode cold — never decode at
+  /// wrong positions) and the exact-cover case (re-decode the tail token:
+  /// logits don't travel with KV state). Returns
+  /// `(promptTokens, reusedTokens)`.
+  (int, int) prefillContinuation(String text) {
     _checkLive();
-    prefill(tokenize(prompt, addBos: _tokensDecoded == 0));
+    final all = tokenize(text);
+    var reused = _tokensDecoded;
+    if (reused > all.length) {
+      reset();
+      reused = 0;
+    }
+    if (reused == all.length && reused > 0) {
+      dropTail(1);
+      reused = _tokensDecoded;
+    }
+    prefill(all.sublist(_tokensDecoded));
+    return (all.length, reused);
+  }
+
+  /// Greedy generation from the current logits — **the** generation loop;
+  /// every path (direct use, worker ops, [generateText]) runs this one.
+  /// Returns `(text, generatedTokens, hitLimit)` — [hitLimit] when
+  /// [maxTokens] or the context window stopped generation rather than
+  /// end-of-generation.
+  (String, int, bool) generateSteps({required int maxTokens}) {
+    _checkLive();
     final out = StringBuffer();
+    var generated = 0;
+    var hitLimit = true; // loop exits without a break == limit reached
     for (var i = 0; i < maxTokens; i++) {
       final token = sampleGreedy();
-      if (isEndOfGeneration(token)) break;
+      if (isEndOfGeneration(token)) {
+        hitLimit = false;
+        break;
+      }
       out.write(pieceOf(token));
+      generated++;
       if (_tokensDecoded >= contextLength) break;
       decodeOne(token);
     }
-    return out.toString();
+    return (out.toString(), generated, hitLimit);
+  }
+
+  /// Convenience: prefill [prompt] (BOS-prefixed when the sequence is
+  /// empty — appends to an existing sequence otherwise, unlike
+  /// [prefillContinuation]'s prefix-reuse semantics), then run
+  /// [generateSteps]. Returns the generated text.
+  String generateText(String prompt, {int maxTokens = 64}) {
+    _checkLive();
+    prefill(tokenize(prompt, addBos: _tokensDecoded == 0));
+    final (text, _, _) = generateSteps(maxTokens: maxTokens);
+    return text;
   }
 
   /// Exact byte size of sequence 0's exportable state right now.

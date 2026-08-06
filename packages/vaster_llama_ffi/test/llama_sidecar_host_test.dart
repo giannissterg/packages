@@ -31,7 +31,7 @@ void main() {
     final kv = LlamaFfiKvCacheController(
         worker: worker, namePrefix: 'vsc_kv_${stamp % 100000}_');
     final host = RingSidecarHost(
-      model: LlamaFfiVasterModel(worker: worker, kvController: kv),
+      model: LlamaFfiVasterModel(worker: worker, frameResolver: kv),
       requestRing: req,
       responseRing: res,
     );

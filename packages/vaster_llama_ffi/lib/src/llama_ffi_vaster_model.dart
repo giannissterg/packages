@@ -1,13 +1,13 @@
+import 'package:vaster_mmap/vaster_mmap.dart';
 import 'package:vaster_model/vaster_model.dart';
 
-import 'llama_ffi_kv_cache_controller.dart';
 import 'llama_worker.dart';
 
 /// [VasterModel] backed by in-process llama.cpp inference ([LlamaWorker])
 /// with zero-copy KV reuse through shared-memory frames.
 ///
 /// Cache hints are honored physically: a hint whose fingerprint resolves
-/// through the [kvController] restores real KV state from an attached
+/// through the [frameResolver] restores real KV state from an attached
 /// frame's pages, and only the prompt's remainder is decoded. Usage is
 /// engine-measured — `cacheReadTokenCount` is the number of prompt tokens
 /// whose decode was skipped because their state came from the frame.
@@ -25,9 +25,13 @@ import 'llama_worker.dart';
 final class LlamaFfiVasterModel implements VasterModel {
   final LlamaWorker worker;
 
-  /// When present, cache hints restore real KV state; when null, hints
-  /// are ignored and every call decodes cold.
-  final LlamaFfiKvCacheController? kvController;
+  /// Resolves cache-hint fingerprints to named KV frames (typically the
+  /// backend's `LlamaFfiKvCacheController` — but only the narrow
+  /// resolver contract is needed here). When present, resolving hints
+  /// restore real KV state; when null, hints are ignored and every call
+  /// decodes cold — the same optional-collaborator shape as
+  /// `MmapVasterModel.frameResolver`.
+  final KvFrameResolver? frameResolver;
 
   @override
   final String modelName;
@@ -40,7 +44,7 @@ final class LlamaFfiVasterModel implements VasterModel {
 
   LlamaFfiVasterModel({
     required this.worker,
-    this.kvController,
+    this.frameResolver,
     this.modelName = 'llama-ffi',
     int maxContextTokens = 2048,
     this.defaultMaxOutputTokens = 256,
@@ -95,7 +99,7 @@ final class LlamaFfiVasterModel implements VasterModel {
     // worker's single atomic generate op (an incompatible frame degrades
     // to a cold decode there).
     String? restoreFrame;
-    final kv = kvController;
+    final kv = frameResolver;
     if (kv != null) {
       for (final hint in request.cacheHints) {
         final ref = await kv.resolveFrame(hint.contentFingerprint);
