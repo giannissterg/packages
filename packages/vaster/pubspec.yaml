@@ -27,6 +27,8 @@ dependencies:
     path: ../vaster_ast
   vaster_budget:
     path: ../vaster_budget
+  vaster_calibration:
+    path: ../vaster_calibration
   vaster_cli:
     path: ../vaster_cli
   vaster_compiler:

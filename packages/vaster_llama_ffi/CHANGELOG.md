@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `LlamaTokenEstimator` — the `TokenEstimator` seam's exact
+  implementation: real tokenizer counts from a loaded engine, labeled
+  measured because they are true by construction.
+
 - **PV-P2: reuse is validated, never trusted.** Materialized frames now
   carry `KvStateImage` payloads (spec v1): header, fingerprint, the
   decoded token ids, and engine state exported in place at the image's

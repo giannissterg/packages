@@ -33,3 +33,44 @@ abstract final class TokenEstimate {
         source: UsageSource.estimated,
       );
 }
+
+/// The instance seam for token estimation — the composition point where
+/// consumers that CAN know better plug that knowledge in:
+/// per-backend calibrated ratios (`vaster_calibration`), or an exact
+/// local tokenizer (the llama backend). The static [TokenEstimate]
+/// heuristic stays the canonical default and its call sites stay
+/// untouched; this interface adds a seam beside it, never a replacement.
+///
+/// Rule 6.12 binds every implementation exactly as it binds the statics:
+/// estimation knows nothing of quotas, budgets, or costs, and anything
+/// derived from these values is [UsageSource.estimated] unless the
+/// implementation is exact by construction.
+abstract interface class TokenEstimator {
+  /// Estimated token count for a raw text span.
+  int forText(String text);
+
+  /// Estimated token count for a message transcript, including structural
+  /// per-message overhead.
+  int forMessages(Iterable<ChatMessage> messages);
+
+  /// Estimated usage for one prompt/output exchange.
+  UsageMetadata forExchange({required String prompt, required String output});
+}
+
+/// The canonical default [TokenEstimator]: delegates every call to the
+/// [TokenEstimate] statics, so composing code and legacy call sites
+/// compute identical numbers by construction.
+final class HeuristicTokenEstimator implements TokenEstimator {
+  const HeuristicTokenEstimator();
+
+  @override
+  int forText(String text) => TokenEstimate.forText(text);
+
+  @override
+  int forMessages(Iterable<ChatMessage> messages) =>
+      TokenEstimate.forMessages(messages);
+
+  @override
+  UsageMetadata forExchange({required String prompt, required String output}) =>
+      TokenEstimate.forExchange(prompt: prompt, output: output);
+}

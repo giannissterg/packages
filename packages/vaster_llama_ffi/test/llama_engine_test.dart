@@ -10,6 +10,8 @@ import 'package:test/test.dart';
 import 'package:vaster_kv/vaster_kv.dart';
 import 'package:vaster_llama_ffi/vaster_llama_ffi.dart';
 import 'package:vaster_mmap/vaster_mmap.dart';
+import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// Real-inference engine tests on the CI-tier model (stories15M, ~18MB).
 ///
@@ -220,6 +222,26 @@ void main() {
       engine.reset();
       expect(engine.tokensDecoded, 0);
       expect(engine.generateText('The cat', maxTokens: 4), isNotEmpty);
+    });
+  }, skip: skip);
+
+  group('LlamaTokenEstimator (the exact seam implementation)', () {
+    test('counts exactly what the engine decodes; heuristic only guesses',
+        () {
+      final engine = LlamaEngine.load(modelPath: modelPath);
+      addTearDown(engine.dispose);
+      final exact = LlamaTokenEstimator(engine);
+      const text = 'Once upon a time there was a small brown dog named Bo.';
+
+      expect(exact.forText(text),
+          engine.tokenize(text, addBos: false).length,
+          reason: 'exact by construction');
+      expect(exact.forExchange(prompt: text, output: text).source,
+          UsageSource.measured);
+      // The heuristic is in the right ballpark and the exact count is
+      // authoritative — the seam lets consumers pick truth when local.
+      expect(exact.forText(text), isNot(TokenEstimate.forText(text)));
+      expect(exact.forText(''), 0);
     });
   }, skip: skip);
 

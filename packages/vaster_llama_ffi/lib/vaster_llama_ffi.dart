@@ -25,4 +25,5 @@ export 'src/llama_engine.dart'
 export 'src/llama_ffi_kv_cache_controller.dart'
     show LlamaFfiKvCacheController;
 export 'src/llama_ffi_vaster_model.dart' show LlamaFfiVasterModel;
+export 'src/llama_token_estimator.dart' show LlamaTokenEstimator;
 export 'src/llama_worker.dart' show LlamaWorker;

@@ -2,6 +2,8 @@
 /// Multi-Agent Sessions, Continuations, and Sidecar RPC.
 library;
 
+export 'package:vaster_calibration/vaster_calibration.dart';
+
 export 'package:vaster_agent/vaster_agent.dart';
 export 'package:vaster_ast/vaster_ast.dart';
 export 'package:vaster_budget/vaster_budget.dart';

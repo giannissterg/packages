@@ -72,7 +72,10 @@ final class SummarizingCompressor implements ContextCompressor {
 
       final message =
           ChatMessage.user('[summary of "${region.label}"]: $summary');
-      final after = (message.text.length / 4).ceil() + 4;
+      // Same value as ever, sourced from the one sanctioned home — no
+      // inline ratio heuristics (Rule 6.12).
+      final after =
+          TokenEstimate.forText(message.text) + TokenEstimate.perMessageOverhead;
       final compressed = region.copyWith(
         messages: [message],
         estimatedTokens: after,
