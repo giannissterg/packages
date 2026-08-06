@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Prompt-side fitting (`fitPromptSide`) from tape-v2 full requests —
+  whole-request chars vs measured `promptTokenCount`, same median-ratio
+  honesty; proven on the recorded llama fixture. v1 tapes are refused
+  with the limitation named.
+
 - **BREAKING**: `KnownCalibrations` (static registry) → `CalibrationCatalog`, an instance value with `CalibrationCatalog.builtin` as the committed const catalog (the `PricingCatalog.builtin` idiom) — catalogs compose and merge; no hidden global registry.
 
 - Initial package (roadmap item 4): estimate calibration as **composed

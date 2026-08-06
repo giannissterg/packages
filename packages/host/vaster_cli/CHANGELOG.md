@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **`vaster replay <envelope> [--diff]`** — agent regression testing as
+  a first-class verb: re-execute a recorded run against its tape at
+  zero tokens; a faithful replay consumes every recording and exits 0;
+  any divergence (unmatched request OR unconsumed recordings) exits 1,
+  and `--diff` renders the structured report — message-indexed,
+  char-located, with before/after excerpts and informational context
+  (system/cache-hint drift marked as such, since they are not part of
+  the fingerprint).
+
 - `vaster check` pairs fitted calibration with the bound (Rule 10.6 —
   the host owns the pairing): new `--backend` names the intended
   execution backend for profile lookup (falls back to a `--model`

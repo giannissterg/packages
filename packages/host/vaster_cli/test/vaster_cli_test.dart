@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:vaster_cli/vaster_cli.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_replay/vaster_replay.dart';
 
 void main() {
@@ -38,6 +39,8 @@ void main() {
   test('vaster debug drives a scripted time-travel session', () async {
     final fixture = File(
         '../vaster_playground/test/fixtures/sdd_fidelity.replay.json');
+    // (cli and playground are siblings under host/ — this resolves when
+    // tests run from the package dir; the fallback covers root runs.)
     if (!fixture.existsSync()) {
       // Workspace-root invocation.
       expect(
@@ -339,6 +342,67 @@ void main() {
           reason: 'event lines are printed');
       expect(out.toString(), contains('session_created'),
           reason: 'CreateSessionOp telemetry reaches the sink');
+    });
+  });
+
+  group('vaster replay', () {
+    String fixturePath() {
+      const local =
+          '../vaster_playground/test/fixtures/story_lines_v2.replay.json';
+      const fromRoot =
+          'packages/host/vaster_playground/test/fixtures/story_lines_v2.replay.json';
+      return File(local).existsSync() ? local : fromRoot;
+    }
+
+    test('a faithful replay consumes every recording and exits 0', () async {
+      final out = StringBuffer();
+      final code =
+          await runner.run(['replay', fixturePath()], stdoutSink: out);
+      expect(code, 0);
+      expect(out.toString(), contains('v2 · 4 recordings'));
+      expect(out.toString(), contains('replay faithful'));
+    });
+
+    test('a tampered recording diverges with a char-located diff', () async {
+      // Copy the fixture and edit one recorded request mid-prompt: the
+      // embedded program now disagrees with the tape.
+      final envelope = const ReplayEnvelopeCodec()
+          .decodeString(File(fixturePath()).readAsStringSync());
+      final raw = jsonDecode(File(fixturePath()).readAsStringSync())
+          as Map<String, dynamic>;
+      final entry0 =
+          ((raw['modelTape'] as Map)['entries'] as List).first as Map;
+      final request0 = Map<String, dynamic>.from(entry0['request'] as Map);
+      final messages = (request0['messages'] as List);
+      final lastMessage = Map<String, dynamic>.from(messages.last as Map);
+      // Mutate the recorded text AND refresh the fingerprint so the
+      // mismatch is a content divergence, not a stale-fingerprint one.
+      final parts = (lastMessage['parts'] as List);
+      final part = Map<String, dynamic>.from(parts.first as Map);
+      part['text'] =
+          (part['text'] as String).replaceFirst('opening line', 'OPENING l1ne');
+      parts[0] = part;
+      lastMessage['parts'] = parts;
+      messages[messages.length - 1] = lastMessage;
+      entry0['request'] = request0;
+      entry0['fingerprint'] = ModelTape.fingerprintOf(
+          ModelRequest.fromJson(request0));
+      expect(envelope.tape.entries, hasLength(4));
+
+      final tampered = File(
+          '${Directory.systemTemp.path}/vaster_replay_diff_test.json')
+        ..writeAsStringSync(jsonEncode(raw));
+      addTearDown(() => tampered.deleteSync());
+
+      final out = StringBuffer();
+      final err = StringBuffer();
+      final code = await runner.run(['replay', tampered.path, '--diff'],
+          stdoutSink: out, stderrSink: err);
+      expect(code, 1);
+      expect(err.toString(), contains('diverged'));
+      expect(err.toString(), contains('diverges at char'),
+          reason: 'the wedge: divergence located to the character');
+      expect(err.toString(), contains('OPENING l1ne'));
     });
   });
 }

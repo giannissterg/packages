@@ -162,4 +162,32 @@ void main() {
           reason: 'catalogs are values — no hidden global registry');
     });
   });
+
+  group('prompt-side fitting (tape v2)', () {
+    ModelTape v2Tape() => const ReplayEnvelopeCodec()
+        .decodeString(File(
+                '../../host/vaster_playground/test/fixtures/story_lines_v2.replay.json')
+            .readAsStringSync())
+        .tape;
+
+    test('fits from full recorded requests with measured prompt usage', () {
+      final fit = const TapeCalibrationFitter().fitPromptSide(v2Tape(),
+          backendId: 'llama-ffi:stories15M-q4_0',
+          provenance: 'story_lines_v2.replay.json');
+      expect(fit.calibration.sampleCount, 4);
+      expect(fit.calibration.charsPerToken, greaterThan(1.5));
+      expect(fit.meanAbsErrorFraction, lessThan(0.35),
+          reason: 'prompt-side estimates hold within a stated bound on '
+              'the very fixture they were fitted from');
+      expect(fit.calibration.provenance, contains('prompt-side'));
+    });
+
+    test('v1 tapes cannot contribute — the limitation tape v2 removes', () {
+      expect(
+          () => const TapeCalibrationFitter().fitPromptSide(fixtureTape(),
+              backendId: 'gemini-2.0-flash', provenance: 'v1'),
+          throwsA(isA<StateError>().having((e) => e.message, 'message',
+              contains('v1 entries cannot contribute'))));
+    });
+  });
 }

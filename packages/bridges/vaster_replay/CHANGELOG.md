@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `RequestDiffer` + sealed `RequestDelta`/`DivergenceReport` — the
+  structured answer to "what changed?": positional candidate alignment,
+  first-divergence char offsets with excerpts, fingerprint-relevant vs
+  informational deltas distinguished, v1 preview-only and order-only
+  divergences named explicitly. `ReplayVasterModel.lastDivergence`
+  retains the typed divergence across runtime trap boundaries.
+
 - **Tape v2 + the envelope codec (spec: docs/specs/REPLAY_ENVELOPE.md).**
   Recordings now carry the full `ModelRequest` per entry (sealed
   `RecordedRequest`: `FullRecordedRequest` v2 / `PreviewOnlyRequest` v1 —

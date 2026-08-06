@@ -63,11 +63,13 @@
   gate (exit 3) writing a self-contained JSON checkpoint; `vaster resume`
   completes it in a fresh VM, meters continuing where they stood. Enforced
   by a checkpoint-at-every-instruction-boundary test suite.
-- **Determinism** — `--record` captures a replay envelope (step journal +
-  fingerprinted model tape); `--replay` re-executes with zero tokens and
-  zero network; `vaster debug` is a time-travel debugger over any
-  envelope (step forward/back, inspect registers, files, and context *as
-  they were* at any step).
+- **Determinism & agent regression testing** — `--record` captures a
+  replay envelope (step journal + fingerprinted model tape, full requests
+  from v2); `vaster replay <envelope>` re-executes at zero tokens and
+  exits nonzero on ANY behavioral change — and `--diff` locates the
+  change to the character: *"call #0: message[1] text diverges at char
+  33 (+9 chars)"*. `vaster debug` is a time-travel debugger over the
+  same envelopes.
 - **Real metering** — every model call flows through one metering
   pipeline charging wire-reported token and cost numbers (cache
   read/write breakdowns included); estimates are centralized and labeled;
@@ -214,6 +216,7 @@ dart pub global activate --source path packages/host/vaster_cli   # once; or use
 | `vaster check <prog>` | Static verification: dominance, worst-case cost bound, policy proofs. `--policy`, `--model`, `--max-cost <usd>` (**exit 1** on breach) |
 | `vaster audit <prog>` | Enumerate capabilities without running: file writes, tools, models, decision surface, human gates, budgets |
 | `vaster eval <prog>` | N trials with scorers: success rate + real metered cost. `--trials`, `--contains`, `--regex`, `--json` |
+| `vaster replay <envelope>` | Re-execute a recorded run against its tape at zero tokens; exit 1 on any divergence, `--diff` locates it to the character |
 | `vaster debug <envelope>` | Time-travel debugger over a recorded run: `seek`, `regs`, `diff`, `cat`, `vfs`, `ctx` |
 | `vaster compile <prog>` | Analyze a serialized program and emit `.vbc` (AST pipelines compile via the library API — see quickstart) |
 | `vaster disassemble <prog>` | ISA disassembly with opcode statistics |

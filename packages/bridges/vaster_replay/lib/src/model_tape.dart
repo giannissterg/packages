@@ -230,6 +230,13 @@ final class ReplayVasterModel implements VasterModel {
   final ModelTape tape;
   final Set<int> _consumed = {};
 
+  /// The most recent divergence, retained because runtime trap handlers
+  /// may wrap the thrown exception on its way out of `executeProgram` —
+  /// hosts that want the typed data (e.g. `vaster replay --diff`)
+  /// consult this rather than depending on exception identity across
+  /// the runtime boundary.
+  TapeDivergenceException? lastDivergence;
+
   ReplayVasterModel({required this.tape});
 
   /// Entries not yet consumed by this replay (useful post-run: a fully
@@ -266,7 +273,7 @@ final class ReplayVasterModel implements VasterModel {
         return ModelResponse.fromJson(tape.entries[i].responseJson);
       }
     }
-    throw TapeDivergenceException(
+    throw lastDivergence = TapeDivergenceException(
       liveRequest: request,
       liveFingerprint: fingerprint,
       callIndex: _consumed.length,

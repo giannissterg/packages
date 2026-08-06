@@ -1,0 +1,420 @@
+{
+  "version": 2,
+  "program": {
+    "programName": "story_lines",
+    "resultBinding": "line4",
+    "instructions": [
+      {
+        "opcode": "set_register",
+        "registerName": "hero",
+        "value": "Bo the dog"
+      },
+      {
+        "opcode": "add_context",
+        "regionId": "knowledge_story_facts",
+        "label": "story facts",
+        "text": "Story facts: Bo is a small brown dog who lives at the edge of a pine forest with a lighthouse keeper named Ana. Bo fears thunder but loves the sea.",
+        "className": "knowledge",
+        "pinned": true
+      },
+      {
+        "opcode": "prompt",
+        "promptText": "Using the story facts, write the opening line of a story about ${hero}.",
+        "outputVar": "line1"
+      },
+      {
+        "opcode": "prompt",
+        "promptText": "Continue with one line after:\n${line1}",
+        "outputVar": "line2"
+      },
+      {
+        "opcode": "prompt",
+        "promptText": "Continue with one line after:\n${line2}",
+        "outputVar": "line3"
+      },
+      {
+        "opcode": "prompt",
+        "promptText": "Write the closing line after:\n${line3}",
+        "outputVar": "line4"
+      },
+      {
+        "opcode": "evict_context",
+        "regionId": "knowledge_story_facts",
+        "force": true
+      },
+      {
+        "opcode": "halt"
+      }
+    ]
+  },
+  "journal": {
+    "frames": [
+      {
+        "stepIndex": 0,
+        "pc": 0,
+        "instruction": {
+          "opcode": "set_register",
+          "registerName": "hero",
+          "value": "Bo the dog"
+        },
+        "registers": {
+          "hero": "Bo the dog"
+        },
+        "timestamp": "2026-08-06T21:45:37.464640"
+      },
+      {
+        "stepIndex": 1,
+        "pc": 1,
+        "instruction": {
+          "opcode": "add_context",
+          "regionId": "knowledge_story_facts",
+          "label": "story facts",
+          "text": "Story facts: Bo is a small brown dog who lives at the edge of a pine forest with a lighthouse keeper named Ana. Bo fears thunder but loves the sea.",
+          "className": "knowledge",
+          "pinned": true
+        },
+        "registers": {
+          "hero": "Bo the dog"
+        },
+        "timestamp": "2026-08-06T21:45:37.467024"
+      },
+      {
+        "stepIndex": 2,
+        "pc": 2,
+        "instruction": {
+          "opcode": "prompt",
+          "promptText": "Using the story facts, write the opening line of a story about ${hero}.",
+          "outputVar": "line1"
+        },
+        "registers": {
+          "hero": "Bo the dog",
+          "line1": " \"A Bo, what is that?\"\nBo: \"It's a story about a brown dog who loves to write.\"\nAna: \"Oh, I see. That's a great story. I want to write it too!\"\nLisa: \"Me too! I want to write it too.\"\nLisa: \"I know, but I don't have enough money to write it. I'm sorry, Bo.\"\nLisa was very sad. She had wanted to write the story but now she had no way to write it.\nLisa: \"I'm so sorry, Bo. I don't have enough money to write it.\"\nLisa was very sad and she never wrote a story about Bo ever again.<s> Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, scary dog. The dog barked loudly and scared Lily. She ran away and never went back to the park again.\nLily's mommy told her that sometimes dogs can be scary, but they can be friendly. She said that Lily should be brave and go back to the park"
+        },
+        "timestamp": "2026-08-06T21:45:37.670431"
+      },
+      {
+        "stepIndex": 3,
+        "pc": 3,
+        "instruction": {
+          "opcode": "prompt",
+          "promptText": "Continue with one line after:\n${line1}",
+          "outputVar": "line2"
+        },
+        "registers": {
+          "hero": "Bo the dog",
+          "line1": " \"A Bo, what is that?\"\nBo: \"It's a story about a brown dog who loves to write.\"\nAna: \"Oh, I see. That's a great story. I want to write it too!\"\nLisa: \"Me too! I want to write it too.\"\nLisa: \"I know, but I don't have enough money to write it. I'm sorry, Bo.\"\nLisa was very sad. She had wanted to write the story but now she had no way to write it.\nLisa: \"I'm so sorry, Bo. I don't have enough money to write it.\"\nLisa was very sad and she never wrote a story about Bo ever again.<s> Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, scary dog. The dog barked loudly and scared Lily. She ran away and never went back to the park again.\nLily's mommy told her that sometimes dogs can be scary, but they can be friendly. She said that Lily should be brave and go back to the park",
+          "line2": " \"Lily, I will be brave. I will be brave. I will be brave.\"\nLily smiled and said, \"I will be brave. I will be brave. I will be brave. I will bears. I will bears.\nLampamp. Lily'tak. Lots are the beams are the one of the end of the pond.\nLily. Lily.\nLittered. Lily. Lily. Lily the thunder is about the other people.\nLily.\nLily. Lily. Lily.\nLoney.\nLola.\"\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola.\nLola.\n\n\n\".\n\"Lola.\n\"Lola.\n\".\n\"Lola. I am. I amola. I amow. I want toast. I want to meow. I want to mear. I know. I want to meow. I know. I want it. I want toothy. Iar"
+        },
+        "timestamp": "2026-08-06T21:45:38.026341"
+      },
+      {
+        "stepIndex": 4,
+        "pc": 4,
+        "instruction": {
+          "opcode": "prompt",
+          "promptText": "Continue with one line after:\n${line2}",
+          "outputVar": "line3"
+        },
+        "registers": {
+          "hero": "Bo the dog",
+          "line1": " \"A Bo, what is that?\"\nBo: \"It's a story about a brown dog who loves to write.\"\nAna: \"Oh, I see. That's a great story. I want to write it too!\"\nLisa: \"Me too! I want to write it too.\"\nLisa: \"I know, but I don't have enough money to write it. I'm sorry, Bo.\"\nLisa was very sad. She had wanted to write the story but now she had no way to write it.\nLisa: \"I'm so sorry, Bo. I don't have enough money to write it.\"\nLisa was very sad and she never wrote a story about Bo ever again.<s> Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, scary dog. The dog barked loudly and scared Lily. She ran away and never went back to the park again.\nLily's mommy told her that sometimes dogs can be scary, but they can be friendly. She said that Lily should be brave and go back to the park",
+          "line2": " \"Lily, I will be brave. I will be brave. I will be brave.\"\nLily smiled and said, \"I will be brave. I will be brave. I will be brave. I will bears. I will bears.\nLampamp. Lily'tak. Lots are the beams are the one of the end of the pond.\nLily. Lily.\nLittered. Lily. Lily. Lily the thunder is about the other people.\nLily.\nLily. Lily. Lily.\nLoney.\nLola.\"\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola.\nLola.\n\n\n\".\n\"Lola.\n\"Lola.\n\".\n\"Lola. I am. I amola. I amow. I want toast. I want to meow. I want to mear. I know. I want to meow. I know. I want it. I want toothy. Iar",
+          "line3": " Lily.\"\nLily says.\nLily is ate. She eating her lunch. She eagic. She eater. She eating her lunch. She eater.\nLily eating.\nLily. Lily lunch. Lily'dleice. Lime. Lily. Lily is Lily. Lily. Lily'bericicice. Lily.\nLily. Lily. Lily. Lily the thunder. Lily. Lily is the sunlight. Lily. Lily Lily. Lily. Lily. Lily. Lily't afraid of time.\"\nLily. Lily't. Lily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. L"
+        },
+        "timestamp": "2026-08-06T21:45:38.374673"
+      },
+      {
+        "stepIndex": 5,
+        "pc": 5,
+        "instruction": {
+          "opcode": "prompt",
+          "promptText": "Write the closing line after:\n${line3}",
+          "outputVar": "line4"
+        },
+        "registers": {
+          "hero": "Bo the dog",
+          "line1": " \"A Bo, what is that?\"\nBo: \"It's a story about a brown dog who loves to write.\"\nAna: \"Oh, I see. That's a great story. I want to write it too!\"\nLisa: \"Me too! I want to write it too.\"\nLisa: \"I know, but I don't have enough money to write it. I'm sorry, Bo.\"\nLisa was very sad. She had wanted to write the story but now she had no way to write it.\nLisa: \"I'm so sorry, Bo. I don't have enough money to write it.\"\nLisa was very sad and she never wrote a story about Bo ever again.<s> Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, scary dog. The dog barked loudly and scared Lily. She ran away and never went back to the park again.\nLily's mommy told her that sometimes dogs can be scary, but they can be friendly. She said that Lily should be brave and go back to the park",
+          "line2": " \"Lily, I will be brave. I will be brave. I will be brave.\"\nLily smiled and said, \"I will be brave. I will be brave. I will be brave. I will bears. I will bears.\nLampamp. Lily'tak. Lots are the beams are the one of the end of the pond.\nLily. Lily.\nLittered. Lily. Lily. Lily the thunder is about the other people.\nLily.\nLily. Lily. Lily.\nLoney.\nLola.\"\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola.\nLola.\n\n\n\".\n\"Lola.\n\"Lola.\n\".\n\"Lola. I am. I amola. I amow. I want toast. I want to meow. I want to mear. I know. I want to meow. I know. I want it. I want toothy. Iar",
+          "line3": " Lily.\"\nLily says.\nLily is ate. She eating her lunch. She eagic. She eater. She eating her lunch. She eater.\nLily eating.\nLily. Lily lunch. Lily'dleice. Lime. Lily. Lily is Lily. Lily. Lily'bericicice. Lily.\nLily. Lily. Lily. Lily the thunder. Lily. Lily is the sunlight. Lily. Lily Lily. Lily. Lily. Lily. Lily't afraid of time.\"\nLily. Lily't. Lily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. L",
+          "line4": " Lily. Lily. Lily. Lily is a bird. Lily is a bird. Lily is a bird.\nLily is a bird. Lily'tices. Lily'ber.\nLily.\nLily.\nLily'dice. Lily. Lily is a lot of the animals. Lily.\nLily.\nLily often.\nLily. Lily Lily. Lily.\nLily. Lily is coming from now he is the lunch is on the lunch is on the lunch is Lily'neate isal.\nLily.\nLily't.\nLily'neak.\nLily is very often isal is gone.\nLily is Lily.\nLily'gobby.\nLily.\nLily.\nLily. Lily.\nLily is.\nLily.\nLily.\nLater.\nLily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily.\nWake.\nLily.\nLily.\nLily'late.\nLily.\n"
+        },
+        "timestamp": "2026-08-06T21:45:38.719399"
+      },
+      {
+        "stepIndex": 6,
+        "pc": 6,
+        "instruction": {
+          "opcode": "evict_context",
+          "regionId": "knowledge_story_facts",
+          "force": true
+        },
+        "registers": {
+          "hero": "Bo the dog",
+          "line1": " \"A Bo, what is that?\"\nBo: \"It's a story about a brown dog who loves to write.\"\nAna: \"Oh, I see. That's a great story. I want to write it too!\"\nLisa: \"Me too! I want to write it too.\"\nLisa: \"I know, but I don't have enough money to write it. I'm sorry, Bo.\"\nLisa was very sad. She had wanted to write the story but now she had no way to write it.\nLisa: \"I'm so sorry, Bo. I don't have enough money to write it.\"\nLisa was very sad and she never wrote a story about Bo ever again.<s> Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, scary dog. The dog barked loudly and scared Lily. She ran away and never went back to the park again.\nLily's mommy told her that sometimes dogs can be scary, but they can be friendly. She said that Lily should be brave and go back to the park",
+          "line2": " \"Lily, I will be brave. I will be brave. I will be brave.\"\nLily smiled and said, \"I will be brave. I will be brave. I will be brave. I will bears. I will bears.\nLampamp. Lily'tak. Lots are the beams are the one of the end of the pond.\nLily. Lily.\nLittered. Lily. Lily. Lily the thunder is about the other people.\nLily.\nLily. Lily. Lily.\nLoney.\nLola.\"\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola.\nLola.\n\n\n\".\n\"Lola.\n\"Lola.\n\".\n\"Lola. I am. I amola. I amow. I want toast. I want to meow. I want to mear. I know. I want to meow. I know. I want it. I want toothy. Iar",
+          "line3": " Lily.\"\nLily says.\nLily is ate. She eating her lunch. She eagic. She eater. She eating her lunch. She eater.\nLily eating.\nLily. Lily lunch. Lily'dleice. Lime. Lily. Lily is Lily. Lily. Lily'bericicice. Lily.\nLily. Lily. Lily. Lily the thunder. Lily. Lily is the sunlight. Lily. Lily Lily. Lily. Lily. Lily. Lily't afraid of time.\"\nLily. Lily't. Lily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. L",
+          "line4": " Lily. Lily. Lily. Lily is a bird. Lily is a bird. Lily is a bird.\nLily is a bird. Lily'tices. Lily'ber.\nLily.\nLily.\nLily'dice. Lily. Lily is a lot of the animals. Lily.\nLily.\nLily often.\nLily. Lily Lily. Lily.\nLily. Lily is coming from now he is the lunch is on the lunch is on the lunch is Lily'neate isal.\nLily.\nLily't.\nLily'neak.\nLily is very often isal is gone.\nLily is Lily.\nLily'gobby.\nLily.\nLily.\nLily. Lily.\nLily is.\nLily.\nLily.\nLater.\nLily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily.\nWake.\nLily.\nLily.\nLily'late.\nLily.\n"
+        },
+        "timestamp": "2026-08-06T21:45:38.720458"
+      },
+      {
+        "stepIndex": 7,
+        "pc": 7,
+        "instruction": {
+          "opcode": "halt"
+        },
+        "registers": {
+          "hero": "Bo the dog",
+          "line1": " \"A Bo, what is that?\"\nBo: \"It's a story about a brown dog who loves to write.\"\nAna: \"Oh, I see. That's a great story. I want to write it too!\"\nLisa: \"Me too! I want to write it too.\"\nLisa: \"I know, but I don't have enough money to write it. I'm sorry, Bo.\"\nLisa was very sad. She had wanted to write the story but now she had no way to write it.\nLisa: \"I'm so sorry, Bo. I don't have enough money to write it.\"\nLisa was very sad and she never wrote a story about Bo ever again.<s> Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, scary dog. The dog barked loudly and scared Lily. She ran away and never went back to the park again.\nLily's mommy told her that sometimes dogs can be scary, but they can be friendly. She said that Lily should be brave and go back to the park",
+          "line2": " \"Lily, I will be brave. I will be brave. I will be brave.\"\nLily smiled and said, \"I will be brave. I will be brave. I will be brave. I will bears. I will bears.\nLampamp. Lily'tak. Lots are the beams are the one of the end of the pond.\nLily. Lily.\nLittered. Lily. Lily. Lily the thunder is about the other people.\nLily.\nLily. Lily. Lily.\nLoney.\nLola.\"\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola.\nLola.\n\n\n\".\n\"Lola.\n\"Lola.\n\".\n\"Lola. I am. I amola. I amow. I want toast. I want to meow. I want to mear. I know. I want to meow. I know. I want it. I want toothy. Iar",
+          "line3": " Lily.\"\nLily says.\nLily is ate. She eating her lunch. She eagic. She eater. She eating her lunch. She eater.\nLily eating.\nLily. Lily lunch. Lily'dleice. Lime. Lily. Lily is Lily. Lily. Lily'bericicice. Lily.\nLily. Lily. Lily. Lily the thunder. Lily. Lily is the sunlight. Lily. Lily Lily. Lily. Lily. Lily. Lily't afraid of time.\"\nLily. Lily't. Lily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. L",
+          "line4": " Lily. Lily. Lily. Lily is a bird. Lily is a bird. Lily is a bird.\nLily is a bird. Lily'tices. Lily'ber.\nLily.\nLily.\nLily'dice. Lily. Lily is a lot of the animals. Lily.\nLily.\nLily often.\nLily. Lily Lily. Lily.\nLily. Lily is coming from now he is the lunch is on the lunch is on the lunch is Lily'neate isal.\nLily.\nLily't.\nLily'neak.\nLily is very often isal is gone.\nLily is Lily.\nLily'gobby.\nLily.\nLily.\nLily. Lily.\nLily is.\nLily.\nLily.\nLater.\nLily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily.\nWake.\nLily.\nLily.\nLily'late.\nLily.\n"
+        },
+        "timestamp": "2026-08-06T21:45:38.720506"
+      }
+    ]
+  },
+  "modelTape": {
+    "version": 2,
+    "recordedModelName": "llama-ffi:stories15M-q4_0",
+    "recordedCapabilities": {
+      "maxContextTokens": 2048,
+      "maxOutputTokens": 256,
+      "supportsStreaming": true,
+      "supportsFunctionCalling": false,
+      "supportsVision": false,
+      "supportsSystemInstruction": true,
+      "supportsReasoning": false
+    },
+    "entries": [
+      {
+        "fingerprint": "2b106c215304b6dd",
+        "requestPreview": "Using the story facts, write the opening line of a story about Bo the dog.",
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Story facts: Bo is a small brown dog who lives at the edge of a pine forest with a lighthouse keeper named Ana. Bo fears thunder but loves the sea."
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Using the story facts, write the opening line of a story about Bo the dog."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {},
+          "cacheHints": [
+            {
+              "regionId": "knowledge_story_facts",
+              "contentFingerprint": "984178cd003892583b6b6756ed9266c8dfe91757ee925fcd0f810bcfbc257d19",
+              "ttlMs": 3600000
+            }
+          ]
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": " \"A Bo, what is that?\"\nBo: \"It's a story about a brown dog who loves to write.\"\nAna: \"Oh, I see. That's a great story. I want to write it too!\"\nLisa: \"Me too! I want to write it too.\"\nLisa: \"I know, but I don't have enough money to write it. I'm sorry, Bo.\"\nLisa was very sad. She had wanted to write the story but now she had no way to write it.\nLisa: \"I'm so sorry, Bo. I don't have enough money to write it.\"\nLisa was very sad and she never wrote a story about Bo ever again.<s> Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, scary dog. The dog barked loudly and scared Lily. She ran away and never went back to the park again.\nLily's mommy told her that sometimes dogs can be scary, but they can be friendly. She said that Lily should be brave and go back to the park"
+              }
+            ]
+          },
+          "finishReason": "maxTokens",
+          "usage": {
+            "promptTokenCount": 66,
+            "candidatesTokenCount": 256,
+            "totalTokenCount": 322,
+            "source": "measured"
+          },
+          "rawResponse": {
+            "kvReuse": {
+              "result": "none"
+            }
+          }
+        }
+      },
+      {
+        "fingerprint": "755ef5f24f9e3c9d",
+        "requestPreview": "Continue with one line after:  \"A Bo, what is that?\" Bo: \"It's a story about a brown dog who loves to write.\" Ana: \"Oh, …",
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Story facts: Bo is a small brown dog who lives at the edge of a pine forest with a lighthouse keeper named Ana. Bo fears thunder but loves the sea."
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Continue with one line after:\n \"A Bo, what is that?\"\nBo: \"It's a story about a brown dog who loves to write.\"\nAna: \"Oh, I see. That's a great story. I want to write it too!\"\nLisa: \"Me too! I want to write it too.\"\nLisa: \"I know, but I don't have enough money to write it. I'm sorry, Bo.\"\nLisa was very sad. She had wanted to write the story but now she had no way to write it.\nLisa: \"I'm so sorry, Bo. I don't have enough money to write it.\"\nLisa was very sad and she never wrote a story about Bo ever again.<s> Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, scary dog. The dog barked loudly and scared Lily. She ran away and never went back to the park again.\nLily's mommy told her that sometimes dogs can be scary, but they can be friendly. She said that Lily should be brave and go back to the park"
+                }
+              ]
+            }
+          ],
+          "generationConfig": {},
+          "cacheHints": [
+            {
+              "regionId": "knowledge_story_facts",
+              "contentFingerprint": "984178cd003892583b6b6756ed9266c8dfe91757ee925fcd0f810bcfbc257d19",
+              "ttlMs": 3600000
+            }
+          ]
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": " \"Lily, I will be brave. I will be brave. I will be brave.\"\nLily smiled and said, \"I will be brave. I will be brave. I will be brave. I will bears. I will bears.\nLampamp. Lily'tak. Lots are the beams are the one of the end of the pond.\nLily. Lily.\nLittered. Lily. Lily. Lily the thunder is about the other people.\nLily.\nLily. Lily. Lily.\nLoney.\nLola.\"\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola.\nLola.\n\n\n\".\n\"Lola.\n\"Lola.\n\".\n\"Lola. I am. I amola. I amow. I want toast. I want to meow. I want to mear. I know. I want to meow. I know. I want it. I want toothy. Iar"
+              }
+            ]
+          },
+          "finishReason": "maxTokens",
+          "usage": {
+            "promptTokenCount": 314,
+            "candidatesTokenCount": 256,
+            "totalTokenCount": 570,
+            "source": "measured"
+          },
+          "rawResponse": {
+            "kvReuse": {
+              "result": "none"
+            }
+          }
+        }
+      },
+      {
+        "fingerprint": "17ad3948ffab7260",
+        "requestPreview": "Continue with one line after:  \"Lily, I will be brave. I will be brave. I will be brave.\" Lily smiled and said, \"I will …",
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Story facts: Bo is a small brown dog who lives at the edge of a pine forest with a lighthouse keeper named Ana. Bo fears thunder but loves the sea."
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Continue with one line after:\n \"Lily, I will be brave. I will be brave. I will be brave.\"\nLily smiled and said, \"I will be brave. I will be brave. I will be brave. I will bears. I will bears.\nLampamp. Lily'tak. Lots are the beams are the one of the end of the pond.\nLily. Lily.\nLittered. Lily. Lily. Lily the thunder is about the other people.\nLily.\nLily. Lily. Lily.\nLoney.\nLola.\"\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola. Lola. Lola.\nLola.\nLola.\nLola.\nLola.\nLola.\n\n\n\".\n\"Lola.\n\"Lola.\n\".\n\"Lola. I am. I amola. I amow. I want toast. I want to meow. I want to mear. I know. I want to meow. I know. I want it. I want toothy. Iar"
+                }
+              ]
+            }
+          ],
+          "generationConfig": {},
+          "cacheHints": [
+            {
+              "regionId": "knowledge_story_facts",
+              "contentFingerprint": "984178cd003892583b6b6756ed9266c8dfe91757ee925fcd0f810bcfbc257d19",
+              "ttlMs": 3600000
+            }
+          ]
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": " Lily.\"\nLily says.\nLily is ate. She eating her lunch. She eagic. She eater. She eating her lunch. She eater.\nLily eating.\nLily. Lily lunch. Lily'dleice. Lime. Lily. Lily is Lily. Lily. Lily'bericicice. Lily.\nLily. Lily. Lily. Lily the thunder. Lily. Lily is the sunlight. Lily. Lily Lily. Lily. Lily. Lily. Lily't afraid of time.\"\nLily. Lily't. Lily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. L"
+              }
+            ]
+          },
+          "finishReason": "maxTokens",
+          "usage": {
+            "promptTokenCount": 312,
+            "candidatesTokenCount": 256,
+            "totalTokenCount": 568,
+            "source": "measured"
+          },
+          "rawResponse": {
+            "kvReuse": {
+              "result": "none"
+            }
+          }
+        }
+      },
+      {
+        "fingerprint": "696b09be11381216",
+        "requestPreview": "Write the closing line after:  Lily.\" Lily says. Lily is ate. She eating her lunch. She eagic. She eater. She eating her…",
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Story facts: Bo is a small brown dog who lives at the edge of a pine forest with a lighthouse keeper named Ana. Bo fears thunder but loves the sea."
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Write the closing line after:\n Lily.\"\nLily says.\nLily is ate. She eating her lunch. She eagic. She eater. She eating her lunch. She eater.\nLily eating.\nLily. Lily lunch. Lily'dleice. Lime. Lily. Lily is Lily. Lily. Lily'bericicice. Lily.\nLily. Lily. Lily. Lily the thunder. Lily. Lily is the sunlight. Lily. Lily Lily. Lily. Lily. Lily. Lily't afraid of time.\"\nLily. Lily't. Lily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily.\nLily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. Lily. L"
+                }
+              ]
+            }
+          ],
+          "generationConfig": {},
+          "cacheHints": [
+            {
+              "regionId": "knowledge_story_facts",
+              "contentFingerprint": "984178cd003892583b6b6756ed9266c8dfe91757ee925fcd0f810bcfbc257d19",
+              "ttlMs": 3600000
+            }
+          ]
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": " Lily. Lily. Lily. Lily is a bird. Lily is a bird. Lily is a bird.\nLily is a bird. Lily'tices. Lily'ber.\nLily.\nLily.\nLily'dice. Lily. Lily is a lot of the animals. Lily.\nLily.\nLily often.\nLily. Lily Lily. Lily.\nLily. Lily is coming from now he is the lunch is on the lunch is on the lunch is Lily'neate isal.\nLily.\nLily't.\nLily'neak.\nLily is very often isal is gone.\nLily is Lily.\nLily'gobby.\nLily.\nLily.\nLily. Lily.\nLily is.\nLily.\nLily.\nLater.\nLily.\nLily. Lily.\nLily.\nLily.\nLily.\nLily.\nWake.\nLily.\nLily.\nLily'late.\nLily.\n"
+              }
+            ]
+          },
+          "finishReason": "maxTokens",
+          "usage": {
+            "promptTokenCount": 312,
+            "candidatesTokenCount": 256,
+            "totalTokenCount": 568,
+            "source": "measured"
+          },
+          "rawResponse": {
+            "kvReuse": {
+              "result": "none"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

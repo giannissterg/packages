@@ -122,3 +122,70 @@ final class TapeCalibrationFitter {
     );
   }
 }
+
+/// Prompt-side extension of [TapeCalibrationFitter]: fits the
+/// whole-request chars-per-token ratio from v2 tapes (full recorded
+/// requests + measured `promptTokenCount`). v1 preview-only entries
+/// cannot contribute and are skipped — the exact limitation tape v2
+/// exists to remove.
+extension PromptSideFitting on TapeCalibrationFitter {
+  CalibrationFit fitPromptSide(
+    ModelTape tape, {
+    required String backendId,
+    required String provenance,
+    int minSamples = 3,
+  }) {
+    final ratios = <double>[];
+    final samples = <(int chars, int tokens)>[];
+    var excluded = 0;
+    for (final entry in tape.entries) {
+      final recorded = entry.recorded;
+      if (recorded is! FullRecordedRequest) continue;
+      final request = recorded.toRequest();
+      final response = ModelResponse.fromJson(entry.responseJson);
+      final tokens = response.usage.promptTokenCount;
+      if (tokens <= 0) continue;
+      if (response.usage.source != UsageSource.measured) continue;
+      final chars = (request.systemInstruction?.text.length ?? 0) +
+          request.messages.fold<int>(0, (s, m) => s + m.text.length);
+      if (chars <= 0) continue;
+      final ratio = chars / tokens;
+      if (ratio < minPlausibleCharsPerToken) {
+        excluded++;
+        continue;
+      }
+      ratios.add(ratio);
+      samples.add((chars, tokens));
+    }
+    if (samples.length < minSamples) {
+      throw StateError('only ${samples.length} plausible prompt-side '
+          'samples (need >= $minSamples; $excluded excluded; v1 entries '
+          'cannot contribute) — refusing to fit.');
+    }
+    ratios.sort();
+    final mid = ratios.length ~/ 2;
+    final median = ratios.length.isOdd
+        ? ratios[mid]
+        : (ratios[mid - 1] + ratios[mid]) / 2;
+    final calibration = EstimateCalibration(
+      backendId: backendId,
+      charsPerToken: median,
+      sampleCount: samples.length,
+      provenance: '$provenance (prompt-side median ratio, '
+          '$excluded implausible excluded)',
+    );
+    var sumErr = 0.0;
+    var maxErr = 0.0;
+    for (final (chars, tokens) in samples) {
+      final err = ((chars / median) - tokens).abs() / tokens;
+      sumErr += err;
+      if (err > maxErr) maxErr = err;
+    }
+    return CalibrationFit(
+      calibration: calibration,
+      meanAbsErrorFraction: sumErr / samples.length,
+      maxAbsErrorFraction: maxErr,
+      excludedSamples: excluded,
+    );
+  }
+}

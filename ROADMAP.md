@@ -138,9 +138,11 @@ a tape fitter (median ratio, implausible samples excluded loudly,
 estimated-source refused), the exact `LlamaTokenEstimator`, and
 `vaster check --backend` composing profiles into cost bounds — the
 prove-it loop closed within 1%. Error bounds asserted in tests; committed
-constants re-derived from the fixture so they cannot rot. Remaining:
-tape v2 records request char counts (prompt-side fitting), grow the
-claude-cli factor beyond n=1.
+constants re-derived from the fixture so they cannot rot. Tape v2
+landed (full recorded requests): prompt-side fitting shipped and
+proven on a recorded llama fixture. Remaining: grow the claude-cli
+factor beyond n=1 (each future paid run is now a richer fixture
+automatically).
 
 ### 5. TT-P4: resume from the debugger
 The debugger can inspect and materialize any step; it cannot yet *resume live
