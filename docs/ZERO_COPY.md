@@ -89,7 +89,7 @@ engine-measured: those 105 tokens were physically never decoded again.
 
 ## Proof 3 — the sidecar topology (ring level)
 
-`vaster serve --backend llama` hosts the engine; clients are
+`vaster serve --backend llama --transport shm` hosts the engine; clients are
 `MmapVasterModel` on the same ring pair. The E2E test
 (`llama_sidecar_host_test.dart`) proves the full wire path: a cold call
 round-trips the rings; the warm call's envelope carries only a frame

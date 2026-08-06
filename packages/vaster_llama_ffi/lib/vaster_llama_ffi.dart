@@ -6,6 +6,10 @@
 /// directly into caller-provided native memory), and [LlamaWorker] (the
 /// engine hosted in a worker isolate, moving state to/from named
 /// shared-memory frames without it ever crossing the message channel).
+///
+/// To serve this backend over shared-memory rings, pair the model with
+/// `RingSidecarHost` from `vaster_mmap` — the host is transport code and
+/// backend-agnostic, so it does not live here.
 library;
 
 export 'src/bindings/llama_bindings.dart'
@@ -15,5 +19,4 @@ export 'src/llama_engine.dart'
 export 'src/llama_ffi_kv_cache_controller.dart'
     show LlamaFfiKvCacheController;
 export 'src/llama_ffi_vaster_model.dart' show LlamaFfiVasterModel;
-export 'src/llama_sidecar_host.dart' show LlamaSidecarHost;
 export 'src/llama_worker.dart' show LlamaWorker;

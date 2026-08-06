@@ -1,25 +1,27 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:vaster_mmap/vaster_mmap.dart';
+import 'package:vaster_model/vaster_model.dart';
 
-import 'llama_ffi_vaster_model.dart';
+import 'shared_memory_ring.dart';
+import 'sidecar_envelope.dart';
 
-/// The sidecar side of the zero-copy transport: serves `generate`
-/// envelopes from a request ring, answering on a response ring.
+/// The serving side of the shared-memory transport: answers `generate`
+/// envelopes from a request ring on a response ring — the ring twin of
+/// `VasterModelSidecarServer` (the Unix-socket host), and like it,
+/// backend-agnostic: any [VasterModel] can be served.
 ///
-/// Topology (`vaster serve --backend llama`): this process owns the FFI
-/// engine; any number of sequential Vaster processes talk to it through
-/// [MmapVasterModel]. The ring carries only small JSON envelopes — bulk
-/// context rides as `kvFrames` (named shared-memory frames the engine
-/// restores from directly) and generated text rides back in the response
-/// envelope.
+/// The ring carries only small JSON envelopes. When the envelope
+/// references `kvFrames`, they arrive as cache hints on the decoded
+/// request — a served model with a KV controller (e.g. the llama FFI
+/// backend) restores real state from the named frames' pages; models
+/// without one simply ignore the hints and decode cold.
 ///
 /// Errors are typed on the wire: a failed generate answers
-/// `{"error": …}`, which the client surfaces as `SidecarRemoteException`
+/// `{"error": …}`, which the client surfaces as [SidecarRemoteException]
 /// — the transport never fabricates success in either direction.
-final class LlamaSidecarHost {
-  final LlamaFfiVasterModel model;
+final class RingSidecarHost {
+  final VasterModel model;
   final SharedMemoryRing requestRing;
   final SharedMemoryRing responseRing;
   final Duration pollInterval;
@@ -27,15 +29,16 @@ final class LlamaSidecarHost {
   bool _stopping = false;
   bool _running = false;
 
-  LlamaSidecarHost({
+  RingSidecarHost({
     required this.model,
     required this.requestRing,
     required this.responseRing,
     this.pollInterval = const Duration(milliseconds: 2),
   });
 
-  /// Serves until [stop] is called. One request at a time — the engine is
-  /// a single sequence, and the ring protocol is SPSC by rule.
+  /// Serves until [stop] is called. One request at a time — the ring
+  /// protocol is SPSC by rule, and served backends may hold sequential
+  /// state (one engine sequence).
   Future<void> serve() async {
     if (_running) throw StateError('host is already serving');
     _running = true;
@@ -63,8 +66,6 @@ final class LlamaSidecarHost {
       if (action != 'generate') {
         return jsonEncode({'error': 'unsupported action "$action"'});
       }
-      // The shared codec rebuilds the request; kvFrames refs arrive as
-      // cache hints the model's controller resolves against named frames.
       final response =
           await model.generate(SidecarEnvelope.decodeGenerate(envelope));
       return jsonEncode(response.toJson());

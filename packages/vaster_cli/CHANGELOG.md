@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `vaster serve` decouples backend from transport: `--backend gemini|
+  claude|claude-api|llama` × `--transport socket|shm` in any pairing —
+  llama can be served over the Unix socket, and any backend over
+  shared-memory rings (KV frame reuse needs a backend with a KV
+  controller). The previous `--backend llama` implied rings; use
+  `--backend llama --transport shm` now.
+
 - New `vaster eval <program>` — N-trial evaluation with success rate, mean
   score, and real metered cost per trial (`--trials`, `--contains`,
   `--regex`, `--json`).

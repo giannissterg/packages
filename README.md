@@ -210,7 +210,7 @@ dart pub global activate --source path packages/vaster_cli   # once; or use `dar
 | `vaster compile <prog>` | Analyze a serialized program and emit `.vbc` (AST pipelines compile via the library API — see quickstart) |
 | `vaster disassemble <prog>` | ISA disassembly with opcode statistics |
 | `vaster inspect <snapshot>` | Pretty-print a serialized continuation snapshot |
-| `vaster serve` | Out-of-process model sidecar RPC server on a Unix socket |
+| `vaster serve` | Host a model backend for other processes. `--backend` × `--transport socket\|shm` are orthogonal — Unix-socket JSON or shared-memory rings with zero-copy KV frames |
 | `vaster doctor` | Environment health checks |
 
 A real session, verbatim (the fake backend costs nothing):

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `LlamaSidecarHost` moved to `vaster_mmap` as the backend-agnostic
+  `RingSidecarHost` — serving over rings is transport, not a llama
+  concern. Pair it with `LlamaFfiVasterModel` for the zero-copy topology.
+
 - ZC-P5: the sidecar over the rings. `LlamaSidecarHost` serves `generate`
   envelopes from a request ring (errors typed on the wire);
   `LlamaFfiKvCacheController` now also implements `KvFrameResolver`, so

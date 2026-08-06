@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `RingSidecarHost` — the serving side of the ring transport, moved here
+  from `vaster_llama_ffi` and generalized to any `VasterModel`: the host
+  only ever called `generate`, so typing it to the llama model was
+  transport code wearing a backend costume (it forced a downcast in the
+  CLI and blocked serving other backends over rings). Proven
+  backend-agnostic by test with a hand-rolled echo model.
+
 - **The transport is honest now (ZC-P5).** `MmapVasterModel`'s
   fake-success timeout stub is gone: no sidecar answer raises typed
   `SidecarUnavailableException`; a sidecar `{"error": …}` envelope raises

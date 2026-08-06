@@ -9,7 +9,7 @@ import 'package:vaster_mmap/vaster_mmap.dart';
 import 'package:vaster_model/vaster_model.dart';
 
 /// ZC-P5: the full ring topology — an [MmapVasterModel] client, the
-/// [LlamaSidecarHost] serving a real engine, KV state riding as named
+/// [RingSidecarHost] serving a real engine, KV state riding as named
 /// frames. The client and host share this test's event loop; the engine
 /// runs on the worker isolate's thread.
 void main() {
@@ -30,7 +30,7 @@ void main() {
     final worker = await LlamaWorker.spawn(modelPath: modelPath);
     final kv = LlamaFfiKvCacheController(
         worker: worker, namePrefix: 'vsc_kv_${stamp % 100000}_');
-    final host = LlamaSidecarHost(
+    final host = RingSidecarHost(
       model: LlamaFfiVasterModel(worker: worker, kvController: kv),
       requestRing: req,
       responseRing: res,
@@ -94,7 +94,7 @@ void main() {
     final req = SharedMemoryRing(shmName: '/vsce_req_$stamp', capacity: 65536);
     final res = SharedMemoryRing(shmName: '/vsce_res_$stamp', capacity: 65536);
     final worker = await LlamaWorker.spawn(modelPath: modelPath);
-    final host = LlamaSidecarHost(
+    final host = RingSidecarHost(
       model: LlamaFfiVasterModel(worker: worker),
       requestRing: req,
       responseRing: res,

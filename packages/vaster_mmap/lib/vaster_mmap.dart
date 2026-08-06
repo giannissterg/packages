@@ -5,6 +5,7 @@ export 'src/ffi/posix_shm_bindings.dart';
 export 'src/kv_frame_ref.dart';
 export 'src/mmap_vaster_model.dart';
 export 'src/ring_buffer.dart';
+export 'src/ring_sidecar_host.dart';
 export 'src/segment_tag.dart';
 export 'src/sidecar_envelope.dart';
 export 'src/shared_memory_frame.dart';
