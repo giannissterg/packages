@@ -64,7 +64,12 @@ void main() {
   });
 
   group('GeminiCliVasterModel — Integration with local Gemini CLI', () {
-    final geminiAvailable = Process.runSync('gemini', ['--version']).exitCode == 0;
+    // Opt-in only: a present-but-auth-gated gemini CLI HANGS headless
+    // (roadmap item 7), so binary detection alone would stall any dev
+    // machine or CI runner that happens to have it installed.
+    final optedIn = Platform.environment['VASTER_GEMINI_CLI_TESTS'] == '1';
+    final geminiAvailable =
+        optedIn && Process.runSync('gemini', ['--version']).exitCode == 0;
 
     test('generate() calls Gemini CLI and parses JSON response', () async {
       final model = GeminiCliVasterModel(
@@ -89,7 +94,7 @@ void main() {
           rethrow;
         }
       }
-    }, skip: geminiAvailable ? null : 'gemini CLI not available on system');
+    }, skip: geminiAvailable ? null : 'opt-in: set VASTER_GEMINI_CLI_TESTS=1 with an authenticated gemini CLI');
 
     test('generateStream() streams responses from Gemini CLI', () async {
       final model = GeminiCliVasterModel(
@@ -116,6 +121,6 @@ void main() {
           rethrow;
         }
       }
-    }, skip: geminiAvailable ? null : 'gemini CLI not available on system');
+    }, skip: geminiAvailable ? null : 'opt-in: set VASTER_GEMINI_CLI_TESTS=1 with an authenticated gemini CLI');
   });
 }

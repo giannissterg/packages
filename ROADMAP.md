@@ -96,12 +96,17 @@ ownership params, interface promotion, package moves). Roll the `Unreleased`
 CHANGELOG sections into 0.3.0, bump pubspecs, tag. Cheap, and it puts a stake
 in the ground before the next breaking wave.
 
-### 2. CI pipeline
-There is no CI. A GitHub Actions workflow that runs `dart analyze packages`,
-the full test sweep, and a replay of `sdd_fidelity.replay.json` (zero-cost,
-asserts byte-exact usage totals) would catch regressions the moment they land.
-The fixture replay is the crown jewel here — it is a free end-to-end test of
-compiler + runtime + metering against real recorded model traffic.
+### 2. CI pipeline — ✅ delivered (lock-in), hardened 2026-08-06
+`.github/workflows/ci.yml`: `dart analyze --fatal-infos packages` + the
+full sweep via `tool/test_sweep.sh` (one owner, shared with local runs).
+Per-package invocation is load-bearing — it honors each package's
+`dart_test.yaml` (the llama suites' concurrency guard, tags), which a
+root-level mega-invocation silently didn't. Machine-gated suites degrade
+honestly (llama self-skips without GGUF+libllama; gemini CLI integration
+is opt-in via `VASTER_GEMINI_CLI_TESTS=1` — auth-gated gemini hangs
+headless, so presence-detection alone stalled any machine that had it).
+The sweep carries the fixture replay and every architectural guard test
+(see docs/ARCHITECTURE.md's enforcement table).
 
 ### 3. Metering follow-ups
 - `DispatchParallelTasksOp` does not forward `responseSchema`/`cacheHints`

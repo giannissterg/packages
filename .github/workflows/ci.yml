@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    name: Analyze + test (incl. fixture replay)
+    name: Analyze + test sweep (incl. fixture replay)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -27,19 +27,22 @@ jobs:
         run: dart analyze --fatal-infos packages
 
       - name: Test sweep
-        # gemini_cli integration tests are auth-gated and hang headless.
+        # One owner for the sweep, shared with local runs
+        # (tool/test_sweep.sh). Per-package invocation is load-bearing:
+        # it honors each package's dart_test.yaml (the llama suites'
+        # concurrency guard against llama_backend_init races, tag
+        # declarations) — a single root-level `dart test` across
+        # packages does not. Machine-gated suites degrade honestly:
+        # llama real-inference self-skips without GGUF + libllama, and
+        # gemini CLI integration is opt-in (VASTER_GEMINI_CLI_TESTS=1 —
+        # auth-gated gemini hangs headless), so its unit tests still
+        # run here.
+        #
         # The sweep includes the committed SDD fidelity fixture replay —
         # a zero-cost end-to-end run of compiler → runtime → metering
-        # against real recorded model traffic (exact token/cost totals).
-        run: |
-          for d in packages/*/test; do echo "${d%/test}"; done \
-            | grep -v gemini_cli \
-            | xargs dart test --reporter expanded --file-reporter json:test-results.json
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: test-results.json
-          retention-days: 14
+        # against real recorded model traffic (exact token/cost totals) —
+        # and every architectural guard test (vaster_kv leaf guard,
+        # checkpoint-anywhere gauntlet, KV State Image golden bytes,
+        # quickstart anti-rot mirror). See docs/ARCHITECTURE.md's
+        # enforcement table.
+        run: ./tool/test_sweep.sh
