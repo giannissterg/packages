@@ -27,7 +27,11 @@ final class PolicyGuard {
       resource: resource,
     );
     if (decision.isDenied) {
-      throw StateError('Policy violation: ${decision.reason}');
+      throw PolicyViolationException(
+        action: action,
+        resource: resource,
+        reason: decision.reason,
+      );
     }
   }
 }

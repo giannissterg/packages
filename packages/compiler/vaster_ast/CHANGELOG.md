@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **BREAKING**: `Resilient` is a first-class node, not a desugar. It
+  compiles to the canonical retry LOOP (constant code size — the old
+  expansion was O(attempts × child)); the error register is a single
+  `retry_error` (was `retry_error_<i>` per attempt).
+
+
 ## 0.3.0
 
 - `nodes.dart` split into part files along its seams: `nodes_declarative`,

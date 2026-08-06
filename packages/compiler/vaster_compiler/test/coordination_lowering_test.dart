@@ -144,7 +144,8 @@ void main() {
   });
 
   group('Retry', () {
-    test('unrolls into nested handlers, one per attempt', () {
+    test('lowers to the canonical retry LOOP — one handler, priced guard',
+        () {
       final program = compiler.compile(pipeline([
         const Resilient(
           child: ReadFile(path: Template.text('/fragile/data.txt')),
@@ -152,14 +153,20 @@ void main() {
           onExhausted: [Prompt(Template.text('report the failure'))],
         ),
       ]));
-      expect(program.instructions.whereType<PushErrorHandlerOp>(), hasLength(3));
-      expect(
-        program.instructions
-            .whereType<PushErrorHandlerOp>()
-            .map((op) => op.errorVar),
-        containsAll(['retry_error_1', 'retry_error_2', 'retry_error_3']),
-      );
-      expect(program.instructions.whereType<ReadFileOp>(), hasLength(3));
+      // Constant code size: ONE handler, ONE child copy, a guarded
+      // back-edge — not the old O(attempts) unroll.
+      expect(program.instructions.whereType<PushErrorHandlerOp>(), hasLength(1));
+      expect(program.instructions.whereType<PushErrorHandlerOp>().single.errorVar,
+          'retry_error');
+      expect(program.instructions.whereType<ReadFileOp>(), hasLength(1));
+      // The guard carries the ceiling — the canonical bounded-loop shape
+      // the cost analyzer prices (check multiplies by attempts).
+      final guard = program.instructions
+          .whereType<CompareRegisterOp>()
+          .singleWhere((op) => op.rightValue == 3);
+      expect(guard.operator, 'lt');
+      expect(program.instructions.whereType<IncrementRegisterOp>(),
+          isNotEmpty);
     });
 
     test('Provider<RetryPolicy> supplies attempts; node field wins', () {
@@ -175,20 +182,16 @@ void main() {
             ),
           ]);
 
-      expect(
-        compiler
-            .compile(withPolicy())
-            .instructions
-            .whereType<PushErrorHandlerOp>(),
-        hasLength(5),
-      );
-      expect(
-        compiler
-            .compile(withPolicy(nodeAttempts: 2))
-            .instructions
-            .whereType<PushErrorHandlerOp>(),
-        hasLength(2),
-      );
+      CompareRegisterOp guardOf(Pipeline p) => compiler
+          .compile(p)
+          .instructions
+          .whereType<CompareRegisterOp>()
+          .singleWhere((op) => op.operator == 'lt');
+
+      expect(guardOf(withPolicy()).rightValue, 5,
+          reason: 'the Provider-supplied ceiling lands in the loop guard');
+      expect(guardOf(withPolicy(nodeAttempts: 2)).rightValue, 2,
+          reason: 'the node field wins over the Provider');
     });
   });
 

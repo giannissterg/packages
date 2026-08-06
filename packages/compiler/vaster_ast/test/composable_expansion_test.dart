@@ -58,22 +58,18 @@ void main() {
       expect(when.otherwise, hasLength(1));
     });
 
-    test('Resilient expands to nested TryCatch, innermost first', () {
+    test('Resilient is a first-class node (compiled, not desugared)', () {
       const node = Resilient(
         child: Prompt(Template.text('flaky')),
         attempts: 3,
         onExhausted: [Prompt(Template.text('give up'))],
       );
-      var tree = node.build(context);
-      var depth = 0;
-      while (tree is TryCatch) {
-        depth++;
-        expect(tree.tryChildren.single, isA<Prompt>());
-        tree = tree.catchChildren.single;
-      }
-      expect(depth, equals(3));
-      expect((tree as Sequence).children.single, isA<Prompt>(),
-          reason: 'exhaustion tail runs onExhausted');
+      expect(node, isNot(isA<ComposableNode>()),
+          reason: 'Resilient lowers to the canonical retry loop in the '
+              'compiler — constant code size, cost-bound-priced attempts '
+              '— instead of O(attempts) nested TryCatch');
+      expect(node.attempts, 3);
+      expect(node.onExhausted, hasLength(1));
     });
 
     test('Router expands to Decide with one Task per route', () {

@@ -254,32 +254,21 @@ class Produce extends ComposableNode {
 /// Retries [child] up to `attempts` times (node field, else
 /// `Provider<RetryPolicy>` — the shared retry vocabulary from
 /// `vaster_model` — else 3): the first successful attempt continues
-/// past the node; each failure's error text binds to `retry_error_<i>` so a
-/// later attempt's prompt may interpolate it. [onExhausted] runs when every
-/// attempt failed.
+/// past the node; each failure's error text binds to `retry_error` so a
+/// later attempt's prompt may interpolate it. [onExhausted] runs when
+/// every attempt failed.
 ///
-/// Expands to `attempts` nested [TryCatch] nodes — attempt i's catch contains
-/// attempt i+1, the innermost catch is [onExhausted]. Caveats: compiled code
-/// size is O(attempts × child); policy violations are uncatchable and are
-/// never retried.
-class Resilient extends ComposableNode {
+/// **A first-class ISA construct**: compiles to the canonical retry LOOP
+/// (counter init → guarded back-edge → handler around the child →
+/// increment on catch) — constant code size regardless of [attempts],
+/// and the loop guard is the compiler's canonical bounded shape, so
+/// `vaster check`'s cost bound automatically multiplies the child's
+/// worst case by the attempt ceiling: declared retries are PRICED.
+/// Policy violations are uncatchable and are never retried.
+class Resilient extends VasterNode {
   final VasterNode child;
   final int? attempts;
   final List<VasterNode> onExhausted;
 
   const Resilient({required this.child, this.attempts, this.onExhausted = const []});
-
-  @override
-  VasterNode build(BuildContext context) {
-    final total = attempts ?? context.tryRead<RetryPolicy>()?.maxAttempts ?? 3;
-    VasterNode tree = Sequence(onExhausted);
-    for (var i = total; i >= 1; i--) {
-      tree = TryCatch(
-        tryChildren: [child],
-        catchChildren: [tree],
-        error: 'retry_error_$i',
-      );
-    }
-    return tree;
-  }
 }

@@ -443,7 +443,7 @@ class VasterRuntime {
   /// Policy violations are a VM security boundary, not a program-level error —
   /// they always trap regardless of installed handlers.
   bool _handleProgramError(Object error) {
-    if (error is StateError && error.message.startsWith('Policy violation')) {
+    if (error is PolicyViolationException) {
       return false;
     }
     if (_machineContext.errorHandlers.isEmpty) return false;

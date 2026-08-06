@@ -178,7 +178,7 @@ void main() {
         Resilient(
           child: ReadFile(path: Template.text('/nowhere/missing.txt')),
           attempts: 3,
-          onExhausted: [Prompt(Template([r'All attempts failed: ', Binding('retry_error_3')]))],
+          onExhausted: [Prompt(Template([r'All attempts failed: ', Binding('retry_error')]))],
         ),
       ],
     ));
@@ -188,7 +188,7 @@ void main() {
         reason: 'exhaustion flows to onExhausted, not a trap');
     final report = model.recordedRequests.single.messages.last.text;
     expect(report, contains('All attempts failed:'));
-    expect(report, isNot(contains(r'${retry_error_3}')),
+    expect(report, isNot(contains(r'${retry_error}')),
         reason: 'the final error interpolates into the report');
     await vm.shutdown();
   });

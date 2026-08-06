@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:vaster_ast/vaster_ast.dart';
+import 'package:vaster_check/vaster_check.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
@@ -86,5 +87,30 @@ void main() {
     expect(calls, 2, reason: 'exactly the declared attempts, then stop');
     expect(state.registers['answer'], 'gave-up',
         reason: 'the exhaustion branch owned the ending');
+  });
+
+  test('constant code size: attempts do not multiply instructions', () {
+    const compiler = BasicWorkflowCompiler();
+    final small = compiler.compile(pipeline(attempts: 2));
+    final large = compiler.compile(pipeline(attempts: 50));
+    expect(large.instructions.length, small.instructions.length,
+        reason: 'Resilient lowers to a loop — the old desugar was '
+            'O(attempts x child)');
+  });
+
+  test('the cost bound PRICES the declared retries', () {
+    const compiler = BasicWorkflowCompiler();
+    final once = ProgramChecker(pricingCatalog: PricingCatalog.builtin)
+        .check(compiler.compile(pipeline(attempts: 1)))
+        .costBound;
+    final thrice = ProgramChecker(pricingCatalog: PricingCatalog.builtin)
+        .check(compiler.compile(pipeline(attempts: 3)))
+        .costBound;
+    expect(once.unbounded, isFalse,
+        reason: 'the retry loop guard is the canonical bounded shape');
+    expect(thrice.maxModelCalls, 3 * once.maxModelCalls,
+        reason: 'declared resilience is not free — the worst case '
+            'multiplies by the attempt ceiling, and check says so before '
+            'a token is spent');
   });
 }

@@ -157,8 +157,9 @@ final class ToolCallOrchestrator {
         'error':
             'Unknown tool "${call.name}" — not registered in the VM tool table.',
       };
+    } on PolicyViolationException {
+      rethrow; // security trap — uncatchable, never fed back to the model
     } on StateError catch (e) {
-      if (e.message.startsWith('Policy violation')) rethrow; // security trap
       return {'error': e.message};
     } catch (e) {
       return {'error': 'Tool execution error: $e'};

@@ -414,6 +414,47 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.jump(repeatStart);
         ir.bind(repeatEnd);
 
+      case Resilient n:
+        // Canonical retry loop — same guard shape as Repeat, so the
+        // cost analyzer's trip-bound recognition prices the retries:
+        //   attempt = 0
+        // head:  attempt < attempts ? body : exhausted
+        // body:  pushHandler(catch) ; <child> ; popHandler ; jump end
+        // catch: attempt++ ; jump head          (back-edge in region)
+        // exhausted: <onExhausted>
+        // end:
+        final totalAttempts =
+            n.attempts ?? context.tryRead<RetryPolicy>()?.maxAttempts ?? 3;
+        final attemptReg = state.nextAutoRegister();
+        final retryCmp = state.nextAutoRegister();
+        final retryHead = ir.newLabel('retry_head');
+        final retryBody = ir.newLabel('retry_body');
+        final retryCatch = ir.newLabel('retry_catch');
+        final retryExhausted = ir.newLabel('retry_exhausted');
+        final retryEnd = ir.newLabel('retry_end');
+
+        ir.emit(SetRegisterOp(registerName: attemptReg, value: 0));
+        ir.bind(retryHead);
+        ir.emit(CompareRegisterOp(
+          leftVar: attemptReg,
+          operator: 'lt',
+          rightValue: totalAttempts,
+          targetVar: retryCmp,
+        ));
+        ir.jumpIf(retryCmp, retryBody);
+        ir.jump(retryExhausted);
+        ir.bind(retryBody);
+        ir.pushErrorHandler(retryCatch, errorVar: 'retry_error');
+        _lowerNodes([n.child], ir, context, state);
+        ir.emit(const PopErrorHandlerOp());
+        ir.jump(retryEnd);
+        ir.bind(retryCatch);
+        ir.emit(IncrementRegisterOp(registerName: attemptReg));
+        ir.jump(retryHead);
+        ir.bind(retryExhausted);
+        _lowerNodes(n.onExhausted, ir, context, state);
+        ir.bind(retryEnd);
+
       case TryCatch n:
         // Layout:
         //   pushErrorHandler -> CATCH
