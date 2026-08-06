@@ -8,6 +8,8 @@ import 'package:vaster_mmap/vaster_mmap.dart';
 import 'bindings/llama_bindings.dart';
 import 'llama_engine.dart';
 
+const _imageCodec = KvStateImageCodec();
+
 /// Async facade over a [LlamaEngine] living in a dedicated worker isolate.
 ///
 /// `llama_decode` is a blocking native call; hosting the engine in its own
@@ -289,7 +291,7 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       engine.prefill(tokens);
       final fingerprint = request['fingerprint']! as String;
       final stateSize = engine.stateSize;
-      final imageBytes = KvStateImage.layoutSize(
+      final imageBytes = _imageCodec.layoutSize(
           contentFingerprint: fingerprint,
           tokenCount: tokens.length,
           stateSize: stateSize);
@@ -297,7 +299,7 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
           payloadLength: imageBytes, meta: tokens.length);
       try {
         if (frame.isOwner) {
-          final image = KvStateImage.initialize(frame.bytes,
+          final image = _imageCodec.initialize(frame.bytes,
               tokenIds: tokens,
               contentFingerprint: fingerprint,
               engineTag: engine.engineTag,
@@ -327,7 +329,7 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
         try {
           final attached = SharedMemoryFrame.attach(restoreFrame);
           try {
-            final image = KvStateImage.parse(attached.bytes);
+            final image = _imageCodec.parse(attached.bytes);
             reuse = engine.continueFromImage(
               image: image,
               statePointer: Pointer<Uint8>.fromAddress(
@@ -359,7 +361,7 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       // checked, and a mismatch is the typed incompatible-state error.
       final frame = SharedMemoryFrame.attach(request['frame']! as String);
       try {
-        final image = KvStateImage.parse(frame.bytes);
+        final image = _imageCodec.parse(frame.bytes);
         if (image.engineTag != engine.engineTag) {
           throw LlamaStateIncompatibleException(
               'image engineTag 0x${image.engineTag.toRadixString(16)} does '

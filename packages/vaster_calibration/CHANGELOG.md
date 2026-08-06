@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **BREAKING**: `KnownCalibrations` (static registry) → `CalibrationCatalog`, an instance value with `CalibrationCatalog.builtin` as the committed const catalog (the `PricingCatalog.builtin` idiom) — catalogs compose and merge; no hidden global registry.
+
 - Initial package (roadmap item 4): estimate calibration as **composed
   behavior**. `EstimateCalibration` carries fitted per-backend numbers
   as data with visible provenance and sample counts;

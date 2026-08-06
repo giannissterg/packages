@@ -25,7 +25,7 @@ void main() {
         () {
       final name =
           'vaster_kvi_test_${DateTime.now().microsecondsSinceEpoch}';
-      final size = KvStateImage.layoutSize(
+      final size = const KvStateImageCodec().layoutSize(
           contentFingerprint: goldenFingerprint,
           tokenCount: goldenTokens.length,
           stateSize: goldenState.length);
@@ -33,7 +33,7 @@ void main() {
           payloadLength: size, meta: goldenTokens.length);
       addTearDown(() => frame.close(unlink: true));
 
-      KvStateImage.initialize(frame.bytes,
+      const KvStateImageCodec().initialize(frame.bytes,
               tokenIds: goldenTokens,
               contentFingerprint: goldenFingerprint,
               engineTag: goldenTag,
@@ -43,7 +43,7 @@ void main() {
 
       final attachment = SharedMemoryFrame.attach(name);
       addTearDown(attachment.close);
-      final image = KvStateImage.parse(attachment.bytes);
+      final image = const KvStateImageCodec().parse(attachment.bytes);
       expect(hexOf(Uint8List.sublistView(
               attachment.bytes, 0, image.lengthInBytes)),
           goldenHex,

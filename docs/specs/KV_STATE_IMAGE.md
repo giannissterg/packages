@@ -1,6 +1,6 @@
 # KV State Image — format specification, version 1
 
-_Status: normative. The reference codec is `KvStateImage` in
+_Status: normative. The reference codec is `KvStateImageCodec` (yielding parsed `KvStateImage` values) in
 `vaster_kv` (the KV contracts leaf — the format is container-agnostic,
 so it lives with the contracts, not with any transport); the
 golden-bytes fixture in

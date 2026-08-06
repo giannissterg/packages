@@ -26,6 +26,9 @@ final class RingSidecarHost {
   final SharedMemoryRing responseRing;
   final Duration pollInterval;
 
+  /// The wire codec — same instance-held shape as the client side.
+  final SidecarEnvelopeCodec envelopeCodec;
+
   bool _stopping = false;
   bool _running = false;
 
@@ -34,6 +37,7 @@ final class RingSidecarHost {
     required this.requestRing,
     required this.responseRing,
     this.pollInterval = const Duration(milliseconds: 2),
+    this.envelopeCodec = const SidecarEnvelopeCodec(),
   });
 
   /// Serves until [stop] is called. One request at a time — the ring
@@ -62,12 +66,12 @@ final class RingSidecarHost {
   Future<String> _answer(String payload) async {
     try {
       final envelope = jsonDecode(payload) as Map<String, dynamic>;
-      final action = SidecarEnvelope.actionOf(envelope);
+      final action = envelopeCodec.actionOf(envelope);
       if (action != 'generate') {
         return jsonEncode({'error': 'unsupported action "$action"'});
       }
       final response =
-          await model.generate(SidecarEnvelope.decodeGenerate(envelope));
+          await model.generate(envelopeCodec.decodeGenerate(envelope));
       return jsonEncode(response.toJson());
     } on Object catch (e) {
       return jsonEncode({'error': e.toString()});

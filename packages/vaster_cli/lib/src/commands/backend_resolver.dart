@@ -70,15 +70,20 @@ Future<ResolvedBackend> resolveBackendModel({
     }
     final worker = await LlamaWorker.spawn(modelPath: modelPath);
     final kv = LlamaFfiKvCacheController(worker: worker);
+    // ONE composer instance pairs the model with the prewarmer — the
+    // alignment contract: prewarm materializes exactly what the model's
+    // composer renders.
+    const composer = LlamaPromptComposer();
     final stem = modelPath.split('/').last.replaceAll('.gguf', '');
     return ResolvedBackend(
       LlamaFfiVasterModel(
-          worker: worker, frameResolver: kv, modelName: 'llama-ffi:$stem'),
+          worker: worker,
+          frameResolver: kv,
+          promptComposer: composer,
+          modelName: 'llama-ffi:$stem'),
       kvPrewarmer: KvPrewarmer(
         controller: kv,
-        // The alignment contract: prewarm renders exactly what this
-        // model's prompt composer renders.
-        renderMessages: LlamaFfiVasterModel.renderMessages,
+        renderMessages: composer.renderMessages,
       ),
       dispose: worker.close,
     );

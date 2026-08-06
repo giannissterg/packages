@@ -21,11 +21,11 @@ void main() {
       'deadbeef42';
 
   Uint8List buildGolden() {
-    final bytes = Uint8List(KvStateImage.layoutSize(
+    final bytes = Uint8List(const KvStateImageCodec().layoutSize(
         contentFingerprint: goldenFingerprint,
         tokenCount: goldenTokens.length,
         stateSize: goldenState.length));
-    KvStateImage.initialize(bytes,
+    const KvStateImageCodec().initialize(bytes,
             tokenIds: goldenTokens,
             contentFingerprint: goldenFingerprint,
             engineTag: goldenTag,
@@ -52,7 +52,7 @@ void main() {
     });
 
     test('parsing the committed bytes recovers every field', () {
-      final image = KvStateImage.parse(goldenFromHex());
+      final image = const KvStateImageCodec().parse(goldenFromHex());
       expect(image.version, 1);
       expect(image.flags, 0);
       expect(image.tokenCount, 3);
@@ -74,9 +74,9 @@ void main() {
 
   group('round trip', () {
     test('empty state, empty tokens, empty fingerprint', () {
-      final bytes = Uint8List(KvStateImage.layoutSize(
+      final bytes = Uint8List(const KvStateImageCodec().layoutSize(
           contentFingerprint: '', tokenCount: 0, stateSize: 0));
-      final image = KvStateImage.initialize(bytes,
+      final image = const KvStateImageCodec().initialize(bytes,
           tokenIds: const [],
           contentFingerprint: '',
           engineTag: 7,
@@ -88,24 +88,24 @@ void main() {
 
     test('multibyte UTF-8 fingerprint survives', () {
       const fp = 'sha256:αβγ-ΔΕΖ';
-      final bytes = Uint8List(KvStateImage.layoutSize(
+      final bytes = Uint8List(const KvStateImageCodec().layoutSize(
           contentFingerprint: fp, tokenCount: 2, stateSize: 3));
-      final image = KvStateImage.initialize(bytes,
+      final image = const KvStateImageCodec().initialize(bytes,
           tokenIds: const [5, 6],
           contentFingerprint: fp,
           engineTag: 1,
           stateSize: 3);
       expect(image.contentFingerprint, fp);
-      expect(KvStateImage.parse(bytes).contentFingerprint, fp);
+      expect(const KvStateImageCodec().parse(bytes).contentFingerprint, fp);
     });
 
     test('state section alignment holds across fingerprint/token sizes', () {
       for (final fpLen in [0, 1, 3, 4, 7, 8, 31, 64]) {
         for (final n in [0, 1, 2, 3, 5, 129]) {
           final fp = 'x' * fpLen;
-          final bytes = Uint8List(KvStateImage.layoutSize(
+          final bytes = Uint8List(const KvStateImageCodec().layoutSize(
               contentFingerprint: fp, tokenCount: n, stateSize: 1));
-          final image = KvStateImage.initialize(bytes,
+          final image = const KvStateImageCodec().initialize(bytes,
               tokenIds: List<int>.generate(n, (i) => i - 2),
               contentFingerprint: fp,
               engineTag: 3,
@@ -121,12 +121,12 @@ void main() {
     test('views are zero-copy: writing through them mutates the buffer',
         () {
       final bytes = buildGolden();
-      final image = KvStateImage.parse(bytes);
+      final image = const KvStateImageCodec().parse(bytes);
       image.stateBytes[0] = 0x11;
-      expect(KvStateImage.parse(bytes).stateBytes[0], 0x11,
+      expect(const KvStateImageCodec().parse(bytes).stateBytes[0], 0x11,
           reason: 'stateBytes is a view over the same memory');
       image.tokenIds[0] = 42;
-      expect(KvStateImage.parse(bytes).tokenIds[0], 42,
+      expect(const KvStateImageCodec().parse(bytes).tokenIds[0], 42,
           reason: 'tokenIds is a view over the same memory');
     });
   });
@@ -135,21 +135,21 @@ void main() {
     test('bad magic names both values and suspects pre-format frames', () {
       final bytes = buildGolden()..[0] = 0x00;
       expect(
-          () => KvStateImage.parse(bytes),
+          () => const KvStateImageCodec().parse(bytes),
           throwsA(isA<KvStateImageFormatException>().having(
               (e) => e.message, 'message', contains('pre-format'))));
     });
 
     test('unknown version rejected', () {
       final bytes = buildGolden()..[4] = 2;
-      expect(() => KvStateImage.parse(bytes),
+      expect(() => const KvStateImageCodec().parse(bytes),
           throwsA(isA<KvStateImageFormatException>()));
     });
 
     test('unknown flags rejected — v1 forward-compat discipline', () {
       final bytes = buildGolden()..[8] = 1;
       expect(
-          () => KvStateImage.parse(bytes),
+          () => const KvStateImageCodec().parse(bytes),
           throwsA(isA<KvStateImageFormatException>()
               .having((e) => e.message, 'message', contains('flags'))));
     });
@@ -157,18 +157,18 @@ void main() {
     test('every truncation point is caught', () {
       final golden = buildGolden();
       for (final cut in [0, 4, 35, 36, 45, 47, 48, 60, 63, 64, 68]) {
-        expect(() => KvStateImage.parse(Uint8List.sublistView(golden, 0, cut)),
+        expect(() => const KvStateImageCodec().parse(Uint8List.sublistView(golden, 0, cut)),
             throwsA(isA<KvStateImageFormatException>()),
             reason: 'a $cut-byte buffer must be rejected as truncated');
       }
       // The exact length parses.
-      expect(KvStateImage.parse(Uint8List.sublistView(golden, 0, 69)),
+      expect(const KvStateImageCodec().parse(Uint8List.sublistView(golden, 0, 69)),
           isA<KvStateImage>());
     });
 
     test('trailing container bytes are ignored per spec', () {
       final padded = Uint8List(100)..setAll(0, buildGolden());
-      final image = KvStateImage.parse(padded);
+      final image = const KvStateImageCodec().parse(padded);
       expect(image.lengthInBytes, 69);
       expect(image.stateBytes, goldenState);
     });
@@ -176,12 +176,12 @@ void main() {
     test('non-zero padding is corruption', () {
       final fpPad = buildGolden()..[45] = 1; // inside fingerprint padding
       expect(
-          () => KvStateImage.parse(fpPad),
+          () => const KvStateImageCodec().parse(fpPad),
           throwsA(isA<KvStateImageFormatException>().having(
               (e) => e.message, 'message', contains('fingerprint padding'))));
       final tokPad = buildGolden()..[62] = 1; // inside token padding
       expect(
-          () => KvStateImage.parse(tokPad),
+          () => const KvStateImageCodec().parse(tokPad),
           throwsA(isA<KvStateImageFormatException>()
               .having((e) => e.message, 'message', contains('token padding'))));
     });
@@ -189,10 +189,10 @@ void main() {
     test('misaligned container base is a typed container bug', () {
       final backing = Uint8List(80);
       final misaligned = Uint8List.sublistView(backing, 4);
-      expect(() => KvStateImage.parse(misaligned),
+      expect(() => const KvStateImageCodec().parse(misaligned),
           throwsA(isA<KvStateImageAlignmentException>()));
       expect(
-          () => KvStateImage.initialize(misaligned,
+          () => const KvStateImageCodec().initialize(misaligned,
               tokenIds: const [1],
               contentFingerprint: 'x',
               engineTag: 1,
@@ -203,7 +203,7 @@ void main() {
     test('undersized producer buffer is an ArgumentError, not corruption',
         () {
       expect(
-          () => KvStateImage.initialize(Uint8List(10),
+          () => const KvStateImageCodec().initialize(Uint8List(10),
               tokenIds: const [1, 2],
               contentFingerprint: 'fp',
               engineTag: 1,
@@ -214,7 +214,7 @@ void main() {
 
   group('prefixDivergence (spec §Consuming, step 5)', () {
     late KvStateImage image;
-    setUp(() => image = KvStateImage.parse(buildGolden()));
+    setUp(() => image = const KvStateImageCodec().parse(buildGolden()));
 
     test('exact prefix permits reuse (-1)', () {
       expect(image.prefixDivergence([1, 2, 32000]), -1);
@@ -234,9 +234,9 @@ void main() {
     });
 
     test('an empty prefix is a prefix of anything', () {
-      final bytes = Uint8List(KvStateImage.layoutSize(
+      final bytes = Uint8List(const KvStateImageCodec().layoutSize(
           contentFingerprint: 'e', tokenCount: 0, stateSize: 0));
-      final empty = KvStateImage.initialize(bytes,
+      final empty = const KvStateImageCodec().initialize(bytes,
           tokenIds: const [],
           contentFingerprint: 'e',
           engineTag: 1,

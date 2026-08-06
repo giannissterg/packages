@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **BREAKING**: the codec/value split — `KvStateImage` is now the parsed VALUE (zero-copy accessors, `prefixDivergence`); parsing, layout, and initialization live in `KvStateImageCodec`, a const-constructible external class (a v2 format arrives as another codec, not a static rewrite). `engineTagOf` stays static: it is a pure derivation convention.
+
 - **`KvStateImage` — the KV State Image codec (spec v1).** KV frames'
   payloads become a specified, versioned, language-agnostic binary
   format (`docs/specs/KV_STATE_IMAGE.md`): engine state plus the

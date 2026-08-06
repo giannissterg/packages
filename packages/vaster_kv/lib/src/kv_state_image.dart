@@ -27,29 +27,31 @@ final class KvStateImageAlignmentException implements Exception {
   String toString() => 'KvStateImageAlignmentException: $message';
 }
 
-/// The **KV State Image** codec — reference implementation of
-/// `docs/specs/KV_STATE_IMAGE.md` (v1).
+/// A parsed **KV State Image** — the validated VALUE with zero-copy
+/// accessors. Parsing, layout arithmetic, and initialization live in
+/// [KvStateImageCodec], the external class that owns the format
+/// (`docs/specs/KV_STATE_IMAGE.md` v1) so the parsing logic is held and
+/// tested separately from the views it produces.
 ///
 /// An image is an inference engine's exported sequence state plus the
 /// provenance needed to reuse it safely: the exact token ids decoded
 /// into the state, the producer's [engineTag], and the source-content
-/// fingerprint. The format is language-agnostic and container-agnostic;
-/// in Vaster it lives in a `SharedMemoryFrame` payload.
-///
-/// The codec is **zero-copy by construction**: [parse] validates the
-/// header and section bounds, then every accessor is a typed view over
-/// the same buffer — [tokenIds] is an `Int32List` view, [stateBytes] a
-/// `Uint8List` view, and [stateOffset] supports the pointer-arithmetic
-/// path where an engine writes/reads state directly in mapped pages.
-/// No section is ever staged through a heap copy. Pure `dart:typed_data`
-/// — no FFI — so it is unit-testable like `RingBuffer` and portable to
-/// any host the spec targets.
-///
-/// Validation order follows the spec exactly (magic → version → flags →
-/// bounds → padding), and nothing beyond the fixed header is read until
-/// the bounds it implies have been proven — the same
-/// validate-before-payload discipline as every segment protocol here
-/// (rules.md Rule 9).
+/// fingerprint. Every accessor is a typed view over the same buffer —
+/// [tokenIds] an `Int32List` view, [stateBytes] a `Uint8List` view, and
+/// [stateOffset] supports the pointer path where an engine writes/reads
+/// state directly in mapped pages. No section is ever staged through a
+/// heap copy.
+const int _fixedHeaderSize = 36;
+
+int _align4(int offset) => (offset + 3) & ~3;
+int _align8(int offset) => (offset + 7) & ~7;
+
+int _tokenOffset(int fingerprintLength) =>
+    _align4(_fixedHeaderSize + fingerprintLength);
+
+int _stateOffset(int fingerprintLength, int tokenCount) =>
+    _align8(_tokenOffset(fingerprintLength) + 4 * tokenCount);
+
 final class KvStateImage {
   final Uint8List _bytes;
   final ByteData _data;
@@ -64,160 +66,6 @@ final class KvStateImage {
 
   KvStateImage._(this._bytes, this._data, this._fingerprintLength,
       {required this.tokenCount, required this.stateSize});
-
-  // ── Layout arithmetic (spec §Layout) ────────────────────────────────
-
-  static const int _fixedHeaderSize = 36;
-
-  static int _align4(int offset) => (offset + 3) & ~3;
-  static int _align8(int offset) => (offset + 7) & ~7;
-
-  static int _tokenOffset(int fingerprintLength) =>
-      _align4(_fixedHeaderSize + fingerprintLength);
-
-  static int _stateOffset(int fingerprintLength, int tokenCount) =>
-      _align8(_tokenOffset(fingerprintLength) + 4 * tokenCount);
-
-  /// Total image length for the given dimensions — what a producer must
-  /// allocate (e.g. as a frame's payload size) before [initialize].
-  static int layoutSize({
-    required String contentFingerprint,
-    required int tokenCount,
-    required int stateSize,
-  }) {
-    RangeError.checkNotNegative(tokenCount, 'tokenCount');
-    RangeError.checkNotNegative(stateSize, 'stateSize');
-    return _stateOffset(utf8.encode(contentFingerprint).length, tokenCount) +
-        stateSize;
-  }
-
-  // ── Producing ───────────────────────────────────────────────────────
-
-  /// Writes the header, fingerprint, token ids, and zero padding into
-  /// [bytes] (which must be at least [layoutSize] long at an 8-aligned
-  /// base), leaving the state section for the producer to fill — in the
-  /// zero-copy path the engine writes it in place at [stateOffset].
-  ///
-  /// Returns the image parsed back from the buffer it just wrote:
-  /// writer conformance is enforced on every call, not assumed.
-  static KvStateImage initialize(
-    Uint8List bytes, {
-    required List<int> tokenIds,
-    required String contentFingerprint,
-    required int engineTag,
-    required int stateSize,
-  }) {
-    final fingerprint = utf8.encode(contentFingerprint);
-    final tokenOffset = _tokenOffset(fingerprint.length);
-    final stateOffset = _stateOffset(fingerprint.length, tokenIds.length);
-    final total = stateOffset + stateSize;
-
-    _checkAlignment(bytes);
-    if (bytes.length < total) {
-      throw ArgumentError('buffer holds ${bytes.length} bytes; the image '
-          'needs $total (${tokenIds.length} tokens, '
-          '${fingerprint.length}-byte fingerprint, $stateSize state bytes).');
-    }
-
-    final data =
-        ByteData.view(bytes.buffer, bytes.offsetInBytes, stateOffset);
-    data
-      ..setUint32(0, kvStateImageMagic, Endian.little)
-      ..setUint32(4, kvStateImageVersion, Endian.little)
-      ..setUint32(8, 0, Endian.little) // flags: MUST be 0 in v1
-      ..setUint32(12, tokenIds.length, Endian.little)
-      ..setUint64(16, engineTag, Endian.little)
-      ..setUint64(24, stateSize, Endian.little)
-      ..setUint32(32, fingerprint.length, Endian.little);
-    bytes.setRange(_fixedHeaderSize, _fixedHeaderSize + fingerprint.length,
-        fingerprint);
-    bytes.fillRange(_fixedHeaderSize + fingerprint.length, tokenOffset, 0);
-    Int32List.view(bytes.buffer, bytes.offsetInBytes + tokenOffset,
-            tokenIds.length)
-        .setAll(0, tokenIds);
-    bytes.fillRange(tokenOffset + 4 * tokenIds.length, stateOffset, 0);
-
-    return KvStateImage.parse(bytes);
-  }
-
-  // ── Consuming ───────────────────────────────────────────────────────
-
-  /// Parses and fully validates an image (spec §Consuming, steps 1–3):
-  /// magic, version, flags, section bounds against the buffer, and
-  /// zero padding. Throws typed exceptions; on success every accessor
-  /// is a zero-copy view. The [engineTag] comparison and token-exact
-  /// prefix validation (steps 4–5) are the consumer's next moves —
-  /// [prefixDivergence] implements step 5's check.
-  factory KvStateImage.parse(Uint8List bytes) {
-    _checkAlignment(bytes);
-    if (bytes.length < _fixedHeaderSize) {
-      throw KvStateImageFormatException(
-          'truncated: ${bytes.length} bytes cannot hold the '
-          '$_fixedHeaderSize-byte fixed header.');
-    }
-    final data = ByteData.view(bytes.buffer, bytes.offsetInBytes,
-        bytes.length);
-
-    final magic = data.getUint32(0, Endian.little);
-    if (magic != kvStateImageMagic) {
-      throw KvStateImageFormatException('bad magic '
-          '0x${magic.toRadixString(16)} (expected "VKVI" '
-          '0x${kvStateImageMagic.toRadixString(16)}) — not a KV state '
-          'image, or a pre-format frame.');
-    }
-    final version = data.getUint32(4, Endian.little);
-    if (version != kvStateImageVersion) {
-      throw KvStateImageFormatException('unsupported version $version '
-          '(this reader implements v$kvStateImageVersion).');
-    }
-    final flags = data.getUint32(8, Endian.little);
-    if (flags != 0) {
-      throw KvStateImageFormatException('unknown flags '
-          '0x${flags.toRadixString(16)} — v1 readers reject flags they '
-          'do not understand.');
-    }
-
-    final tokenCount = data.getUint32(12, Endian.little);
-    final stateSize = data.getUint64(24, Endian.little);
-    final fingerprintLength = data.getUint32(32, Endian.little);
-
-    final tokenOffset = _tokenOffset(fingerprintLength);
-    final stateOffset = _stateOffset(fingerprintLength, tokenCount);
-    final total = stateOffset + stateSize;
-    if (bytes.length < total) {
-      throw KvStateImageFormatException(
-          'truncated: header declares $tokenCount tokens, '
-          '$fingerprintLength-byte fingerprint, $stateSize state bytes '
-          '($total total) but the buffer holds ${bytes.length}.');
-    }
-
-    for (var i = _fixedHeaderSize + fingerprintLength; i < tokenOffset; i++) {
-      if (bytes[i] != 0) {
-        throw KvStateImageFormatException(
-            'non-zero fingerprint padding at offset $i — corrupt image '
-            'or non-conformant writer.');
-      }
-    }
-    for (var i = tokenOffset + 4 * tokenCount; i < stateOffset; i++) {
-      if (bytes[i] != 0) {
-        throw KvStateImageFormatException(
-            'non-zero token padding at offset $i — corrupt image or '
-            'non-conformant writer.');
-      }
-    }
-
-    return KvStateImage._(bytes, data, fingerprintLength,
-        tokenCount: tokenCount, stateSize: stateSize);
-  }
-
-  static void _checkAlignment(Uint8List bytes) {
-    if (bytes.offsetInBytes % 8 != 0) {
-      throw KvStateImageAlignmentException(
-          'image base at buffer offset ${bytes.offsetInBytes} is not '
-          '8-byte aligned — the container must present an aligned '
-          'payload (spec §Layout).');
-    }
-  }
 
   // ── Accessors — every one a zero-copy view ─────────────────────────
 
@@ -283,5 +131,161 @@ final class KvStateImage {
       hash *= 0x100000001b3; // wraps in 64-bit VM ints by design
     }
     return hash;
+  }
+}
+
+/// The KV State Image **codec** — the external owner of the format
+/// (`docs/specs/KV_STATE_IMAGE.md` v1): layout arithmetic, producing
+/// ([initialize]) and consuming ([parse]). Held as an instance (const by
+/// default at call sites) so the parsing logic composes, injects, and
+/// tests in isolation from the [KvStateImage] values it yields; a future
+/// v2 arrives as another codec, not a static rewrite.
+///
+/// Zero-copy by construction and pure `dart:typed_data` — no FFI — so it
+/// is unit-testable like `RingBuffer` and portable to any host the spec
+/// targets. Validation order follows the spec exactly (magic → version →
+/// flags → bounds → padding), and nothing beyond the fixed header is
+/// read until the bounds it implies have been proven — the same
+/// validate-before-payload discipline as every segment protocol
+/// (rules.md Rule 9).
+final class KvStateImageCodec {
+  const KvStateImageCodec();
+
+  /// Total image length for the given dimensions — what a producer must
+  /// allocate (e.g. as a frame's payload size) before [initialize].
+  int layoutSize({
+    required String contentFingerprint,
+    required int tokenCount,
+    required int stateSize,
+  }) {
+    RangeError.checkNotNegative(tokenCount, 'tokenCount');
+    RangeError.checkNotNegative(stateSize, 'stateSize');
+    return _stateOffset(utf8.encode(contentFingerprint).length, tokenCount) +
+        stateSize;
+  }
+
+  /// Writes the header, fingerprint, token ids, and zero padding into
+  /// [bytes] (at least [layoutSize] long, 8-aligned base), leaving the
+  /// state section for the producer to fill — in the zero-copy path the
+  /// engine writes it in place at [KvStateImage.stateOffset].
+  ///
+  /// Returns the image parsed back from the buffer it just wrote:
+  /// writer conformance is enforced on every call, not assumed.
+  KvStateImage initialize(
+    Uint8List bytes, {
+    required List<int> tokenIds,
+    required String contentFingerprint,
+    required int engineTag,
+    required int stateSize,
+  }) {
+    final fingerprint = utf8.encode(contentFingerprint);
+    final tokenOffset = _tokenOffset(fingerprint.length);
+    final stateOffset = _stateOffset(fingerprint.length, tokenIds.length);
+    final total = stateOffset + stateSize;
+
+    _checkAlignment(bytes);
+    if (bytes.length < total) {
+      throw ArgumentError('buffer holds ${bytes.length} bytes; the image '
+          'needs $total (${tokenIds.length} tokens, '
+          '${fingerprint.length}-byte fingerprint, $stateSize state bytes).');
+    }
+
+    final data =
+        ByteData.view(bytes.buffer, bytes.offsetInBytes, stateOffset);
+    data
+      ..setUint32(0, kvStateImageMagic, Endian.little)
+      ..setUint32(4, kvStateImageVersion, Endian.little)
+      ..setUint32(8, 0, Endian.little) // flags: MUST be 0 in v1
+      ..setUint32(12, tokenIds.length, Endian.little)
+      ..setUint64(16, engineTag, Endian.little)
+      ..setUint64(24, stateSize, Endian.little)
+      ..setUint32(32, fingerprint.length, Endian.little);
+    bytes.setRange(_fixedHeaderSize, _fixedHeaderSize + fingerprint.length,
+        fingerprint);
+    bytes.fillRange(_fixedHeaderSize + fingerprint.length, tokenOffset, 0);
+    Int32List.view(bytes.buffer, bytes.offsetInBytes + tokenOffset,
+            tokenIds.length)
+        .setAll(0, tokenIds);
+    bytes.fillRange(tokenOffset + 4 * tokenIds.length, stateOffset, 0);
+
+    return parse(bytes);
+  }
+
+  /// Parses and fully validates an image (spec §Consuming, steps 1–3):
+  /// magic, version, flags, section bounds against the buffer, and zero
+  /// padding. Throws typed exceptions; on success every accessor of the
+  /// returned [KvStateImage] is a zero-copy view. The engineTag
+  /// comparison and token-exact prefix validation (steps 4–5) are the
+  /// consumer's next moves — [KvStateImage.prefixDivergence] implements
+  /// step 5's check.
+  KvStateImage parse(Uint8List bytes) {
+    _checkAlignment(bytes);
+    if (bytes.length < _fixedHeaderSize) {
+      throw KvStateImageFormatException(
+          'truncated: ${bytes.length} bytes cannot hold the '
+          '$_fixedHeaderSize-byte fixed header.');
+    }
+    final data = ByteData.view(bytes.buffer, bytes.offsetInBytes,
+        bytes.length);
+
+    final magic = data.getUint32(0, Endian.little);
+    if (magic != kvStateImageMagic) {
+      throw KvStateImageFormatException('bad magic '
+          '0x${magic.toRadixString(16)} (expected "VKVI" '
+          '0x${kvStateImageMagic.toRadixString(16)}) — not a KV state '
+          'image, or a pre-format frame.');
+    }
+    final version = data.getUint32(4, Endian.little);
+    if (version != kvStateImageVersion) {
+      throw KvStateImageFormatException('unsupported version $version '
+          '(this reader implements v$kvStateImageVersion).');
+    }
+    final flags = data.getUint32(8, Endian.little);
+    if (flags != 0) {
+      throw KvStateImageFormatException('unknown flags '
+          '0x${flags.toRadixString(16)} — v1 readers reject flags they '
+          'do not understand.');
+    }
+
+    final tokenCount = data.getUint32(12, Endian.little);
+    final stateSize = data.getUint64(24, Endian.little);
+    final fingerprintLength = data.getUint32(32, Endian.little);
+
+    final tokenOffset = _tokenOffset(fingerprintLength);
+    final stateOffset = _stateOffset(fingerprintLength, tokenCount);
+    final total = stateOffset + stateSize;
+    if (bytes.length < total) {
+      throw KvStateImageFormatException(
+          'truncated: header declares $tokenCount tokens, '
+          '$fingerprintLength-byte fingerprint, $stateSize state bytes '
+          '($total total) but the buffer holds ${bytes.length}.');
+    }
+
+    for (var i = _fixedHeaderSize + fingerprintLength; i < tokenOffset; i++) {
+      if (bytes[i] != 0) {
+        throw KvStateImageFormatException(
+            'non-zero fingerprint padding at offset $i — corrupt image '
+            'or non-conformant writer.');
+      }
+    }
+    for (var i = tokenOffset + 4 * tokenCount; i < stateOffset; i++) {
+      if (bytes[i] != 0) {
+        throw KvStateImageFormatException(
+            'non-zero token padding at offset $i — corrupt image or '
+            'non-conformant writer.');
+      }
+    }
+
+    return KvStateImage._(bytes, data, fingerprintLength,
+        tokenCount: tokenCount, stateSize: stateSize);
+  }
+
+  void _checkAlignment(Uint8List bytes) {
+    if (bytes.offsetInBytes % 8 != 0) {
+      throw KvStateImageAlignmentException(
+          'image base at buffer offset ${bytes.offsetInBytes} is not '
+          '8-byte aligned — the container must present an aligned '
+          'payload (spec §Layout).');
+    }
   }
 }

@@ -3,6 +3,8 @@ import 'package:vaster_mmap/vaster_mmap.dart';
 
 import 'llama_worker.dart';
 
+const _imageCodec = KvStateImageCodec();
+
 /// [KvCacheController] whose physical frames are **real KV tensor state in
 /// shared memory** — the zero-copy backend.
 ///
@@ -76,7 +78,7 @@ final class LlamaFfiKvCacheController
     }
     final KvStateImage image;
     try {
-      image = KvStateImage.parse(frame.bytes);
+      image = _imageCodec.parse(frame.bytes);
     } on KvStateImageFormatException {
       frame.close(unlink: true); // reclaim the name from the squatter
       return null;

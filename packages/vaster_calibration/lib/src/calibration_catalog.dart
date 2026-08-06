@@ -1,11 +1,17 @@
 import 'estimate_calibration.dart';
 
-/// The committed profiles — every number here was measured, and every
-/// number's confidence is visible in its `sampleCount` and `provenance`.
-/// The test suite RE-DERIVES the fitted ones from the committed fixtures
-/// and asserts agreement plus error bounds, so these constants cannot
-/// silently rot.
-abstract final class KnownCalibrations {
+/// A composable registry of fitted profiles — an instance you can hold,
+/// merge, or replace, with [builtin] as the canonical const catalog
+/// (the `PricingCatalog.builtin` idiom). Every committed number was
+/// measured, and its confidence is visible in `sampleCount` and
+/// `provenance`; the test suite re-derives the fitted profiles from the
+/// committed fixtures and asserts agreement plus error bounds, so the
+/// constants cannot silently rot.
+final class CalibrationCatalog {
+  final List<EstimateCalibration> profiles;
+
+  const CalibrationCatalog(this.profiles);
+
   /// Fitted from the committed SDD fidelity tape (paid Gemini run):
   /// median response-side ratio, one sample excluded as implausible for
   /// plain text (its token count covered non-text parts). On the fixture
@@ -34,13 +40,15 @@ abstract final class KnownCalibrations {
         '(0.1157 / 0.0518 wire vs bound; n=1)',
   );
 
-  static const List<EstimateCalibration> all = [geminiFlash, claudeCliAgentic];
+  /// The canonical committed catalog.
+  static const CalibrationCatalog builtin =
+      CalibrationCatalog([geminiFlash, claudeCliAgentic]);
 
   /// Profile for a backend/model id, or null — callers compose the
   /// canonical heuristic when no fitted knowledge exists (never a silent
   /// wrong profile).
-  static EstimateCalibration? forBackend(String backendId) {
-    for (final calibration in all) {
+  EstimateCalibration? forBackend(String backendId) {
+    for (final calibration in profiles) {
       if (calibration.backendId == backendId) return calibration;
     }
     return null;

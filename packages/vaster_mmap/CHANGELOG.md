@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **BREAKING**: `SidecarEnvelope` (all-static) → `SidecarEnvelopeCodec`, a const-constructible instance held by `MmapVasterModel` and `RingSidecarHost` (constructor param, canonical default) — the wire parsing is testable in isolation and a future protocol version composes in as another codec.
+
 - `RingSidecarHost` — the serving side of the ring transport, moved here
   from `vaster_llama_ffi` and generalized to any `VasterModel`: the host
   only ever called `generate`, so typing it to the llama model was

@@ -362,12 +362,12 @@ _NativeImage _exportImage(
     LlamaEngine engine, Int32List tokens, String fingerprint,
     {int? engineTag}) {
   final stateSize = engine.stateSize;
-  final total = KvStateImage.layoutSize(
+  final total = const KvStateImageCodec().layoutSize(
       contentFingerprint: fingerprint,
       tokenCount: tokens.length,
       stateSize: stateSize);
   final base = calloc<Uint8>(total);
-  final image = KvStateImage.initialize(base.asTypedList(total),
+  final image = const KvStateImageCodec().initialize(base.asTypedList(total),
       tokenIds: tokens,
       contentFingerprint: fingerprint,
       engineTag: engineTag ?? engine.engineTag,

@@ -69,6 +69,10 @@ class MmapVasterModel implements VasterModel {
 
   final String targetModelName;
 
+  /// The wire codec — one owner of the envelope shape, held rather than
+  /// reached for statically so protocol evolution composes.
+  final SidecarEnvelopeCodec envelopeCodec;
+
   MmapVasterModel({
     required this.ring,
     required this.responseRing,
@@ -76,6 +80,7 @@ class MmapVasterModel implements VasterModel {
     this.responseTimeout = const Duration(seconds: 60),
     this.pollInterval = const Duration(milliseconds: 2),
     this.targetModelName = 'mmap-llm-sidecar',
+    this.envelopeCodec = const SidecarEnvelopeCodec(),
   });
 
   @override
@@ -106,7 +111,7 @@ class MmapVasterModel implements VasterModel {
 
     // Write zero-copy request frame into shared RAM pages.
     ring.writeString(
-        jsonEncode(SidecarEnvelope.encodeGenerate(request, frameRefs)));
+        jsonEncode(envelopeCodec.encodeGenerate(request, frameRefs)));
 
     // Poll the response ring for a sidecar answer. No answer is an error —
     // the transport never fabricates success.

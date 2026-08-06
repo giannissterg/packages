@@ -2,6 +2,7 @@ import 'package:vaster_mmap/vaster_mmap.dart';
 import 'package:vaster_model/vaster_model.dart';
 
 import 'llama_engine.dart';
+import 'llama_prompt_composer.dart';
 import 'llama_worker.dart';
 
 /// [VasterModel] backed by in-process llama.cpp inference ([LlamaWorker])
@@ -19,9 +20,9 @@ import 'llama_worker.dart';
 /// (`engineTag`) and token-exact prefix validation — before any state is
 /// restored; every rejection decodes cold. The sealed [KvReuse] outcome
 /// is surfaced in `ModelResponse.rawResponse` under `kvReuse`.
-/// [composePrompt] renders stable content first so materialized prefixes
-/// stay byte-identical across calls; when they drift anyway, validation
-/// catches it with a diagnosable divergence index.
+/// The [promptComposer] renders stable content first so materialized
+/// prefixes stay byte-identical across calls; when they drift anyway,
+/// validation catches it with a diagnosable divergence index.
 final class LlamaFfiVasterModel implements VasterModel {
   final LlamaWorker worker;
 
@@ -42,12 +43,18 @@ final class LlamaFfiVasterModel implements VasterModel {
   /// Generation cap when the request's `GenerationConfig` doesn't set one.
   final int defaultMaxOutputTokens;
 
+  /// Owns prompt rendering/composition — the alignment contract. The
+  /// same instance must be the prewarmer's renderer (the resolver pairs
+  /// them).
+  final LlamaPromptComposer promptComposer;
+
   LlamaFfiVasterModel({
     required this.worker,
     this.frameResolver,
     this.modelName = 'llama-ffi',
     int maxContextTokens = 2048,
     this.defaultMaxOutputTokens = 256,
+    this.promptComposer = const LlamaPromptComposer(),
   }) : capabilities = ModelCapabilities(
           maxContextTokens: maxContextTokens,
           maxOutputTokens: defaultMaxOutputTokens,
@@ -59,40 +66,9 @@ final class LlamaFfiVasterModel implements VasterModel {
           reportsCostUsd: false,
         );
 
-  /// Renders a message run exactly as it appears inside [composePrompt].
-  ///
-  /// This is the alignment contract for KV prewarming: state materialized
-  /// from `renderMessages(region.messages)` is a byte-identical prefix of
-  /// a prompt whose leading messages are that region's — so a restored
-  /// frame lines up with the composed prompt token-for-token.
-  static String renderMessages(Iterable<ChatMessage> messages) {
-    final buffer = StringBuffer();
-    for (final message in messages) {
-      final text = message.text.trim();
-      if (text.isEmpty) continue;
-      buffer.writeln('${message.role.name}: $text');
-    }
-    return buffer.toString();
-  }
-
-  /// Flattens the typed conversation into a plain prompt. Stable content
-  /// (system instruction, earlier turns) renders first so materialized
-  /// prefixes stay byte-identical across calls — required for KV reuse.
-  static String composePrompt(ModelRequest request) {
-    final buffer = StringBuffer();
-    final system = request.systemInstruction?.text.trim();
-    if (system != null && system.isNotEmpty) {
-      buffer.writeln(system);
-      buffer.writeln();
-    }
-    buffer.write(renderMessages(request.messages));
-    buffer.write('model:');
-    return buffer.toString();
-  }
-
   @override
   Future<ModelResponse> generate(ModelRequest request) async {
-    final prompt = composePrompt(request);
+    final prompt = promptComposer.composePrompt(request);
 
     // Physical cache restore: the first hint whose frame exists wins. The
     // frame NAME is resolved here; the restore itself happens inside the

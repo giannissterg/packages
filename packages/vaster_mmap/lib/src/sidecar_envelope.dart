@@ -2,33 +2,36 @@ import 'package:vaster_model/vaster_model.dart';
 
 import 'kv_frame_ref.dart';
 
-/// The sidecar wire envelope (protocol v2) — **one codec, both
-/// directions, one owner**. Clients ([MmapVasterModel]) encode with it;
-/// sidecar hosts decode with it. The protocol's shape lives here and
-/// nowhere else, so the two sides cannot drift.
+/// Protocol version of the sidecar wire envelope.
+const int sidecarProtocolVersion = 2;
+
+/// The sidecar wire envelope codec (protocol v2) — **one codec, both
+/// directions, one owner**, and an *instance*: clients
+/// ([MmapVasterModel]) and hosts ([RingSidecarHost]) hold one (const by
+/// default), so the parsing logic is testable in isolation and a future
+/// protocol version composes in as another codec instead of a static
+/// rewrite.
 ///
 /// ```json
 /// { "action": "generate", "protocol": 2,
 ///   "systemInstruction": "...", "messages": [...],
 ///   "kvFrames": [{"frameName": "...", "contentFingerprint": "...", "tokenCount": 128}] }
 /// ```
-final class SidecarEnvelope {
-  static const int protocolVersion = 2;
-
-  SidecarEnvelope._();
+final class SidecarEnvelopeCodec {
+  const SidecarEnvelopeCodec();
 
   /// The envelope's action, or null when the payload is not an envelope.
-  static String? actionOf(Map<String, dynamic> envelope) =>
+  String? actionOf(Map<String, dynamic> envelope) =>
       envelope['action'] as String?;
 
   /// Lowers a [ModelRequest] plus resolved frame refs onto the wire.
   /// Bulk context never rides here — pinned content travels as the named
   /// frames behind [frameRefs].
-  static Map<String, dynamic> encodeGenerate(
+  Map<String, dynamic> encodeGenerate(
           ModelRequest request, List<KvFrameRef> frameRefs) =>
       {
         'action': 'generate',
-        'protocol': protocolVersion,
+        'protocol': sidecarProtocolVersion,
         'systemInstruction': request.systemInstruction?.text,
         'messages': request.messages.map((m) => m.toJson()).toList(),
         if (frameRefs.isNotEmpty)
@@ -38,7 +41,7 @@ final class SidecarEnvelope {
   /// Rebuilds the [ModelRequest] a sidecar executes. `kvFrames` refs
   /// become cache hints — the serving model's controller re-resolves them
   /// by fingerprint and restores state from the named frames' pages.
-  static ModelRequest decodeGenerate(Map<String, dynamic> envelope) {
+  ModelRequest decodeGenerate(Map<String, dynamic> envelope) {
     final system = envelope['systemInstruction'] as String?;
     final frames = (envelope['kvFrames'] as List? ?? const [])
         .cast<Map<String, dynamic>>()

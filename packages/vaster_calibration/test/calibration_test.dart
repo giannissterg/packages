@@ -29,11 +29,11 @@ void main() {
 
     test('re-derived profile matches the committed constants', () {
       expect(fit.calibration.charsPerToken,
-          closeTo(KnownCalibrations.geminiFlash.charsPerToken, 1e-9),
-          reason: 'KnownCalibrations must be refittable from the fixture — '
-              'committed numbers cannot silently rot');
+          closeTo(CalibrationCatalog.geminiFlash.charsPerToken, 1e-9),
+          reason: 'the builtin catalog must be refittable from the fixture '
+              '— committed numbers cannot silently rot');
       expect(fit.calibration.sampleCount,
-          KnownCalibrations.geminiFlash.sampleCount);
+          CalibrationCatalog.geminiFlash.sampleCount);
     });
 
     test('exclusion is loud: the implausible sample is reported', () {
@@ -123,7 +123,7 @@ void main() {
         () {
       const TokenEstimator heuristic = HeuristicTokenEstimator();
       final TokenEstimator calibrated =
-          CalibratedTokenEstimator(KnownCalibrations.geminiFlash);
+          CalibratedTokenEstimator(CalibrationCatalog.geminiFlash);
       const text = 'Some representative stretch of English prose.';
       expect(heuristic.forText(text), TokenEstimate.forText(text),
           reason: 'the default delegates — identical by construction');
@@ -139,10 +139,31 @@ void main() {
   });
 
   test('claude-cli overhead factor carries its weakness openly', () {
-    const profile = KnownCalibrations.claudeCliAgentic;
+    const profile = CalibrationCatalog.claudeCliAgentic;
     expect(profile.callOverheadFactor, closeTo(0.1157 / 0.0518, 0.01),
         reason: 'the factor IS the prove-it measurement');
     expect(profile.sampleCount, 1);
     expect(profile.provenance, contains('n=1'));
+  });
+
+  group('CalibrationCatalog is an instance, composable', () {
+    test('builtin lookup and miss', () {
+      expect(CalibrationCatalog.builtin.forBackend('gemini-2.0-flash'),
+          same(CalibrationCatalog.geminiFlash));
+      expect(CalibrationCatalog.builtin.forBackend('unknown'), isNull);
+    });
+
+    test('a custom catalog composes without touching the builtin', () {
+      const mine = CalibrationCatalog([
+        EstimateCalibration(
+            backendId: 'my-local',
+            charsPerToken: 3.2,
+            sampleCount: 10,
+            provenance: 'test'),
+      ]);
+      expect(mine.forBackend('my-local')!.charsPerToken, 3.2);
+      expect(mine.forBackend('gemini-2.0-flash'), isNull,
+          reason: 'catalogs are values — no hidden global registry');
+    });
   });
 }

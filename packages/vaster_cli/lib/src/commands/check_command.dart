@@ -110,9 +110,10 @@ class CheckCommand extends VasterCommand {
     // knows only the TokenEstimator seam. Backend profile wins (harness
     // overhead is a backend property), then a model-name profile, then
     // the canonical heuristic.
+    const calibrations = CalibrationCatalog.builtin;
     final calibration =
-        KnownCalibrations.forBackend(results['backend'] as String? ?? '') ??
-            KnownCalibrations.forBackend(results['model'] as String? ?? '');
+        calibrations.forBackend(results['backend'] as String? ?? '') ??
+            calibrations.forBackend(results['model'] as String? ?? '');
     final checker = ProgramChecker(
       pricingCatalog: PricingCatalog.builtin,
       policy: policy,

@@ -7,11 +7,11 @@
 /// sample counts — confidence is visible, never implied),
 /// [CalibratedTokenEstimator] is the seam implementation parameterized
 /// by a profile, [TapeCalibrationFitter] learns profiles from recorded
-/// replay tapes, and [KnownCalibrations] holds the committed profiles
+/// replay tapes, and [CalibrationCatalog] is the composable registry ([CalibrationCatalog.builtin] the committed one)
 /// the test suite re-derives and bounds.
 library;
 
 export 'src/calibrated_token_estimator.dart';
 export 'src/estimate_calibration.dart';
-export 'src/known_calibrations.dart';
+export 'src/calibration_catalog.dart';
 export 'src/tape_calibration_fitter.dart';
