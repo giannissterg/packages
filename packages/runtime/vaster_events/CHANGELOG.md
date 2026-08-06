@@ -1,5 +1,8 @@
 ## Unreleased
 
+- `AgentTaskReplayedEvent` (GAP-2): the idempotency ledger replayed a
+  recorded agent-task outcome instead of re-dispatching — the replay's
+  usage is not re-charged.
 - `ToolCallReplayedEvent` (REL-P4): the idempotency ledger replayed a
   recorded tool result instead of re-executing the call — a deduped side
   effect is observable, never silent.

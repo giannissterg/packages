@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **Agent dispatches join the effect ledger (GAP-2).** Inside an effect
+  scope, `DispatchAgentTaskOp` and each entry of
+  `DispatchParallelTasksOp` claim occurrence slots; a retried attempt
+  replays recorded successful `AgentOutput`s instead of re-running the
+  tasks — completed work is never re-run and never re-charged (typed
+  `AgentTaskReplayedEvent` per replay). A retried parallel batch replays
+  its successes and re-dispatches only the failures. New
+  `EffectLedger.claim`/`commit` primitives (batch consumers claim in
+  declaration order before fanning out); `executeOrReplay` is sugar over
+  them.
 - Unpaired `CommitOp`/`RollbackOp` (no open transaction) publish a
   `transaction_unpaired` warning (GAP-1, Rule 2) — an empty-stack commit
   means rollback protection was lost somewhere, and that must be visible.

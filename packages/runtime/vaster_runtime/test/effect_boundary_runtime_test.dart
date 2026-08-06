@@ -166,6 +166,150 @@ void main() {
     });
   });
 
+  group('agent dispatch dedup (GAP-2)', () {
+    test('a retried attempt replays a completed task instead of re-running '
+        'the agent', () async {
+      var taskRuns = 0;
+      var flakyCalls = 0;
+      final model = FakeVasterModel(handler: (request) {
+        final text = request.messages.last.text;
+        if (text.contains('do the analysis')) {
+          taskRuns++;
+          return ModelResponse(message: ChatMessage.model('analysis done'));
+        }
+        // The step after the task: fails once, then succeeds.
+        flakyCalls++;
+        if (flakyCalls == 1) throw StateError('API error 500 flaky step');
+        return ModelResponse(message: ChatMessage.model('step ok'));
+      });
+
+      final (vm, runtime) = await boot(model);
+      final replayed = <AgentTaskReplayedEvent>[];
+      final sub =
+          vm.eventBus.on<AgentTaskReplayedEvent>().listen(replayed.add);
+
+      const program = VasterProgram(
+        programName: 'task_dedup',
+        instructions: [
+          CreateAgentOp(
+              descriptor: AgentDescriptor(
+                  agentId: 'analyst',
+                  name: 'Analyst',
+                  role: 'analysis',
+                  systemInstruction: 'Analyze.')), // 0
+          PushEffectScopeOp(), // 1
+          SetRegisterOp(registerName: 'attempt', value: 0), // 2
+          CompareRegisterOp( // 3 head
+              leftVar: 'attempt',
+              operator: 'lt',
+              rightValue: 3,
+              targetVar: 'cmp'),
+          JumpIfOp(conditionVar: 'cmp', targetPc: 6), // 4
+          JumpOp(targetPc: 14), // 5 exhausted → end
+          PushErrorHandlerOp(targetPc: 11, errorVar: 'retry_error'), // 6
+          DispatchAgentTaskOp(
+              agentId: 'analyst',
+              taskPrompt: 'do the analysis',
+              outputVar: 'analysis'), // 7
+          PromptOp(promptText: 'flaky step after', outputVar: 'step'), // 8
+          PopErrorHandlerOp(), // 9
+          JumpOp(targetPc: 14), // 10 success → end
+          MarkEffectRetryOp(), // 11 catch
+          IncrementRegisterOp(registerName: 'attempt'), // 12
+          JumpOp(targetPc: 3), // 13 back-edge
+          PopEffectScopeOp(), // 14 end
+          HaltOp(), // 15
+        ],
+      );
+
+      final state = await runtime.executeProgram(program);
+      await sub.cancel();
+
+      expect(state.status, RuntimeStatus.halted);
+      expect(state.registers['analysis'], contains('analysis done'));
+      expect(state.registers['step'], contains('step ok'));
+      expect(taskRuns, 1,
+          reason: 'the completed task must not re-run when a LATER step '
+              'fails the attempt');
+      expect(replayed, hasLength(1));
+      expect(replayed.single.agentId, 'analyst');
+      await vm.shutdown();
+    });
+
+    test('parallel batch: retried successes replay, only the failure '
+        're-runs', () async {
+      var aRuns = 0;
+      var bRuns = 0;
+      final model = FakeVasterModel(handler: (request) {
+        final text = request.messages.last.text;
+        if (text.contains('task A')) {
+          aRuns++;
+          return ModelResponse(message: ChatMessage.model('A done'));
+        }
+        if (text.contains('task B')) {
+          bRuns++;
+          if (bRuns == 1) throw StateError('API error 500 B down');
+          return ModelResponse(message: ChatMessage.model('B done'));
+        }
+        return ModelResponse(message: ChatMessage.model('?'));
+      });
+
+      final (vm, runtime) = await boot(model);
+
+      const program = VasterProgram(
+        programName: 'parallel_dedup',
+        instructions: [
+          CreateAgentOp(
+              descriptor: AgentDescriptor(
+                  agentId: 'a',
+                  name: 'A',
+                  role: 'r',
+                  systemInstruction: 's')), // 0
+          CreateAgentOp(
+              descriptor: AgentDescriptor(
+                  agentId: 'b',
+                  name: 'B',
+                  role: 'r',
+                  systemInstruction: 's')), // 1
+          PushEffectScopeOp(), // 2
+          SetRegisterOp(registerName: 'attempt', value: 0), // 3
+          CompareRegisterOp( // 4 head
+              leftVar: 'attempt',
+              operator: 'lt',
+              rightValue: 3,
+              targetVar: 'cmp'),
+          JumpIfOp(conditionVar: 'cmp', targetPc: 7), // 5
+          JumpOp(targetPc: 14), // 6 exhausted → end
+          PushErrorHandlerOp(targetPc: 11, errorVar: 'retry_error'), // 7
+          DispatchParallelTasksOp(dispatches: [
+            ParallelTaskDispatch(
+                agentId: 'a', taskPrompt: 'task A', outputVar: 'out_a'),
+            ParallelTaskDispatch(
+                agentId: 'b', taskPrompt: 'task B', outputVar: 'out_b'),
+          ]), // 8
+          PopErrorHandlerOp(), // 9
+          JumpOp(targetPc: 14), // 10 success → end
+          MarkEffectRetryOp(), // 11 catch
+          IncrementRegisterOp(registerName: 'attempt'), // 12
+          JumpOp(targetPc: 4), // 13 back-edge
+          PopEffectScopeOp(), // 14 end
+          HaltOp(), // 15
+        ],
+      );
+
+      final state = await runtime.executeProgram(program);
+
+      expect(state.status, RuntimeStatus.halted,
+          reason: 'error: ${state.errorDetails}');
+      expect(state.registers['out_a'], contains('A done'));
+      expect(state.registers['out_b'], contains('B done'));
+      expect(aRuns, 1,
+          reason: 'A succeeded in attempt 1 — attempt 2 must replay it');
+      expect(bRuns, 2, reason: 'B failed once, re-ran once');
+      await vm.shutdown();
+    });
+  });
+
   group('EffectLedger unit semantics', () {
     Future<Map<String, dynamic>> counted(
         List<int> counter, Map<String, dynamic> result) async {

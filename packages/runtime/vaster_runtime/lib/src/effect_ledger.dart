@@ -26,6 +26,18 @@ final class _EffectScopeFrame {
       );
 }
 
+/// One claimed occurrence slot (see [EffectLedger.claim]): either a
+/// [recorded] result to replay, or the slot identity a successful result
+/// commits into. Inert outside any scope (both null → commit no-ops).
+final class EffectClaim {
+  /// The recorded result to replay, when this occurrence already executed.
+  final Map<String, dynamic>? recorded;
+
+  final String? _recordKey;
+
+  const EffectClaim._(this.recorded, this._recordKey);
+}
+
 /// The idempotency ledger (REL-P4): inside an effect scope, non-compensable
 /// tool calls record their results; a retry attempt REPLAYS a recorded
 /// result instead of re-executing the side effect. Compensable effects
@@ -83,9 +95,43 @@ final class EffectLedger implements MachineStateComponent {
     }
   }
 
+  /// Claims the next occurrence slot for (name, args) in the current
+  /// scope. The returned claim either carries a [EffectClaim.recorded]
+  /// result to replay, or names the slot a successful result [commit]s
+  /// into. Outside any scope the claim is inert (no replay, commit is a
+  /// no-op) — zero bookkeeping, zero overhead.
+  ///
+  /// This is the primitive batch consumers need (parallel dispatch claims
+  /// every entry in declaration order BEFORE fanning out); sequential
+  /// callers use [executeOrReplay].
+  EffectClaim claim({
+    required String name,
+    required Map<String, dynamic> arguments,
+  }) {
+    if (_frames.isEmpty) return const EffectClaim._(null, null);
+    final frame = _frames.last;
+    final callKey = '$name|${_canonical(arguments)}';
+    final occurrence = (frame.cursors[callKey] ?? 0) + 1;
+    frame.cursors[callKey] = occurrence;
+    final regionPath = _frames.map((f) => f.pushPc).join('/');
+    final recordKey = '$regionPath|$callKey|$occurrence';
+    final recorded = _records[recordKey];
+    return EffectClaim._(
+        recorded == null ? null : Map<String, dynamic>.from(recorded),
+        recordKey);
+  }
+
+  /// Records [result] into [claim]'s slot. Call only for effects that
+  /// really performed and succeeded — failures must re-execute on retry.
+  void commit(EffectClaim claim, Map<String, dynamic> result) {
+    final key = claim._recordKey;
+    if (key == null) return;
+    _records[key] = Map<String, dynamic>.from(result);
+  }
+
   /// Executes [execute] exactly once per (region, name, args, occurrence):
-  /// a recorded result replays without re-executing. Outside any scope this
-  /// is a plain pass-through — zero bookkeeping, zero overhead.
+  /// a recorded result replays without re-executing. Sugar over
+  /// [claim]/[commit] for sequential callers.
   ///
   /// Only successful results are recorded: an errored result re-executes
   /// on retry (the failed call most plausibly did not perform its effect,
@@ -95,24 +141,11 @@ final class EffectLedger implements MachineStateComponent {
     required Map<String, dynamic> arguments,
     required Future<Map<String, dynamic>> Function() execute,
   }) async {
-    if (_frames.isEmpty) {
-      return (result: await execute(), replayed: false);
-    }
-    final frame = _frames.last;
-    final callKey = '$name|${_canonical(arguments)}';
-    final occurrence = (frame.cursors[callKey] ?? 0) + 1;
-    frame.cursors[callKey] = occurrence;
-    final regionPath = _frames.map((f) => f.pushPc).join('/');
-    final recordKey = '$regionPath|$callKey|$occurrence';
-
-    final recorded = _records[recordKey];
-    if (recorded != null) {
-      return (result: Map<String, dynamic>.from(recorded), replayed: true);
-    }
+    final slot = claim(name: name, arguments: arguments);
+    final recorded = slot.recorded;
+    if (recorded != null) return (result: recorded, replayed: true);
     final result = await execute();
-    if (!result.containsKey('error')) {
-      _records[recordKey] = Map<String, dynamic>.from(result);
-    }
+    if (!result.containsKey('error')) commit(slot, result);
     return (result: result, replayed: false);
   }
 

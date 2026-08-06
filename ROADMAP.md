@@ -265,9 +265,14 @@ boundary** (✅ REL-P4: effect scopes compiled into `Resilient`, the
 re-executing them, transactions nest, error unwinding rolls back abandoned
 transactions for real, and `Task` is transactional by default). All of it
 belongs in the AST surface and lowers to ISA the runtime enforces.
-Remaining in this thread: extending tool-call dedup into agent-internal
-tool loops (runtime tool loops are covered), then REL-P5's published
-benchmark evals to close gate 4.
+Post-P4 gap closures: ✅ GAP-1 open transactions survive checkpoint/pause
+(and unpaired transaction ops warn); ✅ GAP-2 agent dispatches join the
+effect ledger — a retried attempt replays completed tasks (parallel
+batches replay successes, re-run only failures), never re-charging.
+Remaining in this thread: GAP-3 agent reliability parity (dedup inside
+agent-internal tool loops, descriptor-level fallback chains — see
+~/.claude/plans/rel-open-gaps.md), then REL-P5's published benchmark
+evals to close gate 4.
 
 ### E. Multi-run evaluation harness — ✅ delivered (vaster_eval; see above)
 Replay gave us determinism for one run; the next level is *comparing* runs.

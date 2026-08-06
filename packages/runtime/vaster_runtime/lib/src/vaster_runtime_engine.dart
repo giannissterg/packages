@@ -760,23 +760,50 @@ class VasterRuntime {
           if (op.responseSchema != null) 'responseSchema': op.responseSchema,
         };
         final taskPrompt = _interp(op.taskPrompt);
-        final output = await vm.runAgentTask(
-          AgentTask(taskId: 'isa_task_$_pc', inputPrompt: taskPrompt, metadata: meta),
-          agentId: op.agentId,
+        // A dispatch is an effect (GAP-2): inside an effect scope, a
+        // retried attempt replays the recorded outcome — completed work is
+        // never re-run, and never re-charged.
+        final dispatchClaim = _effectLedger.claim(
+          name: 'agent:${op.agentId}',
+          arguments: {
+            'prompt': taskPrompt,
+            if (op.responseSchema != null) 'schema': op.responseSchema,
+          },
         );
-        // Charge the task tree's real accumulated usage (agent + subagents);
-        // the estimate only stands in when the whole tree reported nothing.
-        // Wire-reported cost (summed across the tree) wins; else the meter
-        // rates the default model, which agents run on unless configured.
-        final taskUsage = output.aggregateUsage;
-        _meter.charge(
-          usage: taskUsage.totalTokenCount > 0
-              ? taskUsage
-              : TokenEstimate.forExchange(
-                  prompt: taskPrompt, output: output.outputText),
-          modelName: vm.config.defaultModel.modelName,
-          callSite: 'isa_agent_task',
-        );
+        final AgentOutput output;
+        if (dispatchClaim.recorded != null) {
+          output = AgentOutput.fromJson(dispatchClaim.recorded!);
+          vm.eventBus.publish(AgentTaskReplayedEvent(
+            eventId: 'evt_task_replay_$_pc',
+            agentId: op.agentId,
+            taskId: output.taskId,
+          ));
+        } else {
+          output = await vm.runAgentTask(
+            AgentTask(
+                taskId: 'isa_task_$_pc',
+                inputPrompt: taskPrompt,
+                metadata: meta),
+            agentId: op.agentId,
+          );
+          // Charge the task tree's real accumulated usage (agent +
+          // subagents); the estimate only stands in when the whole tree
+          // reported nothing. Wire-reported cost (summed across the tree)
+          // wins; else the meter rates the default model, which agents run
+          // on unless configured.
+          final taskUsage = output.aggregateUsage;
+          _meter.charge(
+            usage: taskUsage.totalTokenCount > 0
+                ? taskUsage
+                : TokenEstimate.forExchange(
+                    prompt: taskPrompt, output: output.outputText),
+            modelName: vm.config.defaultModel.modelName,
+            callSite: 'isa_agent_task',
+          );
+          if (output.isSuccess) {
+            _effectLedger.commit(dispatchClaim, output.toJson());
+          }
+        }
         // The sibling outcome register carries the sealed outcome's KIND
         // (ABI convention: taskOutcomeRegister) — observable data even
         // when a handler recovers the failure.
@@ -808,34 +835,73 @@ class VasterRuntime {
                   inputPrompt: _interp(op.dispatches[i].taskPrompt)),
             ),
         ];
-        final outputs =
-            await vm.agentManager.dispatchParallelTasks(dispatches);
-        // Parallel work is not free work: charge the summed usage of every
-        // task tree (previously this path charged nothing at all).
-        var parallelUsage = const UsageMetadata();
-        AgentTaskException? firstFailure;
-        for (int i = 0; i < outputs.length; i++) {
-          parallelUsage += outputs[i].aggregateUsage;
-          final v = op.dispatches[i].outputVar;
-          if (v != null) {
-            _registers.write(taskOutcomeRegister(v), outputs[i].outcome.kind);
-            if (outputs[i].isSuccess) {
-              _registers.write(v, outputs[i].outputText);
+        // Claim pass in DECLARATION order (deterministic occurrence
+        // identity), then fan out only the misses: in a retried batch the
+        // successes replay and only the failures re-run (GAP-2).
+        final claims = [
+          for (final d in dispatches)
+            _effectLedger.claim(
+              name: 'agent:${d.agentId}',
+              arguments: {'prompt': d.task.inputPrompt},
+            ),
+        ];
+        final outputs = List<AgentOutput?>.filled(dispatches.length, null);
+        final freshIndices = <int>[];
+        for (var i = 0; i < dispatches.length; i++) {
+          final recorded = claims[i].recorded;
+          if (recorded != null) {
+            outputs[i] = AgentOutput.fromJson(recorded);
+            vm.eventBus.publish(AgentTaskReplayedEvent(
+              eventId: 'evt_task_replay_${_pc}_$i',
+              agentId: dispatches[i].agentId,
+              taskId: outputs[i]!.taskId,
+            ));
+          } else {
+            freshIndices.add(i);
+          }
+        }
+        if (freshIndices.isNotEmpty) {
+          final fresh = await vm.agentManager.dispatchParallelTasks(
+              [for (final i in freshIndices) dispatches[i]]);
+          for (var j = 0; j < freshIndices.length; j++) {
+            final i = freshIndices[j];
+            outputs[i] = fresh[j];
+            if (fresh[j].isSuccess) {
+              _effectLedger.commit(claims[i], fresh[j].toJson());
             }
           }
-          if (!outputs[i].isSuccess) {
+        }
+        // Parallel work is not free work: charge the summed usage of every
+        // FRESH task tree (replays were paid for by the recorded run).
+        var parallelUsage = const UsageMetadata();
+        for (final i in freshIndices) {
+          parallelUsage += outputs[i]!.aggregateUsage;
+        }
+        AgentTaskException? firstFailure;
+        for (int i = 0; i < outputs.length; i++) {
+          final output = outputs[i]!;
+          final v = op.dispatches[i].outputVar;
+          if (v != null) {
+            _registers.write(taskOutcomeRegister(v), output.outcome.kind);
+            if (output.isSuccess) {
+              _registers.write(v, output.outputText);
+            }
+          }
+          if (!output.isSuccess) {
             firstFailure ??= AgentTaskException(
               agentId: op.dispatches[i].agentId,
-              taskId: outputs[i].taskId,
-              outcome: outputs[i].outcome,
+              taskId: output.taskId,
+              outcome: output.outcome,
             );
           }
         }
-        _meter.charge(
-          usage: parallelUsage,
-          modelName: vm.config.defaultModel.modelName,
-          callSite: 'isa_parallel_tasks',
-        );
+        if (freshIndices.isNotEmpty) {
+          _meter.charge(
+            usage: parallelUsage,
+            modelName: vm.config.defaultModel.modelName,
+            callSite: 'isa_parallel_tasks',
+          );
+        }
         // Every sibling outcome register is written first (successes keep
         // their outputs), THEN the first failure raises — a handler sees
         // the whole batch's outcomes.

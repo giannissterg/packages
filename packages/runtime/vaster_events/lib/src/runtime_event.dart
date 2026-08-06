@@ -157,6 +157,32 @@ final class ToolCallReplayedEvent extends RuntimeEvent {
       };
 }
 
+/// Emitted when the idempotency ledger replays a recorded AGENT TASK
+/// outcome instead of re-dispatching the task (GAP-2): a retry attempt
+/// re-issued a dispatch whose work already completed. The replayed
+/// outcome's usage is NOT re-charged — the recorded run already paid.
+final class AgentTaskReplayedEvent extends RuntimeEvent {
+  final String agentId;
+  final String taskId;
+
+  AgentTaskReplayedEvent({
+    required super.eventId,
+    required this.agentId,
+    required this.taskId,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'agent_task_replayed',
+        'eventId': eventId,
+        'agentId': agentId,
+        'taskId': taskId,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
 /// Emitted when a declared model fallback chain advances: [fromModel]
 /// failed with a model-kind error and execution falls through to [toModel]
 /// (REL-P3). One event per chain advance — a call that exhausts the whole
