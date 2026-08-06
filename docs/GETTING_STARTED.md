@@ -191,6 +191,9 @@ files that didn't exist yet, don't. Drop `--script` for the interactive
   or `--backend gemini` (needs `GEMINI_API_KEY`) to the same `run`/
   `resume` commands. Read [PROVE_IT.md](PROVE_IT.md) first — it is the
   same arc as this tour on real money, including what it cost.
+- **Test your agents like code**: [AGENT_TESTING.md](AGENT_TESTING.md)
+  — record once, `vaster replay` forever at zero tokens, `--diff` for
+  char-located reports when behavior changes.
 - **Measure instead of vibe**: `vaster eval <prog> --trials 5 --contains
   <expected>` runs hermetic trials and reports success rate with real
   metered cost.

@@ -196,6 +196,9 @@ void main() async {
 
 Next steps:
 
+- **[docs/AGENT_TESTING.md](docs/AGENT_TESTING.md)** — test your agents
+  like code: record once, replay forever at zero tokens, and see
+  char-located diffs when behavior changes.
 - **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — the 10-minute
   tour: compile an artifact, audit it, statically check it (including a
   proof that a hostile policy *would* fail), park it at a human gate, kill
