@@ -48,5 +48,45 @@ void main() {
       await manager.rollback();
       expect(await fs.readText('/data.json'), contains('version": 1'));
     });
+
+    test('transactions NEST: inner commit keeps the outer rollback intact',
+        () async {
+      final fs = MemoryVasterFileSystem();
+      await fs.writeText('/data.json', 'v1');
+      final manager = BasicFileSystemManager(mounts: {'/': fs});
+
+      await manager.beginTransaction(); // outer
+      await fs.writeText('/data.json', 'v2');
+      await manager.beginTransaction(); // inner
+      expect(manager.transactionDepth, 2);
+      await fs.writeText('/data.json', 'v3');
+      await manager.commit(); // inner commits — v3 stands for now
+      expect(manager.transactionDepth, 1);
+      expect(await fs.readText('/data.json'), 'v3');
+
+      // The flat implementation cleared the outer snapshot here, turning
+      // this rollback into a silent no-op. It must restore v1.
+      await manager.rollback();
+      expect(manager.transactionDepth, 0);
+      expect(await fs.readText('/data.json'), 'v1');
+    });
+
+    test('inner rollback restores to the inner begin, not the outer one',
+        () async {
+      final fs = MemoryVasterFileSystem();
+      await fs.writeText('/data.json', 'v1');
+      final manager = BasicFileSystemManager(mounts: {'/': fs});
+
+      await manager.beginTransaction(); // outer
+      await fs.writeText('/data.json', 'v2');
+      await manager.beginTransaction(); // inner
+      await fs.writeText('/data.json', 'v3');
+
+      await manager.rollback(); // inner: back to v2
+      expect(await fs.readText('/data.json'), 'v2');
+      await manager.commit(); // outer commits — v2 durable
+      expect(await fs.readText('/data.json'), 'v2');
+      expect(manager.transactionDepth, 0);
+    });
   });
 }

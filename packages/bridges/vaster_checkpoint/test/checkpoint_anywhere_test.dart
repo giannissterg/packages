@@ -44,21 +44,22 @@ void main() {
               fallbacks: [
                 ModelDescriptor(provider: 'gauntlet_up', modelId: 'f'),
               ]), // 5
-          const PushErrorHandlerOp(targetPc: 13, errorVar: 'err'), // 6
+          const PushEffectScopeOp(), // 6 (open across every capture below)
+          const PushErrorHandlerOp(targetPc: 14, errorVar: 'err'), // 7
           const SendMessageOp(
               senderId: 'a', recipientId: 'b', payload: {'note': 'durable'}),
-          // 7
-          const PromptOp(promptText: 'turn one', outputVar: 'r1'), // 8
-          const CallOp(targetPc: 14, functionName: 'sub'), // 9
-          const PopMessageOp(agentId: 'b', outputVar: 'inbox_out'), // 10
+          // 8
+          const PromptOp(promptText: 'turn one', outputVar: 'r1'), // 9
+          const CallOp(targetPc: 15, functionName: 'sub'), // 10
+          const PopMessageOp(agentId: 'b', outputVar: 'inbox_out'), // 11
           const ReadFileOp(
-              vfsPath: '/not_mounted/boom.txt', outputVar: 'never'), // 11
-          const HaltOp(), // 12 (skipped: handler jumps to 13)
+              vfsPath: '/not_mounted/boom.txt', outputVar: 'never'), // 12
+          const HaltOp(), // 13 (skipped: handler jumps to 14)
           const ConcatRegisterOp(
               targetVar: 'final_out',
-              sourceVars: ['r1', 'sub_out', 'inbox_out']), // 13 + halt below
-          const SetRegisterOp(registerName: 'sub_out', value: 'sub_ran'), // 14
-          const ReturnSubroutineOp(), // 15
+              sourceVars: ['r1', 'sub_out', 'inbox_out']), // 14 + halt below
+          const SetRegisterOp(registerName: 'sub_out', value: 'sub_ran'), // 15
+          const ReturnSubroutineOp(), // 16
         ],
       );
 

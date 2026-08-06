@@ -167,6 +167,25 @@ void main() {
       expect(guard.operator, 'lt');
       expect(program.instructions.whereType<IncrementRegisterOp>(),
           isNotEmpty);
+      // REL-P4: the loop carries its effect-scope brackets — the dedup
+      // window that makes retried tool calls replay instead of re-execute.
+      expect(program.instructions.whereType<PushEffectScopeOp>(), hasLength(1));
+      expect(program.instructions.whereType<MarkEffectRetryOp>(), hasLength(1));
+      expect(program.instructions.whereType<PopEffectScopeOp>(), hasLength(1));
+    });
+
+    test('constant code size: attempts=2 and attempts=50 compile identically',
+        () {
+      int sizeFor(int attempts) => compiler
+          .compile(pipeline([
+            Resilient(
+              child: const ReadFile(path: Template.text('/fragile/data.txt')),
+              attempts: attempts,
+            ),
+          ]))
+          .instructions
+          .length;
+      expect(sizeFor(2), sizeFor(50));
     });
 
     test('Provider<RetryPolicy> supplies attempts; node field wins', () {

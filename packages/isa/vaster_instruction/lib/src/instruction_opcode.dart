@@ -32,6 +32,13 @@ enum InstructionOpcode {
   beginTransaction('begin_transaction'),
   commit('commit'),
   rollback('rollback'),
+
+  /// Effect-scope brackets (REL-P4): within a scope, non-compensable tool
+  /// calls are recorded so a retry attempt replays results instead of
+  /// re-executing side effects.
+  pushEffectScope('push_effect_scope'),
+  popEffectScope('pop_effect_scope'),
+  markEffectRetry('mark_effect_retry'),
   selectModel('select_model'),
   createSession('create_session'),
   setSession('set_session'),

@@ -62,7 +62,9 @@ void main() {
   test('journal tier: navigation, deltas, call stacks, result', () {
     final session = loadSession();
 
-    expect(session.length, equals(21));
+    // 27 executed frames: the 21 pre-REL-P4 steps plus Begin/Commit
+    // brackets from the three now-transactional Tasks.
+    expect(session.length, equals(27));
     expect(session.warnings, isEmpty);
 
     session.seek(9999);

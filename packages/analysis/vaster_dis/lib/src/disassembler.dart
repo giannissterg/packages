@@ -251,6 +251,15 @@ class VasterDisassembler {
       case RollbackOp _:
         return '--- TRANSACTION ROLLBACK ---';
 
+      case PushEffectScopeOp _:
+        return '--- EFFECT SCOPE PUSH (dedup window opens) ---';
+
+      case PopEffectScopeOp _:
+        return '--- EFFECT SCOPE POP ---';
+
+      case MarkEffectRetryOp _:
+        return '--- EFFECT RETRY MARK (occurrence cursors reset) ---';
+
       case SelectModelOp op:
         return op.fallbacks.isEmpty
             ? op.descriptor.descriptorKey

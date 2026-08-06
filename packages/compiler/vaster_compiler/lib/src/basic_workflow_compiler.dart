@@ -417,12 +417,19 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       case Resilient n:
         // Canonical retry loop — same guard shape as Repeat, so the
         // cost analyzer's trip-bound recognition prices the retries:
+        //   pushEffectScope                     (REL-P4: dedup window)
         //   attempt = 0
         // head:  attempt < attempts ? body : exhausted
         // body:  pushHandler(catch) ; <child> ; popHandler ; jump end
-        // catch: attempt++ ; jump head          (back-edge in region)
+        // catch: markEffectRetry ; attempt++ ; jump head   (back-edge)
         // exhausted: <onExhausted>
-        // end:
+        // end:   popEffectScope
+        //
+        // The effect scope makes retries idempotent at the tool boundary:
+        // non-VFS tool calls executed by a failed attempt replay their
+        // recorded results on the next attempt instead of re-performing
+        // the side effect; VFS writes roll back via the transaction
+        // machinery instead. Constant code size regardless of attempts.
         final totalAttempts =
             n.attempts ?? context.tryRead<RetryPolicy>()?.maxAttempts ?? 3;
         final attemptReg = state.nextAutoRegister();
@@ -433,6 +440,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         final retryExhausted = ir.newLabel('retry_exhausted');
         final retryEnd = ir.newLabel('retry_end');
 
+        ir.emit(const PushEffectScopeOp());
         ir.emit(SetRegisterOp(registerName: attemptReg, value: 0));
         ir.bind(retryHead);
         ir.emit(CompareRegisterOp(
@@ -449,11 +457,13 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.emit(const PopErrorHandlerOp());
         ir.jump(retryEnd);
         ir.bind(retryCatch);
+        ir.emit(const MarkEffectRetryOp());
         ir.emit(IncrementRegisterOp(registerName: attemptReg));
         ir.jump(retryHead);
         ir.bind(retryExhausted);
         _lowerNodes(n.onExhausted, ir, context, state);
         ir.bind(retryEnd);
+        ir.emit(const PopEffectScopeOp());
 
       case TryCatch n:
         // Layout:

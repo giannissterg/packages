@@ -216,6 +216,9 @@ sealed class VasterInstruction {
       InstructionOpcode.beginTransaction => const BeginTransactionOp(),
       InstructionOpcode.commit => const CommitOp(),
       InstructionOpcode.rollback => const RollbackOp(),
+      InstructionOpcode.pushEffectScope => const PushEffectScopeOp(),
+      InstructionOpcode.popEffectScope => const PopEffectScopeOp(),
+      InstructionOpcode.markEffectRetry => const MarkEffectRetryOp(),
       InstructionOpcode.selectModel => SelectModelOp(
           descriptor: ModelDescriptor.fromJson(json['descriptor'] as Map<String, dynamic>? ?? {}),
           fallbacks: [
@@ -855,6 +858,39 @@ final class CommitOp extends VasterInstruction {
 /// Rolls back VFS filesystems to snapshot.
 final class RollbackOp extends VasterInstruction {
   const RollbackOp() : super(InstructionOpcode.rollback);
+
+  @override
+  Map<String, dynamic> toJson() => {'opcode': opcode.name};
+}
+
+/// Opens an effect scope (REL-P4): until the matching [PopEffectScopeOp],
+/// non-compensable tool calls record their results keyed by
+/// (name, canonical args, occurrence), and a retry attempt replays a
+/// recorded result instead of re-executing the side effect. Compensable
+/// effects (transactional VFS) are the transaction ops' business, not the
+/// scope's.
+final class PushEffectScopeOp extends VasterInstruction {
+  const PushEffectScopeOp() : super(InstructionOpcode.pushEffectScope);
+
+  @override
+  Map<String, dynamic> toJson() => {'opcode': opcode.name};
+}
+
+/// Closes the innermost effect scope, merging its records into the parent
+/// scope (if any) so an outer retry construct still remembers what already
+/// executed.
+final class PopEffectScopeOp extends VasterInstruction {
+  const PopEffectScopeOp() : super(InstructionOpcode.popEffectScope);
+
+  @override
+  Map<String, dynamic> toJson() => {'opcode': opcode.name};
+}
+
+/// Marks a retry boundary inside the innermost effect scope: occurrence
+/// cursors reset so the next attempt's calls match the recorded ones from
+/// the first occurrence onward. Compiled into `Resilient`'s catch block.
+final class MarkEffectRetryOp extends VasterInstruction {
+  const MarkEffectRetryOp() : super(InstructionOpcode.markEffectRetry);
 
   @override
   Map<String, dynamic> toJson() => {'opcode': opcode.name};

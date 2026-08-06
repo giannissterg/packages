@@ -76,9 +76,12 @@ class BasicVasterAgent implements VasterAgent {
       final resolvedTools = _resolveTools();
 
       // ── ② Record initial user message in session history ─────────────────────
-      session.appendMessage(
-        ChatMessage.user('[Agent Task ${task.taskId}]: ${task.inputPrompt}'),
-      );
+      // The prompt is the task's input, verbatim. The task id is machine
+      // bookkeeping (events, outputs, outcome registers) and must never
+      // leak into model-visible text: ids derived from program counters
+      // made every recorded tape's fingerprints — and every prompt-cache
+      // prefix — invalid under ANY lowering change.
+      session.appendMessage(ChatMessage.user(task.inputPrompt));
 
       // ── ③ Model → tool → model loop ──────────────────────────────────────────
       ModelResponse? response;

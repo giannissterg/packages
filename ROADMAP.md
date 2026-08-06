@@ -259,10 +259,15 @@ backoff (✅ REL-P2: `Resilient` compiles to the canonical priced loop),
 **model fallback chains** (✅ REL-P3: `SelectModel(fallbacks:)` — compiled
 descriptor data, runtime-enforced fallthrough on model-kind failure, typed
 `ModelFallbackEvent`s, serving-model metering attribution, audit lists the
-chain, check rates its most expensive member), **idempotency keys** on tool
-calls so retried turns do not double-execute side effects, and transactional
-VFS as the default around every `Task` (REL-P4, pending). All of it belongs
-in the AST surface and lowers to ISA the runtime enforces.
+chain, check rates its most expensive member), **idempotency at the effect
+boundary** (✅ REL-P4: effect scopes compiled into `Resilient`, the
+`EffectLedger` replays recorded non-VFS tool results on retry instead of
+re-executing them, transactions nest, error unwinding rolls back abandoned
+transactions for real, and `Task` is transactional by default). All of it
+belongs in the AST surface and lowers to ISA the runtime enforces.
+Remaining in this thread: extending tool-call dedup into agent-internal
+tool loops (runtime tool loops are covered), then REL-P5's published
+benchmark evals to close gate 4.
 
 ### E. Multi-run evaluation harness — ✅ delivered (vaster_eval; see above)
 Replay gave us determinism for one run; the next level is *comparing* runs.

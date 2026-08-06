@@ -131,6 +131,32 @@ final class ModelUsageEvent extends RuntimeEvent {
       };
 }
 
+/// Emitted when the idempotency ledger REPLAYS a recorded tool result
+/// instead of re-executing the call (REL-P4): a retry attempt re-issued a
+/// tool call that already performed its side effect. Tolerance made
+/// observable — a deduped effect is never silent.
+final class ToolCallReplayedEvent extends RuntimeEvent {
+  final String callId;
+  final String toolName;
+
+  ToolCallReplayedEvent({
+    required super.eventId,
+    required this.callId,
+    required this.toolName,
+    super.timestamp,
+    super.metadata,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'tool_call_replayed',
+        'eventId': eventId,
+        'callId': callId,
+        'toolName': toolName,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}
+
 /// Emitted when a declared model fallback chain advances: [fromModel]
 /// failed with a model-kind error and execution falls through to [toModel]
 /// (REL-P3). One event per chain advance — a call that exhausts the whole

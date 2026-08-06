@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **Idempotency at the effect boundary (REL-P4).** The `EffectLedger`
+  (componentized machine state, checkpoint-safe) records non-VFS tool
+  results inside an effect scope; a retry attempt REPLAYS a recorded
+  result instead of re-executing the side effect, publishing a typed
+  `ToolCallReplayedEvent`. Replays don't count against the tool-call
+  quota. VFS syscalls bypass the ledger — the transaction machinery owns
+  compensable effects.
+- **Error unwinding is real.** A caught failure now unwinds what the
+  failed region abandoned before control transfers: open VFS transactions
+  above the handler's mark roll back (making `Transaction`'s documented
+  rollback-on-failure actually happen — previously a caught failure
+  leaked the partial writes), and effect scopes above it close.
+  `ErrorHandlerFrame` records both depths at push (additive JSON).
 - **BREAKING**: collaborators hold VM facets, not the VM (ISP) —
   `DecisionArbiter(funnel:, meter:, defaultModel:)` takes the
   `PromptFunnel`; `ToolCallOrchestrator(host:, …, defaultModel:)` takes the

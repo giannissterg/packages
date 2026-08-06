@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **BREAKING (semantics)**: `Task` is transactional by default (REL-P4) —
+  it wraps in `Transaction`, so a failed task's VFS writes roll back and a
+  retry starts clean. Opt out with `transactional: false`. `Produce`
+  inherits the default through composition.
+
 - `SelectModel` accepts an ordered `fallbacks:` chain (REL-P3): a
   model-kind failure under the scope falls through descriptor by
   descriptor, each tried once. Cancellation never advances the chain;

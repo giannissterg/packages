@@ -18,12 +18,21 @@ abstract interface class FileSystemManager {
   /// Bridges file content at [path] into a [FileContextSource] for context compilation.
   Future<FileContextSource> toContextSource(String path);
 
-  /// Begins a new snapshot transaction.
+  /// Begins a new snapshot transaction. Transactions NEST: each begin
+  /// pushes a frame; [commit]/[rollback] operate on the innermost one.
   Future<void> beginTransaction();
 
-  /// Commits current transaction (discards rollback snapshot).
+  /// Commits the innermost transaction (discards its rollback snapshot;
+  /// enclosing transactions keep theirs).
   Future<void> commit();
 
-  /// Rolls back mounted filesystems to the snapshot captured at [beginTransaction].
+  /// Rolls the mounted filesystems back to the innermost transaction's
+  /// [beginTransaction] snapshot and closes that frame.
   Future<void> rollback();
+
+  /// Number of currently open transaction frames. The runtime's error
+  /// unwinding reads this at handler-push time and rolls back to it when a
+  /// failure is caught (REL-P4) — a caught error must not leave an
+  /// abandoned transaction's writes behind.
+  int get transactionDepth;
 }

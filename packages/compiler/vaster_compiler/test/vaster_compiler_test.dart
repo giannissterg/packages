@@ -80,9 +80,31 @@ void main() {
       expect(program.instructions[0], isA<MountFsOp>());
       expect(program.instructions[1], isA<CreateAgentOp>());
       expect(program.instructions[2], isA<CreateSessionOp>());
-      expect(program.instructions[3], isA<SetSessionOp>());
-      expect(program.instructions[4], isA<DispatchAgentTaskOp>());
+      // Task is transactional by default (REL-P4): its dispatch brackets
+      // in Begin/Commit so a failed task's VFS writes roll back.
+      expect(program.instructions[3], isA<BeginTransactionOp>());
+      expect(program.instructions[4], isA<SetSessionOp>());
+      expect(program.instructions[5], isA<DispatchAgentTaskOp>());
+      expect(program.instructions[6], isA<CommitOp>());
       expect(program.instructions.last, isA<HaltOp>());
+    });
+
+    test('Task(transactional: false) opts out of the transaction bracket',
+        () {
+      const pipeline = Pipeline(
+        spec: PipelineSpec(name: 'raw_task_pipeline'),
+        children: [
+          Task(
+            agentId: 'worker',
+            prompt: Template.text('Do the work.'),
+            transactional: false,
+          ),
+        ],
+      );
+      final program = compiler.compile(pipeline);
+      expect(program.instructions.whereType<BeginTransactionOp>(), isEmpty);
+      expect(program.instructions.whereType<DispatchAgentTaskOp>(),
+          hasLength(1));
     });
 
     test('expands ComposableNode recursively during compilation', () {

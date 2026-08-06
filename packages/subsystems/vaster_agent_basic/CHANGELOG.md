@@ -1,3 +1,13 @@
+## Unreleased
+
+- **BREAKING (prompt shape)**: the task's session message is the input
+  prompt verbatim — the `[Agent Task <id>]:` prefix is gone. The task id
+  is machine bookkeeping (events, outputs, outcome registers); a
+  pc-derived id in model-visible text invalidated every recorded tape's
+  fingerprints and every prompt-cache prefix under ANY lowering change.
+  Recorded fixtures need a one-time refresh (see
+  `vaster_playground/tool/refresh_sdd_fixture.dart`).
+
 ## 0.3.0
 
 - New optional `onTurnUsage` construction hook reporting each model turn's

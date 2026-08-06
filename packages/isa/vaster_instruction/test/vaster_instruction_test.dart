@@ -43,6 +43,19 @@ void main() {
           ['google_ai:gemini-2.5-flash', 'fake:local']);
     });
 
+    test('effect-scope ops roundtrip (REL-P4)', () {
+      const ops = [
+        PushEffectScopeOp(),
+        MarkEffectRetryOp(),
+        PopEffectScopeOp(),
+      ];
+      for (final op in ops) {
+        final restored = VasterInstruction.fromJson(op.toJson());
+        expect(restored.opcode, op.opcode);
+        expect(restored.runtimeType, op.runtimeType);
+      }
+    });
+
     test('SelectModelOp without fallbacks stays byte-identical to pre-chain '
         'payloads', () {
       const op = SelectModelOp(

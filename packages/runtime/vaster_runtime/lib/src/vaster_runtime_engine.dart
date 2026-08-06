@@ -23,6 +23,7 @@ import 'call_stack.dart';
 import 'agent_task_exception.dart';
 import 'decision_arbiter.dart';
 import 'decision_outcome.dart';
+import 'effect_ledger.dart';
 import 'extract_outcome.dart';
 import 'hitl_controller.dart';
 import 'machine_context.dart';
@@ -74,6 +75,10 @@ class VasterRuntime {
   final CallStack _callStack = CallStack();
   final CacheHintTracker _cacheHints = CacheHintTracker();
   final HitlController _hitl;
+
+  /// The idempotency ledger (REL-P4): effect scopes, occurrence cursors,
+  /// and recorded tool results — componentized machine state like the rest.
+  final EffectLedger _effectLedger;
 
   /// Enforces the quota the *program itself* declares via [SetQuotaOp]
   /// (compiled from `BudgetScope`), as opposed to [budget], which is the
@@ -211,6 +216,7 @@ class VasterRuntime {
       pricingCatalog: vm.config.pricingCatalog,
       sinks: [BudgetSink(budget), TrackerSink(quotaTracker)],
     );
+    final effectLedger = EffectLedger();
     return VasterRuntime._(
       vm,
       budget,
@@ -229,6 +235,7 @@ class VasterRuntime {
         quotaTracker: quotaTracker,
         guard: policyGuard,
         maxIterations: maxToolIterations,
+        ledger: effectLedger,
       ),
       DecisionArbiter(
         funnel: vm,
@@ -237,6 +244,7 @@ class VasterRuntime {
       ),
       RegisterInterpolator(registers: registers),
       HitlController(eventBus: vm.eventBus),
+      effectLedger,
     );
   }
 
@@ -252,6 +260,7 @@ class VasterRuntime {
     this._decisionArbiter,
     this._interpolator,
     this._hitl,
+    this._effectLedger,
   );
 
   /// The machine's sealed execution phase (pauses carry their request,
@@ -285,6 +294,7 @@ class VasterRuntime {
         _callStack,
         _machineContext,
         _hitl,
+        _effectLedger,
         QuotaStateAdapter(_quotaTracker),
       ];
 
@@ -346,6 +356,7 @@ class VasterRuntime {
       _callStack.clear();
       _cacheHints.clear();
       _hitl.clear();
+      _effectLedger.clear();
       _quotaTracker.applyQuota(ResourceQuota.unlimited);
     }
     // Program-header class table: static metadata installed at load, never
@@ -449,7 +460,7 @@ class VasterRuntime {
         if (_status == RuntimeStatus.running) _pc++;
         executed++;
       } catch (e, st) {
-        if (_handleProgramError(e)) {
+        if (await _handleProgramError(e)) {
           // Journals must not have silent PC gaps: record the faulting
           // instruction with post-recovery state (the handler's error
           // register is already written and the PC points at the catch).
@@ -483,17 +494,25 @@ class VasterRuntime {
   }
 
   /// Consults the program-level error-handler stack after an instruction
-  /// throws. Returns `true` when a handler recovered: the error text lands in
-  /// the handler's register and control transfers to its catch block.
+  /// throws. Returns `true` when a handler recovered: whatever the failed
+  /// region abandoned is unwound FIRST — open VFS transactions above the
+  /// handler's mark roll back (this is what makes `Transaction`'s
+  /// rollback-on-failure promise real), effect scopes above it close — then
+  /// the error text lands in the handler's register and control transfers
+  /// to its catch block.
   ///
   /// Policy violations are a VM security boundary, not a program-level error —
   /// they always trap regardless of installed handlers.
-  bool _handleProgramError(Object error) {
+  Future<bool> _handleProgramError(Object error) async {
     if (error is PolicyViolationException) {
       return false;
     }
     if (_machineContext.errorHandlers.isEmpty) return false;
     final handler = _machineContext.errorHandlers.removeLast();
+    while (vm.fileSystemManager.transactionDepth > handler.transactionDepth) {
+      await vm.fileSystemManager.rollback();
+    }
+    _effectLedger.unwindTo(handler.effectScopeDepth);
     _registers.write(handler.errorVar, '$error');
     _pc = handler.targetPc;
     return true;
@@ -668,6 +687,16 @@ class VasterRuntime {
 
       case RollbackOp _:
         await vm.fileSystemManager.rollback();
+
+      // ── Effect scopes (REL-P4) ────────────────────────────────────────────
+      case PushEffectScopeOp _:
+        _effectLedger.pushScope(_pc);
+
+      case PopEffectScopeOp _:
+        _effectLedger.popScope();
+
+      case MarkEffectRetryOp _:
+        _effectLedger.markRetry();
 
       // ── Sandbox ───────────────────────────────────────────────────────────
       case RegisterSandboxOp op:
@@ -1071,8 +1100,14 @@ class VasterRuntime {
         _pc = branch.targetPc - 1;
 
       case PushErrorHandlerOp op:
-        _machineContext.errorHandlers.add(
-            ErrorHandlerFrame(targetPc: op.targetPc, errorVar: op.errorVar));
+        // The frame records what is open NOW — the unwind marks a caught
+        // failure rolls back / merges to before control transfers (REL-P4).
+        _machineContext.errorHandlers.add(ErrorHandlerFrame(
+          targetPc: op.targetPc,
+          errorVar: op.errorVar,
+          transactionDepth: vm.fileSystemManager.transactionDepth,
+          effectScopeDepth: _effectLedger.depth,
+        ));
 
       case PopErrorHandlerOp _:
         if (_machineContext.errorHandlers.isNotEmpty) _machineContext.errorHandlers.removeLast();

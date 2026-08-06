@@ -6,6 +6,7 @@ import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 import 'package:vaster_vm_api/vaster_vm_api.dart';
 
+import 'effect_ledger.dart';
 import 'policy_guard.dart';
 
 
@@ -46,6 +47,12 @@ final class ToolCallOrchestrator {
   /// Maximum model turns in one tool-calling loop (runaway guard).
   final int maxIterations;
 
+  /// The runtime's idempotency ledger (REL-P4): inside an effect scope,
+  /// non-VFS tool calls execute-or-replay through it so a retry attempt
+  /// never re-performs a side effect that already happened. VFS syscalls
+  /// bypass it — the transaction machinery owns compensable effects.
+  final EffectLedger ledger;
+
   const ToolCallOrchestrator({
     required this.host,
     required this.meter,
@@ -53,6 +60,7 @@ final class ToolCallOrchestrator {
     required this.quotaTracker,
     required this.guard,
     required this.maxIterations,
+    required this.ledger,
   });
 
   /// Runs the tool-calling loop until the model stops requesting tools (or
@@ -83,27 +91,49 @@ final class ToolCallOrchestrator {
       final results = <ContentPart>[];
       for (final call in response.functionCalls) {
         guard.check(PolicyAction.toolCall, call.name);
-        quotaTracker.recordToolCall();
         host.eventBus.publish(ToolCalledEvent(
           eventId: 'evt_tool_call_${call.callId}',
           callId: call.callId,
           toolName: call.name,
           arguments: call.arguments,
         ));
+        // VFS syscalls are compensable (the transaction machinery rolls
+        // them back) so they always re-execute; everything else goes
+        // through the ledger — inside an effect scope, a retried call
+        // replays its recorded result instead of re-performing the effect.
+        final isVfsSyscall = call.name == VfsSyscalls.writeFileName ||
+            call.name == VfsSyscalls.readFileName;
         final toolClock = Stopwatch()..start();
-        final toolResponse = await _dispatchToolCall(call);
+        final outcome = isVfsSyscall
+            ? (result: await _dispatchToolCall(call), replayed: false)
+            : await ledger.executeOrReplay(
+                name: call.name,
+                arguments: call.arguments,
+                execute: () => _dispatchToolCall(call),
+              );
         toolClock.stop();
+        if (outcome.replayed) {
+          host.eventBus.publish(ToolCallReplayedEvent(
+            eventId: 'evt_tool_replay_${call.callId}',
+            callId: call.callId,
+            toolName: call.name,
+          ));
+        } else {
+          // Replays perform no work: only real executions count against
+          // the program's tool-call quota.
+          quotaTracker.recordToolCall();
+        }
         host.eventBus.publish(ToolFinishedEvent(
           eventId: 'evt_tool_done_${call.callId}',
           callId: call.callId,
           toolName: call.name,
-          isError: toolResponse.containsKey('error'),
+          isError: outcome.result.containsKey('error'),
           executionDuration: toolClock.elapsed,
         ));
         results.add(FunctionResponsePart(
           callId: call.callId,
           name: call.name,
-          response: toolResponse,
+          response: outcome.result,
         ));
       }
       transcript.add(ChatMessage(role: Role.tool, parts: results));

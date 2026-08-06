@@ -5,7 +5,13 @@ import 'filesystem_manager_interface.dart';
 /// Standard implementation of [FileSystemManager].
 class BasicFileSystemManager implements FileSystemManager {
   final Map<String, VasterFileSystem> _mounts = {};
-  final Map<String, FileSystemSnapshot> _transactionSnapshots = {};
+
+  /// Open transactions, innermost last — one frame per [beginTransaction],
+  /// each holding the per-mount snapshots taken at its begin. A flat map
+  /// here once made nested transactions silently corrupt each other: an
+  /// inner begin clobbered the outer's snapshots and an inner commit
+  /// erased the outer's ability to roll back.
+  final List<Map<String, FileSystemSnapshot>> _transactionFrames = [];
 
   BasicFileSystemManager({Map<String, VasterFileSystem>? mounts}) {
     if (mounts != null) {
@@ -77,26 +83,32 @@ class BasicFileSystemManager implements FileSystemManager {
   }
 
   @override
+  int get transactionDepth => _transactionFrames.length;
+
+  @override
   Future<void> beginTransaction() async {
-    _transactionSnapshots.clear();
+    final frame = <String, FileSystemSnapshot>{};
     for (final entry in _mounts.entries) {
-      _transactionSnapshots[entry.key] = await entry.value.createSnapshot();
+      frame[entry.key] = await entry.value.createSnapshot();
     }
+    _transactionFrames.add(frame);
   }
 
   @override
   Future<void> commit() async {
-    _transactionSnapshots.clear();
+    if (_transactionFrames.isEmpty) return;
+    _transactionFrames.removeLast();
   }
 
   @override
   Future<void> rollback() async {
-    for (final entry in _transactionSnapshots.entries) {
+    if (_transactionFrames.isEmpty) return;
+    final frame = _transactionFrames.removeLast();
+    for (final entry in frame.entries) {
       final fs = _mounts[entry.key];
       if (fs != null) {
         await fs.restoreSnapshot(entry.value);
       }
     }
-    _transactionSnapshots.clear();
   }
 }

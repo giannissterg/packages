@@ -268,6 +268,13 @@ final class BudgetConstraint {
 /// Reference the agent by [agent] object, by [agentId] string, or omit both
 /// to inherit the enclosing [Agent] scope. [output] binds the result for
 /// `${output}` interpolation downstream.
+///
+/// **Transactional by default** (REL-P4): the task wraps in a [Transaction],
+/// so a failed task's VFS writes roll back — a retry starts from clean
+/// state instead of half-written files. Transactions nest, so a `Task`
+/// inside an explicit [Transaction] (or another `Task`) composes. Opt out
+/// with `transactional: false` when partial writes are intentionally
+/// durable.
 class Task extends ComposableNode {
   final AgentRole? agent;
   final String? agentId;
@@ -279,12 +286,16 @@ class Task extends ComposableNode {
   /// [DispatchAgentTaskOp] so structured-output backends can enforce it.
   final Map<String, dynamic>? outputSchema;
 
+  /// Whether this task's VFS effects roll back when it fails.
+  final bool transactional;
+
   const Task({
     this.agent,
     this.agentId,
     required this.prompt,
     this.output,
     this.outputSchema,
+    this.transactional = true,
   }) : assert(agent == null || agentId == null,
             'Provide at most one of agent/agentId');
 
@@ -294,12 +305,15 @@ class Task extends ComposableNode {
         agentId ??
         context.tryRead<AgentRole>()?.roleId ??
         'default';
-    return TaskExecution(
+    final execution = TaskExecution(
       agentId: id,
       prompt: prompt.lower(),
       output: output?.name,
       outputSchema: outputSchema,
     );
+    return transactional
+        ? Transaction(children: [execution])
+        : execution;
   }
 }
 
