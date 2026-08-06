@@ -15,7 +15,13 @@ library;
 export 'src/bindings/llama_bindings.dart'
     show LlamaBindings, LlamaModelParams, LlamaContextParams, LlamaBatch;
 export 'src/llama_engine.dart'
-    show LlamaEngine, LlamaStateIncompatibleException;
+    show
+        LlamaEngine,
+        LlamaStateIncompatibleException,
+        KvReuse,
+        KvReuseNone,
+        KvReuseValidated,
+        KvReuseRejected;
 export 'src/llama_ffi_kv_cache_controller.dart'
     show LlamaFfiKvCacheController;
 export 'src/llama_ffi_vaster_model.dart' show LlamaFfiVasterModel;

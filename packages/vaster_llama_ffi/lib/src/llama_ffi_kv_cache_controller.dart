@@ -27,12 +27,16 @@ final class LlamaFfiKvCacheController
   /// Frame-name prefix, fed through [kvFrameName] (the convention's one
   /// home in `vaster_mmap`). The default is distinct from raw-content
   /// controllers' `vaster_kv_` — these frames hold llama engine *state*,
-  /// and the payload kind is part of the naming contract. Ring-transport
-  /// clients resolving against this controller's frames must use the
-  /// same prefix.
+  /// and the payload kind is part of the naming contract. The engine's
+  /// tag (hex) is appended to the prefix, so every producer gets its own
+  /// namespace: two models materializing the same content cannot collide,
+  /// and a format migration cannot leave a stale frame squatting on a
+  /// name this producer will look up. Ring-transport clients resolving
+  /// against this controller's frames must use the same prefix.
   final String namePrefix;
 
   final Map<String, KvCacheHandle> _known = {};
+  String? _producerPrefix;
 
   LlamaFfiKvCacheController(
       {required this.worker, this.namePrefix = 'vaster_kv_llama_'});
@@ -47,27 +51,44 @@ final class LlamaFfiKvCacheController
         supportsEviction: true,
       );
 
-  String _frameName(String fingerprint) =>
-      kvFrameName(prefix: namePrefix, fingerprint: fingerprint);
+  Future<String> _frameName(String fingerprint) async {
+    final producer = _producerPrefix ??=
+        '$namePrefix${(await worker.engineTag()).toRadixString(16)}_';
+    return kvFrameName(prefix: producer, fingerprint: fingerprint);
+  }
 
   @override
   Future<KvCacheHandle?> lookup(String contentFingerprint) async {
     final local = _known[contentFingerprint];
     if (local != null) return local;
     // Cross-process discovery: a peer (or a previous process) may have
-    // materialized this fingerprint — probe the named segment.
-    final name = _frameName(contentFingerprint);
+    // materialized this fingerprint — probe the named segment. A hit is
+    // only a hit if the payload parses as a valid KvStateImage: an
+    // unparseable squatter (e.g. a pre-format frame) is unlinked so the
+    // name can be re-materialized — otherwise discovery would report a
+    // frame that every consumer rejects, blocking reuse forever.
+    final name = await _frameName(contentFingerprint);
     final SharedMemoryFrame frame;
     try {
       frame = SharedMemoryFrame.attach(name);
     } on StateError {
       return null;
     }
+    final KvStateImage image;
+    try {
+      image = KvStateImage.parse(frame.bytes);
+    } on KvStateImageFormatException {
+      frame.close(unlink: true); // reclaim the name from the squatter
+      return null;
+    } on KvStateImageAlignmentException {
+      frame.close(unlink: true);
+      return null;
+    }
     final handle = KvCacheHandle(
       handleId: name,
       contentFingerprint: contentFingerprint,
-      tokenCount: frame.meta,
-      sizeBytes: frame.payloadLength,
+      tokenCount: image.tokenCount,
+      sizeBytes: image.lengthInBytes,
       backend: backendId,
     );
     frame.close(unlink: false);
@@ -84,11 +105,15 @@ final class LlamaFfiKvCacheController
     final existing = await lookup(contentFingerprint);
     if (existing != null) return existing;
 
-    // One atomic worker op — reset, decode, export cannot interleave
+    // One atomic worker op — reset, decode, publish cannot interleave
     // with a generate (a poisoned frame would persist cross-process).
-    final name = _frameName(contentFingerprint);
-    final (sizeBytes, tokenCount) =
-        await worker.materializeToFrame(content: content, frameName: name);
+    // The frame's payload is a KvStateImage carrying the validation
+    // provenance (token ids, engineTag, fingerprint).
+    final name = await _frameName(contentFingerprint);
+    final (sizeBytes, tokenCount) = await worker.materializeToFrame(
+        content: content,
+        contentFingerprint: contentFingerprint,
+        frameName: name);
     final handle = KvCacheHandle(
       handleId: name,
       contentFingerprint: contentFingerprint,
@@ -101,14 +126,15 @@ final class LlamaFfiKvCacheController
   }
 
   @override
-  Future<void> restore(KvCacheHandle handle) =>
-      worker.importStateFromFrame(_frameName(handle.contentFingerprint));
+  Future<void> restore(KvCacheHandle handle) async =>
+      worker.importStateFromFrame(
+          await _frameName(handle.contentFingerprint));
 
   @override
   Future<void> evict(KvCacheHandle handle) async {
     _known.remove(handle.contentFingerprint);
     try {
-      SharedMemoryFrame.attach(_frameName(handle.contentFingerprint))
+      SharedMemoryFrame.attach(await _frameName(handle.contentFingerprint))
           .close(unlink: true);
     } on StateError {
       // Already gone — eviction is idempotent.
@@ -123,7 +149,7 @@ final class LlamaFfiKvCacheController
     final handle = await lookup(contentFingerprint);
     if (handle == null) return null;
     return KvFrameRef(
-      frameName: _frameName(contentFingerprint),
+      frameName: await _frameName(contentFingerprint),
       contentFingerprint: contentFingerprint,
       tokenCount: handle.tokenCount,
     );

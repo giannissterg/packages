@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- **PV-P2: reuse is validated, never trusted.** Materialized frames now
+  carry `KvStateImage` payloads (spec v1): header, fingerprint, the
+  decoded token ids, and engine state exported in place at the image's
+  state offset. Every reuse attempt runs the spec's consuming steps
+  engine-side in `LlamaEngine.continueFromImage` — producer identity
+  (`engineTag`, derived from libllama + model file) and token-exact
+  prefix validation happen BEFORE any restore; every rejection
+  cold-decodes, and the sealed `KvReuse` outcome (validated /
+  rejected(reason, divergenceIndex) / none) is surfaced in
+  `ModelResponse.rawResponse.kvReuse`. `tokenize` returns `Int32List`;
+  prefill copies through typed views.
+- Frames are namespaced **per producer** (the engine tag joins the name
+  prefix): two models cannot collide on a content-addressed name, and a
+  format migration cannot leave a stale frame squatting on a name this
+  producer will look up. `lookup` validates the image and unlinks
+  unparseable squatters, so discovery never reports a frame every
+  consumer would reject.
+- The first live catch: validation rejected (`prefix-mismatch` at token
+  3) a reuse the old trusting path had been happily performing in the
+  CLI transcript — sessionless `PromptOp`s never receive pinned context
+  in their composed prompt, so the old "105 of 276 restored" was a
+  wrong-context generation masked by small-model output. The VM-side
+  gap is tracked for the next fix; the docs' transcript is invalid until
+  then.
+
 - Generation policy consolidated into `LlamaEngine`:
   `prefillContinuation` (prefix reuse incl. impossible-reuse and
   exact-cover tail re-decode) and `generateSteps` (THE greedy loop —

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:isolate';
 
+import 'package:vaster_kv/vaster_kv.dart';
 import 'package:vaster_mmap/vaster_mmap.dart';
 
 import 'bindings/llama_bindings.dart';
@@ -108,16 +110,6 @@ final class LlamaWorker {
   Future<int> decodeText(String text) async =>
       await _request('decodeText', {'text': text}) as int;
 
-  /// Prefills [text], reusing whatever prefix the sequence already holds
-  /// (a restored KV state): tokens `[0, tokensDecoded)` are assumed to be
-  /// the restored prefix and only the remainder is decoded. Returns
-  /// `(promptTokens, reusedTokens)`. With an empty sequence this is a
-  /// plain full prefill (`reusedTokens == 0`).
-  Future<(int, int)> prefillContinuation(String text) async {
-    final r = (await _request('prefillContinuation', {'text': text}))! as List;
-    return (r[0] as int, r[1] as int);
-  }
-
   /// Greedily generates from the current logits. Returns
   /// `(text, generatedTokens, hitLimit)` — [hitLimit] when [maxTokens] or
   /// the context window stopped generation rather than end-of-generation.
@@ -127,33 +119,31 @@ final class LlamaWorker {
     return (r[0] as String, r[1] as int, r[2] as bool);
   }
 
-  /// Exports sequence state directly into a shared-memory frame named
-  /// [frameName] (created at exact state size; `meta` holds the token
-  /// count). Returns `(stateBytes, tokenCount)`.
-  Future<(int, int)> exportStateToFrame(String frameName) async {
-    final r =
-        (await _request('exportState', {'frame': frameName}))! as List;
-    return (r[0] as int, r[1] as int);
-  }
-
-  /// **Atomic** materialize: reset → decode [content] → export state into
-  /// the frame named [frameName], as ONE mailbox operation — no other
-  /// request can interleave and poison the published frame. Returns
-  /// `(stateBytes, tokenCount)`.
+  /// **Atomic** materialize: reset → decode [content] → write a
+  /// `KvStateImage` (header, [contentFingerprint], the decoded token
+  /// ids, then engine state at the image's state offset) into the frame
+  /// named [frameName], as ONE mailbox operation — no other request can
+  /// interleave and poison the published frame. Returns
+  /// `(imageBytes, tokenCount)`.
   Future<(int, int)> materializeToFrame(
-      {required String content, required String frameName}) async {
-    final r = (await _request(
-        'materialize', {'text': content, 'frame': frameName}))! as List;
+      {required String content,
+      required String contentFingerprint,
+      required String frameName}) async {
+    final r = (await _request('materialize', {
+      'text': content,
+      'fingerprint': contentFingerprint,
+      'frame': frameName,
+    }))! as List;
     return (r[0] as int, r[1] as int);
   }
 
-  /// **Atomic** full generation: reset → optional state restore from
-  /// [restoreFrame] → continuation prefill of [text] → greedy generation,
-  /// as ONE mailbox operation. An incompatible frame degrades to a cold
-  /// decode inside the same operation. Returns
-  /// `(promptTokens, reusedTokens, generatedText, generatedTokens,
-  /// hitLimit)`.
-  Future<(int, int, String, int, bool)> runGenerate({
+  /// **Atomic** full generation: reset → validated state reuse from
+  /// [restoreFrame] (spec §Consuming — every rejection decodes cold
+  /// inside the same operation) → greedy generation, as ONE mailbox
+  /// operation. Returns `(promptTokens, reuse, generatedText,
+  /// generatedTokens, hitLimit)` — [KvReuse] is the sealed account of
+  /// what happened to the reuse attempt.
+  Future<(int, KvReuse, String, int, bool)> runGenerate({
     required String text,
     required int maxTokens,
     String? restoreFrame,
@@ -165,7 +155,7 @@ final class LlamaWorker {
     }))! as List;
     return (
       r[0] as int,
-      r[1] as int,
+      KvReuse.fromJson(r[1] as Map<Object?, Object?>),
       r[2] as String,
       r[3] as int,
       r[4] as bool
@@ -177,6 +167,10 @@ final class LlamaWorker {
   /// the engine rejects the blob.
   Future<int> importStateFromFrame(String frameName) async =>
       await _request('importState', {'frame': frameName}) as int;
+
+  /// The engine's KV-state producer identity (spec §engineTag).
+  Future<int> engineTag() async =>
+      await _request('engineTag', const {}) as int;
 
   /// Clears the sequence.
   Future<void> reset() => _request('reset', const {});
@@ -279,73 +273,102 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       final tokens = engine.tokenize(request['text']! as String);
       engine.prefill(tokens);
       return tokens.length;
-    case 'prefillContinuation':
-      final (promptTokens, reused) =
-          engine.prefillContinuation(request['text']! as String);
-      return [promptTokens, reused];
     case 'generateSteps':
       final (text, generated, hitLimit) =
           engine.generateSteps(maxTokens: request['maxTokens']! as int);
       return [text, generated, hitLimit];
     case 'materialize':
       // Atomic at the mailbox: nothing interleaves between reset, decode
-      // and export, so the published content-addressed frame can never
-      // hold state from a half-finished neighbor operation.
+      // and publish, so the published content-addressed frame can never
+      // hold state from a half-finished neighbor operation. The frame's
+      // payload is a KvStateImage: header + fingerprint + the decoded
+      // token ids (validation ground truth), with engine state exported
+      // in place at the image's state offset — the zero-copy path.
       engine.reset();
-      engine.prefill(engine.tokenize(request['text']! as String));
+      final tokens = engine.tokenize(request['text']! as String);
+      engine.prefill(tokens);
+      final fingerprint = request['fingerprint']! as String;
+      final stateSize = engine.stateSize;
+      final imageBytes = KvStateImage.layoutSize(
+          contentFingerprint: fingerprint,
+          tokenCount: tokens.length,
+          stateSize: stateSize);
       final frame = SharedMemoryFrame.allocate(request['frame']! as String,
-          payloadLength: engine.stateSize, meta: engine.tokensDecoded);
+          payloadLength: imageBytes, meta: tokens.length);
       try {
         if (frame.isOwner) {
-          engine.exportStateInto(frame.payloadPointer, frame.payloadLength);
+          final image = KvStateImage.initialize(frame.bytes,
+              tokenIds: tokens,
+              contentFingerprint: fingerprint,
+              engineTag: engine.engineTag,
+              stateSize: stateSize);
+          engine.exportStateInto(
+              Pointer<Uint8>.fromAddress(
+                  frame.payloadPointer.address + image.stateOffset),
+              stateSize);
         }
-        return [frame.payloadLength, engine.tokensDecoded];
+        return [imageBytes, tokens.length];
       } finally {
         frame.close(unlink: false);
       }
     case 'runGenerate':
-      // Atomic at the mailbox: restore → continuation prefill → generate
-      // as one operation, so a concurrent materialize cannot corrupt the
-      // sequence mid-generation (or vice versa).
-      engine.reset();
+      // Atomic at the mailbox: validated reuse → generate as one
+      // operation, so a concurrent materialize cannot corrupt the
+      // sequence mid-generation (or vice versa). The worker only handles
+      // the CONTAINER (attach, parse, pointer math); the reuse policy —
+      // tag check, token-exact prefix validation, restore, remainder —
+      // is the engine's continueFromImage (Rule 10.3/10.4).
+      final promptTokens =
+          engine.tokenize(request['text']! as String);
+      var reuse = const KvReuseNone() as KvReuse;
       final restoreFrame = request['restoreFrame'] as String?;
+      var restored = false;
       if (restoreFrame != null) {
         try {
           final attached = SharedMemoryFrame.attach(restoreFrame);
           try {
-            engine.importStateFrom(
-                attached.payloadPointer, attached.payloadLength);
+            final image = KvStateImage.parse(attached.bytes);
+            reuse = engine.continueFromImage(
+              image: image,
+              statePointer: Pointer<Uint8>.fromAddress(
+                  attached.payloadPointer.address + image.stateOffset),
+              promptTokens: promptTokens,
+            );
+          } on KvStateImageFormatException {
+            reuse = const KvReuseRejected('invalid-image');
+          } on KvStateImageAlignmentException {
+            reuse = const KvReuseRejected('invalid-image');
           } finally {
             attached.close(unlink: false);
           }
-        } on LlamaStateIncompatibleException {
-          engine.reset(); // stale build/model — degrade to a cold decode
         } on StateError {
           // Frame vanished between lookup and attach — cold decode.
+          reuse = const KvReuseRejected('invalid-image');
         }
       }
-      final (promptTokens, reused) =
-          engine.prefillContinuation(request['text']! as String);
+      if (!restored) {
+        engine.reset();
+        engine.prefill(promptTokens);
+      }
       final (text, generated, hitLimit) =
           engine.generateSteps(maxTokens: request['maxTokens']! as int);
-      return [promptTokens, reused, text, generated, hitLimit];
-    case 'exportState':
-      final frameName = request['frame']! as String;
-      final size = engine.stateSize;
-      final frame = SharedMemoryFrame.allocate(frameName,
-          payloadLength: size, meta: engine.tokensDecoded);
-      try {
-        if (frame.isOwner) {
-          engine.exportStateInto(frame.payloadPointer, size);
-        }
-        return [size, engine.tokensDecoded];
-      } finally {
-        frame.close(unlink: false); // content-at-rest: stays discoverable
-      }
+      return [promptTokens.length, reuse.toJson(), text, generated, hitLimit];
     case 'importState':
+      // Restores from a frame's KvStateImage; the caller (controller
+      // restore) owns the decision — but producer identity is still
+      // checked, and a mismatch is the typed incompatible-state error.
       final frame = SharedMemoryFrame.attach(request['frame']! as String);
       try {
-        engine.importStateFrom(frame.payloadPointer, frame.payloadLength);
+        final image = KvStateImage.parse(frame.bytes);
+        if (image.engineTag != engine.engineTag) {
+          throw LlamaStateIncompatibleException(
+              'image engineTag 0x${image.engineTag.toRadixString(16)} does '
+              'not match this engine — different build or model.');
+        }
+        engine.importStateFrom(
+            Pointer<Uint8>.fromAddress(
+                frame.payloadPointer.address + image.stateOffset),
+            image.stateSize);
         return engine.tokensDecoded;
       } finally {
         frame.close(unlink: false);
@@ -355,6 +378,8 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       return null;
     case 'tokensDecoded':
       return engine.tokensDecoded;
+    case 'engineTag':
+      return engine.engineTag;
     case 'dispose':
       engine.dispose();
       return null;

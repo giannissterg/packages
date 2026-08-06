@@ -1,10 +1,62 @@
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:vaster_kv/vaster_kv.dart';
 
 import 'bindings/llama_bindings.dart';
+
+/// Outcome of attempting KV-state reuse for a call — sealed so no
+/// rejection can be silently ignored (rules.md Rule 2). Serializable for
+/// surfacing through `ModelResponse.rawResponse` and worker channels.
+sealed class KvReuse {
+  const KvReuse();
+  Map<String, Object?> toJson();
+
+  factory KvReuse.fromJson(Map<Object?, Object?> json) =>
+      switch (json['result']) {
+        'validated' =>
+          KvReuseValidated(reusedTokens: json['reusedTokens']! as int),
+        'rejected' => KvReuseRejected(json['reason']! as String,
+            divergenceIndex: json['divergenceIndex'] as int?),
+        _ => const KvReuseNone(),
+      };
+}
+
+/// No reuse was attempted — no hint resolved to a frame.
+final class KvReuseNone extends KvReuse {
+  const KvReuseNone();
+  @override
+  Map<String, Object?> toJson() => const {'result': 'none'};
+}
+
+/// The image passed every check (spec §Consuming 1–5); [reusedTokens]
+/// prompt tokens were restored from state and never re-decoded.
+final class KvReuseValidated extends KvReuse {
+  final int reusedTokens;
+  const KvReuseValidated({required this.reusedTokens});
+  @override
+  Map<String, Object?> toJson() =>
+      {'result': 'validated', 'reusedTokens': reusedTokens};
+}
+
+/// Reuse was refused and the call decoded cold. [reason] is one of
+/// `engine-tag-mismatch`, `prefix-mismatch` (with [divergenceIndex]),
+/// `engine-rejected-state`, or `invalid-image`; a wrong-context
+/// completion is a correctness failure, so every path here is strict.
+final class KvReuseRejected extends KvReuse {
+  final String reason;
+  final int? divergenceIndex;
+  const KvReuseRejected(this.reason, {this.divergenceIndex});
+  @override
+  Map<String, Object?> toJson() => {
+        'result': 'rejected',
+        'reason': reason,
+        if (divergenceIndex != null) 'divergenceIndex': divergenceIndex,
+      };
+}
 
 /// Restoring sequence state failed — the blob is from an incompatible
 /// llama.cpp build, a different model, or is corrupt. Surfaced as typed
@@ -48,13 +100,21 @@ final class LlamaEngine {
   /// Context window (tokens) this engine was created with.
   final int contextLength;
 
+  /// This engine's KV-state producer identity (spec §engineTag): derived
+  /// from the libllama binary and the model file, so state images from a
+  /// different build or model are rejected before the engine ever sees
+  /// their bytes. Opaque — compared for equality only.
+  final int engineTag;
+
   int _tokensDecoded = 0;
   bool _logitsReady = false;
   bool _disposed = false;
 
   LlamaEngine._(this._b, this._model, this._context, this._vocab,
       this._sampler, this._memory,
-      {required this.batchSize, required this.contextLength});
+      {required this.batchSize,
+      required this.contextLength,
+      required this.engineTag});
 
   /// Loads [modelPath] and builds a ready engine. CPU-only and
   /// single-threaded by default (see the determinism recipe above).
@@ -98,9 +158,18 @@ final class LlamaEngine {
           '(n_ctx=$contextLength) for "$modelPath".');
     }
 
+    int sizeOf(String path) {
+      final file = File(path);
+      return file.existsSync() ? file.lengthSync() : 0;
+    }
+
     return LlamaEngine._(b, model, context, b.modelGetVocab(model),
         b.samplerInitGreedy(), b.getMemory(context),
-        batchSize: batchSize, contextLength: contextLength);
+        batchSize: batchSize,
+        contextLength: contextLength,
+        engineTag: KvStateImage.engineTagOf(
+            'llama-ffi|lib:$libraryPath:${sizeOf(libraryPath)}'
+            '|model:$modelPath:${sizeOf(modelPath)}'));
   }
 
   /// Tokens decoded into sequence 0 so far (prompt + generated). After
@@ -109,7 +178,7 @@ final class LlamaEngine {
 
   /// Tokenizes [text]. [addBos] prepends the model's BOS token — use it
   /// for the start of a sequence, not for continuations.
-  List<int> tokenize(String text, {bool addBos = true}) {
+  Int32List tokenize(String text, {bool addBos = true}) {
     _checkLive();
     final bytes = utf8.encode(text);
     final cText = _cString(text);
@@ -122,7 +191,7 @@ final class LlamaEngine {
         throw StateError('tokenize needed ${-n} slots for $capacity-slot '
             'buffer — text/vocab mismatch.');
       }
-      return [for (var i = 0; i < n; i++) tokens[i]];
+      return Int32List.fromList(tokens.asTypedList(n));
     } finally {
       calloc.free(cText);
       calloc.free(tokens);
@@ -161,9 +230,7 @@ final class LlamaEngine {
     }
     final buf = calloc<Int32>(tokens.length);
     try {
-      for (var i = 0; i < tokens.length; i++) {
-        buf[i] = tokens[i];
-      }
+      buf.asTypedList(tokens.length).setAll(0, tokens);
       var offset = 0;
       while (offset < tokens.length) {
         final n = (tokens.length - offset).clamp(0, batchSize);
@@ -199,27 +266,61 @@ final class LlamaEngine {
   /// Decodes a single [token] (a sampled continuation step).
   void decodeOne(int token) => prefill([token]);
 
-  /// Continuation prefill: tokens `[0, tokensDecoded)` are taken to be
-  /// the sequence's (restored) prefix of [text], and only the remainder
-  /// is decoded. Handles the impossible-reuse case (restored prefix
-  /// longer than the prompt → reset and decode cold — never decode at
-  /// wrong positions) and the exact-cover case (re-decode the tail token:
-  /// logits don't travel with KV state). Returns
-  /// `(promptTokens, reusedTokens)`.
-  (int, int) prefillContinuation(String text) {
+  /// **Validated** state reuse — spec §Consuming steps 4–5 executed
+  /// *before* any restore, then the continuation prefill of
+  /// [promptTokens]'s remainder. This replaces the pre-PV blind-trust
+  /// continuation: reuse is never assumed, it is proven.
+  ///
+  /// Order: [image.engineTag] must equal this engine's [engineTag]
+  /// (state from another build/model would restore garbage even when
+  /// tokenizers agree) → the prompt's leading tokens must equal
+  /// [KvStateImage.tokenIds] exactly (a shorter prompt diverges at its
+  /// end; the exact-cover case re-decodes the tail token because logits
+  /// don't travel with state) → only then is the state at [statePointer]
+  /// handed to the engine and the remainder decoded.
+  ///
+  /// On ANY rejection the sequence is left reset and **cold-decoded from
+  /// [promptTokens]** — the caller always ends up with correct logits,
+  /// and the sealed [KvReuse] says exactly what happened and why.
+  KvReuse continueFromImage({
+    required KvStateImage image,
+    required Pointer<Uint8> statePointer,
+    required Int32List promptTokens,
+  }) {
     _checkLive();
-    final all = tokenize(text);
-    var reused = _tokensDecoded;
-    if (reused > all.length) {
+    reset();
+
+    KvReuse rejectCold(String reason, {int? divergenceIndex}) {
       reset();
-      reused = 0;
+      prefill(promptTokens);
+      return KvReuseRejected(reason, divergenceIndex: divergenceIndex);
     }
-    if (reused == all.length && reused > 0) {
-      dropTail(1);
+
+    if (image.engineTag != engineTag) {
+      return rejectCold('engine-tag-mismatch');
+    }
+    final divergence = image.prefixDivergence(promptTokens);
+    if (divergence != -1) {
+      return rejectCold('prefix-mismatch', divergenceIndex: divergence);
+    }
+    try {
+      importStateFrom(statePointer, image.stateSize);
+    } on LlamaStateIncompatibleException {
+      return rejectCold('engine-rejected-state');
+    }
+    if (_tokensDecoded != image.tokenCount) {
+      // The engine restored something other than what the image declared
+      // — treat as incompatible rather than decode at wrong positions.
+      return rejectCold('engine-rejected-state');
+    }
+
+    var reused = _tokensDecoded;
+    if (reused == promptTokens.length) {
+      dropTail(1); // exact cover: regenerate logits for the tail token
       reused = _tokensDecoded;
     }
-    prefill(all.sublist(_tokensDecoded));
-    return (all.length, reused);
+    prefill(Int32List.sublistView(promptTokens, _tokensDecoded));
+    return KvReuseValidated(reusedTokens: reused);
   }
 
   /// Greedy generation from the current logits — **the** generation loop;
@@ -248,7 +349,7 @@ final class LlamaEngine {
 
   /// Convenience: prefill [prompt] (BOS-prefixed when the sequence is
   /// empty — appends to an existing sequence otherwise, unlike
-  /// [prefillContinuation]'s prefix-reuse semantics), then run
+  /// [continueFromImage]'s validated prefix-reuse semantics), then run
   /// [generateSteps]. Returns the generated text.
   String generateText(String prompt, {int maxTokens = 64}) {
     _checkLive();

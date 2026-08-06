@@ -1,6 +1,7 @@
 import 'package:vaster_mmap/vaster_mmap.dart';
 import 'package:vaster_model/vaster_model.dart';
 
+import 'llama_engine.dart';
 import 'llama_worker.dart';
 
 /// [VasterModel] backed by in-process llama.cpp inference ([LlamaWorker])
@@ -12,16 +13,15 @@ import 'llama_worker.dart';
 /// engine-measured — `cacheReadTokenCount` is the number of prompt tokens
 /// whose decode was skipped because their state came from the frame.
 ///
-/// ### Prefix trust boundary
-/// KV state is positional: reuse assumes the composed prompt's leading
-/// `tokenCount` tokens equal the materialized content's tokens.
-/// [composePrompt] renders stable content (system instruction, earlier
-/// turns) first to keep prefixes byte-identical across calls — the same
-/// convention as the HTTP backend. Token-exact prefix validation arrives
-/// with the ContextMmu wiring (ZC-P5); until then a mismatched hint
-/// produces a wrong-context completion, not a crash, and only if its
-/// fingerprint collides — fingerprints are content hashes, so honest
-/// hints are safe.
+/// ### Reuse is validated, never trusted
+/// KV state is positional, so every reuse attempt runs the KV State
+/// Image spec's consuming steps engine-side — producer identity
+/// (`engineTag`) and token-exact prefix validation — before any state is
+/// restored; every rejection decodes cold. The sealed [KvReuse] outcome
+/// is surfaced in `ModelResponse.rawResponse` under `kvReuse`.
+/// [composePrompt] renders stable content first so materialized prefixes
+/// stay byte-identical across calls; when they drift anyway, validation
+/// catches it with a diagnosable divergence index.
 final class LlamaFfiVasterModel implements VasterModel {
   final LlamaWorker worker;
 
@@ -112,7 +112,7 @@ final class LlamaFfiVasterModel implements VasterModel {
 
     final maxTokens =
         request.generationConfig.maxOutputTokens ?? defaultMaxOutputTokens;
-    final (promptTokens, reusedTokens, text, generatedTokens, hitLimit) =
+    final (promptTokens, reuse, text, generatedTokens, hitLimit) =
         await worker.runGenerate(
             text: prompt, maxTokens: maxTokens, restoreFrame: restoreFrame);
 
@@ -122,9 +122,11 @@ final class LlamaFfiVasterModel implements VasterModel {
       usage: UsageMetadata(
         promptTokenCount: promptTokens,
         candidatesTokenCount: generatedTokens,
-        cacheReadTokenCount: reusedTokens,
+        cacheReadTokenCount:
+            switch (reuse) { KvReuseValidated(:final reusedTokens) => reusedTokens, _ => 0 },
         source: UsageSource.measured,
       ),
+      rawResponse: {'kvReuse': reuse.toJson()},
     );
   }
 
