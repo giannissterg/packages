@@ -16,19 +16,27 @@
   money metered: statically checked, parked durably at an approval gate,
   process killed, resumed from JSON in a fresh VM, artifact written to
   disk. Transcript and findings: [docs/PROVE_IT.md](docs/PROVE_IT.md).
-- **Zero-copy KV state is real and tested.** In-process llama.cpp
-  inference over `dart:ffi` (`--backend llama`) with KV-cache state
-  crossing process boundaries through shared-memory pages: a parked
-  pipeline's pinned prefix resumes in a fresh process **without being
-  re-decoded** (engine-measured), and a warm completion is
-  token-identical to a cold one. Scope stated precisely in
-  [docs/ZERO_COPY.md](docs/ZERO_COPY.md) — same-build state portability,
-  one engine↔buffer copy, honest transport errors.
-- **Honest limits, today:** most validation runs on fake models plus one
-  paid recorded fixture and the small-model llama runs; token estimates
-  are an uncalibrated `len/4`; static cost bounds assume API-shaped calls
-  — agentic CLI backends exceed them (the runtime budget is the enforced
-  defense, and calibration is on the roadmap).
+- **Zero-copy KV state is real, tested, and validated.** In-process
+  llama.cpp inference over `dart:ffi` (`--backend llama`) with KV-cache
+  state crossing process boundaries as **specified binary images**
+  ([docs/specs/KV_STATE_IMAGE.md](docs/specs/KV_STATE_IMAGE.md)):
+  token-exact prefix validation and producer-identity tags decide every
+  reuse — a mismatch decodes cold, never a wrong-context completion. A
+  parked pipeline resumes in a fresh process **without re-decoding its
+  pinned prefix** (engine-measured). Scope stated precisely in
+  [docs/ZERO_COPY.md](docs/ZERO_COPY.md).
+- **Cost bounds are calibrated against measured runs.** Fitted
+  per-backend estimate profiles with visible provenance and sample
+  counts (`vaster_calibration`); `vaster check --backend claude-cli`
+  bounds the prove-it workflow within 1% of its wire-measured cost,
+  where the uncalibrated bound was 2.2× low.
+- **Honest limits, today:** no outside users yet (not on pub.dev);
+  reliability semantics (retry/fallback/idempotency) are not yet declared
+  workflow constructs; most validation runs on fake models plus two paid
+  recorded fixtures and small-model llama runs; calibration profiles are
+  young (the claude-cli overhead factor is a single measured run, and it
+  says so); hosted-provider cache-breakpoint budgeting is not yet
+  modeled.
 - [ROADMAP.md](ROADMAP.md) defines 1.0 as **"the promises are contracts"**
   — everything this README claims, enforced by tests, bounded by
   `vaster check`, measured by `vaster eval`, stable across versions.

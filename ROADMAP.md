@@ -1,7 +1,7 @@
 # Vaster Roadmap
 
-_Last updated: 2026-08-05 (evening), after the stress campaign and the
-extract/actor fixes._
+_Last updated: 2026-08-06, after the zero-copy + prefix-validation +
+calibration arc._
 
 ## Where we are
 
@@ -27,7 +27,18 @@ The kernel is in place, honest, and now battle-tested:
 - **Actors + sealed data**: per-agent mailbox serialization (one session, one
   transcript, one task at a time), sealed `AgentLifecycle` and
   `ExtractOutcome` — failure shapes are data, not silence.
-- **576 tests green**, analyzer clean, 58 workspace packages.
+- **Zero-copy KV state, validated**: real llama.cpp inference over dart:ffi;
+  KV state crosses process boundaries as spec'd binary images
+  (docs/specs/KV_STATE_IMAGE.md — the first frozen format) with
+  token-exact prefix validation and producer-identity tags; a parked
+  pipeline resumes warm ("105 of 381 prompt tokens restored — never
+  re-decoded"). The validation's first live run caught a real VM bug
+  (sessionless prompts dropped pinned context — fixed, contract'd).
+- **Calibrated honesty**: fitted per-backend estimate profiles with
+  provenance and sample counts (vaster_calibration); `vaster check
+  --backend claude-cli` bounds the prove-it workflow at $0.1146 vs its
+  measured $0.1157 — within 1% where the old bound was 2.2x low.
+- **703 tests green**, analyzer clean, 64 workspace packages.
 
 ## Evolution threads (the compounding order)
 
@@ -60,12 +71,14 @@ The kernel is in place, honest, and now battle-tested:
 
 Every remaining weakness is about **evidence and outside contact**, not
 architecture. The machine is proven *correct*; it is not yet proven
-*useful*, and nobody but its authors can use it. Candid gaps:
-almost all validation is fake-model; no published packages/docs/examples;
-the zero-copy claim has no real sidecar; no eval harness (we cannot measure
-task success); estimation still `len/4` (cost bounds inherit it); the
-portability claim has no spec/conformance suite/second runtime; adversarial
-surface lightly probed.
+*useful to anyone else*. Candid gaps as of 2026-08-06: no outside users
+(not on pub.dev — gate 3 untouched); reliability semantics undeclared
+(thread D/5 — real backends fail in kind, we mostly trap); most validation
+still fake-model plus small-model llama runs and two paid recordings; the
+portability claim has one spec + golden fixture (KV State Image) but no
+ISA spec or second runtime; adversarial surface lightly probed; hosted
+cache breakpoint budgeting unmodeled (goal C); claude-cli calibration is
+n=1.
 
 Outward order of attack:
 1. v0.4.0 tag (✅ when this lands).
@@ -115,15 +128,19 @@ The sweep carries the fixture replay and every architectural guard test
 - Agent task cost is rated against the *default* model even when an agent was
   created with a different one; thread the agent's actual model name into the
   dispatch-site charge.
-- `SummarizingCompressor` still sizes its output region with a raw
-  `(len / 4) + 4` at one spot — route it through `TokenEstimate` for
-  consistency.
+- ~~`SummarizingCompressor` raw `(len / 4) + 4`~~ — ✅ routed through
+  `TokenEstimate` (calibration sprint).
 
-### 4. Estimate calibration from recorded fixtures
-`TokenEstimate` is a flat `len / 4`. We now own real recordings with measured
-usage per prompt — enough to fit per-backend chars-per-token ratios (system
-text vs code vs JSON differ materially) and assert estimate error bounds in
-tests. Keeps the honest-fallback path honest.
+### 4. Estimate calibration from recorded fixtures — ✅ delivered 2026-08-06
+`vaster_calibration`: the `TokenEstimator` seam (canonical heuristic
+untouched), fitted profiles as data with provenance (`CalibrationCatalog`),
+a tape fitter (median ratio, implausible samples excluded loudly,
+estimated-source refused), the exact `LlamaTokenEstimator`, and
+`vaster check --backend` composing profiles into cost bounds — the
+prove-it loop closed within 1%. Error bounds asserted in tests; committed
+constants re-derived from the fixture so they cannot rot. Remaining:
+tape v2 records request char counts (prompt-side fitting), grow the
+claude-cli factor beyond n=1.
 
 ### 5. TT-P4: resume from the debugger
 The debugger can inspect and materialize any step; it cannot yet *resume live
@@ -192,7 +209,7 @@ consumes.
 Larger arcs, each a multi-sprint program. Suggested order below, but 2 and 3
 compound with everything and can start incrementally.
 
-### A. Durable execution (continuations that survive the process)
+### A. Durable execution — ✅ delivered (thread 2; see above)
 The natural endgame of what the replay/debugger work started. Machine state is
 already serializable in pieces (registers, callstack snapshot, journal,
 context regions, VBC program). The goal: **suspend any running pipeline to an
@@ -204,7 +221,7 @@ context heap as a first-class checkpoint, VFS snapshot/restore for
 transactional mounts, and a `vaster resume <envelope>` CLI verb. This is the
 feature that makes Vaster a *workflow runtime* rather than a script runner.
 
-### B. Static verification (the compiler earns its name)
+### B. Static verification — ✅ delivered (thread 3; see above), now calibrated
 The program analyzer already does register liveness and session-reference
 checks. Extend it toward real static guarantees:
 - **Typed dataflow checking**: every `Binding` read has a dominating write
@@ -218,7 +235,12 @@ checks. Extend it toward real static guarantees:
 A `vaster check` CLI verb surfacing all three would be the differentiator no
 prompt-orchestration framework has.
 
-### C. Cache-aware context planning
+### C. Cache-aware context planning — substrate landed 2026-08-06
+First steps shipped with the PV sprint: the ContextMmu is wired into
+production (renderer-pluggable, MmuStats), KV reuse is token-exact
+validated, and calibration prices tokens per backend. What remains IS
+this goal: breakpoint placement against provider rules, and the
+compactor's eviction-vs-cached-prefix cost function.
 We measure cache hits (87.9% on the SDD run) but do not *plan* for them. The
 context-class system knows what is stable (`cacheStable`, pinned regions,
 band ordering); the cache-hint tracker knows what got pinned. Close the loop:
@@ -238,7 +260,7 @@ belongs in the AST surface (`Resilient(child:, retries:, fallback:)` is
 already sketched in the NEST-vs-SEQUENCE doc) and lowers to ISA the runtime
 enforces.
 
-### E. Multi-run evaluation harness
+### E. Multi-run evaluation harness — ✅ delivered (vaster_eval; see above)
 Replay gave us determinism for one run; the next level is *comparing* runs.
 An eval package that executes a pipeline N times (or across backends/prompt
 variants), scores outputs (model-graded or programmatic), and reports
@@ -292,15 +314,16 @@ claims is enforced by a test, bounded by `vaster check`, measured by
    Gate: a benchmark set of workflows with PUBLISHED eval success rates and
    costs on ≥2 real backends, run in CI on recorded tapes and periodically
    live.
-5. **The bold claim redeemed or cut.** The llama.cpp sidecar moves real KV
-   state over the shm substrate end-to-end — or zero-copy is explicitly
-   descoped from 1.0 marketing. No skeleton claims in a 1.0.
+5. **The bold claim redeemed or cut.** ✅ REDEEMED (thread 4 + PV): real KV
+   state moves engine → shared pages → engine as spec'd, validated images;
+   warm resume measured live. Gate residue for 1.0: keep the transcripts
+   reproducible and the format spec frozen.
 6. **Hardened surface.** Fuzzed VBC decoder, an interpolation-injection
    suite beyond the single lock test, and a sandbox isolation audit.
-7. **Operational completeness.** TT-P4 debugger resume, OTel export,
-   per-backend calibrated estimates (including the CLI-agentic overhead
-   factor the prove-it run measured), and eval auto-respond for gated
-   pipelines.
+7. **Operational completeness.** TT-P4 debugger resume, OTel export, and
+   eval auto-respond for gated pipelines. (Per-backend calibrated
+   estimates incl. the CLI-agentic overhead factor: ✅ shipped
+   2026-08-06.)
 
 Everything else — distribution, multi-node, cache planning beyond
 measurement — is explicitly post-1.0.

@@ -18,7 +18,7 @@ the host exists; nothing right of a boundary imports leftward.
 ┌───────────────▼──────────────┐  ┌───────────────────────────────────┐
 │ FRONTEND (Dart-coupled)      │  │ VERIFICATION & MEASUREMENT        │
 │ vaster_ast · vaster_domain   │  │ vaster_check · vaster_eval        │
-│ vaster_compiler              │  │ vaster_debug (over envelopes)     │
+│ vaster_compiler              │  │ vaster_calibration · vaster_debug │
 └───────────────┬──────────────┘  └───────────────────────────────────┘
                 │ compiles to (never imported by anything below: Rule 1)
 ┌───────────────▼──────────────────────────────────────────────────────┐
@@ -97,6 +97,7 @@ miss, respectively.
 | machine state completeness (Rule 8) | checkpoint-anywhere gauntlet |
 | SPSC/publication order (Rule 9) | cross-isolate parallel stress tests |
 | format byte-compatibility | golden fixtures (`kv_state_image_test`) |
+| calibration constants match the data | refit-from-fixture + error-bound tests (`calibration_test`) |
 | compiler+runtime+metering vs reality | committed replay fixture (zero-cost) |
 | README quickstart honesty | `readme_quickstart_check` mirror |
 
