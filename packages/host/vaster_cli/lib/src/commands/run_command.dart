@@ -168,11 +168,9 @@ class RunCommand extends VasterCommand {
     // Deterministic replay: answer every model call from a recorded tape.
     final replayPath = results['replay'] as String?;
     if (replayPath != null) {
-      final envelope = jsonDecode(File(replayPath).readAsStringSync())
-          as Map<String, dynamic>;
-      model = ReplayVasterModel(
-          tape: ModelTape.fromJson(
-              Map<String, dynamic>.from(envelope['modelTape'] as Map? ?? {})));
+      final envelope = const ReplayEnvelopeCodec()
+          .decodeString(File(replayPath).readAsStringSync());
+      model = ReplayVasterModel(tape: envelope.tape);
     }
 
     // Recording: capture model I/O onto a tape alongside the step journal.
@@ -306,13 +304,13 @@ class RunCommand extends VasterCommand {
       // The replay envelope: step journal + model I/O tape together are a
       // complete, deterministic re-execution recipe (`--replay <file>`).
       File(recordPath).writeAsStringSync(
-          const JsonEncoder.withIndent('  ').convert({
-        // The program makes the envelope self-contained for `vaster debug`
-        // (older envelopes lack it and need --program).
-        'program': program.toJson(),
-        'journal': recorder.journal.toJson(),
-        'modelTape': recordingTape?.toJson() ?? ModelTape().toJson(),
-      }));
+          const JsonEncoder.withIndent('  ')
+              .convert(const ReplayEnvelopeCodec().encode(
+        // The program makes the envelope self-contained for `vaster debug`.
+        programJson: program.toJson(),
+        journalJson: recorder.journal.toJson(),
+        tape: recordingTape ?? ModelTape(),
+      )));
       out.writeln('\n[record] ${recorder.recordedSteps} steps + '
           '${recordingTape?.length ?? 0} model calls → $recordPath');
     }

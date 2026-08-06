@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 import 'package:vaster_vm/vaster_vm.dart';
 
@@ -19,11 +18,15 @@ class DebugEnvelope {
 
   /// Parses an envelope JSON string. Envelopes recorded before the program
   /// was embedded need [programOverride] (from `--program`).
+  ///
+  /// Envelope parsing itself is the codec's — one owner
+  /// (`ReplayEnvelopeCodec`, spec REPLAY_ENVELOPE.md); this factory only
+  /// adds the debugger's program-hydration concern.
   factory DebugEnvelope.parse(String json, {VasterProgram? programOverride}) {
-    final map = jsonDecode(json) as Map<String, dynamic>;
-    final embedded = map['program'] != null
-        ? VasterProgram.fromJson(Map<String, dynamic>.from(map['program'] as Map))
-        : null;
+    final envelope = const ReplayEnvelopeCodec().decodeString(json);
+    final embedded = envelope.programJson == null
+        ? null
+        : VasterProgram.fromJson(envelope.programJson!);
     final program = programOverride ?? embedded;
     if (program == null) {
       throw StateError(
@@ -32,10 +35,8 @@ class DebugEnvelope {
     }
     return DebugEnvelope(
       program: program,
-      journal: VasterExecutionJournal.fromJson(
-          Map<String, dynamic>.from(map['journal'] as Map? ?? {'frames': []})),
-      tape: ModelTape.fromJson(
-          Map<String, dynamic>.from(map['modelTape'] as Map? ?? {})),
+      journal: envelope.journal,
+      tape: envelope.tape,
     );
   }
 }

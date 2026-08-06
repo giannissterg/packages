@@ -37,7 +37,11 @@ final class ModelTape {
 
   int get length => entries.length;
 
+  /// Tape format version written by this implementation (spec v2).
+  static const int formatVersion = 2;
+
   Map<String, dynamic> toJson() => {
+        'version': formatVersion,
         if (recordedModelName != null) 'recordedModelName': recordedModelName,
         if (recordedCapabilities != null)
           'recordedCapabilities': recordedCapabilities!.toJson(),
@@ -81,12 +85,36 @@ final class ModelTape {
   }
 }
 
+/// What a tape entry recorded about its request — sealed so every
+/// consumer must handle preview-only v1 entries explicitly (features
+/// needing full requests degrade by NAMING the limitation, per the spec).
+sealed class RecordedRequest {
+  const RecordedRequest();
+}
+
+/// v1 recording: only the human-readable excerpt survives.
+final class PreviewOnlyRequest extends RecordedRequest {
+  const PreviewOnlyRequest();
+}
+
+/// v2 recording: the complete `ModelRequest.toJson()`.
+final class FullRecordedRequest extends RecordedRequest {
+  final Map<String, dynamic> requestJson;
+  const FullRecordedRequest(this.requestJson);
+
+  ModelRequest toRequest() => ModelRequest.fromJson(requestJson);
+}
+
 /// One recorded request/response pair.
 final class ModelTapeEntry {
   final String fingerprint;
 
-  /// Human-readable request excerpt for divergence diagnostics.
+  /// Human-readable request excerpt (kept in v2 for logs).
   final String requestPreview;
+
+  /// The recorded request — [FullRecordedRequest] on v2 tapes,
+  /// [PreviewOnlyRequest] on v1.
+  final RecordedRequest recorded;
 
   final Map<String, dynamic> responseJson;
 
@@ -94,20 +122,60 @@ final class ModelTapeEntry {
     required this.fingerprint,
     required this.requestPreview,
     required this.responseJson,
+    this.recorded = const PreviewOnlyRequest(),
   });
 
   Map<String, dynamic> toJson() => {
         'fingerprint': fingerprint,
         'requestPreview': requestPreview,
+        if (recorded case FullRecordedRequest(:final requestJson))
+          'request': requestJson,
         'response': responseJson,
       };
 
   factory ModelTapeEntry.fromJson(Map<String, dynamic> json) => ModelTapeEntry(
         fingerprint: json['fingerprint'] as String? ?? '',
         requestPreview: json['requestPreview'] as String? ?? '',
+        recorded: json['request'] is Map
+            ? FullRecordedRequest(
+                Map<String, dynamic>.from(json['request'] as Map))
+            : const PreviewOnlyRequest(),
         responseJson:
             Map<String, dynamic>.from(json['response'] as Map? ?? {}),
       );
+}
+
+/// A replayed run's request had no unconsumed fingerprint match — the
+/// regression signal, as typed data (spec §Divergence): the live request,
+/// how many calls were already served, and the unconsumed candidates.
+final class TapeDivergenceException implements Exception {
+  final ModelRequest liveRequest;
+  final String liveFingerprint;
+
+  /// Calls served from the tape before this one (the positional index a
+  /// diff report aligns against).
+  final int callIndex;
+
+  /// Unconsumed entries as (tape index, entry).
+  final List<(int, ModelTapeEntry)> unconsumed;
+
+  const TapeDivergenceException({
+    required this.liveRequest,
+    required this.liveFingerprint,
+    required this.callIndex,
+    required this.unconsumed,
+  });
+
+  @override
+  String toString() {
+    final pending = [
+      for (final (i, e) in unconsumed) '  [$i] ${e.requestPreview}',
+    ];
+    return 'Replay diverged at call #$callIndex: no recorded response '
+        'matches this request.\n'
+        'Request: ${_preview(liveRequest)}\n'
+        'Unconsumed tape entries (${pending.length}):\n${pending.join('\n')}';
+  }
 }
 
 String _preview(ModelRequest request) {
@@ -143,6 +211,9 @@ final class RecordingVasterModel implements VasterModel {
     tape.entries.add(ModelTapeEntry(
       fingerprint: ModelTape.fingerprintOf(request),
       requestPreview: _preview(request),
+      // v2: the full request rides the tape — the substrate for
+      // divergence diffing and prompt-side calibration.
+      recorded: FullRecordedRequest(request.toJson()),
       responseJson: response.toJson(),
     ));
     return response;
@@ -195,15 +266,15 @@ final class ReplayVasterModel implements VasterModel {
         return ModelResponse.fromJson(tape.entries[i].responseJson);
       }
     }
-    final unmatched = _preview(request);
-    final pending = [
-      for (var i = 0; i < tape.entries.length; i++)
-        if (!_consumed.contains(i)) '  [$i] ${tape.entries[i].requestPreview}',
-    ];
-    throw StateError(
-        'Replay diverged: no recorded response matches this request.\n'
-        'Request: $unmatched\n'
-        'Unconsumed tape entries (${pending.length}):\n${pending.join('\n')}');
+    throw TapeDivergenceException(
+      liveRequest: request,
+      liveFingerprint: fingerprint,
+      callIndex: _consumed.length,
+      unconsumed: [
+        for (var i = 0; i < tape.entries.length; i++)
+          if (!_consumed.contains(i)) (i, tape.entries[i]),
+      ],
+    );
   }
 
   @override

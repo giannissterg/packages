@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
@@ -12,14 +11,11 @@ import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 /// bounds are ASSERTED — including the claim that calibration beats the
 /// flat heuristic on the very data it was fitted from.
 void main() {
-  ModelTape fixtureTape() {
-    final envelope = jsonDecode(File(
-                '../../host/vaster_playground/test/fixtures/sdd_fidelity.replay.json')
-            .readAsStringSync())
-        as Map<String, dynamic>;
-    return ModelTape.fromJson(
-        Map<String, dynamic>.from(envelope['modelTape'] as Map));
-  }
+  ModelTape fixtureTape() => const ReplayEnvelopeCodec()
+      .decodeString(File(
+              '../../host/vaster_playground/test/fixtures/sdd_fidelity.replay.json')
+          .readAsStringSync())
+      .tape;
 
   group('TapeCalibrationFitter on the committed fixture', () {
     late CalibrationFit fit;

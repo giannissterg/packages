@@ -165,7 +165,8 @@ void main() {
     expect((await replay.generate(request)).text, equals('second answer'));
   });
 
-  test('a diverged run fails fast, naming the unmatched request', () async {
+  test('a diverged run fails fast — as typed data, not a message string',
+      () async {
     final live = FakeVasterModel(defaultResponseText: 'recorded output');
     final tape = ModelTape();
     final (_, vm1) =
@@ -176,12 +177,44 @@ void main() {
     await expectLater(
       replay.generate(ModelRequest(
           messages: [ChatMessage.user('a request that never happened')])),
-      throwsA(isA<StateError>().having(
-        (e) => e.message,
-        'message',
-        allOf(contains('Replay diverged'),
-            contains('a request that never happened')),
-      )),
+      throwsA(isA<TapeDivergenceException>()
+          .having((e) => e.callIndex, 'callIndex', 0)
+          .having((e) => e.liveRequest.messages.single.text, 'live request',
+              'a request that never happened')
+          .having((e) => e.unconsumed, 'unconsumed', isNotEmpty)
+          .having((e) => e.toString(), 'rendering',
+              contains('Replay diverged'))),
     );
+  });
+
+  test('v2 recording carries the full request; v1 entries read as '
+      'preview-only', () async {
+    final live = FakeVasterModel(defaultResponseText: 'recorded output');
+    final tape = ModelTape();
+    final (_, vm) = await run(RecordingVasterModel(inner: live, tape: tape));
+    await vm.shutdown();
+
+    // Recording is v2: every entry carries the full request.
+    for (final entry in tape.entries) {
+      final recorded = entry.recorded;
+      expect(recorded, isA<FullRecordedRequest>());
+      final hydrated = (recorded as FullRecordedRequest).toRequest();
+      expect(hydrated.messages, isNotEmpty);
+    }
+    expect(tape.toJson()['version'], ModelTape.formatVersion);
+
+    // A v1 round-trip (no `request` field) degrades to preview-only —
+    // the sealed type forces consumers to handle it.
+    final v1Json = tape.toJson();
+    for (final e in (v1Json['entries'] as List)) {
+      (e as Map).remove('request');
+    }
+    final v1 = ModelTape.fromJson(Map<String, dynamic>.from(v1Json));
+    expect(v1.entries.first.recorded, isA<PreviewOnlyRequest>());
+    // …and still replays: fingerprints are the cross-version contract.
+    final replay = ReplayVasterModel(tape: v1);
+    final (_, vm2) = await run(replay);
+    await vm2.shutdown();
+    expect(replay.remaining, 0, reason: 'v1 tape fully consumed');
   });
 }
