@@ -20,3 +20,4 @@ library;
 export 'src/in_memory_kv_cache_controller.dart';
 export 'src/kv_cache_controller.dart';
 export 'src/kv_cache_handle.dart';
+export 'src/kv_state_image.dart';

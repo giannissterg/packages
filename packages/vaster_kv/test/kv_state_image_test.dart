@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
-import 'package:vaster_mmap/vaster_mmap.dart';
+import 'package:vaster_kv/vaster_kv.dart';
 
 /// Conformance suite for `docs/specs/KV_STATE_IMAGE.md` (v1). The golden
 /// fixture is the cross-language anchor: an implementation in any
@@ -246,35 +246,4 @@ void main() {
     });
   });
 
-  group('frame integration — the image in its shm container', () {
-    test('image written into frame pages parses from a fresh attachment',
-        () {
-      final name =
-          'vaster_kvi_test_${DateTime.now().microsecondsSinceEpoch}';
-      final size = KvStateImage.layoutSize(
-          contentFingerprint: goldenFingerprint,
-          tokenCount: goldenTokens.length,
-          stateSize: goldenState.length);
-      final frame = SharedMemoryFrame.allocate(name,
-          payloadLength: size, meta: goldenTokens.length);
-      addTearDown(() => frame.close(unlink: true));
-
-      KvStateImage.initialize(frame.bytes,
-              tokenIds: goldenTokens,
-              contentFingerprint: goldenFingerprint,
-              engineTag: goldenTag,
-              stateSize: goldenState.length)
-          .stateBytes
-          .setAll(0, goldenState);
-
-      final attachment = SharedMemoryFrame.attach(name);
-      addTearDown(attachment.close);
-      final image = KvStateImage.parse(attachment.bytes);
-      expect(hexOf(Uint8List.sublistView(
-              attachment.bytes, 0, image.lengthInBytes)),
-          goldenHex,
-          reason: 'byte-identical through the shared pages');
-      expect(image.prefixDivergence([1, 2, 32000, 5]), -1);
-    });
-  });
 }

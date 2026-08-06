@@ -1,8 +1,10 @@
 # KV State Image — format specification, version 1
 
 _Status: normative. The reference codec is `KvStateImage` in
-`vaster_mmap`; the golden-bytes fixture in
-`packages/vaster_mmap/test/kv_state_image_test.dart` is the conformance
+`vaster_kv` (the KV contracts leaf — the format is container-agnostic,
+so it lives with the contracts, not with any transport); the
+golden-bytes fixture in
+`packages/vaster_kv/test/kv_state_image_test.dart` is the conformance
 anchor — an implementation in any language must produce and parse those
 exact bytes._
 

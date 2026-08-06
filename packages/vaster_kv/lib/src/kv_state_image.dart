@@ -62,11 +62,8 @@ final class KvStateImage {
 
   final int _fingerprintLength;
 
-  KvStateImage._(this._bytes, this._data,
-      {required this.tokenCount,
-      required this.stateSize,
-      required int fingerprintLength})
-      : _fingerprintLength = fingerprintLength;
+  KvStateImage._(this._bytes, this._data, this._fingerprintLength,
+      {required this.tokenCount, required this.stateSize});
 
   // ── Layout arithmetic (spec §Layout) ────────────────────────────────
 
@@ -209,10 +206,8 @@ final class KvStateImage {
       }
     }
 
-    return KvStateImage._(bytes, data,
-        tokenCount: tokenCount,
-        stateSize: stateSize,
-        fingerprintLength: fingerprintLength);
+    return KvStateImage._(bytes, data, fingerprintLength,
+        tokenCount: tokenCount, stateSize: stateSize);
   }
 
   static void _checkAlignment(Uint8List bytes) {

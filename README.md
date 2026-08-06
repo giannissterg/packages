@@ -247,8 +247,10 @@ The map, by layer: **frontend** `vaster_ast`, `vaster_domain`,
 measurement** `vaster_check`, `vaster_eval` · **subsystems** sessions,
 context, agents, tools, sandboxes, filesystems, policy, budget, events,
 metering, pricing, token estimation · **backends** `vaster_model_*` ·
-**CLI** `vaster_cli` · **examples** `vaster_playground`. Architectural
-law lives in [rules.md](rules.md).
+**CLI** `vaster_cli` · **examples** `vaster_playground`. The full map —
+layers, the placement law applied, and which tests enforce which
+boundaries — is [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md);
+architectural law lives in [rules.md](rules.md).
 
 ## License
 
