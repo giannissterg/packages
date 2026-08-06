@@ -5,32 +5,44 @@ import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 import 'package:vaster_vm_api/vaster_vm_api.dart';
 
+import 'decision_outcome.dart';
+
 /// Resolves one [DecideOp] decision: asks the model to choose among labeled
-/// branches and returns the parsed outcome.
+/// branches and returns the parsed [DecisionOutcome].
 ///
 /// This is model-orchestration concern, not instruction dispatch — the same
 /// separation as [ToolCallOrchestrator]. The arbiter owns its collaborators at
-/// construction (VM, budget); everything on [decide] is genuinely
-/// per-invocation state (active model, session, cache hints, and the branch
-/// menu). It deliberately never sees program counters: branch *labels* go in,
-/// a chosen label comes out, and the engine owns the control transfer.
+/// construction — and holds exactly what its contract uses: the VM's
+/// [PromptFunnel] facet (it converses with the model; it cannot mount
+/// filesystems or shut the VM down, and now its type says so), the metering
+/// pipeline, and the default model metering falls back to. Everything on
+/// [decide] is genuinely per-invocation state (active model, session, cache
+/// hints, and the branch menu). It deliberately never sees program counters:
+/// branch *labels* go in, a sealed outcome comes out, and the engine owns the
+/// control transfer.
 ///
 /// Routing through the active session appends the decision turn to the
 /// session's history — intentional, so the agent remembers what it chose and
 /// why on subsequent turns.
 final class DecisionArbiter {
-  final VasterVirtualMachine vm;
+  /// The VM's model-turn facet — the only VM capability this component needs.
+  final PromptFunnel funnel;
 
   /// The runtime's shared metering pipeline (host budget + program quota).
   final ModelCallMeter meter;
 
-  const DecisionArbiter({required this.vm, required this.meter});
+  /// Attribution fallback when no active model is passed and the response
+  /// carries no serving-model stamp.
+  final VasterModel defaultModel;
+
+  const DecisionArbiter({
+    required this.funnel,
+    required this.meter,
+    required this.defaultModel,
+  });
 
   /// Asks the model to pick one of [branches] for [prompt].
-  ///
-  /// Returns the chosen `label` (null when the answer resolved to no branch
-  /// label) and the model's `rationale` when it provided one.
-  Future<({String? label, String? rationale})> decide({
+  Future<DecisionOutcome> decide({
     required String prompt,
     required List<({String label, String description})> branches,
     VasterModel? model,
@@ -56,20 +68,21 @@ final class DecisionArbiter {
     final config = GenerationConfig(responseSchema: schema);
 
     final response = sessionId != null
-        ? await vm.promptInSession(
+        ? await funnel.promptInSession(
             sessionId,
             composed,
             model: model,
             config: config,
             cacheHints: cacheHints,
           )
-        : await vm.prompt(composed, model: model, config: config, cacheHints: cacheHints);
+        : await funnel.prompt(composed,
+            model: model, config: config, cacheHints: cacheHints);
 
     meter.charge(
       usage: response.usage.totalTokenCount > 0
           ? response.usage
           : TokenEstimate.forExchange(prompt: composed, output: response.text),
-      modelName: response.servedBy ?? (model ?? vm.config.defaultModel).modelName,
+      modelName: response.servedBy ?? (model ?? defaultModel).modelName,
       callSite: 'isa_decide',
     );
 
@@ -78,7 +91,9 @@ final class DecisionArbiter {
 
   /// Tolerant outcome parsing: strip markdown fences → JSON `choice` →
   /// bare-label fallback. Labels match exact-first, then case-insensitively.
-  ({String? label, String? rationale}) _parse(String text, List<String> labels) {
+  /// An answer matching no label is [DecisionUnresolved] carrying the raw
+  /// text — the engine decides whether a default branch absorbs it.
+  DecisionOutcome _parse(String text, List<String> labels) {
     var body = text.trim();
     if (body.startsWith('```')) {
       final lines = body.split('\n');
@@ -104,12 +119,17 @@ final class DecisionArbiter {
       choice = body;
     }
 
-    if (choice == null) return (label: null, rationale: rationale);
-    if (labels.contains(choice)) return (label: choice, rationale: rationale);
-    final lower = choice.toLowerCase().trim();
-    for (final label in labels) {
-      if (label.toLowerCase() == lower) return (label: label, rationale: rationale);
+    if (choice != null) {
+      if (labels.contains(choice)) {
+        return DecisionChosen(label: choice, rationale: rationale);
+      }
+      final lower = choice.toLowerCase().trim();
+      for (final label in labels) {
+        if (label.toLowerCase() == lower) {
+          return DecisionChosen(label: label, rationale: rationale);
+        }
+      }
     }
-    return (label: null, rationale: rationale);
+    return DecisionUnresolved(rawAnswer: text, rationale: rationale);
   }
 }

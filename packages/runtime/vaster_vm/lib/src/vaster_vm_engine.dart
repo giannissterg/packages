@@ -208,7 +208,7 @@ class VasterVMEngine implements VasterVirtualMachine {
         },
         'required': ['path', 'content'],
       },
-      handler: (args) => VfsSyscalls.writeFile(vm, args),
+      handler: (args) => VfsSyscalls.writeFile(vm.fileSystemManager, args),
     ));
     vm.registerTool(FunctionTool.define(
       name: VfsSyscalls.readFileName,
@@ -220,7 +220,7 @@ class VasterVMEngine implements VasterVirtualMachine {
         },
         'required': ['path'],
       },
-      handler: (args) => VfsSyscalls.readFile(vm, args),
+      handler: (args) => VfsSyscalls.readFile(vm.fileSystemManager, args),
     ));
 
     return vm;

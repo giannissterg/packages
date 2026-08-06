@@ -2,9 +2,7 @@ import 'package:vaster_agent_manager/vaster_agent_manager.dart';
 import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
 import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
-import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_filesystem/vaster_filesystem.dart';
-import 'package:vaster_filesystem_manager/vaster_filesystem_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 import 'package:vaster_resources/vaster_resources.dart';
@@ -13,10 +11,19 @@ import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 import 'model_registry.dart';
+import 'prompt_funnel.dart';
+import 'tool_loop_host.dart';
 import 'vm_config.dart';
 
 /// Master interface defining the top-level LLM Virtual Machine.
-abstract interface class VasterVirtualMachine {
+///
+/// Capability facets carve narrow views out of this master interface:
+/// [PromptFunnel] (the model-turn verbs) and [ToolLoopHost] (what the
+/// runtime's tool loop needs). Collaborators with a bounded job depend on
+/// a facet, not on this master one — the type then documents what the
+/// component can actually do.
+abstract interface class VasterVirtualMachine
+    implements PromptFunnel, ToolLoopHost {
   /// VM configuration settings.
   VMConfig get config;
 
@@ -30,20 +37,11 @@ abstract interface class VasterVirtualMachine {
   /// inspect, add, remove, update, prioritize, pin, compress, expand.
   ContextWorkspace get contextWorkspace;
 
-  /// Active Virtual Filesystem Manager.
-  FileSystemManager get fileSystemManager;
-
-  /// Active Executable Tool Manager.
-  ToolManager get toolManager;
-
   /// Active Code Sandbox Manager.
   SandboxManager get sandboxManager;
 
   /// Active Multi-Agent Supervisor Manager.
   AgentManager get agentManager;
-
-  /// Active Telemetry Event Bus.
-  RuntimeEventBus get eventBus;
 
   /// Active Inter-Agent Messaging Hub.
   AgentMessagingHub get messagingHub;
@@ -66,25 +64,6 @@ abstract interface class VasterVirtualMachine {
   /// Registers a concrete [VasterModel] for a given [ModelDescriptor].
   void registerModel(ModelDescriptor descriptor, VasterModel model);
 
-  /// Direct (sessionless) model prompt turn.
-  ///
-  /// **Contract — compiled context**: the request carries the VM's
-  /// compiled global context ahead of the turn text: pinned/admitted
-  /// regions become leading messages, system-class regions become the
-  /// system instruction, with the same token-budget shape as the session
-  /// path. With no regions installed the request is exactly the turn
-  /// text. The call is a turn boundary: ephemeral-lifetime regions are
-  /// pruned after it. Implementations MUST preserve this — a sessionless
-  /// prompt that drops pinned context regressed silently once (caught by
-  /// KV token-exact prefix validation) and must never do so again.
-  Future<ModelResponse> prompt(
-    String promptText, {
-    VasterModel? model,
-    GenerationConfig? config,
-    CancellationToken? cancelToken,
-    List<ContextCacheHint>? cacheHints,
-  });
-
   /// Creates a new model session in [sessionManager].
   ///
   /// **Contract — layered context**: the session's manager layers a
@@ -95,43 +74,6 @@ abstract interface class VasterVirtualMachine {
   Future<ModelSession> createSession({
     required String sessionId,
     ModelDescriptor? modelDescriptor,
-  });
-
-  /// Session-aware prompt turn routing through [sessionId]'s turn history
-  /// and layered context (see [createSession]'s contract).
-  Future<ModelResponse> promptInSession(
-    String sessionId,
-    String promptText, {
-    VasterModel? model,
-    GenerationConfig? config,
-    CancellationToken? cancelToken,
-    List<ContextCacheHint>? cacheHints,
-  });
-
-  /// Typed continuation turn: sends a full message transcript (including
-  /// `tool_use` / `tool_result` parts) plus tool definitions to the model.
-  /// This is the ABI-preserving path used by the runtime's tool-calling loop.
-  ///
-  /// Carries the compiled global context ahead of [messages] and prunes
-  /// ephemeral regions after the turn — the same sessionless contract as
-  /// [prompt].
-  Future<ModelResponse> promptWithHistory(
-    List<ChatMessage> messages, {
-    VasterModel? model,
-    List<ToolDefinition>? tools,
-    GenerationConfig? config,
-    CancellationToken? cancelToken,
-    List<ContextCacheHint>? cacheHints,
-  });
-
-  /// Direct model prompt streaming — the same sessionless compiled-context
-  /// and turn-boundary contract as [prompt].
-  Stream<ModelResponseChunk> promptStream(
-    String promptText, {
-    VasterModel? model,
-    GenerationConfig? config,
-    CancellationToken? cancelToken,
-    List<ContextCacheHint>? cacheHints,
   });
 
   /// Mounts a filesystem backend into [fileSystemManager] and bridges files to context.

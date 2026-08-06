@@ -22,6 +22,7 @@ import 'cache_hint_tracker.dart';
 import 'call_stack.dart';
 import 'agent_task_exception.dart';
 import 'decision_arbiter.dart';
+import 'decision_outcome.dart';
 import 'extract_outcome.dart';
 import 'hitl_controller.dart';
 import 'machine_context.dart';
@@ -72,7 +73,7 @@ class VasterRuntime {
   final RegisterFile _registers;
   final CallStack _callStack = CallStack();
   final CacheHintTracker _cacheHints = CacheHintTracker();
-  final HitlController _hitl = HitlController();
+  final HitlController _hitl;
 
   /// Enforces the quota the *program itself* declares via [SetQuotaOp]
   /// (compiled from `BudgetScope`), as opposed to [budget], which is the
@@ -218,15 +219,24 @@ class VasterRuntime {
       quotaTracker,
       policyGuard,
       meter,
+      // Collaborators hold the narrowest VM facet their job needs — the
+      // runtime is the only component programming against the master
+      // interface.
       ToolCallOrchestrator(
-        vm: vm,
+        host: vm,
         meter: meter,
+        defaultModel: vm.config.defaultModel,
         quotaTracker: quotaTracker,
         guard: policyGuard,
         maxIterations: maxToolIterations,
       ),
-      DecisionArbiter(vm: vm, meter: meter),
+      DecisionArbiter(
+        funnel: vm,
+        meter: meter,
+        defaultModel: vm.config.defaultModel,
+      ),
       RegisterInterpolator(registers: registers),
+      HitlController(eventBus: vm.eventBus),
     );
   }
 
@@ -241,6 +251,7 @@ class VasterRuntime {
     this._toolOrchestrator,
     this._decisionArbiter,
     this._interpolator,
+    this._hitl,
   );
 
   /// The machine's sealed execution phase (pauses carry their request,
@@ -967,7 +978,7 @@ class VasterRuntime {
                 timeoutMs: op.request.timeoutMs,
               )
             : op.request;
-        _hitl.pause(request: request, eventBus: vm.eventBus, currentPc: _pc);
+        _hitl.pause(request: request, currentPc: _pc);
         _phase = PhasePausedForHuman(request: request);
 
       // ── Control flow ──────────────────────────────────────────────────────
@@ -1007,7 +1018,7 @@ class VasterRuntime {
         if (op.branches.isEmpty) {
           throw StateError('DecideOp at PC $_pc has no branches.');
         }
-        final outcome = await _decisionArbiter.decide(
+        final decision = await _decisionArbiter.decide(
           prompt: _interp(op.prompt),
           branches: [
             for (final b in op.branches)
@@ -1017,7 +1028,12 @@ class VasterRuntime {
           sessionId: _activeSessionId,
           cacheHints: _cacheHints.activeHints,
         );
-        final chosenLabel = outcome.label ?? op.defaultLabel;
+        // Exhaustive over the sealed outcome: a chosen label routes, an
+        // unresolved answer routes to the declared default.
+        final chosenLabel = switch (decision) {
+          DecisionChosen(:final label) => label,
+          DecisionUnresolved() => op.defaultLabel,
+        };
         DecisionBranch? branch;
         for (final b in op.branches) {
           if (b.label == chosenLabel) {
@@ -1026,25 +1042,31 @@ class VasterRuntime {
           }
         }
         if (branch == null) {
+          // Only reachable via DecisionUnresolved with a missing/invalid
+          // default — and the trap can finally say what the model answered.
+          final rawAnswer = switch (decision) {
+            DecisionUnresolved(:final rawAnswer) => rawAnswer,
+            DecisionChosen(:final label) => label,
+          };
           throw StateError(
-              'DecideOp at PC $_pc: model output did not resolve to a branch '
-              'label (${op.branches.map((b) => b.label).join(', ')}) and no '
-              'valid defaultLabel is set.');
+              'DecideOp at PC $_pc: model answer "$rawAnswer" resolved to no '
+              'branch label (${op.branches.map((b) => b.label).join(', ')}) '
+              'and no valid defaultLabel is set.');
         }
         if (op.outputVar != null) {
           _registers.write(op.outputVar!, branch.label);
-          if (outcome.rationale != null) {
+          if (decision.rationale != null) {
             _registers.write(
-                decideRationaleRegister(op.outputVar!), outcome.rationale);
+                decideRationaleRegister(op.outputVar!), decision.rationale);
           }
         }
         vm.eventBus.publish(DecisionMadeEvent(
           eventId: 'evt_decide_$_pc',
           chosenLabel: branch.label,
-          rationale: outcome.rationale,
+          rationale: decision.rationale,
           branchCount: op.branches.length,
           targetPc: branch.targetPc,
-          usedDefault: outcome.label == null,
+          usedDefault: decision is DecisionUnresolved,
         ));
         _pc = branch.targetPc - 1;
 

@@ -7,6 +7,8 @@
 library;
 
 export 'src/model_registry.dart';
+export 'src/prompt_funnel.dart';
+export 'src/tool_loop_host.dart';
 export 'src/vaster_vm_interface.dart';
 export 'src/vfs_syscalls.dart';
 export 'src/vm_config.dart';

@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **BREAKING**: collaborators hold VM facets, not the VM (ISP) —
+  `DecisionArbiter(funnel:, meter:, defaultModel:)` takes the
+  `PromptFunnel`; `ToolCallOrchestrator(host:, …, defaultModel:)` takes the
+  `ToolLoopHost`. The runtime engine remains the only component programming
+  against the master `VasterVirtualMachine` interface.
+- **BREAKING**: `DecisionArbiter.decide` returns a sealed `DecisionOutcome`
+  (`DecisionChosen` / `DecisionUnresolved`) instead of a
+  `({String? label, String? rationale})` record whose null label secretly
+  meant "use the default". The unresolved variant carries the model's raw
+  answer, so the no-default trap now says WHAT the model said.
+- `HitlController` owns its event bus at construction (Rule 5) —
+  `pause(request:, currentPc:)` no longer takes a per-invocation bus.
 - Model fallback chains are runtime-enforced (REL-P3): `SelectModelOp`
   fallbacks land in `MachineContext.activeModelFallbacks` (componentized
   state — checkpoint/resume covered by the gauntlet), and the active model

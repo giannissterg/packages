@@ -15,6 +15,13 @@ import 'runtime_status.dart';
 /// mutation logic across [executeProgram], [resumeWithHumanResponse],
 /// and [restoreAndResume].
 class HitlController implements MachineStateComponent {
+  /// The bus HITL pause events publish on — owned for the controller's
+  /// lifetime (Rule 5: an owned concern is a constructor parameter, never
+  /// a per-invocation one).
+  final RuntimeEventBus eventBus;
+
+  HitlController({required this.eventBus});
+
   HumanInteractionRequest? _pendingRequest;
 
   /// The pending human interaction request, or null if not currently paused.
@@ -30,7 +37,6 @@ class HitlController implements MachineStateComponent {
   /// [RuntimeStatus.pausedForHuman] for the caller to set.
   RuntimeStatus pause({
     required HumanInteractionRequest request,
-    required RuntimeEventBus eventBus,
     required int currentPc,
   }) {
     _pendingRequest = request;

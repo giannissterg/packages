@@ -151,7 +151,11 @@ void main() {
 
       expect(state.status, RuntimeStatus.halted);
       expect(state.registers['recovered'], isTrue);
-      expect('${state.registers['err']}', contains('did not resolve'));
+      expect('${state.registers['err']}', contains('resolved to no branch'));
+      expect('${state.registers['err']}', contains('nonsense'),
+          reason: 'DecisionUnresolved carries the raw model answer into the '
+              'trap — the error says WHAT the model said, not just that it '
+              'failed');
       await vm.shutdown();
     });
 

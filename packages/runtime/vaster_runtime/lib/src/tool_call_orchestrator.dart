@@ -13,10 +13,12 @@ import 'policy_guard.dart';
 ///
 /// This is model-orchestration concern, not instruction dispatch — extracting
 /// it keeps [VasterRuntime] a pure fetch-decode-dispatch loop. The
-/// orchestrator owns its collaborators at construction (VM subsystems, budget,
-/// policy guard, iteration cap); everything passed to [resolve] is genuinely
-/// per-invocation state (the active model, cache hints, and program-registered
-/// toolset all change as the program executes).
+/// orchestrator owns its collaborators at construction — and holds exactly
+/// the VM facet its job needs ([ToolLoopHost]: prompt funnel, tool symbol
+/// table, event bus, VFS), so its type says "tool loop", not "whole VM".
+/// Everything passed to [resolve] is genuinely per-invocation state (the
+/// active model, cache hints, and program-registered toolset all change as
+/// the program executes).
 ///
 /// Tool calls dispatch through the VM's [ToolManager] symbol table — any
 /// registered tool (sandbox bridges, function tools, toolsets) is callable by
@@ -25,10 +27,15 @@ import 'policy_guard.dart';
 /// typed `tool_result` part in a full transcript continuation — never
 /// flattened to prose.
 final class ToolCallOrchestrator {
-  final VasterVirtualMachine vm;
+  /// The tool loop's VM facet — turns, tools, telemetry, VFS; nothing else.
+  final ToolLoopHost host;
 
   /// The runtime's shared metering pipeline (host budget + program quota).
   final ModelCallMeter meter;
+
+  /// Attribution fallback when no active model is passed and the response
+  /// carries no serving-model stamp.
+  final VasterModel defaultModel;
 
   /// Kept alongside [meter] for the one thing metering doesn't cover:
   /// recording tool-call counts against the program quota.
@@ -40,8 +47,9 @@ final class ToolCallOrchestrator {
   final int maxIterations;
 
   const ToolCallOrchestrator({
-    required this.vm,
+    required this.host,
     required this.meter,
+    required this.defaultModel,
     required this.quotaTracker,
     required this.guard,
     required this.maxIterations,
@@ -61,7 +69,7 @@ final class ToolCallOrchestrator {
 
     // Linked symbol table: program-registered defs + VM tool registry.
     final toolDefinitions = {
-      for (final def in vm.toolManager.compiledDefinitions) def.name: def,
+      for (final def in host.toolManager.compiledDefinitions) def.name: def,
       for (final def in programToolSet) def.name: def,
     }.values.toList();
 
@@ -76,7 +84,7 @@ final class ToolCallOrchestrator {
       for (final call in response.functionCalls) {
         guard.check(PolicyAction.toolCall, call.name);
         quotaTracker.recordToolCall();
-        vm.eventBus.publish(ToolCalledEvent(
+        host.eventBus.publish(ToolCalledEvent(
           eventId: 'evt_tool_call_${call.callId}',
           callId: call.callId,
           toolName: call.name,
@@ -85,7 +93,7 @@ final class ToolCallOrchestrator {
         final toolClock = Stopwatch()..start();
         final toolResponse = await _dispatchToolCall(call);
         toolClock.stop();
-        vm.eventBus.publish(ToolFinishedEvent(
+        host.eventBus.publish(ToolFinishedEvent(
           eventId: 'evt_tool_done_${call.callId}',
           callId: call.callId,
           toolName: call.name,
@@ -100,7 +108,7 @@ final class ToolCallOrchestrator {
       }
       transcript.add(ChatMessage(role: Role.tool, parts: results));
 
-      response = await vm.promptWithHistory(
+      response = await host.promptWithHistory(
         transcript,
         model: model,
         tools: toolDefinitions,
@@ -116,7 +124,7 @@ final class ToolCallOrchestrator {
                 candidatesTokenCount: TokenEstimate.forText(response.text),
               ),
         modelName:
-            response.servedBy ?? (model ?? vm.config.defaultModel).modelName,
+            response.servedBy ?? (model ?? defaultModel).modelName,
         callSite: 'isa_tool_loop',
       );
     }
@@ -138,16 +146,16 @@ final class ToolCallOrchestrator {
         case VfsSyscalls.writeFileName:
           guard.check(
               PolicyAction.fileWrite, call.arguments['path']?.toString() ?? '');
-          return await VfsSyscalls.writeFile(vm, call.arguments);
+          return await VfsSyscalls.writeFile(host.fileSystemManager, call.arguments);
         case VfsSyscalls.readFileName:
           guard.check(
               PolicyAction.fileRead, call.arguments['path']?.toString() ?? '');
-          return await VfsSyscalls.readFile(vm, call.arguments);
+          return await VfsSyscalls.readFile(host.fileSystemManager, call.arguments);
       }
 
       // 2. Symbol table — the linked tool registry.
-      if (vm.toolManager.getTool(call.name) != null) {
-        final result = await vm.toolManager.executeCall(call);
+      if (host.toolManager.getTool(call.name) != null) {
+        final result = await host.toolManager.executeCall(call);
         return result.isError
             ? {'error': result.errorDetails ?? 'Tool execution failed.'}
             : result.response;

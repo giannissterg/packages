@@ -1,4 +1,4 @@
-import 'vaster_vm_interface.dart';
+import 'package:vaster_filesystem_manager/vaster_filesystem_manager.dart';
 
 /// The two built-in VFS syscalls models can call as tools.
 ///
@@ -8,24 +8,23 @@ import 'vaster_vm_interface.dart';
 /// tool-manager callers. Both delegate here — duplicated handlers drifting
 /// apart was a fidelity bug waiting to happen. Policy checks stay with the
 /// callers that own a policy (the runtime's guard); the syscall itself only
-/// touches the VFS.
+/// touches the VFS — so the VFS is all its signature asks for.
 final class VfsSyscalls {
   static const String writeFileName = 'write_file';
   static const String readFileName = 'read_file';
 
   static Future<Map<String, dynamic>> writeFile(
-      VasterVirtualMachine vm, Map<String, dynamic> args) async {
+      FileSystemManager fs, Map<String, dynamic> args) async {
     final path = args['path']?.toString() ?? '';
     final content = args['content']?.toString() ?? '';
-    await vm.fileSystemManager.resolveFileSystem(path).writeText(path, content);
+    await fs.resolveFileSystem(path).writeText(path, content);
     return {'status': 'ok', 'path': path};
   }
 
   static Future<Map<String, dynamic>> readFile(
-      VasterVirtualMachine vm, Map<String, dynamic> args) async {
+      FileSystemManager fs, Map<String, dynamic> args) async {
     final path = args['path']?.toString() ?? '';
-    final content =
-        await vm.fileSystemManager.resolveFileSystem(path).readText(path);
+    final content = await fs.resolveFileSystem(path).readText(path);
     return {'content': content};
   }
 }
