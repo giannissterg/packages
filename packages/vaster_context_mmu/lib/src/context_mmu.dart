@@ -2,8 +2,7 @@ import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
 
-import 'kv_cache_controller.dart';
-import 'kv_cache_handle.dart';
+import 'package:vaster_kv/vaster_kv.dart';
 
 /// Statistics from an MMU binding pass — the page-table health of a run.
 class MmuStats {

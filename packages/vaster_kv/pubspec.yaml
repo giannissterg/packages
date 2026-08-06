@@ -1,5 +1,5 @@
 name: vaster_kv
-description: Physical context management for Vaster — KV-cache controllers and the ContextMmu that lowers virtual context regions onto physical LLM cache state.
+description: Physical KV-state contracts for Vaster — KvCacheHandle, KvCacheController, and capabilities; the backend-agnostic interface between virtual context and physical LLM cache state.
 version: 0.4.0
 publish_to: none
 resolution: workspace
@@ -7,13 +7,12 @@ resolution: workspace
 environment:
   sdk: ^3.13.0-282.1.beta
 
+# Deliberately (nearly) a leaf: backend/model packages depend on these
+# contracts, so nothing context-shaped may enter here (rules.md Rule
+# 6.15, enforced by test/leaf_guard_test.dart). vaster_token_estimate is
+# the one sanctioned dep — estimates are centralized, never inline
+# heuristics (Rule 6.12).
 dependencies:
-  vaster_context:
-    path: ../vaster_context
-  vaster_context_manager:
-    path: ../vaster_context_manager
-  vaster_model:
-    path: ../vaster_model
   vaster_token_estimate:
     path: ../vaster_token_estimate
 

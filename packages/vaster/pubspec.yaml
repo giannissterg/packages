@@ -35,6 +35,8 @@ dependencies:
     path: ../vaster_context
   vaster_context_manager:
     path: ../vaster_context_manager
+  vaster_context_mmu:
+    path: ../vaster_context_mmu
   vaster_continuation:
     path: ../vaster_continuation
   vaster_continuation_manager:

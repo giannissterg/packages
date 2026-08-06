@@ -18,6 +18,7 @@ workspace:
   - packages/vaster_model_fake
   - packages/vaster_context
   - packages/vaster_context_manager
+  - packages/vaster_context_mmu
   - packages/vaster_session
   - packages/vaster_session_manager
   - packages/vaster_filesystem
