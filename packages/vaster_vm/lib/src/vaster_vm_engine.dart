@@ -349,13 +349,9 @@ class VasterVMEngine implements VasterVirtualMachine {
     final session = await sessionManager.createSession(
       sessionId: sessionId,
       model: model,
-      contextManager: BasicContextManager(
-        eventBus: eventBus,
-        compressors: [
-          _meteredCompressor(model),
-          const TruncatingCompressor(),
-        ],
-      ),
+      // Layered like agents (see _layeredContextManager): a plain session
+      // must also see ambient pinned regions.
+      contextManager: _layeredContextManager(model),
     );
 
     eventBus.publish(SessionCreatedEvent(
@@ -397,6 +393,9 @@ class VasterVMEngine implements VasterVirtualMachine {
       activeModel,
     );
 
+    // Turn boundary — same discipline as the session path: ephemeral
+    // scratch regions expire once the turn that used them completes.
+    contextManager.pruneLifetimes({ContextLifetime.ephemeral});
     return response;
   }
 
@@ -435,6 +434,8 @@ class VasterVMEngine implements VasterVirtualMachine {
       activeModel,
     );
 
+    // Turn boundary — same discipline as the session path.
+    contextManager.pruneLifetimes({ContextLifetime.ephemeral});
     return response;
   }
 
@@ -500,6 +501,32 @@ class VasterVMEngine implements VasterVirtualMachine {
         callSite: 'vm_prompt',
       );
 
+  /// Layered context for anything that owns a conversation: a private
+  /// manager (history source + session-local regions) over the shared
+  /// VM-wide manager, so ambient pinned regions (Knowledge) remain
+  /// visible while per-session history stays isolated. One owner for the
+  /// pattern — plain sessions and agents MUST compile the same layering,
+  /// or pinned context silently vanishes from one of them (found live:
+  /// plain sessions were built with a bare private manager and never saw
+  /// global Knowledge).
+  CompositeContextManager _layeredContextManager(VasterModel model) =>
+      CompositeContextManager(
+        children: [
+          BasicContextManager(
+            eventBus: eventBus,
+            compressors: [
+              _meteredCompressor(model),
+              const TruncatingCompressor(),
+            ],
+          ),
+          contextManager,
+        ],
+        compressors: [
+          _meteredCompressor(model),
+          const TruncatingCompressor(),
+        ],
+      );
+
   /// A summarizing compressor whose token burn is on the books: compaction
   /// calls meter through the VM pipeline like any other model call.
   SummarizingCompressor _meteredCompressor(VasterModel model) =>
@@ -552,6 +579,8 @@ class VasterVMEngine implements VasterVirtualMachine {
                 prompt: promptText, output: textBuffer.toString()),
         activeModel,
       );
+      // Turn boundary — same discipline as the session path.
+      contextManager.pruneLifetimes({ContextLifetime.ephemeral});
     }
   }
 
@@ -618,27 +647,9 @@ class VasterVMEngine implements VasterVirtualMachine {
     return await agentManager.createAgent(
       descriptor: descriptor,
       model: activeModel,
-      // Layered context: the agent session's private manager (children.first
-      // — receives its history source and session-local regions) over the
-      // shared VM-wide manager (ambient regions remain visible). This keeps
-      // per-session history isolated instead of projecting every session's
-      // turns into one shared heap.
-      contextManager: CompositeContextManager(
-        children: [
-          BasicContextManager(
-            eventBus: eventBus,
-            compressors: [
-              _meteredCompressor(activeModel),
-              const TruncatingCompressor(),
-            ],
-          ),
-          contextManager,
-        ],
-        compressors: [
-          _meteredCompressor(activeModel),
-          const TruncatingCompressor(),
-        ],
-      ),
+      // Layered context (see _layeredContextManager): private history over
+      // the shared VM-wide manager — ambient regions remain visible.
+      contextManager: _layeredContextManager(activeModel),
       toolManager: toolManager,
     );
   }

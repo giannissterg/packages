@@ -66,7 +66,17 @@ abstract interface class VasterVirtualMachine {
   /// Registers a concrete [VasterModel] for a given [ModelDescriptor].
   void registerModel(ModelDescriptor descriptor, VasterModel model);
 
-  /// Direct model prompt turn.
+  /// Direct (sessionless) model prompt turn.
+  ///
+  /// **Contract — compiled context**: the request carries the VM's
+  /// compiled global context ahead of the turn text: pinned/admitted
+  /// regions become leading messages, system-class regions become the
+  /// system instruction, with the same token-budget shape as the session
+  /// path. With no regions installed the request is exactly the turn
+  /// text. The call is a turn boundary: ephemeral-lifetime regions are
+  /// pruned after it. Implementations MUST preserve this — a sessionless
+  /// prompt that drops pinned context regressed silently once (caught by
+  /// KV token-exact prefix validation) and must never do so again.
   Future<ModelResponse> prompt(
     String promptText, {
     VasterModel? model,
@@ -75,13 +85,20 @@ abstract interface class VasterVirtualMachine {
     List<ContextCacheHint>? cacheHints,
   });
 
-  /// Creates a new model session in [sessionManager] with an isolated ContextManager.
+  /// Creates a new model session in [sessionManager].
+  ///
+  /// **Contract — layered context**: the session's manager layers a
+  /// private manager (history, session-local regions) over the VM-wide
+  /// one, so ambient pinned regions remain visible to session prompts
+  /// exactly as they are to sessionless ones. Agents receive the same
+  /// layering.
   Future<ModelSession> createSession({
     required String sessionId,
     ModelDescriptor? modelDescriptor,
   });
 
-  /// Session-aware prompt turn routing through [sessionId]'s turn history and context.
+  /// Session-aware prompt turn routing through [sessionId]'s turn history
+  /// and layered context (see [createSession]'s contract).
   Future<ModelResponse> promptInSession(
     String sessionId,
     String promptText, {
@@ -94,6 +111,10 @@ abstract interface class VasterVirtualMachine {
   /// Typed continuation turn: sends a full message transcript (including
   /// `tool_use` / `tool_result` parts) plus tool definitions to the model.
   /// This is the ABI-preserving path used by the runtime's tool-calling loop.
+  ///
+  /// Carries the compiled global context ahead of [messages] and prunes
+  /// ephemeral regions after the turn — the same sessionless contract as
+  /// [prompt].
   Future<ModelResponse> promptWithHistory(
     List<ChatMessage> messages, {
     VasterModel? model,
@@ -103,7 +124,8 @@ abstract interface class VasterVirtualMachine {
     List<ContextCacheHint>? cacheHints,
   });
 
-  /// Direct model prompt streaming.
+  /// Direct model prompt streaming — the same sessionless compiled-context
+  /// and turn-boundary contract as [prompt].
   Stream<ModelResponseChunk> promptStream(
     String promptText, {
     VasterModel? model,

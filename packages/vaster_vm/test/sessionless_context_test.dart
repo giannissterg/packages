@@ -81,6 +81,43 @@ void main() {
     expect(request.messages.single.text, 'hello');
   });
 
+  test('plain sessions see ambient pinned regions too (layered manager)',
+      () async {
+    installKnowledge();
+    await vm.promptInSession('plain_session', 'Continue the story of Bo.');
+
+    final request = model.recordedRequests.single;
+    expect(request.messages.map((m) => m.text).join('\n'),
+        contains('Story facts'),
+        reason: 'createSession must layer the private manager over the '
+            'VM-wide one — a bare private manager silently blinds '
+            'session prompts to pinned Knowledge (interface contract on '
+            'createSession)');
+  });
+
+  test('sessionless turns prune ephemeral regions (turn boundary)',
+      () async {
+    vm.contextManager.addRegion(ContextRegion(
+      id: 'scratch',
+      label: 'scratch',
+      classId: 'scratch',
+      lifetime: ContextLifetime.ephemeral,
+      messages: [ChatMessage.user('scratch-note-for-this-turn')],
+      estimatedTokens: 8,
+    ));
+
+    await vm.prompt('first turn');
+    expect(model.recordedRequests.last.messages.map((m) => m.text).join(),
+        contains('scratch-note'),
+        reason: 'ephemeral regions serve the turn that installed them');
+
+    await vm.prompt('second turn');
+    expect(model.recordedRequests.last.messages.map((m) => m.text).join(),
+        isNot(contains('scratch-note')),
+        reason: 'the turn boundary pruned the ephemeral region — same '
+            'discipline as the session path');
+  });
+
   test('with no regions installed, requests are unchanged', () async {
     await vm.prompt('bare prompt');
     final request = model.recordedRequests.single;

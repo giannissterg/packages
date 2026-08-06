@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **The compiled-context semantics are interface contract now (F3)** —
+  see `VasterVirtualMachine.prompt`/`createSession` doc contracts.
+
 ## 0.3.0
 
 - `VfsSyscalls`: the single implementation of the built-in
