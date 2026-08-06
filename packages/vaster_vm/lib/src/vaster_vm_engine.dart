@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:vaster_agent_manager_advanced/vaster_agent_manager_advanced.dart';
 import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
 import 'package:vaster_budget/vaster_budget.dart';
+import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_filesystem/vaster_filesystem.dart';
@@ -378,8 +379,10 @@ class VasterVMEngine implements VasterVirtualMachine {
     resourceTracker.checkDeadline();
     final activeModel = model ?? this.config.defaultModel;
 
+    final compiled = await _compileGlobalContext(activeModel);
     final request = ModelRequest(
-      messages: [ChatMessage.user(promptText)],
+      systemInstruction: compiled.systemInstruction,
+      messages: [...compiled.messages, ChatMessage.user(promptText)],
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
       cacheHints: cacheHints ?? const [],
@@ -410,8 +413,10 @@ class VasterVMEngine implements VasterVirtualMachine {
     resourceTracker.checkDeadline();
     final activeModel = model ?? this.config.defaultModel;
 
+    final compiled = await _compileGlobalContext(activeModel);
     final request = ModelRequest(
-      messages: messages,
+      systemInstruction: compiled.systemInstruction,
+      messages: [...compiled.messages, ...messages],
       tools: tools ?? const [],
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
@@ -469,6 +474,23 @@ class VasterVMEngine implements VasterVirtualMachine {
     return response;
   }
 
+  /// Compiles the VM's global context regions into the leading segment
+  /// of a sessionless request — same budget shape as the session path.
+  ///
+  /// Sessionless prompts previously sent ONLY the turn text: pinned
+  /// `Knowledge` never reached the model on ANY backend, which the KV
+  /// prefix validation caught live (a knowledge-state restore was
+  /// rejected against a knowledge-less prompt). With no regions
+  /// installed the compile is empty and requests are unchanged.
+  Future<CompiledContext> _compileGlobalContext(VasterModel activeModel) =>
+      contextManager.compileContext(
+        budget: TokenBudget(
+          maxContextTokens: activeModel.capabilities.maxContextTokens,
+          reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
+          reservedToolTokens: 0,
+        ),
+      );
+
   /// Meters one model call at the VM funnel through [meter]: one
   /// [ModelUsageEvent] published before charging (usage stays observable even
   /// when a quota trips), tokens charged, and cost charged when known.
@@ -502,8 +524,10 @@ class VasterVMEngine implements VasterVirtualMachine {
     resourceTracker.checkDeadline();
     final activeModel = model ?? this.config.defaultModel;
 
+    final compiled = await _compileGlobalContext(activeModel);
     final request = ModelRequest(
-      messages: [ChatMessage.user(promptText)],
+      systemInstruction: compiled.systemInstruction,
+      messages: [...compiled.messages, ChatMessage.user(promptText)],
       generationConfig: config ?? const GenerationConfig(),
       cancelToken: cancelToken,
       cacheHints: cacheHints ?? const [],

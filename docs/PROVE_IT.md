@@ -81,3 +81,16 @@ The machine's promise — check → run → die → resume → artifact — is n
 demonstrated on a real model, with real money metered, and the run
 generated two findings no amount of fake-model testing had produced. This
 is what the outward pivot is for.
+
+## Addendum (2026-08-06, after the KV prefix-validation sprint)
+
+A later finding qualifies finding 3: at the time of this run,
+sessionless `PromptOp`s did not include pinned context in their composed
+prompts at all (a VM gap found by KV token-exact validation and since
+fixed). `release_scribe`'s pinned release facts therefore likely never
+reached claude-cli's prompt — strengthening, not weakening, this run's
+conclusion: the drafts' grounding came from the agentic backend's own
+repo exploration, and "use ONLY the facts in your context" was doubly
+unenforceable. With the fix, pinned `Knowledge` now demonstrably leads
+every sessionless prompt (locked by `sessionless_context_test` in
+`vaster_vm`).

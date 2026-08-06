@@ -77,8 +77,23 @@ $ vaster resume artifacts/zero_copy/ckpts/story_scribe_continue_gate.ckpt.json \
     --backend llama --model ~/models/stories15M-q4_0.gguf --respond approve
 ── RESUME COMPLETE ────────────────────────────────────
   status : halted
-  cache  : 105 of 276 prompt tokens restored from KV state — never re-decoded
+  cache  : 105 of 381 prompt tokens restored from KV state — never re-decoded
 ```
+
+Those 105 tokens were restored under **full validation** (see the next
+section): producer identity checked, the prompt's leading tokens proven
+equal to the image's — then, and only then, state from the dead
+process's shared frame replaced their decode.
+
+> **Correction, for the record.** An earlier version of this transcript
+> reported `105 of 276`. That number was real reuse but **wrong-context
+> reuse**: sessionless `PromptOp`s did not carry pinned context in their
+> composed prompts (a VM gap, since fixed), so the trusting
+> implementation restored knowledge-state under a prompt that did not
+> begin with it — masked by the small model's output. The very first
+> live run of token-exact validation rejected it
+> (`prefix-mismatch, divergenceIndex: 3`) and exposed both bugs. That is
+> this sprint working exactly as designed, on its own evidence.
 
 At park, every pinned region's model-rendered form is materialized into
 a content-addressed frame (`kv-prewarm`). The resuming process's model
@@ -103,16 +118,24 @@ timeout is gone — and deleting it immediately exposed two real bugs it
 had been hiding (a half-duplex self-consumption race, and a SIGSEGV when
 a poll loop outlives its ring), both now fixed and locked by tests.
 
-## Trust boundary (stated, not hidden)
+## The trust boundary is now a checked invariant
 
-KV state is positional. Reuse assumes the composed prompt's leading
-tokens equal the materialized content's tokens; the alignment contract
-is `LlamaFfiVasterModel.renderMessages` — prewarm materializes exactly
-what the prompt composer will render, and stable content renders first.
-The equivalence tests (warm == cold) validate the contract empirically
-on every run. Token-exact prefix validation via the `ContextMmu` page
-table is the planned hardening; a mismatched (colliding) fingerprint
-today would produce a wrong-context completion, not a crash.
+KV state is positional, and until this sprint reuse *trusted* that the
+composed prompt began with the materialized content. It no longer
+trusts anything. Every frame's payload is a **KV State Image**
+([specs/KV_STATE_IMAGE.md](specs/KV_STATE_IMAGE.md)): engine state plus
+the exact decoded token ids, the producer's `engineTag`, and the source
+fingerprint. Every reuse attempt runs the spec's consuming steps
+engine-side, before any restore: image validity → `engineTag` equality
+(a different build or model is rejected even when tokenizers agree) →
+**token-exact prefix validation** against the actual prompt. Any
+divergence — including render drift and BPE seam re-merging — rejects
+with a diagnosable divergence index and decodes cold; the sealed
+`KvReuse` outcome rides `ModelResponse.rawResponse`. Frames are
+namespaced per producer, and discovery unlinks unparseable squatters,
+so a format migration can never deadlock a name. A wrong-context
+completion is a correctness failure; a rejection costs only the cold
+decode that was owed anyway.
 
 ## What isolates can't prove, transcripts do
 

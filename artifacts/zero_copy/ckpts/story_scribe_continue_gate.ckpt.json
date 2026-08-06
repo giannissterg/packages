@@ -12,7 +12,7 @@
         "registers": {
           "data": {
             "hero": "Bo the dog",
-            "opening": " \"Boo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"That's a story about a bunny bunny who goes on an adventure!\"\nBoo: \"That sounds fun! I want to go on an adventure too!\"\nBoo: \"I want to go on an adventure too!\"\nBoo: \"Me too!"
+            "opening": " \"Lets are very brave and strong. Bo is a very smart dog, but you are also very brave. I am sure you will be safe in the forest.\"\nLisa: \"Very brave, Bo! I am sure you will be safe and happy.\"\nLisa: \"Very well, Bo! I am sure you will be safe and happy.\"\nLisa: \"Very well, Bo! I am so glad you are safe and strong. I will always be here to protect you.\"\nLisa and Bo were very happy to be safe and they both enjoyed the story.<s> Once upon a time, there was a little girl named Lily. She loved to play outside and explore the world. One day, she found a shiny rock that was very special. She showed it to her mom and said, \"Look, Mommy! This rock is so pretty!\"\nHer mom smiled and said, \"That's is very attractive. I'lly, but I's are very pretty.\"\nLily was so her mom'taker. She asked Lily, \"What'ding. Lily is very small. Lily. Lily't since she was a lot of the animals"
           }
         },
         "callStack": {
@@ -23,7 +23,7 @@
           "pendingRequest": {
             "requestId": "continue_gate",
             "type": "approval",
-            "prompt": "Continue this story?\n\n \"Boo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boooo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo!\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"Boo! What's that sound?\"\nBoo: \"That's a story about a bunny bunny who goes on an adventure!\"\nBoo: \"That sounds fun! I want to go on an adventure too!\"\nBoo: \"I want to go on an adventure too!\"\nBoo: \"Me too!",
+            "prompt": "Continue this story?\n\n \"Lets are very brave and strong. Bo is a very smart dog, but you are also very brave. I am sure you will be safe in the forest.\"\nLisa: \"Very brave, Bo! I am sure you will be safe and happy.\"\nLisa: \"Very well, Bo! I am sure you will be safe and happy.\"\nLisa: \"Very well, Bo! I am so glad you are safe and strong. I will always be here to protect you.\"\nLisa and Bo were very happy to be safe and they both enjoyed the story.<s> Once upon a time, there was a little girl named Lily. She loved to play outside and explore the world. One day, she found a shiny rock that was very special. She showed it to her mom and said, \"Look, Mommy! This rock is so pretty!\"\nHer mom smiled and said, \"That's is very attractive. I'lly, but I's are very pretty.\"\nLily was so her mom'taker. She asked Lily, \"What'ding. Lily is very small. Lily. Lily't since she was a lot of the animals",
             "options": [
               "approve",
               "reject"
@@ -33,13 +33,13 @@
         },
         "quota": {
           "quota": {},
-          "consumedTokens": 279,
+          "consumedTokens": 383,
           "consumedCost": 0.0,
           "toolCalls": 0
         }
       }
     },
-    "suspendedAt": "2026-08-06T15:00:16.312870"
+    "suspendedAt": "2026-08-06T15:07:22.597415"
   },
   "sessions": [],
   "contextRegions": [
@@ -67,8 +67,8 @@
   "memoryMounts": {
     "/mem": {}
   },
-  "budgetConsumedTokens": 279,
+  "budgetConsumedTokens": 383,
   "budgetConsumedCost": 0.0,
-  "budgetConsumedDurationMs": 170,
-  "capturedAt": "2026-08-06T15:00:16.313645"
+  "budgetConsumedDurationMs": 244,
+  "capturedAt": "2026-08-06T15:07:22.598041"
 }
