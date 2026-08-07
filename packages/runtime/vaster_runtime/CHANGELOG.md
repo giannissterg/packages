@@ -1,5 +1,9 @@
 ## Unreleased
 
+- C wave: `clear()` across the register file, call stack, and HITL
+  controller returns what it dropped (HITL returns the discarded
+  pending request — the abandoned pause is data).
+
 - **A2**: the engine's program-registered `write_file`/`read_file`
   tools delegate to the ONE `VfsSyscalls` implementation — the third
   hand-rolled copy (drifted output shape, bypassed shared path) is gone;

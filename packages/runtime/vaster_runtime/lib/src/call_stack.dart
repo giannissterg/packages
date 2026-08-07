@@ -78,8 +78,13 @@ class CallStack implements MachineStateComponent {
       ..addAll(frames);
   }
 
-  /// Clears all frames (e.g. on program start).
-  void clear() => _frames.clear();
+  /// Clears all frames (e.g. on program start); returns how many
+  /// activation records were dropped.
+  int clear() {
+    final dropped = _frames.length;
+    _frames.clear();
+    return dropped;
+  }
 
   @override
   String get stateKey => 'callStack';

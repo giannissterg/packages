@@ -23,12 +23,15 @@ abstract interface class KvCacheController {
   });
 
   /// Loads [handle]'s state into the active model context so the next
-  /// generation starts from it. For content-addressed backends this is a
-  /// no-op (the "restore" happens via request-shape cache markers).
-  Future<void> restore(KvCacheHandle handle);
+  /// generation starts from it. Returns true when state really moved,
+  /// false when the call was a no-op — for content-addressed backends
+  /// the "restore" happens via request-shape cache markers, and a
+  /// silent no-op is exactly what the sibling [evict]'s Rule 11 receipt
+  /// was added to expose.
+  Future<bool> restore(KvCacheHandle handle);
 
   /// Releases [handle]'s physical state.
-/// Returns true when [handle] was present and evicted, false when it
+  /// Returns true when [handle] was present and evicted, false when it
   /// was unknown — a no-op eviction is observable (Rule 11).
   Future<bool> evict(KvCacheHandle handle);
 

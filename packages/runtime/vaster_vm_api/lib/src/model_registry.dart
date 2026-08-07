@@ -21,11 +21,21 @@ class ModelRegistry {
   }
 
   /// Registers a concrete [VasterModel] backend for a given
-  /// [ModelDescriptor] and returns the model it displaced under the
-  /// descriptor key, null when fresh — a silent re-registration is
-  /// observable (Rule 11).
-  VasterModel? registerModel(ModelDescriptor descriptor, VasterModel model) {
-    final displaced = _models[descriptor.descriptorKey];
+  /// [ModelDescriptor] and returns EVERY binding it displaced, keyed by
+  /// the slot displaced (`descriptorKey` and/or `provider`).
+  ///
+  /// Registration writes two slots — the exact descriptor key and the
+  /// bare provider key that [resolveModel] falls back to — so reporting
+  /// only one hid a real event: registering `anthropic:opus` silently
+  /// evicted whatever was serving the bare `anthropic` key. A caller can
+  /// now see both (Rule 11: report every displacement, not the first).
+  Map<String, VasterModel> registerModel(
+      ModelDescriptor descriptor, VasterModel model) {
+    final displaced = <String, VasterModel>{};
+    final byKey = _models[descriptor.descriptorKey];
+    if (byKey != null) displaced[descriptor.descriptorKey] = byKey;
+    final byProvider = _models[descriptor.provider];
+    if (byProvider != null) displaced[descriptor.provider] = byProvider;
     _models[descriptor.descriptorKey] = model;
     _models[descriptor.provider] = model;
     return displaced;

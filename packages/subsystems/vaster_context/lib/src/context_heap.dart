@@ -131,9 +131,12 @@ class ContextHeap {
     return before - _regions.length;
   }
 
-  /// Clears all regions from the heap.
-  void clear() {
+  /// Clears all regions from the heap; returns how many were dropped
+  /// (Rule 11 — same idiom as [clearNonCritical] above it).
+  int clear() {
+    final dropped = _regions.length;
     _regions.clear();
+    return dropped;
   }
 
   @override

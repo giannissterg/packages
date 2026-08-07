@@ -22,7 +22,12 @@ class RegisterFile implements MachineStateComponent {
   void writeAll(Map<String, dynamic> values) => _data.addAll(values);
 
   /// Clears all register state.
-  void clear() => _data.clear();
+/// Clears every register; returns how many were dropped.
+  int clear() {
+    final dropped = _data.length;
+    _data.clear();
+    return dropped;
+  }
 
   /// Returns an unmodifiable snapshot of the current register state.
   Map<String, dynamic> snapshot() => Map.unmodifiable(_data);

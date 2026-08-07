@@ -181,9 +181,11 @@ final class LlamaWorker {
   Future<int> tokensDecoded() async =>
       await _request('tokensDecoded', const {}) as int;
 
-  /// Disposes the engine and tears the isolate down.
-  Future<void> close() async {
-    if (_closed) return;
+  /// Disposes the engine and tears the isolate down; returns true when
+  /// THIS call performed the teardown (idempotence observable — the
+  /// house `close()` idiom).
+  Future<bool> close() async {
+    if (_closed) return false;
     _closed = true;
     try {
       await _request('dispose', const {});
@@ -195,6 +197,7 @@ final class LlamaWorker {
       }
       _pending.clear();
     }
+    return true;
   }
 
   Future<Object?> _request(String op, Map<String, Object?> args) {

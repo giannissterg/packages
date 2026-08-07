@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **BREAKING (C wave)**: `KvCacheController.restore` returns whether
+  state really moved — content-addressed backends answer false, making
+  the documented no-op observable (the sibling `evict` already did).
+
 - **BREAKING (Rule 11 V3)**: `KvCacheController.evict` returns whether
   the handle was present and evicted — a no-op eviction is observable
   across all four controller implementations.

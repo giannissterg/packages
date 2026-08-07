@@ -99,11 +99,14 @@ class MmapKvCacheController implements KvCacheController, KvFrameResolver {
   }
 
   @override
-  Future<void> restore(KvCacheHandle handle) async {
+  Future<bool> restore(KvCacheHandle handle) async {
     if (await lookup(handle.contentFingerprint) == null) {
       throw StateError(
           'KV frame ${handle.handleId} is not materialized in shared memory.');
     }
+    // Zero-copy: the state is already mapped — nothing MOVED, which is
+    // exactly what the false receipt reports.
+    return false;
   }
 
   /// Zero-copy view of a handle's physical state — backed directly by the

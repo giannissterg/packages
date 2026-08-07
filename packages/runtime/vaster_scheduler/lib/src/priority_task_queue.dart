@@ -41,7 +41,12 @@ class PriorityTaskQueue {
   }
 
   /// Clears all queued tasks.
-  void clear() => _queue.clear();
+/// Drops every queued task; returns how many were dropped.
+  int clear() {
+    final dropped = _queue.length;
+    _queue.clear();
+    return dropped;
+  }
 
   /// Returns an unmodifiable snapshot of the queued tasks.
   List<ScheduledTask<dynamic>> toList() => List.unmodifiable(_queue);

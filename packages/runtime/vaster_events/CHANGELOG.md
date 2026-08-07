@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **BREAKING (C wave)**: `publish` returns `String?` — null when the
+  bus was closed and the event was DROPPED. A handle for an event that
+  never reached a subscriber cannot be correlated or asserted on;
+  returning one was the fabricated-value shape Rule 11 forbids.
+
 - **BREAKING (Rule 11 V7)**: `publish` returns the event's id — the
   correlation handle. Publish is NOT a sanctioned sink.
 

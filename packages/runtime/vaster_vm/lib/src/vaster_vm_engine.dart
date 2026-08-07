@@ -637,7 +637,8 @@ class VasterVMEngine implements VasterVirtualMachine {
   }
 
   @override
-  VasterModel? registerModel(ModelDescriptor descriptor, VasterModel model) =>
+  Map<String, VasterModel> registerModel(
+          ModelDescriptor descriptor, VasterModel model) =>
       modelRegistry.registerModel(descriptor, model);
 
   @override
@@ -645,8 +646,9 @@ class VasterVMEngine implements VasterVirtualMachine {
       toolManager.registerTool(tool);
 
   @override
-  CodeSandbox? registerSandbox(CodeSandbox sandbox) {
-    final displaced = sandboxManager.registerSandbox(sandbox);
+  ({CodeSandbox? sandbox, ExecutableTool? bridgedTool}) registerSandbox(
+      CodeSandbox sandbox) {
+    final displacedSandbox = sandboxManager.registerSandbox(sandbox);
 
     // Bridge: Automatically create executable tool for sandbox and register in ToolManager
     final sandboxTool = sandboxManager.createSandboxTool(
@@ -654,8 +656,9 @@ class VasterVMEngine implements VasterVirtualMachine {
       toolName: 'exec_${sandbox.descriptor.sandboxId}',
       description: sandbox.descriptor.description,
     );
-    toolManager.registerTool(sandboxTool);
-    return displaced;
+    // Both registrations displace; reporting one hid the other.
+    final displacedTool = toolManager.registerTool(sandboxTool);
+    return (sandbox: displacedSandbox, bridgedTool: displacedTool);
   }
 
   @override

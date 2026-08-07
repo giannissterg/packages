@@ -54,6 +54,6 @@ abstract interface class ModelSession {
   ModelSession fork({String? newSessionId, ContextManager? contextManager});
 
   /// Clears turn history from this session.
-/// Returns the number of turns dropped.
+  /// Returns the number of turns dropped.
   int clearHistory();
 }

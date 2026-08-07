@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **BREAKING (C wave)**: `registerModel` returns EVERY displaced
+  binding keyed by slot — registration writes both the descriptor key
+  and the bare provider key that `resolveModel` falls back to, so
+  reporting one hid a real eviction. `registerSandbox` returns both the
+  displaced sandbox AND the displaced bridged tool.
+
 - **A4**: `ModelChainResolver` — THE one composer for declared model
   chains (runtime active model + agent creation), with index-exact
   fallback hop events.

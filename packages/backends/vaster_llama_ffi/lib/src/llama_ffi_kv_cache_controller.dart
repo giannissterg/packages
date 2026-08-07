@@ -128,9 +128,11 @@ final class LlamaFfiKvCacheController
   }
 
   @override
-  Future<void> restore(KvCacheHandle handle) async =>
-      worker.importStateFromFrame(
-          await _frameName(handle.contentFingerprint));
+  Future<bool> restore(KvCacheHandle handle) async {
+    await worker.importStateFromFrame(
+        await _frameName(handle.contentFingerprint));
+    return true; // real engine state moved frame → context
+  }
 
   @override
   Future<bool> evict(KvCacheHandle handle) async {

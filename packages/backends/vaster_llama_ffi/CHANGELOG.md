@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- C wave: `LlamaWorker.close` returns whether THIS call tore down (the
+  guard already computed it); `restore` reports state movement.
+
 - **BREAKING**: prompt composition moves out of the model into `LlamaPromptComposer` — the alignment contract's external, separately-testable owner. `LlamaFfiVasterModel` holds one (default const); the resolver pairs the SAME instance with the prewarmer's renderer.
 
 - `LlamaTokenEstimator` — the `TokenEstimator` seam's exact

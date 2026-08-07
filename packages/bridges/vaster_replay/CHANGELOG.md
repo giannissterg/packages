@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **BREAKING (C wave)**: `VasterExecutionRecorder.detach` returns the
+  observer it RESTORED (symmetric with `attach`'s displaced observer),
+  not the journal — the journal was always reachable via `journal`, the
+  chain link is what only detach knows. `reset` returns frames dropped;
+  `VasterExecutionJournal.clear` likewise.
+
 - **BREAKING (Rule 11 V6)**: `VasterExecutionRecorder.attach` returns
   the observer it displaced; `detach` returns the journal it recorded.
 

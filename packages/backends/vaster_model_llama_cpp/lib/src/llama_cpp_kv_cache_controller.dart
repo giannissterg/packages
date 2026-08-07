@@ -104,7 +104,7 @@ class LlamaCppKvCacheController implements KvCacheController {
   }
 
   @override
-  Future<void> restore(KvCacheHandle handle) async {
+  Future<bool> restore(KvCacheHandle handle) async {
     final client = _clientFactory();
     try {
       final response = await client.post(
@@ -116,6 +116,7 @@ class LlamaCppKvCacheController implements KvCacheController {
         throw StateError(
             'llama.cpp slot restore failed ${response.statusCode}: ${response.body}');
       }
+      return true; // the slot really loaded server-side
     } finally {
       client.close();
     }

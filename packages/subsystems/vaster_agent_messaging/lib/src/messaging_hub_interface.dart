@@ -2,8 +2,11 @@ import 'agent_message.dart';
 
 /// Interface defining inter-agent message routing and inbox queues.
 abstract interface class AgentMessagingHub {
-  /// Sends an [AgentMessage] to target recipient's inbox.
-  void sendMessage(AgentMessage message);
+  /// Sends an [AgentMessage] to the recipient's inbox and returns its
+  /// [AgentMessage.messageId] — the correlation handle, exactly as
+  /// `RuntimeEventBus.publish` returns its event id (Rule 11 de-sanctions
+  /// fan-out sinks; the id was already in hand).
+  String sendMessage(AgentMessage message);
 
   /// Returns unmodifiable inbox view for [agentId].
   List<AgentMessage> getInbox(String agentId);

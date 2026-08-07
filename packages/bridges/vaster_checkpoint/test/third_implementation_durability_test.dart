@@ -161,8 +161,10 @@ final class _ThirdPartyHub implements AgentMessagingHub {
   final Map<String, List<AgentMessage>> _inboxes = {};
 
   @override
-  void sendMessage(AgentMessage message) =>
-      _inboxes.putIfAbsent(message.recipientAgentId, () => []).add(message);
+  String sendMessage(AgentMessage message) {
+    _inboxes.putIfAbsent(message.recipientAgentId, () => []).add(message);
+    return message.messageId;
+  }
 
   @override
   List<AgentMessage> getInbox(String agentId) =>

@@ -9,11 +9,12 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
       StreamController<AgentMessage>.broadcast();
 
   @override
-  void sendMessage(AgentMessage message) {
+  String sendMessage(AgentMessage message) {
     _inboxes.putIfAbsent(message.recipientAgentId, () => []).add(message);
     if (!_controller.isClosed) {
       _controller.add(message);
     }
+    return message.messageId;
   }
 
   @override

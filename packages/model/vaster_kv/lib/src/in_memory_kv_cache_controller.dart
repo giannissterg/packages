@@ -68,11 +68,12 @@ class InMemoryKvCacheController implements KvCacheController {
   }
 
   @override
-  Future<void> restore(KvCacheHandle handle) async {
+  Future<bool> restore(KvCacheHandle handle) async {
     if (!_slots.containsKey(handle.contentFingerprint)) {
       throw StateError('KV state for ${handle.handleId} is not materialized.');
     }
     restores++;
+    return true;
   }
 
   @override

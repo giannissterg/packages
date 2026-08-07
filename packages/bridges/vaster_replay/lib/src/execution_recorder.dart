@@ -64,22 +64,27 @@ class VasterExecutionRecorder {
   }
 
   /// Stops recording and restores the previously installed observer.
-  /// Detaches and returns the journal recorded so far — the artifact this
-  /// recorder existed to produce.
-  VasterExecutionJournal detach() {
+  /// Detaches and returns the observer it RESTORED (null when it was not
+  /// attached, or when nothing had been installed) — symmetric with
+  /// [attach], which returns the observer it displaced. The recorded
+  /// journal is reachable through [journal]; the chain link is the fact
+  /// only detach knows.
+  RuntimeStepObserver? detach() {
     final runtime = _attached;
+    final restored = _previousObserver;
     if (runtime != null && identical(runtime.stepObserver, _observer)) {
-      runtime.stepObserver = _previousObserver;
+      runtime.stepObserver = restored;
     }
     _previousObserver = null;
     _attached = null;
-    return journal;
+    return restored;
   }
 
-  /// Discards all recorded frames and resets the step counter.
-  void reset() {
+  /// Discards all recorded frames and resets the step counter; returns
+  /// how many frames were dropped.
+  int reset() {
     _stepCounter = 0;
-    journal.clear();
+    return journal.clear();
   }
 
   void _onStep(int pc, VasterInstruction instruction, Map<String, Object?> registers) {

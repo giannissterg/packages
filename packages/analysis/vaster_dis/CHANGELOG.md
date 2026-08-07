@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **BREAKING (C wave)**: `ExecutionTracer.detach` returns the restored
+  observer (was bool); `attach` returns the already-displaced observer
+  on the repeat-attach no-op instead of an ambiguous null.
+
 - Rule 11 V6: `ExecutionTracer.attach` returns the displaced observer,
   `detach` whether it detached.
 

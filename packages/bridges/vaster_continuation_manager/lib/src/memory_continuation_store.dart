@@ -28,7 +28,9 @@ class MemoryContinuationStore implements ContinuationStore {
   }
 
   @override
-  Future<void> clear() async {
+  Future<int> clear() async {
+    final dropped = _storage.length;
     _storage.clear();
+    return dropped;
   }
 }

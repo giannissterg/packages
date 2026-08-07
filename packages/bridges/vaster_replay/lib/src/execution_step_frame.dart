@@ -159,9 +159,11 @@ class VasterExecutionJournal {
   List<ExecutionStepFrame> framesAtPc(int pc) =>
       _frames.where((f) => f.pc == pc).toList(growable: false);
 
-  /// Clears all recorded step frames.
-  void clear() {
+  /// Clears all recorded step frames; returns how many were dropped.
+  int clear() {
+    final dropped = _frames.length;
     _frames.clear();
+    return dropped;
   }
 
   /// Serializes the entire journal to a durable JSON map.

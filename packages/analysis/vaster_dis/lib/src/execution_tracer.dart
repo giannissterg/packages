@@ -59,10 +59,12 @@ class ExecutionTracer {
 
   /// Starts tracing. Any observer already installed keeps firing (chained
   /// after the tracer).
-  /// Returns the observer this tracer displaced (null when none, or when
-  /// already attached — a repeat attach is an observable no-op).
+  /// Returns the observer this tracer displaced — including on the
+  /// repeat-attach no-op path, where the ALREADY-displaced observer is
+  /// the honest answer (a no-op that reads as "nothing was there" is the
+  /// Rule 11 review flag; matches the replay recorder's attach).
   RuntimeStepObserver? attach() {
-    if (_attached) return null;
+    if (_attached) return _previousObserver;
     _previousObserver = runtime.stepObserver;
     _previousRegisters = const {};
     _previousTokens = runtime.budget.consumedTokens;
@@ -75,16 +77,19 @@ class ExecutionTracer {
   }
 
   /// Stops tracing and restores the previously installed observer.
-  /// Detaches; returns true when this call performed the detach.
-  bool detach() {
-    if (!_attached) return false;
+  /// Detaches and returns the observer it RESTORED (null when it was not
+  /// attached, or when nothing had been installed) — symmetric with
+  /// [attach] and identical to the replay recorder's idiom.
+  RuntimeStepObserver? detach() {
+    if (!_attached) return null;
+    final restored = _previousObserver;
     if (identical(runtime.stepObserver, _observer)) {
-      runtime.stepObserver = _previousObserver;
+      runtime.stepObserver = restored;
     }
     _previousObserver = null;
     _stepClock.stop();
     _attached = false;
-    return true;
+    return restored;
   }
 
   void _onStep(int pc, VasterInstruction instruction, Map<String, Object?> registers) {

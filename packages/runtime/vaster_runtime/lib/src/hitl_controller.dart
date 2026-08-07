@@ -76,8 +76,13 @@ class HitlController implements MachineStateComponent {
     return 1; // advance past YieldHumanInteractionOp
   }
 
-  /// Clears all HITL state (e.g. on program start).
-  void clear() => _pendingRequest = null;
+  /// Clears all HITL state (e.g. on program start); returns the request
+  /// that was pending, null when none — the discarded pause is data.
+  HumanInteractionRequest? clear() {
+    final pending = _pendingRequest;
+    _pendingRequest = null;
+    return pending;
+  }
 
   @override
   String get stateKey => 'hitl';

@@ -16,10 +16,9 @@ class BasicEventBus implements RuntimeEventBus {
   }
 
   @override
-  String publish(RuntimeEvent event) {
-    if (!_controller.isClosed) {
-      _controller.add(event);
-    }
+  String? publish(RuntimeEvent event) {
+    if (_controller.isClosed) return null;
+    _controller.add(event);
     return event.eventId;
   }
 

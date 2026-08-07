@@ -1,5 +1,10 @@
 ## Unreleased
 
+- C wave: doc repair — `restoreConsumed` no longer wears
+  `recordToolCall`'s stale first line (it claimed to increment a counter
+  and enforce a quota, doing neither); `applyQuota`'s duplicate
+  paragraph merged.
+
 - **BREAKING (Rule 11 V2)**: consumption returns running balances
   (`consumeTokens`/`consumeCost`/`recordToolCall`), `applyQuota` returns
   the quota it displaced, `restoreConsumed` echoes the restored

@@ -29,11 +29,10 @@ class ResourceTracker {
   /// Elapsed execution time.
   Duration get elapsedTime => _stopwatch.elapsed;
 
-  /// Replaces the enforced quota and restarts measurement: all counters reset
-  /// to zero and the deadline clock restarts. Used when a program scope
-  /// declares a new quota (e.g. a `SetQuotaOp` in bytecode).
-  /// Installs [quota] (resetting consumption) and returns the quota it
-  /// displaced (Rule 11).
+  /// Replaces the enforced quota and restarts measurement: all counters
+  /// reset to zero and the deadline clock restarts. Used when a program
+  /// scope declares a new quota (e.g. a `SetQuotaOp` in bytecode).
+  /// Returns the quota it displaced (Rule 11).
   ResourceQuota applyQuota(ResourceQuota quota) {
     final displaced = _quota;
     _quota = quota;
@@ -62,7 +61,6 @@ class ResourceTracker {
     return _consumedTokens;
   }
 
-  /// Increments tool call count by [count] and checks quota limit.
   /// Restores previously consumed meters (checkpoint resume). Sets raw
   /// counters WITHOUT quota checks: the values were legal when captured, and
   /// a resume must not re-trip a quota the original run already survived —

@@ -212,7 +212,7 @@ final class _CapturingController implements KvCacheController {
   }
 
   @override
-  Future<void> restore(KvCacheHandle handle) async {}
+  Future<bool> restore(KvCacheHandle handle) async => true;
 
   @override
   Future<bool> evict(KvCacheHandle handle) async =>

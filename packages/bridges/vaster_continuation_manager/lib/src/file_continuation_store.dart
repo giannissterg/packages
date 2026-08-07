@@ -81,12 +81,15 @@ class FileContinuationStore implements ContinuationStore {
   }
 
   @override
-  Future<void> clear() async {
+  Future<int> clear() async {
     final dir = await _ensureDirectory();
+    var dropped = 0;
     await for (final entity in dir.list()) {
       if (entity is File && entity.path.endsWith('.json')) {
         await entity.delete();
+        dropped++;
       }
     }
+    return dropped;
   }
 }

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **BREAKING (C wave)**: `sendMessage` returns the message id — the
+  same handle idiom `publish` uses; fan-out is not a sanctioned sink.
+
 - **BREAKING (A3)**: `exportInboxes`/`importInboxes` join the
   `AgentMessagingHub` contract — undelivered messages survive a
   checkpoint for ANY hub implementation, not just the in-repo one.

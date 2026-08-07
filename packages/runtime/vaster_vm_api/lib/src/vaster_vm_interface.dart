@@ -77,7 +77,10 @@ abstract interface class VasterVirtualMachine
   /// Registers a concrete [VasterModel] for a given [ModelDescriptor];
   /// returns the model it displaced under the descriptor key, null when
   /// fresh.
-  VasterModel? registerModel(ModelDescriptor descriptor, VasterModel model);
+/// Registers a model and returns every binding it displaced, keyed by
+  /// the slot (descriptor key and/or provider — registration writes both).
+  Map<String, VasterModel> registerModel(
+      ModelDescriptor descriptor, VasterModel model);
 
   /// Creates a new model session in [sessionManager].
   ///
@@ -101,7 +104,11 @@ abstract interface class VasterVirtualMachine
 
   /// Registers a [CodeSandbox] into [sandboxManager] and bridges it into
   /// an [ExecutableTool]; returns the same-id sandbox it displaced.
-  CodeSandbox? registerSandbox(CodeSandbox sandbox);
+/// Registers a sandbox AND its bridged executable tool; returns what
+  /// each registration displaced (the bridge writes two registries, so
+  /// one return value could only ever report half of it).
+  ({CodeSandbox? sandbox, ExecutableTool? bridgedTool}) registerSandbox(
+      CodeSandbox sandbox);
 
   /// Constructs and registers a default isolate-backed [CodeSandbox] for [sandboxId]
   /// supporting [language]. This is a factory convenience so the runtime does not
