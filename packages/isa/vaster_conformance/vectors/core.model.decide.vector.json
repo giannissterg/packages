@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.model.decide",
+  "description": "decide resolves a branch from the taped label; rationale rides the convention register",
+  "class": "core",
+  "family": "model",
+  "envelope": "core.model.decide.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 3,
+    "result": {
+      "value": "shipped"
+    }
+  }
+}

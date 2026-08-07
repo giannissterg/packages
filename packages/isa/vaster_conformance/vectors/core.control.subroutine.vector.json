@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.control.subroutine",
+  "description": "call with arguments, return_subroutine with returnRegister, call-stack frames",
+  "class": "core",
+  "family": "control",
+  "envelope": "core.control.subroutine.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 5,
+    "result": {
+      "value": 42
+    }
+  }
+}

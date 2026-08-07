@@ -1,0 +1,217 @@
+{
+  "version": 2,
+  "program": {
+    "programName": "model_prompt",
+    "resultBinding": "second",
+    "instructions": [
+      {
+        "opcode": "create_session",
+        "sessionId": "main"
+      },
+      {
+        "opcode": "set_session",
+        "sessionId": "main"
+      },
+      {
+        "opcode": "set_register",
+        "registerName": "topic",
+        "value": "TOPIC-A"
+      },
+      {
+        "opcode": "prompt",
+        "promptText": "Discuss ${topic}.",
+        "outputVar": "first"
+      },
+      {
+        "opcode": "prompt",
+        "promptText": "Now summarize ${first}.",
+        "outputVar": "second"
+      },
+      {
+        "opcode": "halt"
+      }
+    ]
+  },
+  "journal": {
+    "frames": [
+      {
+        "stepIndex": 0,
+        "pc": 0,
+        "instruction": {
+          "opcode": "create_session",
+          "sessionId": "main"
+        },
+        "registers": {},
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 1,
+        "pc": 1,
+        "instruction": {
+          "opcode": "set_session",
+          "sessionId": "main"
+        },
+        "registers": {},
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 2,
+        "pc": 2,
+        "instruction": {
+          "opcode": "set_register",
+          "registerName": "topic",
+          "value": "TOPIC-A"
+        },
+        "registers": {
+          "topic": "TOPIC-A"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 3,
+        "pc": 3,
+        "instruction": {
+          "opcode": "prompt",
+          "promptText": "Discuss ${topic}.",
+          "outputVar": "first"
+        },
+        "registers": {
+          "topic": "TOPIC-A",
+          "first": "ANSWER-ONE"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 4,
+        "pc": 4,
+        "instruction": {
+          "opcode": "prompt",
+          "promptText": "Now summarize ${first}.",
+          "outputVar": "second"
+        },
+        "registers": {
+          "topic": "TOPIC-A",
+          "first": "ANSWER-ONE",
+          "second": "ANSWER-TWO"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 5,
+        "pc": 5,
+        "instruction": {
+          "opcode": "halt"
+        },
+        "registers": {
+          "topic": "TOPIC-A",
+          "first": "ANSWER-ONE",
+          "second": "ANSWER-TWO"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  "modelTape": {
+    "version": 2,
+    "recordedModelName": "fake-vaster-model",
+    "recordedCapabilities": {
+      "maxContextTokens": 128000,
+      "maxOutputTokens": 4096,
+      "supportsStreaming": true,
+      "supportsFunctionCalling": true,
+      "supportsVision": true,
+      "supportsSystemInstruction": true,
+      "supportsReasoning": true
+    },
+    "entries": [
+      {
+        "fingerprint": "77ec83e8e2296e2b",
+        "requestPreview": "Discuss TOPIC-A.",
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Discuss TOPIC-A."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {}
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": "ANSWER-ONE"
+              }
+            ]
+          },
+          "finishReason": "stop",
+          "usage": {
+            "promptTokenCount": 0,
+            "candidatesTokenCount": 0,
+            "totalTokenCount": 0
+          }
+        }
+      },
+      {
+        "fingerprint": "331879f120a64208",
+        "requestPreview": "Now summarize ANSWER-ONE.",
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Discuss TOPIC-A."
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "ANSWER-ONE"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Now summarize ANSWER-ONE."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {}
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": "ANSWER-TWO"
+              }
+            ]
+          },
+          "finishReason": "stop",
+          "usage": {
+            "promptTokenCount": 0,
+            "candidatesTokenCount": 0,
+            "totalTokenCount": 0
+          }
+        }
+      }
+    ]
+  }
+}

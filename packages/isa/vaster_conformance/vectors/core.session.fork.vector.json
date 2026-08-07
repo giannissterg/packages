@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.session.fork",
+  "description": "fork_session branches history; both branches answer from the tape",
+  "class": "core",
+  "family": "session",
+  "envelope": "core.session.fork.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 7,
+    "result": {
+      "value": "MAIN-TURN"
+    }
+  }
+}

@@ -1,0 +1,496 @@
+{
+  "version": 2,
+  "program": {
+    "programName": "agents_dispatch",
+    "resultBinding": "inbox",
+    "instructions": [
+      {
+        "opcode": "create_agent",
+        "descriptor": {
+          "agentId": "worker",
+          "name": "worker",
+          "role": "Worker",
+          "systemInstruction": "You do the task.",
+          "allowedToolNames": [],
+          "maxToolCallLoops": 10
+        }
+      },
+      {
+        "opcode": "dispatch_agent_task",
+        "agentId": "worker",
+        "taskPrompt": "solo task",
+        "outputVar": "solo"
+      },
+      {
+        "opcode": "dispatch_parallel_tasks",
+        "dispatches": [
+          {
+            "agentId": "worker",
+            "taskPrompt": "left half",
+            "outputVar": "left"
+          },
+          {
+            "agentId": "worker",
+            "taskPrompt": "right half",
+            "outputVar": "right"
+          }
+        ]
+      },
+      {
+        "opcode": "send_message",
+        "senderId": "worker",
+        "recipientId": "worker",
+        "payload": {
+          "note": "from ${solo}"
+        }
+      },
+      {
+        "opcode": "pop_message",
+        "agentId": "worker",
+        "outputVar": "inbox"
+      },
+      {
+        "opcode": "halt"
+      }
+    ]
+  },
+  "journal": {
+    "frames": [
+      {
+        "stepIndex": 0,
+        "pc": 0,
+        "instruction": {
+          "opcode": "create_agent",
+          "descriptor": {
+            "agentId": "worker",
+            "name": "worker",
+            "role": "Worker",
+            "systemInstruction": "You do the task.",
+            "allowedToolNames": [],
+            "maxToolCallLoops": 10
+          }
+        },
+        "registers": {},
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 1,
+        "pc": 1,
+        "instruction": {
+          "opcode": "dispatch_agent_task",
+          "agentId": "worker",
+          "taskPrompt": "solo task",
+          "outputVar": "solo"
+        },
+        "registers": {
+          "solo_outcome": "completed",
+          "solo": "SOLO-DONE"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 2,
+        "pc": 2,
+        "instruction": {
+          "opcode": "dispatch_parallel_tasks",
+          "dispatches": [
+            {
+              "agentId": "worker",
+              "taskPrompt": "left half",
+              "outputVar": "left"
+            },
+            {
+              "agentId": "worker",
+              "taskPrompt": "right half",
+              "outputVar": "right"
+            }
+          ]
+        },
+        "registers": {
+          "solo_outcome": "completed",
+          "solo": "SOLO-DONE",
+          "left_outcome": "completed",
+          "left": "LEFT-DONE",
+          "right_outcome": "completed",
+          "right": "RIGHT-DONE"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 3,
+        "pc": 3,
+        "instruction": {
+          "opcode": "send_message",
+          "senderId": "worker",
+          "recipientId": "worker",
+          "payload": {
+            "note": "from ${solo}"
+          }
+        },
+        "registers": {
+          "solo_outcome": "completed",
+          "solo": "SOLO-DONE",
+          "left_outcome": "completed",
+          "left": "LEFT-DONE",
+          "right_outcome": "completed",
+          "right": "RIGHT-DONE"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 4,
+        "pc": 4,
+        "instruction": {
+          "opcode": "pop_message",
+          "agentId": "worker",
+          "outputVar": "inbox"
+        },
+        "registers": {
+          "solo_outcome": "completed",
+          "solo": "SOLO-DONE",
+          "left_outcome": "completed",
+          "left": "LEFT-DONE",
+          "right_outcome": "completed",
+          "right": "RIGHT-DONE",
+          "inbox": "{note: from SOLO-DONE}"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 5,
+        "pc": 5,
+        "instruction": {
+          "opcode": "halt"
+        },
+        "registers": {
+          "solo_outcome": "completed",
+          "solo": "SOLO-DONE",
+          "left_outcome": "completed",
+          "left": "LEFT-DONE",
+          "right_outcome": "completed",
+          "right": "RIGHT-DONE",
+          "inbox": "{note: from SOLO-DONE}"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  "modelTape": {
+    "version": 2,
+    "recordedModelName": "fake-vaster-model",
+    "recordedCapabilities": {
+      "maxContextTokens": 128000,
+      "maxOutputTokens": 4096,
+      "supportsStreaming": true,
+      "supportsFunctionCalling": true,
+      "supportsVision": true,
+      "supportsSystemInstruction": true,
+      "supportsReasoning": true
+    },
+    "entries": [
+      {
+        "fingerprint": "7b1ec74746917c4d",
+        "requestPreview": "solo task",
+        "request": {
+          "systemInstruction": {
+            "role": "system",
+            "parts": [
+              {
+                "type": "text",
+                "text": "You do the task."
+              }
+            ]
+          },
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "solo task"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "write_file",
+              "description": "Write text content to a file in the virtual filesystem.",
+              "parametersSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Absolute VFS path"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Text content to write"
+                  }
+                },
+                "required": [
+                  "path",
+                  "content"
+                ]
+              }
+            },
+            {
+              "name": "read_file",
+              "description": "Read text content from a file in the virtual filesystem.",
+              "parametersSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Absolute VFS path"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ],
+          "generationConfig": {}
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": "SOLO-DONE"
+              }
+            ]
+          },
+          "finishReason": "stop",
+          "usage": {
+            "promptTokenCount": 0,
+            "candidatesTokenCount": 0,
+            "totalTokenCount": 0
+          }
+        }
+      },
+      {
+        "fingerprint": "263c9703633dfa63",
+        "requestPreview": "left half",
+        "request": {
+          "systemInstruction": {
+            "role": "system",
+            "parts": [
+              {
+                "type": "text",
+                "text": "You do the task."
+              }
+            ]
+          },
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "solo task"
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "SOLO-DONE"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "left half"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "write_file",
+              "description": "Write text content to a file in the virtual filesystem.",
+              "parametersSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Absolute VFS path"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Text content to write"
+                  }
+                },
+                "required": [
+                  "path",
+                  "content"
+                ]
+              }
+            },
+            {
+              "name": "read_file",
+              "description": "Read text content from a file in the virtual filesystem.",
+              "parametersSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Absolute VFS path"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ],
+          "generationConfig": {}
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": "LEFT-DONE"
+              }
+            ]
+          },
+          "finishReason": "stop",
+          "usage": {
+            "promptTokenCount": 0,
+            "candidatesTokenCount": 0,
+            "totalTokenCount": 0
+          }
+        }
+      },
+      {
+        "fingerprint": "3b12eff167d814bc",
+        "requestPreview": "right half",
+        "request": {
+          "systemInstruction": {
+            "role": "system",
+            "parts": [
+              {
+                "type": "text",
+                "text": "You do the task."
+              }
+            ]
+          },
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "solo task"
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "SOLO-DONE"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "left half"
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "LEFT-DONE"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "right half"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "write_file",
+              "description": "Write text content to a file in the virtual filesystem.",
+              "parametersSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Absolute VFS path"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Text content to write"
+                  }
+                },
+                "required": [
+                  "path",
+                  "content"
+                ]
+              }
+            },
+            {
+              "name": "read_file",
+              "description": "Read text content from a file in the virtual filesystem.",
+              "parametersSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Absolute VFS path"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ],
+          "generationConfig": {}
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": "RIGHT-DONE"
+              }
+            ]
+          },
+          "finishReason": "stop",
+          "usage": {
+            "promptTokenCount": 0,
+            "candidatesTokenCount": 0,
+            "totalTokenCount": 0
+          }
+        }
+      }
+    ]
+  }
+}

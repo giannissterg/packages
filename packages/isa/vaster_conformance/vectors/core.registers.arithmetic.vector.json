@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.registers.arithmetic",
+  "description": "set/increment/compare/concat/json_extract over the register file",
+  "class": "core",
+  "family": "registers",
+  "envelope": "core.registers.arithmetic.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 10,
+    "result": {
+      "value": "42/42"
+    }
+  }
+}

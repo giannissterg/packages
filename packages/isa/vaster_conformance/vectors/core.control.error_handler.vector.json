@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.control.error_handler",
+  "description": "push_error_handler catches a trap; pop_error_handler; execution continues",
+  "class": "core",
+  "family": "control",
+  "envelope": "core.control.error_handler.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 6,
+    "result": {
+      "value": "handled"
+    }
+  }
+}

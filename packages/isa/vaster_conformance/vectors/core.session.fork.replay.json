@@ -1,0 +1,248 @@
+{
+  "version": 2,
+  "program": {
+    "programName": "session_fork",
+    "resultBinding": "branch_answer",
+    "instructions": [
+      {
+        "opcode": "create_session",
+        "sessionId": "root"
+      },
+      {
+        "opcode": "set_session",
+        "sessionId": "root"
+      },
+      {
+        "opcode": "prompt",
+        "promptText": "root turn",
+        "outputVar": "root_answer"
+      },
+      {
+        "opcode": "fork_session",
+        "sourceSessionId": "root",
+        "targetSessionId": "fork"
+      },
+      {
+        "opcode": "set_session",
+        "sessionId": "fork"
+      },
+      {
+        "opcode": "prompt",
+        "promptText": "branch turn",
+        "outputVar": "branch_answer"
+      },
+      {
+        "opcode": "halt"
+      }
+    ]
+  },
+  "journal": {
+    "frames": [
+      {
+        "stepIndex": 0,
+        "pc": 0,
+        "instruction": {
+          "opcode": "create_session",
+          "sessionId": "root"
+        },
+        "registers": {},
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 1,
+        "pc": 1,
+        "instruction": {
+          "opcode": "set_session",
+          "sessionId": "root"
+        },
+        "registers": {},
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 2,
+        "pc": 2,
+        "instruction": {
+          "opcode": "prompt",
+          "promptText": "root turn",
+          "outputVar": "root_answer"
+        },
+        "registers": {
+          "root_answer": "ROOT-TURN"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 3,
+        "pc": 3,
+        "instruction": {
+          "opcode": "fork_session",
+          "sourceSessionId": "root",
+          "targetSessionId": "fork"
+        },
+        "registers": {
+          "root_answer": "ROOT-TURN"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 4,
+        "pc": 4,
+        "instruction": {
+          "opcode": "set_session",
+          "sessionId": "fork"
+        },
+        "registers": {
+          "root_answer": "ROOT-TURN"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 5,
+        "pc": 5,
+        "instruction": {
+          "opcode": "prompt",
+          "promptText": "branch turn",
+          "outputVar": "branch_answer"
+        },
+        "registers": {
+          "root_answer": "ROOT-TURN",
+          "branch_answer": "MAIN-TURN"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 6,
+        "pc": 6,
+        "instruction": {
+          "opcode": "halt"
+        },
+        "registers": {
+          "root_answer": "ROOT-TURN",
+          "branch_answer": "MAIN-TURN"
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  "modelTape": {
+    "version": 2,
+    "recordedModelName": "fake-vaster-model",
+    "recordedCapabilities": {
+      "maxContextTokens": 128000,
+      "maxOutputTokens": 4096,
+      "supportsStreaming": true,
+      "supportsFunctionCalling": true,
+      "supportsVision": true,
+      "supportsSystemInstruction": true,
+      "supportsReasoning": true
+    },
+    "entries": [
+      {
+        "fingerprint": "46bb5b2563bba82f",
+        "requestPreview": "root turn",
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "root turn"
+                }
+              ]
+            }
+          ],
+          "generationConfig": {}
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": "ROOT-TURN"
+              }
+            ]
+          },
+          "finishReason": "stop",
+          "usage": {
+            "promptTokenCount": 0,
+            "candidatesTokenCount": 0,
+            "totalTokenCount": 0
+          }
+        }
+      },
+      {
+        "fingerprint": "093bbaaa24c17a75",
+        "requestPreview": "ROOT-TURN",
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "root turn"
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "ROOT-TURN"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "branch turn"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "root turn"
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "ROOT-TURN"
+                }
+              ]
+            }
+          ],
+          "generationConfig": {}
+        },
+        "response": {
+          "message": {
+            "role": "model",
+            "parts": [
+              {
+                "type": "text",
+                "text": "MAIN-TURN"
+              }
+            ]
+          },
+          "finishReason": "stop",
+          "usage": {
+            "promptTokenCount": 0,
+            "candidatesTokenCount": 0,
+            "totalTokenCount": 0
+          }
+        }
+      }
+    ]
+  }
+}

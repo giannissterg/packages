@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.effects.scopes",
+  "description": "effect scope push/mark-retry/pop execute as machine state",
+  "class": "core",
+  "family": "effects",
+  "envelope": "core.effects.scopes.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 7,
+    "result": {
+      "value": "effects-ok"
+    }
+  }
+}

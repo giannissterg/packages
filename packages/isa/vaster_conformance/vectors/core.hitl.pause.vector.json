@@ -1,0 +1,17 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.hitl.pause",
+  "description": "yield_human_interaction pauses the machine; the pause state is the contract",
+  "class": "core",
+  "family": "hitl",
+  "envelope": "core.hitl.pause.replay.json",
+  "expect": {
+    "finalStatus": "pausedForHuman",
+    "steps": 2,
+    "pendingRequest": {
+      "requestId": "gate",
+      "prompt": "Proceed?",
+      "type": "approval"
+    }
+  }
+}

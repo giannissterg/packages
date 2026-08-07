@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.model.select_and_policy",
+  "description": "select_model records the active chain; check_policy allows under the unlimited policy",
+  "class": "core",
+  "family": "model",
+  "envelope": "core.model.select_and_policy.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 6,
+    "result": {
+      "value": "SELECTED-OK"
+    }
+  }
+}

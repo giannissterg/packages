@@ -1,0 +1,24 @@
+name: vaster_conformance
+description: The ISA conformance suite — golden vectors, the normative comparator, and the Dart reference runner (1.0 gate 2).
+version: 0.5.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0-282.1.beta
+
+dependencies:
+  vaster_budget:
+  vaster_filesystem:
+  vaster_instruction:
+  vaster_model:
+  vaster_model_fake:
+  vaster_policy:
+  vaster_replay:
+  vaster_runtime:
+  vaster_scheduler:
+  vaster_vm:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

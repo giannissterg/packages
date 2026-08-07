@@ -1,0 +1,13 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.control.trap",
+  "description": "an unhandled trap halts with error status; trapPc is the contract, not the message",
+  "class": "core",
+  "family": "control",
+  "envelope": "core.control.trap.replay.json",
+  "expect": {
+    "finalStatus": "error",
+    "steps": 2,
+    "trapPc": 1
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.quota.tools",
+  "description": "set_quota (token arm, no wall clock) and register_tool_set",
+  "class": "core",
+  "family": "quota",
+  "envelope": "core.quota.tools.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 6,
+    "result": {
+      "value": "quota-ok"
+    }
+  }
+}

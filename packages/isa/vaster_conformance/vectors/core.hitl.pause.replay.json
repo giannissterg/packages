@@ -1,0 +1,81 @@
+{
+  "version": 2,
+  "program": {
+    "programName": "hitl_pause",
+    "instructions": [
+      {
+        "opcode": "set_register",
+        "registerName": "ready",
+        "value": true
+      },
+      {
+        "opcode": "yield_human_interaction",
+        "request": {
+          "requestId": "gate",
+          "type": "approval",
+          "prompt": "Proceed?",
+          "options": [
+            "approve",
+            "reject"
+          ],
+          "outputVar": "answer"
+        }
+      },
+      {
+        "opcode": "halt"
+      }
+    ]
+  },
+  "journal": {
+    "frames": [
+      {
+        "stepIndex": 0,
+        "pc": 0,
+        "instruction": {
+          "opcode": "set_register",
+          "registerName": "ready",
+          "value": true
+        },
+        "registers": {
+          "ready": true
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 1,
+        "pc": 1,
+        "instruction": {
+          "opcode": "yield_human_interaction",
+          "request": {
+            "requestId": "gate",
+            "type": "approval",
+            "prompt": "Proceed?",
+            "options": [
+              "approve",
+              "reject"
+            ],
+            "outputVar": "answer"
+          }
+        },
+        "registers": {
+          "ready": true
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  "modelTape": {
+    "version": 2,
+    "recordedModelName": "fake-vaster-model",
+    "recordedCapabilities": {
+      "maxContextTokens": 128000,
+      "maxOutputTokens": 4096,
+      "supportsStreaming": true,
+      "supportsFunctionCalling": true,
+      "supportsVision": true,
+      "supportsSystemInstruction": true,
+      "supportsReasoning": true
+    },
+    "entries": []
+  }
+}

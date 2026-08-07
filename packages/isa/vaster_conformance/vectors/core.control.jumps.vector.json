@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.control.jumps",
+  "description": "jump and jump_if taken/not-taken verified by successor-frame pc",
+  "class": "core",
+  "family": "control",
+  "envelope": "core.control.jumps.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 7,
+    "result": {
+      "value": "fallthrough"
+    }
+  }
+}

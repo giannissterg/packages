@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.model.prompt",
+  "description": "session + prompt turns answered from the tape; interpolation into prompt text",
+  "class": "core",
+  "family": "model",
+  "envelope": "core.model.prompt.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 6,
+    "result": {
+      "value": "ANSWER-TWO"
+    }
+  }
+}

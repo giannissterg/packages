@@ -1,0 +1,142 @@
+{
+  "version": 2,
+  "program": {
+    "programName": "control_subroutine",
+    "resultBinding": "doubled",
+    "instructions": [
+      {
+        "opcode": "set_register",
+        "registerName": "input",
+        "value": 21
+      },
+      {
+        "opcode": "call",
+        "functionName": "double",
+        "targetPc": 3,
+        "arguments": {
+          "n": "input"
+        },
+        "outputVar": "doubled"
+      },
+      {
+        "opcode": "halt"
+      },
+      {
+        "opcode": "set_register",
+        "registerName": "result",
+        "value": 42
+      },
+      {
+        "opcode": "return_subroutine",
+        "returnRegister": "result"
+      }
+    ]
+  },
+  "journal": {
+    "frames": [
+      {
+        "stepIndex": 0,
+        "pc": 0,
+        "instruction": {
+          "opcode": "set_register",
+          "registerName": "input",
+          "value": 21
+        },
+        "registers": {
+          "input": 21
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 1,
+        "pc": 1,
+        "instruction": {
+          "opcode": "call",
+          "functionName": "double",
+          "targetPc": 3,
+          "arguments": {
+            "n": "input"
+          },
+          "outputVar": "doubled"
+        },
+        "registers": {
+          "input": 21,
+          "n": "input"
+        },
+        "callStack": [
+          {
+            "functionName": "double",
+            "returnPc": 2,
+            "outputVar": "doubled"
+          }
+        ],
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 2,
+        "pc": 3,
+        "instruction": {
+          "opcode": "set_register",
+          "registerName": "result",
+          "value": 42
+        },
+        "registers": {
+          "input": 21,
+          "n": "input",
+          "result": 42
+        },
+        "callStack": [
+          {
+            "functionName": "double",
+            "returnPc": 2,
+            "outputVar": "doubled"
+          }
+        ],
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 3,
+        "pc": 4,
+        "instruction": {
+          "opcode": "return_subroutine",
+          "returnRegister": "result"
+        },
+        "registers": {
+          "input": 21,
+          "n": "input",
+          "result": 42,
+          "doubled": 42
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      },
+      {
+        "stepIndex": 4,
+        "pc": 2,
+        "instruction": {
+          "opcode": "halt"
+        },
+        "registers": {
+          "input": 21,
+          "n": "input",
+          "result": 42,
+          "doubled": 42
+        },
+        "timestamp": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  "modelTape": {
+    "version": 2,
+    "recordedModelName": "fake-vaster-model",
+    "recordedCapabilities": {
+      "maxContextTokens": 128000,
+      "maxOutputTokens": 4096,
+      "supportsStreaming": true,
+      "supportsFunctionCalling": true,
+      "supportsVision": true,
+      "supportsSystemInstruction": true,
+      "supportsReasoning": true
+    },
+    "entries": []
+  }
+}

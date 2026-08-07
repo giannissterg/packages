@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.agents.dispatch",
+  "description": "create_agent, single + parallel dispatch (tape-served), actor messaging",
+  "class": "core",
+  "family": "agents",
+  "envelope": "core.agents.dispatch.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 6,
+    "result": {
+      "value": "{note: from SOLO-DONE}"
+    }
+  }
+}

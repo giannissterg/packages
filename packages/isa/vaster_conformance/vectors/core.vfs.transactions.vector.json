@@ -1,0 +1,21 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.vfs.transactions",
+  "description": "memory mount, write/read, committed and rolled-back transactions; VFS export checked",
+  "class": "core",
+  "family": "vfs",
+  "envelope": "core.vfs.transactions.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 10,
+    "result": {
+      "value": "base"
+    },
+    "vfs": {
+      "/data": {
+        "/data/base.txt": "YmFzZQ==",
+        "/data/kept.txt": "a2VwdA=="
+      }
+    }
+  }
+}

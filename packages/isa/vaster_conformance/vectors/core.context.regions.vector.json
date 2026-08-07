@@ -1,0 +1,15 @@
+{
+  "conformanceVersion": 1,
+  "name": "core.context.regions",
+  "description": "add (text + sourceVar), pin/unpin, policy update, evict",
+  "class": "core",
+  "family": "context",
+  "envelope": "core.context.regions.replay.json",
+  "expect": {
+    "finalStatus": "halted",
+    "steps": 10,
+    "result": {
+      "value": "context-ok"
+    }
+  }
+}
