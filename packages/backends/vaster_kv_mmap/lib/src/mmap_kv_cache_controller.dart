@@ -143,10 +143,13 @@ class MmapKvCacheController implements KvCacheController, KvFrameResolver {
 
   /// Detaches all frames without destroying the shared segments (other
   /// processes keep their mappings; state remains discoverable).
-  void detachAll() {
+  /// Detaches every tracked frame; returns how many were closed.
+  int detachAll() {
+    final n = _frames.length;
     for (final entry in _frames.values) {
       entry.$2.close();
     }
     _frames.clear();
+    return n;
   }
 }

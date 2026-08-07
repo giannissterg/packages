@@ -163,7 +163,8 @@ class BasicModelSession implements ModelSession {
   void appendMessage(ChatMessage message) => _history.add(message);
 
   @override
-  void clearHistory() {
+  int clearHistory() {
+    final dropped = _history.length;
     _history.clear();
     // Remove projected history regions so the heap doesn't serve stale turns.
     for (final region in List<ContextRegion>.from(contextManager.regions)) {
@@ -171,5 +172,6 @@ class BasicModelSession implements ModelSession {
         contextManager.removeRegion(region.id, force: true);
       }
     }
+    return dropped;
   }
 }

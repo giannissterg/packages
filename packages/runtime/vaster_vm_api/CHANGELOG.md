@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **BREAKING (Rule 11 V6)**: `shutdown` returns the teardown summary
+  (sessions closed, hub/bus closure).
+
 - **BREAKING (Rule 11 V1)**: `ModelRegistry.registerModel` and the
   master interface's `registerModel`/`registerTool`/`registerSandbox`
   return displaced entities; `mountFileSystem` returns the normalized

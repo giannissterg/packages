@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Rule 11 V6: `CancellationToken.cancel` returns whether THIS call
+  performed the transition — the first cause wins, repeats are
+  observable no-ops.
+
 - `ModelResponse.servedBy`: the model name that actually produced the
   response when it may differ from the model invoked (fallback chains).
   JSON key emitted only when set — tape/golden payloads stay byte-identical.

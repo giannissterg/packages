@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **BREAKING (Rule 11 V6)**: `RuntimeEventBus.close` returns whether
+  this call closed it (idempotence observable).
+
 - `AgentTaskReplayedEvent` (GAP-2): the idempotency ledger replayed a
   recorded agent-task outcome instead of re-dispatching — the replay's
   usage is not re-charged.

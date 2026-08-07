@@ -61,7 +61,13 @@ final class RingSidecarHost {
   }
 
   /// Asks the serve loop to exit after the in-flight request (if any).
-  void stop() => _stopping = true;
+/// Requests the serve loop stop; returns true when this call performed
+  /// the transition (a repeat stop is an observable no-op).
+  bool stop() {
+    if (_stopping) return false;
+    _stopping = true;
+    return true;
+  }
 
   Future<String> _answer(String payload) async {
     try {

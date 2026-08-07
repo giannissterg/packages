@@ -52,22 +52,28 @@ class VasterExecutionRecorder {
   /// and is restored by [detach]. Re-attaching while already attached to
   /// another runtime detaches from that one first; re-attaching to the same
   /// runtime is a no-op.
-  void attach(VasterRuntime runtime) {
-    if (identical(_attached, runtime)) return;
+  /// Returns the observer this recorder displaced on [runtime] (null when
+  /// none was installed) — the chain link detach restores (Rule 11).
+  RuntimeStepObserver? attach(VasterRuntime runtime) {
+    if (identical(_attached, runtime)) return _previousObserver;
     if (_attached != null) detach();
     _attached = runtime;
     _previousObserver = runtime.stepObserver;
     runtime.stepObserver = _observer;
+    return _previousObserver;
   }
 
   /// Stops recording and restores the previously installed observer.
-  void detach() {
+  /// Detaches and returns the journal recorded so far — the artifact this
+  /// recorder existed to produce.
+  VasterExecutionJournal detach() {
     final runtime = _attached;
     if (runtime != null && identical(runtime.stepObserver, _observer)) {
       runtime.stepObserver = _previousObserver;
     }
     _previousObserver = null;
     _attached = null;
+    return journal;
   }
 
   /// Discards all recorded frames and resets the step counter.

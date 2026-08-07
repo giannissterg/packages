@@ -11,6 +11,7 @@ abstract interface class RuntimeEventBus {
   /// Publishes a [RuntimeEvent] to the bus stream.
   void publish(RuntimeEvent event);
 
-  /// Closes the event bus stream controller.
-  Future<void> close();
+  /// Closes the event bus stream controller; returns true when this call
+  /// closed it, false when it was already closed.
+  Future<bool> close();
 }

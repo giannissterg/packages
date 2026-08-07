@@ -23,7 +23,9 @@ class BasicEventBus implements RuntimeEventBus {
   }
 
   @override
-  Future<void> close() async {
+  Future<bool> close() async {
+    if (_controller.isClosed) return false;
     await _controller.close();
+    return true;
   }
 }

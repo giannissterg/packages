@@ -40,9 +40,7 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
   }
 
   @override
-  void clearInbox(String agentId) {
-    _inboxes.remove(agentId);
-  }
+  int clearInbox(String agentId) => _inboxes.remove(agentId)?.length ?? 0;
 
   /// Exports every inbox (checkpoint capture) — read/unread state included.
   ///
@@ -70,7 +68,9 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
   }
 
   @override
-  Future<void> close() async {
+  Future<bool> close() async {
+    if (_controller.isClosed) return false;
     await _controller.close();
+    return true;
   }
 }

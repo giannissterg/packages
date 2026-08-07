@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Rule 11 V6: `ExecutionTracer.attach` returns the displaced observer,
+  `detach` whether it detached.
+
 - `SELECT_MODEL` disassembly renders declared fallback chains in order
   (`google_ai:pro → google_ai:flash → fake:local`).
 

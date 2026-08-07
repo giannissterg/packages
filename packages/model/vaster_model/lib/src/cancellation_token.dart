@@ -21,10 +21,14 @@ class CancellationToken {
   /// Cancellation reason if cancelled.
   String? get reason => _reason;
 
-  /// Requests cancellation with an optional reason.
-  void cancel([String? reason]) {
+  /// Requests cancellation with an optional reason; returns true when
+  /// THIS call performed the transition, false when already cancelled
+  /// (the first cause wins and repeat cancels are observable no-ops).
+  bool cancel([String? reason]) {
+    if (_isCancelled) return false;
     _isCancelled = true;
     _reason = reason;
+    return true;
   }
 
   /// Throws a [CancelledException] if cancellation has been requested.

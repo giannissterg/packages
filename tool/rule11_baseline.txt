@@ -3,38 +3,35 @@
 # Counts only go DOWN (see tool/rule11_ratchet.sh).
 analysis/vaster_check 3
 analysis/vaster_debug 3
-analysis/vaster_dis 5
+analysis/vaster_dis 3
 analysis/vaster_eval 1
-backends/vaster_kv_mmap 2
+backends/vaster_kv_mmap 1
 backends/vaster_llama_ffi 13
 backends/vaster_model_google_ai 1
 backends/vaster_model_llama_cpp 2
 bridges/vaster_checkpoint 1
 bridges/vaster_context_mmu 2
 bridges/vaster_continuation_manager 3
-bridges/vaster_replay 9
+bridges/vaster_replay 7
 host/vaster_cli 19
 host/vaster_playground 8
 isa/vaster_instruction 3
 model/vaster_kv 3
-model/vaster_model 5
-runtime/vaster_events 4
+model/vaster_model 4
+runtime/vaster_events 2
 runtime/vaster_machine_state 2
 runtime/vaster_policy_engine 1
 runtime/vaster_runtime 28
 runtime/vaster_scheduler 6
-runtime/vaster_vm 3
-runtime/vaster_vm_api 1
-subsystems/vaster_agent_manager_advanced 2
-subsystems/vaster_agent_messaging 6
+runtime/vaster_vm 2
+subsystems/vaster_agent_messaging 2
 subsystems/vaster_context 1
 subsystems/vaster_context_manager 5
 subsystems/vaster_filesystem 1
 subsystems/vaster_filesystem_local 1
 subsystems/vaster_filesystem_memory 1
-subsystems/vaster_session 4
-subsystems/vaster_session_manager 2
-transports/vaster_mmap 15
+subsystems/vaster_session 2
+transports/vaster_mmap 14
 transports/vaster_model_rpc_server 3
 #
 # ── Sanctioned-sink ledger (Rule 11) ─────────────────────────────────

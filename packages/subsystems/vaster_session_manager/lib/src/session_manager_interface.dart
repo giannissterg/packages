@@ -32,5 +32,6 @@ abstract interface class SessionManager {
   Future<bool> closeSession(String sessionId);
 
   /// Closes all active sessions.
-  Future<void> closeAllSessions();
+/// Returns the number of sessions closed.
+  Future<int> closeAllSessions();
 }

@@ -15,8 +15,12 @@ abstract interface class AgentMessagingHub {
   AgentMessage? popNextMessage(String agentId);
 
   /// Clears inbox for [agentId].
-  void clearInbox(String agentId);
+/// Returns the number of messages dropped (Rule 11 — an empty clear is
+  /// observable).
+  int clearInbox(String agentId);
 
   /// Closes messaging hub resources.
-  Future<void> close();
+/// Returns true when this call closed the hub, false when it was
+  /// already closed (idempotence made observable).
+  Future<bool> close();
 }

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Rule 11 V6: `RingSidecarHost.stop` returns whether this call
+  performed the stop transition.
+
 - **BREAKING**: `SidecarEnvelope` (all-static) → `SidecarEnvelopeCodec`, a const-constructible instance held by `MmapVasterModel` and `RingSidecarHost` (constructor param, canonical default) — the wire parsing is testable in isolation and a future protocol version composes in as another codec.
 
 - `RingSidecarHost` — the serving side of the ring transport, moved here

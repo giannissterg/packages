@@ -65,10 +65,11 @@ class BasicSessionManager implements SessionManager {
   }
 
   @override
-  Future<void> closeAllSessions() async {
+  Future<int> closeAllSessions() async {
     final ids = List<String>.from(_sessions.keys);
     for (final id in ids) {
       await closeSession(id);
     }
+    return ids.length;
   }
 }

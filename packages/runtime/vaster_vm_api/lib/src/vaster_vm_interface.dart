@@ -127,6 +127,8 @@ abstract interface class VasterVirtualMachine
     String? agentId,
   });
 
-  /// Shuts down VM resources cleanly.
-  Future<void> shutdown();
+  /// Shuts down VM resources cleanly; returns the teardown summary —
+  /// what was actually closed (Rule 11).
+  Future<({int sessionsClosed, bool messagingClosed, bool eventBusClosed})>
+      shutdown();
 }

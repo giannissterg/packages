@@ -59,8 +59,10 @@ class ExecutionTracer {
 
   /// Starts tracing. Any observer already installed keeps firing (chained
   /// after the tracer).
-  void attach() {
-    if (_attached) return;
+  /// Returns the observer this tracer displaced (null when none, or when
+  /// already attached — a repeat attach is an observable no-op).
+  RuntimeStepObserver? attach() {
+    if (_attached) return null;
     _previousObserver = runtime.stepObserver;
     _previousRegisters = const {};
     _previousTokens = runtime.budget.consumedTokens;
@@ -69,17 +71,20 @@ class ExecutionTracer {
       ..start();
     runtime.stepObserver = _observer;
     _attached = true;
+    return _previousObserver;
   }
 
   /// Stops tracing and restores the previously installed observer.
-  void detach() {
-    if (!_attached) return;
+  /// Detaches; returns true when this call performed the detach.
+  bool detach() {
+    if (!_attached) return false;
     if (identical(runtime.stepObserver, _observer)) {
       runtime.stepObserver = _previousObserver;
     }
     _previousObserver = null;
     _stepClock.stop();
     _attached = false;
+    return true;
   }
 
   void _onStep(int pc, VasterInstruction instruction, Map<String, Object?> registers) {

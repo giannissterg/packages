@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **BREAKING (Rule 11 V6)**: `VasterExecutionRecorder.attach` returns
+  the observer it displaced; `detach` returns the journal it recorded.
+
 - Rule 11 V2: `VasterExecutionJournal.recordStep` returns the recorded
   frame's step index — the handle seek/getFrameAt address it by.
 

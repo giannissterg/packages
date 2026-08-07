@@ -113,18 +113,23 @@ class AdvancedAgentManager implements AgentManager {
   AgentState getAgentState(String agentId) => lifecycleOf(agentId).asState;
 
   /// Pauses an agent: new dispatches fail immediately and queued tasks fail
-  /// when dequeued while still paused.
-  void pauseAgent(String agentId) {
+  /// when dequeued while still paused. Returns the sealed lifecycle the
+  /// agent is now in ([AgentTerminated] for unknown ids) — the transition
+  /// is data, not a hope (Rule 11).
+  AgentLifecycle pauseAgent(String agentId) {
     final entry = _entries[agentId];
     if (entry != null) entry.lifecycle = const AgentPaused();
+    return lifecycleOf(agentId);
   }
 
-  /// Resumes a paused agent.
-  void resumeAgent(String agentId) {
+  /// Resumes a paused agent; returns the lifecycle the agent is now in
+  /// (unchanged when it was not paused — the no-op is observable).
+  AgentLifecycle resumeAgent(String agentId) {
     final entry = _entries[agentId];
     if (entry != null && entry.lifecycle is AgentPaused) {
       entry.lifecycle = const AgentIdle();
     }
+    return lifecycleOf(agentId);
   }
 
   /// Returns supervisor tree node info for an agent.

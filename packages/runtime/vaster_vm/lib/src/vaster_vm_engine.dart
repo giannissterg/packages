@@ -743,9 +743,15 @@ class VasterVMEngine implements VasterVirtualMachine {
   }
 
   @override
-  Future<void> shutdown() async {
-    await sessionManager.closeAllSessions();
-    await messagingHub.close();
-    await eventBus.close();
+  Future<({int sessionsClosed, bool messagingClosed, bool eventBusClosed})>
+      shutdown() async {
+    final sessionsClosed = await sessionManager.closeAllSessions();
+    final messagingClosed = await messagingHub.close();
+    final eventBusClosed = await eventBus.close();
+    return (
+      sessionsClosed: sessionsClosed,
+      messagingClosed: messagingClosed,
+      eventBusClosed: eventBusClosed,
+    );
   }
 }
