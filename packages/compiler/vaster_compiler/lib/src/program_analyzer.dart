@@ -122,38 +122,44 @@ class ProgramAnalyzer {
     final written = <String>{};
     final read = <String>{};
 
-    void checkRead(int pc, String register) {
+    CompileDiagnostic? checkRead(int pc, String register) {
       read.add(register);
-      if (!written.contains(register)) {
-        diagnostics.add(CompileDiagnostic(
-          severity: CompileSeverity.warning,
-          code: 'read_before_write',
-          message: 'Register "$register" is read before any instruction writes it.',
-          pc: pc,
-        ));
-      }
+      if (written.contains(register)) return null;
+      final diagnostic = CompileDiagnostic(
+        severity: CompileSeverity.warning,
+        code: 'read_before_write',
+        message: 'Register "$register" is read before any instruction writes it.',
+        pc: pc,
+      );
+      diagnostics.add(diagnostic);
+      return diagnostic;
     }
 
     // `${name}` interpolation references are register reads — check the
     // wiring at compile time (the runtime leaves unresolvable refs verbatim).
-    void checkInterpolationReads(int pc, VasterInstruction inst) {
+    List<CompileDiagnostic> checkInterpolationReads(
+        int pc, VasterInstruction inst) {
+      final added = <CompileDiagnostic>[];
       for (final field in _interpolatedFields(inst)) {
         for (final match in RegisterInterpolation.token.allMatches(field)) {
           final name = match.group(1);
           if (name == null) continue; // `$$` escape
           read.add(name);
           if (!written.contains(name)) {
-            diagnostics.add(CompileDiagnostic(
+            final diagnostic = CompileDiagnostic(
               severity: CompileSeverity.warning,
               code: 'unresolved_interpolation_ref',
               message: 'Prompt/content interpolates "\${$name}" but no prior '
                   'instruction binds it — the reference will be left verbatim '
                   'at runtime unless seeded externally.',
               pc: pc,
-            ));
+            );
+            diagnostics.add(diagnostic);
+            added.add(diagnostic);
           }
         }
       }
+      return added;
     }
 
     for (var pc = 0; pc < instructions.length; pc++) {
@@ -261,16 +267,17 @@ class ProgramAnalyzer {
       for (final inst in instructions)
         if (inst is AddContextOp) inst.regionId,
     };
-    void checkRegionRef(int pc, String opName, String regionId) {
-      if (!declaredRegions.contains(regionId)) {
-        diagnostics.add(CompileDiagnostic(
-          severity: CompileSeverity.info,
-          code: 'ctx_unknown_region',
-          message: '$opName references region "$regionId" with no preceding '
-              'AddContextOp in this program (may be provisioned externally).',
-          pc: pc,
-        ));
-      }
+    CompileDiagnostic? checkRegionRef(int pc, String opName, String regionId) {
+      if (declaredRegions.contains(regionId)) return null;
+      final diagnostic = CompileDiagnostic(
+        severity: CompileSeverity.info,
+        code: 'ctx_unknown_region',
+        message: '$opName references region "$regionId" with no preceding '
+            'AddContextOp in this program (may be provisioned externally).',
+        pc: pc,
+      );
+      diagnostics.add(diagnostic);
+      return diagnostic;
     }
 
     for (var pc = 0; pc < instructions.length; pc++) {
@@ -356,21 +363,22 @@ class ProgramAnalyzer {
         _ => const [],
       };
 
-  void _checkJumpRange(
+  CompileDiagnostic? _checkJumpRange(
     List<CompileDiagnostic> diagnostics,
     int pc,
     int targetPc,
     int programLength,
   ) {
     // A target equal to length is a jump-to-end (program exit) — legal.
-    if (targetPc < 0 || targetPc > programLength) {
-      diagnostics.add(CompileDiagnostic(
-        severity: CompileSeverity.error,
-        code: 'jump_out_of_range',
-        message:
-            'Jump target PC $targetPc is outside the program (length $programLength).',
-        pc: pc,
-      ));
-    }
+    if (targetPc >= 0 && targetPc <= programLength) return null;
+    final diagnostic = CompileDiagnostic(
+      severity: CompileSeverity.error,
+      code: 'jump_out_of_range',
+      message:
+          'Jump target PC $targetPc is outside the program (length $programLength).',
+      pc: pc,
+    );
+    diagnostics.add(diagnostic);
+    return diagnostic;
   }
 }

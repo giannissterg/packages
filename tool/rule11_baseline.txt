@@ -13,7 +13,6 @@ bridges/vaster_checkpoint 1
 bridges/vaster_context_mmu 2
 bridges/vaster_continuation_manager 3
 bridges/vaster_replay 9
-compiler/vaster_compiler 14
 host/vaster_cli 19
 host/vaster_playground 8
 isa/vaster_instruction 3

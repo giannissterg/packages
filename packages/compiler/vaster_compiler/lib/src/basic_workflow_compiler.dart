@@ -138,23 +138,30 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     return CompileResult(program: program, diagnostics: diagnostics);
   }
 
-  void _lowerNodes(
+  /// Lowers [nodes] and returns the emitted IR item range
+  /// `[start, end)` — the handle a pass (or a lowering test) addresses
+  /// this subtree's output by (Rule 11).
+  ({int start, int end}) _lowerNodes(
     List<VasterNode> nodes,
     IrModule ir,
     BuildContext context,
     _CompilerState state,
   ) {
+    final start = ir.items.length;
     for (final node in nodes) {
       _lowerNode(node, ir, context, state);
     }
+    return (start: start, end: ir.items.length);
   }
 
-  void _lowerNode(
+  /// Lowers one node; returns the emitted IR item range `[start, end)`.
+  ({int start, int end}) _lowerNode(
     VasterNode node,
     IrModule ir,
     BuildContext context,
     _CompilerState state,
   ) {
+    final start = ir.items.length;
     switch (node) {
       case Prompt n:
         final reg = _binding(n.output, state);
@@ -680,6 +687,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.emit(PopMessageOp(agentId: n.agentId, outputVar: reg));
         state.lastOutputRegister = reg;
     }
+    return (start: start, end: ir.items.length);
   }
 
   /// Lowers a [Cond] to a register to `jumpIf` on, plus a negation flag the

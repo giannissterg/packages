@@ -11,6 +11,23 @@ Pipeline _pipeline(List<VasterNode> children) => Pipeline(
     );
 
 void main() {
+  test('IrModule hands back stream handles: emit → index, bind → label '
+      '(Rule 11)', () {
+    final ir = IrModule();
+    expect(ir.emit(const HaltOp()), 0);
+    // Allocate-bind-capture in one expression — the echo idiom.
+    final head = ir.bind(ir.newLabel('head'));
+    expect(ir.jump(head), 2,
+        reason: 'the bind occupies a stream slot; the jump is item 2');
+    expect(ir.items, hasLength(3));
+
+    final program = ir.assemble();
+    expect(program, hasLength(2), reason: 'label binds assemble to nothing');
+    expect((program[1] as JumpOp).targetPc, 1,
+        reason: 'the echoed label resolves to the pc after the halt');
+  });
+
+
   group('Label IR & control-flow assembly', () {
     test('When compiles to the canonical layout (jumpIf/else/jump/then)', () {
       final program = const BasicWorkflowCompiler().compile(_pipeline([

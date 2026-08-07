@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **BREAKING (Rule 11 V5)**: the IR builder hands back stream handles —
+  `emit`/`jump`/`jumpIf`/`call`/`pushErrorHandler`/`decide` return the
+  emitted item's IR index, `bind` echoes the label it bound (the
+  allocate-bind-capture idiom: `final head = ir.bind(ir.newLabel(...))`),
+  `_lowerNode`/`_lowerNodes` return the emitted `[start, end)` range —
+  the substrate for source maps and per-subtree assertions. Analyzer
+  check helpers return the diagnostics they add (null/empty when clean).
+
 - Agent provisioning threads `AgentRole.model`/`modelFallbacks` into the
   emitted `AgentDescriptor` (GAP-3b); `CapabilityAudit` lists agent
   chains (`agent <id>: a → b`) and counts their members as selectable

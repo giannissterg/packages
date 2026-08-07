@@ -217,7 +217,7 @@ final class CapabilityAudit {
           '($instructionCount instructions) ─────')
       ..writeln();
 
-    void section(String title, Iterable<String> lines,
+    StringBuffer section(String title, Iterable<String> lines,
         {String emptyNote = '(none)'}) {
       buffer.writeln('$title:');
       if (lines.isEmpty) {
@@ -228,6 +228,7 @@ final class CapabilityAudit {
         }
       }
       buffer.writeln();
+      return buffer;
     }
 
     section(

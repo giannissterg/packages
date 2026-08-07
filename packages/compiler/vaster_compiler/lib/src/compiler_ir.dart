@@ -91,26 +91,39 @@ class IrModule {
   /// Allocates a fresh, unbound label.
   IrLabel newLabel(String name) => IrLabel(_labelCounter++, name);
 
-  void emit(VasterInstruction instruction) => items.add(IrInstruction(instruction));
+  /// Appends [item] and returns its IR index — the handle passes address
+  /// stream positions by (Rule 11; concrete PCs exist only at assembly).
+  int _append(IrItem item) {
+    items.add(item);
+    return items.length - 1;
+  }
 
-  void jump(IrLabel target) => items.add(IrJump(target));
+  int emit(VasterInstruction instruction) => _append(IrInstruction(instruction));
 
-  void jumpIf(String conditionVar, IrLabel target) =>
-      items.add(IrJumpIf(conditionVar, target));
+  int jump(IrLabel target) => _append(IrJump(target));
 
-  void call(String functionName, IrLabel target,
+  int jumpIf(String conditionVar, IrLabel target) =>
+      _append(IrJumpIf(conditionVar, target));
+
+  int call(String functionName, IrLabel target,
           {Map<String, String> arguments = const {}, String? outputVar}) =>
-      items.add(IrCall(functionName, target,
+      _append(IrCall(functionName, target,
           arguments: arguments, outputVar: outputVar));
 
-  void pushErrorHandler(IrLabel target, {String errorVar = '__error__'}) =>
-      items.add(IrPushErrorHandler(target, errorVar: errorVar));
+  int pushErrorHandler(IrLabel target, {String errorVar = '__error__'}) =>
+      _append(IrPushErrorHandler(target, errorVar: errorVar));
 
-  void bind(IrLabel label) => items.add(IrBindLabel(label));
+  /// Binds [label] at the current stream position and echoes it, so a
+  /// label can be allocated, bound, and captured in one expression:
+  /// `final head = ir.bind(ir.newLabel('head'))`.
+  IrLabel bind(IrLabel label) {
+    items.add(IrBindLabel(label));
+    return label;
+  }
 
-  void decide(String prompt, List<IrDecideBranch> branches,
+  int decide(String prompt, List<IrDecideBranch> branches,
           {String? outputVar, String? defaultLabel}) =>
-      items.add(IrDecide(prompt, branches,
+      _append(IrDecide(prompt, branches,
           outputVar: outputVar, defaultLabel: defaultLabel));
 
   /// Assembles the IR into a flat instruction list (classic two-pass layout):
