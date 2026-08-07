@@ -651,7 +651,14 @@ class VasterVMEngine implements VasterVirtualMachine {
     VasterModel? model,
     String? parentAgentId,
   }) async {
-    final activeModel = model ?? config.defaultModel;
+    // Precedence: explicit host override → descriptor chain → VM default.
+    // A declared chain (GAP-3b) resolves through the registry and composes
+    // the same one-attempt ResilientVasterModel as the runtime's active
+    // model: each member tried once, model-kind failures advance
+    // (publishing ModelFallbackEvent), cancellation never does, and the
+    // serving member stamps servedBy for attribution.
+    final activeModel =
+        model ?? _resolveDescriptorChain(descriptor) ?? config.defaultModel;
 
     return await agentManager.createAgent(
       descriptor: descriptor,
@@ -660,6 +667,40 @@ class VasterVMEngine implements VasterVirtualMachine {
       // the shared VM-wide manager — ambient regions remain visible.
       contextManager: _layeredContextManager(activeModel),
       toolManager: toolManager,
+    );
+  }
+
+  /// Resolves an agent descriptor's declared model (+ fallback chain) to a
+  /// live model, or null when the descriptor declares none.
+  VasterModel? _resolveDescriptorChain(AgentDescriptor descriptor) {
+    final primaryDescriptor = descriptor.modelDescriptor;
+    if (primaryDescriptor == null) return null;
+    final primary = modelRegistry.resolveModel(primaryDescriptor);
+    if (primary == null) return null;
+    if (descriptor.modelFallbacks.isEmpty) return primary;
+    final fallbacks = [
+      for (final f in descriptor.modelFallbacks) modelRegistry.resolveModel(f),
+    ].whereType<VasterModel>().toList();
+    if (fallbacks.isEmpty) return primary;
+    final chainNames = [
+      primary.modelName,
+      for (final f in fallbacks) f.modelName,
+    ];
+    return ResilientVasterModel(
+      primary: primary,
+      fallbacks: fallbacks,
+      retryPolicy: const RetryPolicy(maxAttempts: 1),
+      onRetry: (event) {
+        if (!event.switchingModel) return;
+        final i = chainNames.indexOf(event.modelName);
+        eventBus.publish(ModelFallbackEvent(
+          eventId: 'evt_fallback_agent_${descriptor.agentId}_${event.modelName}',
+          fromModel: event.modelName,
+          toModel:
+              i >= 0 && i + 1 < chainNames.length ? chainNames[i + 1] : '',
+          reason: '${event.error}',
+        ));
+      },
     );
   }
 

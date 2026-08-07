@@ -592,6 +592,8 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
               name: n.role.name,
               role: n.role.title,
               systemInstruction: n.role.instruction,
+              modelDescriptor: n.role.model,
+              modelFallbacks: n.role.modelFallbacks,
             ),
           ),
         );

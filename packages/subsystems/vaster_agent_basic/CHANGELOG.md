@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Per-turn usage attribution honors `ModelResponse.servedBy` (GAP-3b):
+  a fallback-served agent turn is charged to the member that ran it.
 - **BREAKING (prompt shape)**: the task's session message is the input
   prompt verbatim — the `[Agent Task <id>]:` prefix is gone. The task id
   is machine bookkeeping (events, outputs, outcome registers); a

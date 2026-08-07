@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `mostExpensiveSelectableModel` also scans `CreateAgentOp` descriptor
+  chains (GAP-3b) — a pricey member hiding as an agent fallback rates
+  the bound.
 - With no caller-supplied rated model, `ProgramChecker` derives one: the
   most expensive model the program can select, fallback-chain members
   included (`mostExpensiveSelectableModel`). A chain whose pricey member

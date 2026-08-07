@@ -224,6 +224,33 @@ void main() {
           reason: 'the derived rate IS the worst chain member\'s rate');
     });
 
+    test('agent-declared chains are selectable too — the rated model may '
+        'hide on a CreateAgentOp descriptor (GAP-3b)', () {
+      const program = VasterProgram(
+        programName: 'agent_chained_cost',
+        instructions: [
+          CreateAgentOp(
+            descriptor: AgentDescriptor(
+              agentId: 'w',
+              name: 'W',
+              role: 'r',
+              systemInstruction: 's',
+              modelDescriptor:
+                  ModelDescriptor(provider: 'google_ai', modelId: 'gemini-2.0-flash'),
+              modelFallbacks: [
+                // The pricey member is an AGENT fallback, not a SelectModel.
+                ModelDescriptor(provider: 'anthropic', modelId: 'claude-opus-5'),
+              ],
+            ),
+          ),
+          DispatchAgentTaskOp(agentId: 'w', taskPrompt: 'work'),
+          HaltOp(),
+        ],
+      );
+      expect(mostExpensiveSelectableModel(program, PricingCatalog.builtin),
+          'claude-opus-5');
+    });
+
     test('a program selecting no priceable model keeps the honest '
         'tokens-only bound', () {
       const program = VasterProgram(

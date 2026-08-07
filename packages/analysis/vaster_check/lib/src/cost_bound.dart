@@ -39,25 +39,36 @@ final class CostBound {
       };
 }
 
-/// The most expensive model any `SelectModelOp` in [program] can reach —
-/// primaries AND fallback-chain members (REL-P3: a declared chain can serve
-/// any call under its scope from any member, so the honest single rate is
-/// the worst one). Ranked by combined per-MTok rate (input + output);
-/// members the catalog cannot price are skipped. Null when nothing rates —
-/// the bound then stays honestly tokens-only.
+/// The most expensive model the program can reach — `SelectModelOp`
+/// primaries AND fallback-chain members (REL-P3), plus agent-declared
+/// models and their chains on `CreateAgentOp` descriptors (GAP-3b): a
+/// declared chain can serve any call under its scope from any member, so
+/// the honest single rate is the worst one. Ranked by combined per-MTok
+/// rate (input + output); members the catalog cannot price are skipped.
+/// Null when nothing rates — the bound then stays honestly tokens-only.
 String? mostExpensiveSelectableModel(
     VasterProgram program, PricingCatalog catalog) {
   String? costliest;
   double costliestRate = -1;
-  for (final op in program.instructions.whereType<SelectModelOp>()) {
-    for (final descriptor in [op.descriptor, ...op.fallbacks]) {
-      final pricing = catalog.lookup(descriptor.modelId);
-      if (pricing == null) continue;
-      final rate = pricing.inputUsdPerMTok + pricing.outputUsdPerMTok;
-      if (rate > costliestRate) {
-        costliestRate = rate;
-        costliest = descriptor.modelId;
-      }
+  void consider(ModelDescriptor descriptor) {
+    final pricing = catalog.lookup(descriptor.modelId);
+    if (pricing == null) return;
+    final rate = pricing.inputUsdPerMTok + pricing.outputUsdPerMTok;
+    if (rate > costliestRate) {
+      costliestRate = rate;
+      costliest = descriptor.modelId;
+    }
+  }
+
+  for (final op in program.instructions) {
+    switch (op) {
+      case SelectModelOp(:final descriptor, :final fallbacks):
+        [descriptor, ...fallbacks].forEach(consider);
+      case CreateAgentOp(descriptor: final agent)
+          when agent.modelDescriptor != null:
+        [agent.modelDescriptor!, ...agent.modelFallbacks].forEach(consider);
+      default:
+        break;
     }
   }
   return costliest;

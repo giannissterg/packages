@@ -141,6 +141,33 @@ void main() {
     expect(audit.toPrettyString(), contains('(fallback chain)'));
   });
 
+  test('audit lists an agent-declared model chain (GAP-3b)', () {
+    final program = compiler.compile(Pipeline(
+      name: 'agent_chained',
+      roles: const [
+        AgentRole(
+          roleId: 'worker',
+          name: 'Worker',
+          title: 'Worker',
+          instruction: 'Work.',
+          model: ModelDescriptor(provider: 'gemini_cli', modelId: 'gemini-2.5-pro'),
+          modelFallbacks: [
+            ModelDescriptor(provider: 'fake', modelId: 'local'),
+          ],
+        ),
+      ],
+      children: const [
+        Task(agentId: 'worker', prompt: Template.text('go')),
+      ],
+    ));
+
+    final audit = CapabilityAudit.of(program);
+    expect(audit.models,
+        containsAll(['gemini_cli:gemini-2.5-pro', 'fake:local']));
+    expect(audit.modelChains,
+        contains('agent worker: gemini_cli:gemini-2.5-pro → fake:local'));
+  });
+
   test('a fully static program reports an empty decision surface', () {
     final program = compiler.compile(Pipeline(name: 'static', children: const [
       Prompt(Template.text('just one turn')),

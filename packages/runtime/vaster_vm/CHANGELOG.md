@@ -1,5 +1,11 @@
 ## Unreleased
 
+- `createAgent` resolves a descriptor-declared model chain (GAP-3b):
+  same one-attempt `ResilientVasterModel` composition as the runtime's
+  active model — model-kind failures advance (publishing
+  `ModelFallbackEvent`), cancellation never does, the serving member
+  stamps `servedBy`. Precedence: explicit host `model:` → descriptor
+  chain → VM default.
 - The prompt funnel's metering honors `ModelResponse.servedBy` (REL-P3):
   when a fallback-chain member serves a call, usage is attributed (and
   priced) to that member, not the model the caller invoked.

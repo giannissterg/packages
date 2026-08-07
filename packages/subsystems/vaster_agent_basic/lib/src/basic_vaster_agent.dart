@@ -158,7 +158,11 @@ class BasicVasterAgent implements VasterAgent {
                 output: response.text,
               );
         taskUsage += turnUsage;
-        onTurnUsage?.call(turnUsage, session.model.modelName);
+        // A fallback-chain member that served the turn stamps servedBy —
+        // attribution (and pricing) follows the model that really ran,
+        // not the chain's head.
+        onTurnUsage?.call(
+            turnUsage, response.servedBy ?? session.model.modelName);
         resourceTracker.consumeTokens(turnUsage.totalTokenCount);
 
         // d. Record the model turn in session history

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `AgentRole.model` + `modelFallbacks` (GAP-3b): agent model chains are
+  declarable in the workflow language; the compiler threads them into
+  the emitted `AgentDescriptor`.
+
 ## 0.2.0
 
 - Breaking: `ParallelTaskEntry(agentId:, prompt:)` (was

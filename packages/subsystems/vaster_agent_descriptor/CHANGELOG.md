@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `modelDescriptor` + ordered `modelFallbacks` (GAP-3b): the agent's
+  model — and its fallback chain — is descriptor data, compiled through
+  `CreateAgentOp`, auditable, and priced. Additive JSON: undeclared
+  descriptors stay byte-identical.
+
 ## 0.3.0
 
 - `AgentDescriptor.sessionIdFor`: the shared `sess_<agentId>` session-naming

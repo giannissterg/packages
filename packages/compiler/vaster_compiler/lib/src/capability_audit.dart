@@ -120,6 +120,16 @@ final class CapabilityAudit {
           tools.addAll(toolDefs.map((t) => t.name));
         case CreateAgentOp(:final descriptor):
           agents[descriptor.agentId] = descriptor.role;
+          // Agent-declared models (GAP-3b) are selectable capability too.
+          if (descriptor.modelDescriptor != null) {
+            models.add(descriptor.modelDescriptor!.descriptorKey);
+            models.addAll(
+                descriptor.modelFallbacks.map((f) => f.descriptorKey));
+            if (descriptor.modelFallbacks.isNotEmpty) {
+              modelChains.add('agent ${descriptor.agentId}: '
+                  '${[descriptor.modelDescriptor!, ...descriptor.modelFallbacks].map((d) => d.descriptorKey).join(' → ')}');
+            }
+          }
         case CreateSessionOp(:final sessionId):
           sessions.add(sessionId);
         case SelectModelOp(:final descriptor, :final fallbacks):
