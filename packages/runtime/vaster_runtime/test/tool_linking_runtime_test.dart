@@ -183,4 +183,44 @@ void main() {
       await vm.shutdown();
     });
   });
+
+  test('program-registered VFS syscalls delegate to the ONE VfsSyscalls '
+      'implementation — no third copy, no drifted output (A2)', () async {
+    final vm = await VasterVMEngine.bootstrap(
+        config: VMConfig(defaultModel: FakeVasterModel(), rootMountPath: '/mem'));
+    addTearDown(vm.shutdown);
+    final runtime = VasterRuntime(
+      vm: vm,
+      policy: ExecutionPolicy.unlimited,
+      budget: ExecutionBudget.unlimited(),
+      scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+    );
+
+    const program = VasterProgram(
+      programName: 'register_vfs_tools',
+      instructions: [
+        MountFsOp(mountPrefix: '/mem'),
+        RegisterToolSetOp(tools: [
+          ToolDefinition(
+              name: 'write_file', description: 'w', parametersSchema: {}),
+          ToolDefinition(
+              name: 'read_file', description: 'r', parametersSchema: {}),
+        ]),
+        HaltOp(),
+      ],
+    );
+    await runtime.executeProgram(program);
+
+    final written = await vm.toolManager.executeCall(const FunctionCallPart(
+        callId: 'c1',
+        name: 'write_file',
+        arguments: {'path': '/mem/a.txt', 'content': 'hello'}));
+    expect(written.response, {'status': 'ok', 'path': '/mem/a.txt'},
+        reason: 'the canonical VfsSyscalls shape — the drifted '
+            '"Successfully wrote to" copy is gone');
+
+    final read = await vm.toolManager.executeCall(const FunctionCallPart(
+        callId: 'c2', name: 'read_file', arguments: {'path': '/mem/a.txt'}));
+    expect(read.response['content'], 'hello');
+  });
 }

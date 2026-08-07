@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **A4**: `ModelChainResolver` — THE one composer for declared model
+  chains (runtime active model + agent creation), with index-exact
+  fallback hop events.
+
 - **A1**: `VasterVirtualMachine.agentToolGate` — the gate binding the
   executing runtime fills with the program's policy guard.
 

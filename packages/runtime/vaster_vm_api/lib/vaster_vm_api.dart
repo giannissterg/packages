@@ -6,6 +6,7 @@
 /// the engine in `vaster_vm`; the runtime never calls it.
 library;
 
+export 'src/model_chain_resolver.dart';
 export 'src/model_registry.dart';
 export 'src/prompt_funnel.dart';
 export 'src/tool_loop_host.dart';

@@ -121,37 +121,13 @@ class VasterRuntime {
   /// chain's job). Every advance publishes a typed [ModelFallbackEvent];
   /// the serving member stamps [ModelResponse.servedBy] so metering
   /// attributes the call to the model that really served it.
-  VasterModel? get _activeModel {
-    final descriptor = _machineContext.activeModelDescriptor;
-    if (descriptor == null) return null;
-    final primary = vm.modelRegistry.resolveModel(descriptor);
-    final fallbackDescriptors = _machineContext.activeModelFallbacks;
-    if (primary == null || fallbackDescriptors.isEmpty) return primary;
-    final fallbacks = [
-      for (final f in fallbackDescriptors) vm.modelRegistry.resolveModel(f),
-    ].whereType<VasterModel>().toList();
-    if (fallbacks.isEmpty) return primary;
-    final chainNames = [
-      primary.modelName,
-      for (final f in fallbacks) f.modelName,
-    ];
-    return ResilientVasterModel(
-      primary: primary,
-      fallbacks: fallbacks,
-      retryPolicy: const RetryPolicy(maxAttempts: 1),
-      onRetry: (event) {
-        if (!event.switchingModel) return;
-        final i = chainNames.indexOf(event.modelName);
-        vm.eventBus.publish(ModelFallbackEvent(
-          eventId: 'evt_fallback_${_pc}_${event.modelName}',
-          fromModel: event.modelName,
-          toModel:
-              i >= 0 && i + 1 < chainNames.length ? chainNames[i + 1] : '',
-          reason: '${event.error}',
-        ));
-      },
-    );
-  }
+  VasterModel? get _activeModel =>
+      ModelChainResolver(registry: vm.modelRegistry, eventBus: vm.eventBus)
+          .resolve(
+        primary: _machineContext.activeModelDescriptor,
+        fallbacks: _machineContext.activeModelFallbacks,
+        eventScope: 'pc_$_pc',
+      );
 
   String? get _activeSessionId => _machineContext.activeSessionId;
 
@@ -1049,33 +1025,28 @@ class VasterRuntime {
       case RegisterToolSetOp op:
         _machineContext.programToolSet = op.tools;
         for (final tool in op.tools) {
-          if (tool.name == 'write_file') {
+          // The VFS syscalls have ONE implementation (VfsSyscalls) with
+          // multiple exposure points — this used to be a third hand-rolled
+          // copy, already drifted in output shape and bypassing the shared
+          // path (the exact hazard the VfsSyscalls doc names).
+          if (tool.name == VfsSyscalls.writeFileName) {
             vm.toolManager.registerTool(
               FunctionTool.define(
-                name: 'write_file',
+                name: VfsSyscalls.writeFileName,
                 description: tool.description,
                 parametersSchema: tool.parametersSchema,
-                handler: (args) async {
-                  final path = args['path']?.toString() ?? '';
-                  final content = args['content']?.toString() ?? '';
-                  final fs = vm.fileSystemManager.resolveFileSystem(path);
-                  await fs.writeText(path, content);
-                  return {'result': 'Successfully wrote to $path'};
-                },
+                handler: (args) =>
+                    VfsSyscalls.writeFile(vm.fileSystemManager, args),
               ),
             );
-          } else if (tool.name == 'read_file') {
+          } else if (tool.name == VfsSyscalls.readFileName) {
             vm.toolManager.registerTool(
               FunctionTool.define(
-                name: 'read_file',
+                name: VfsSyscalls.readFileName,
                 description: tool.description,
                 parametersSchema: tool.parametersSchema,
-                handler: (args) async {
-                  final path = args['path']?.toString() ?? '';
-                  final fs = vm.fileSystemManager.resolveFileSystem(path);
-                  final content = await fs.readText(path);
-                  return {'content': content};
-                },
+                handler: (args) =>
+                    VfsSyscalls.readFile(vm.fileSystemManager, args),
               ),
             );
           } else {

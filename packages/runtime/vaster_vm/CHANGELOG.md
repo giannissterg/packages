@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **A4**: agent chain resolution delegates to the shared
+  `ModelChainResolver` — twin composer deleted.
+
 - **A1**: the VM composes each agent's gate — program-policy binding
   plus, when the descriptor declares one, its own policy
   (`CompositeToolCallGate`). `AgentDescriptor.policy` was a dormant

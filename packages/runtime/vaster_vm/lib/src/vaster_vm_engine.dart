@@ -701,39 +701,14 @@ class VasterVMEngine implements VasterVirtualMachine {
     );
   }
 
-  /// Resolves an agent descriptor's declared model (+ fallback chain) to a
-  /// live model, or null when the descriptor declares none.
-  VasterModel? _resolveDescriptorChain(AgentDescriptor descriptor) {
-    final primaryDescriptor = descriptor.modelDescriptor;
-    if (primaryDescriptor == null) return null;
-    final primary = modelRegistry.resolveModel(primaryDescriptor);
-    if (primary == null) return null;
-    if (descriptor.modelFallbacks.isEmpty) return primary;
-    final fallbacks = [
-      for (final f in descriptor.modelFallbacks) modelRegistry.resolveModel(f),
-    ].whereType<VasterModel>().toList();
-    if (fallbacks.isEmpty) return primary;
-    final chainNames = [
-      primary.modelName,
-      for (final f in fallbacks) f.modelName,
-    ];
-    return ResilientVasterModel(
-      primary: primary,
-      fallbacks: fallbacks,
-      retryPolicy: const RetryPolicy(maxAttempts: 1),
-      onRetry: (event) {
-        if (!event.switchingModel) return;
-        final i = chainNames.indexOf(event.modelName);
-        eventBus.publish(ModelFallbackEvent(
-          eventId: 'evt_fallback_agent_${descriptor.agentId}_${event.modelName}',
-          fromModel: event.modelName,
-          toModel:
-              i >= 0 && i + 1 < chainNames.length ? chainNames[i + 1] : '',
-          reason: '${event.error}',
-        ));
-      },
-    );
-  }
+  /// Resolves an agent descriptor's declared model (+ fallback chain) via
+  /// the ONE shared composer, or null when the descriptor declares none.
+  VasterModel? _resolveDescriptorChain(AgentDescriptor descriptor) =>
+      ModelChainResolver(registry: modelRegistry, eventBus: eventBus).resolve(
+        primary: descriptor.modelDescriptor,
+        fallbacks: descriptor.modelFallbacks,
+        eventScope: 'agent_${descriptor.agentId}',
+      );
 
   @override
   Future<AgentOutput> runAgentTask(

@@ -116,4 +116,60 @@ void main() {
     expect(plain.toJson().containsKey('modelFallbacks'), isFalse,
         reason: 'pre-chain descriptors stay byte-identical');
   });
+
+  test('a chain containing the SAME model name twice reports exact hops '
+      '(A4 — the index-based lookup, not the old indexOf-by-name)',
+      () async {
+    final vm = await VasterVMEngine.bootstrap(
+        config: VMConfig(defaultModel: FakeVasterModel()));
+    addTearDown(vm.shutdown);
+    // Two distinct registry entries whose MODELS share one name, both
+    // dead — the chain must walk twin-0 → twin-1 → survivor, and the
+    // events must say so hop by hop.
+    const twinA = ModelDescriptor(provider: 'dup_a', modelId: 'twin');
+    const twinB = ModelDescriptor(provider: 'dup_b', modelId: 'twin');
+    const survivorD = ModelDescriptor(provider: 'ok', modelId: 'survivor');
+    vm.registerModel(
+        twinA,
+        FakeVasterModel(
+            modelName: 'twin',
+            handler: (_) => throw StateError('API error 503 down')));
+    vm.registerModel(
+        twinB,
+        FakeVasterModel(
+            modelName: 'twin',
+            handler: (_) => throw StateError('API error 503 down')));
+    vm.registerModel(survivorD,
+        FakeVasterModel(modelName: 'survivor', defaultResponseText: 'ok'));
+
+    final hops = <ModelFallbackEvent>[];
+    final sub = vm.eventBus.on<ModelFallbackEvent>().listen(hops.add);
+
+    await vm.createAgent(
+      descriptor: const AgentDescriptor(
+        agentId: 'twins',
+        name: 'T',
+        role: 'r',
+        systemInstruction: 's',
+        modelDescriptor: twinA,
+        modelFallbacks: [twinB, survivorD],
+      ),
+    );
+    final output = await vm.runAgentTask(
+      AgentTask(taskId: 't', inputPrompt: 'go'),
+      agentId: 'twins',
+    );
+    await sub.cancel();
+
+    expect(output.outputText, contains('ok'));
+    expect(hops, hasLength(2));
+    // Old indexOf-by-name lookup reported twin→twin for the SECOND hop
+    // too (it always found index 0). Index-exact events say twin→survivor.
+    expect(hops[0].fromModel, 'twin');
+    expect(hops[0].toModel, 'twin');
+    expect(hops[1].fromModel, 'twin');
+    expect(hops[1].toModel, 'survivor',
+        reason: 'the second hop leaves the twins — only the chain INDEX '
+            'can say so when names collide');
+  });
 }

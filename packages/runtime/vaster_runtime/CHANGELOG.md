@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **A2**: the engine's program-registered `write_file`/`read_file`
+  tools delegate to the ONE `VfsSyscalls` implementation — the third
+  hand-rolled copy (drifted output shape, bypassed shared path) is gone;
+  a test locks the canonical `{'status':'ok','path':…}` shape.
+- **A4**: the active-model chain composes via the shared
+  `ModelChainResolver` (vm_api) — the 22-line twin is gone.
+
 - **A1 (security)**: the ISA tool loop and the agent tool loop are now
   the SAME pipeline (`ToolTurnRunner`). `PolicyGuard` implements
   `ToolCallGate` and the runtime binds it into the VM's agent gate — so

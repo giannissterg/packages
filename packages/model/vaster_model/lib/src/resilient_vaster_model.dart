@@ -13,6 +13,11 @@ class ModelRetryEvent {
   /// Model the failed attempt ran against.
   final String modelName;
 
+  /// The failed model's INDEX in the chain (0 = primary). The index is
+  /// exact where a name lookup is not: a chain may contain the same
+  /// model name twice.
+  final int modelIndex;
+
   /// 1-based attempt number on that model.
   final int attempt;
 
@@ -26,6 +31,7 @@ class ModelRetryEvent {
 
   const ModelRetryEvent({
     required this.modelName,
+    this.modelIndex = 0,
     required this.attempt,
     required this.error,
     this.nextDelay,
@@ -154,6 +160,7 @@ class ResilientVasterModel implements VasterModel {
             final delay = retryPolicy.backoffFor(attempt, random: random);
             onRetry?.call(ModelRetryEvent(
               modelName: model.modelName,
+              modelIndex: m,
               attempt: attempt,
               error: e,
               nextDelay: delay,
@@ -166,6 +173,7 @@ class ResilientVasterModel implements VasterModel {
           if (!isLastModel) {
             onRetry?.call(ModelRetryEvent(
               modelName: model.modelName,
+              modelIndex: m,
               attempt: attempt,
               error: e,
               switchingModel: true,
@@ -212,6 +220,7 @@ class ResilientVasterModel implements VasterModel {
             final delay = retryPolicy.backoffFor(attempt, random: random);
             onRetry?.call(ModelRetryEvent(
               modelName: model.modelName,
+              modelIndex: m,
               attempt: attempt,
               error: e,
               nextDelay: delay,
@@ -223,6 +232,7 @@ class ResilientVasterModel implements VasterModel {
           if (!isLastModel) {
             onRetry?.call(ModelRetryEvent(
               modelName: model.modelName,
+              modelIndex: m,
               attempt: attempt,
               error: e,
               switchingModel: true,
