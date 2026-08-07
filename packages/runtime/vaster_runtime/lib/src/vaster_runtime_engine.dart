@@ -163,8 +163,7 @@ class VasterRuntime {
   /// pc localizes, the machine-state sequence makes the id unique across
   /// loop iterations, retry attempts, AND checkpoint resumes, while
   /// staying deterministic under replay.
-  String _eventId(String kind) =>
-      'evt_${kind}_${_pc}_${_machineContext.nextEventSeq()}';
+  String _eventId(String kind) => 'evt_${kind}_${_pc}_${_machineContext.nextEventSeq()}';
 
   /// Publishes one extraction warning (same pattern as unresolved
   /// interpolation: tolerated at runtime, visible in telemetry).

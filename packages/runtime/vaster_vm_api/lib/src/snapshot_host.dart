@@ -19,10 +19,7 @@ abstract interface class SnapshotHost {
   FileSystemManager get fileSystemManager;
   AgentMessagingHub get messagingHub;
 
-  Future<ModelSession> createSession({
-    required String sessionId,
-    ModelDescriptor? modelDescriptor,
-  });
+  Future<ModelSession> createSession({required String sessionId, ModelDescriptor? modelDescriptor});
 
   String mountFileSystem(String pathPrefix, VasterFileSystem fs);
 }

@@ -118,15 +118,10 @@ final class EffectLedger implements MachineStateComponent {
   /// dispatch dedup and (through the recorder adapter) both tool loops;
   /// batch consumers claim every entry in declaration order BEFORE
   /// fanning out.
-  EffectClaim claim({
-    required String name,
-    required Map<String, dynamic> arguments,
-    String scope = '',
-  }) {
+  EffectClaim claim({required String name, required Map<String, dynamic> arguments, String scope = ''}) {
     if (_frames.isEmpty) return const EffectClaim._(null, null);
     final frame = _frames.last;
-    final callKey = EffectKey.callKey(
-        scope: scope, name: name, canonicalArguments: _canonical(arguments));
+    final callKey = EffectKey.callKey(scope: scope, name: name, canonicalArguments: _canonical(arguments));
     final occurrence = (frame.cursors[callKey] ?? 0) + 1;
     frame.cursors[callKey] = occurrence;
     final recordKey = EffectKey.recordKey(
@@ -208,11 +203,7 @@ final class EffectKey {
   /// Identity of one call within an attempt: (scope, name, canonical
   /// args). The scope is the dispatch's [EffectRegion] key ('' for the
   /// ISA loop's direct claims).
-  static String callKey({
-    required String scope,
-    required String name,
-    required String canonicalArguments,
-  }) =>
+  static String callKey({required String scope, required String name, required String canonicalArguments}) =>
       jsonEncode([version, scope, name, canonicalArguments]);
 
   /// Identity of one recorded occurrence: region path (open-scope pcs,
@@ -221,6 +212,5 @@ final class EffectKey {
     required List<int> regionPath,
     required String callKey,
     required int occurrence,
-  }) =>
-      jsonEncode([version, regionPath, callKey, occurrence]);
+  }) => jsonEncode([version, regionPath, callKey, occurrence]);
 }

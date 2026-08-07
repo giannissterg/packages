@@ -33,11 +33,7 @@ final class LedgerToolEffectRecorder implements ToolEffectRecorder {
     if (name == VfsSyscalls.writeFileName || name == VfsSyscalls.readFileName) {
       return const ToolEffectInert();
     }
-    final slot = ledger.claim(
-      name: name,
-      arguments: arguments,
-      scope: region.key,
-    );
+    final slot = ledger.claim(name: name, arguments: arguments, scope: region.key);
     final recorded = slot.recorded;
     if (recorded != null) {
       eventBus.publish(

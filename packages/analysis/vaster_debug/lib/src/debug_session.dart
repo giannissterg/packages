@@ -9,7 +9,6 @@ import 'package:vaster_runtime/vaster_runtime.dart';
 import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_vm_api/vaster_vm_api.dart';
 
-
 /// A recorded execution envelope loaded for debugging: the compiled program,
 /// the step journal, and the model I/O tape.
 class DebugEnvelope {
@@ -94,8 +93,7 @@ class DebugSession {
   /// session's replay model (B1: hosts own composition — this package
   /// programs against the vm_api interface and never constructs the
   /// engine; the `vaster debug` CLI supplies the bootstrap).
-  final Future<VasterVirtualMachine> Function(VasterModel replayModel)
-      vmFactory;
+  final Future<VasterVirtualMachine> Function(VasterModel replayModel) vmFactory;
 
   /// Non-fatal limitations detected at load (sandbox execution, HITL).
   final List<String> warnings;
@@ -115,8 +113,7 @@ class DebugSession {
   /// (disk mounts).
   static DebugSession load(
     DebugEnvelope envelope, {
-    required Future<VasterVirtualMachine> Function(VasterModel replayModel)
-        vmFactory,
+    required Future<VasterVirtualMachine> Function(VasterModel replayModel) vmFactory,
   }) {
     final warnings = <String>[];
     for (final inst in envelope.program.instructions) {

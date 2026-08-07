@@ -69,12 +69,11 @@ class DebugCommand extends VasterCommand {
     try {
       session = DebugSession.load(
         DebugEnvelope.parse(
-        envelopeFile.readAsStringSync(),
-        programOverride: programOverride,
-      ),
+          envelopeFile.readAsStringSync(),
+          programOverride: programOverride,
+        ),
         // Hosts own composition (B1): the CLI supplies the engine.
-        vmFactory: (replayModel) => VasterVMEngine.bootstrap(
-            config: VMConfig(defaultModel: replayModel)),
+        vmFactory: (replayModel) => VasterVMEngine.bootstrap(config: VMConfig(defaultModel: replayModel)),
       );
     } on StateError catch (e) {
       err.writeln('Error: ${e.message}');

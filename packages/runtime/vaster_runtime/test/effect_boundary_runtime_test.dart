@@ -645,14 +645,16 @@ void main() {
       final ledger = EffectLedger()..pushScope(0);
       // Two calls crafted so the OLD concatenation grammar
       // (scope#name|args|occ) would have produced identical keys.
-      final a = ledger.claim(
-          name: 'x|y', arguments: {'k': 'v'}, scope: 'r');
-      final b = ledger.claim(
-          name: 'y', arguments: {'k': 'v'}, scope: 'r#x|');
+      final a = ledger.claim(name: 'x|y', arguments: {'k': 'v'}, scope: 'r');
+      final b = ledger.claim(name: 'y', arguments: {'k': 'v'}, scope: 'r#x|');
       expect(a, isA<Object>());
-      expect((a as dynamic).slotId, isNot((b as dynamic).slotId),
-          reason: 'JSON-array keys cannot be confused by separators '
-              'inside their segments');
+      expect(
+        (a as dynamic).slotId,
+        isNot((b as dynamic).slotId),
+        reason:
+            'JSON-array keys cannot be confused by separators '
+            'inside their segments',
+      );
     });
 
     test('policy telemetry ids are deterministic sequences, engine ids '
@@ -660,15 +662,11 @@ void main() {
       final (vm, runtime) = await boot(FakeVasterModel());
       final warnings = <RuntimeWarningEvent>[];
       final sub = vm.eventBus.on<RuntimeWarningEvent>().listen(warnings.add);
-      const program = VasterProgram(
-        programName: 'seq_ids',
-        instructions: [CommitOp(), CommitOp(), HaltOp()],
-      );
+      const program = VasterProgram(programName: 'seq_ids', instructions: [CommitOp(), CommitOp(), HaltOp()]);
       await runtime.executeProgram(program);
       await sub.cancel();
       final ids = warnings.map((w) => w.eventId).toList();
-      expect(ids.toSet().length, ids.length,
-          reason: 'same-pc same-kind events must not collide (A5)');
+      expect(ids.toSet().length, ids.length, reason: 'same-pc same-kind events must not collide (A5)');
       await vm.shutdown();
     });
   });

@@ -64,8 +64,7 @@ void main() {
     );
     return DebugSession.load(
       envelope,
-      vmFactory: (replayModel) => VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: replayModel)),
+      vmFactory: (replayModel) => VasterVMEngine.bootstrap(config: VMConfig(defaultModel: replayModel)),
     );
   }
 
@@ -156,12 +155,8 @@ void main() {
     );
     expect(
       () => DebugSession.load(
-        DebugEnvelope(
-            program: program,
-            journal: VasterExecutionJournal(),
-            tape: ModelTape()),
-        vmFactory: (replayModel) => VasterVMEngine.bootstrap(
-            config: VMConfig(defaultModel: replayModel)),
+        DebugEnvelope(program: program, journal: VasterExecutionJournal(), tape: ModelTape()),
+        vmFactory: (replayModel) => VasterVMEngine.bootstrap(config: VMConfig(defaultModel: replayModel)),
       ),
       throwsA(isA<StateError>().having((e) => e.message, 'message', contains('disk'))),
     );
