@@ -1,0 +1,56 @@
+# Rule 11 void-signature baseline — regenerate with:
+#   ./tool/rule11_ratchet.sh --update
+# Counts only go DOWN (see tool/rule11_ratchet.sh).
+analysis/vaster_check 3
+analysis/vaster_debug 3
+analysis/vaster_dis 5
+analysis/vaster_eval 1
+backends/vaster_kv_mmap 3
+backends/vaster_llama_ffi 14
+backends/vaster_model_google_ai 1
+backends/vaster_model_llama_cpp 3
+bridges/vaster_checkpoint 1
+bridges/vaster_context_mmu 2
+bridges/vaster_continuation_manager 6
+bridges/vaster_replay 10
+compiler/vaster_compiler 14
+host/vaster_cli 20
+host/vaster_playground 8
+isa/vaster_instruction 3
+model/vaster_kv 5
+model/vaster_model 5
+runtime/vaster_budget 3
+runtime/vaster_events 4
+runtime/vaster_machine_state 2
+runtime/vaster_metering 6
+runtime/vaster_policy_engine 1
+runtime/vaster_resources 6
+runtime/vaster_runtime 31
+runtime/vaster_scheduler 6
+runtime/vaster_vm 8
+runtime/vaster_vm_api 7
+subsystems/vaster_agent_manager 1
+subsystems/vaster_agent_manager_advanced 3
+subsystems/vaster_agent_messaging 7
+subsystems/vaster_context 6
+subsystems/vaster_context_manager 26
+subsystems/vaster_filesystem 3
+subsystems/vaster_filesystem_local 3
+subsystems/vaster_filesystem_manager 10
+subsystems/vaster_filesystem_memory 4
+subsystems/vaster_sandbox_manager 2
+subsystems/vaster_session 4
+subsystems/vaster_session_manager 4
+subsystems/vaster_tool_manager 2
+transports/vaster_mmap 15
+transports/vaster_model_rpc_server 3
+#
+# ── Sanctioned-sink ledger (Rule 11) ─────────────────────────────────
+# These remain void BY LAW, with justification — everything else above
+# is migration inventory (plan: rule11-void-migration.md):
+#   - main() entrypoints (excluded from counts entirely)
+#   - MachineStateComponent.restoreState — Rule 8's restore is a
+#     dispatch; the snapshot is the input, the component IS the result
+#   - `void Function(...)` callback/observer types — a callback is its
+#     consumer's sink by construction (excluded from counts)
+#   - CLI _print*/terminal-output helpers — stdout is a genuine sink

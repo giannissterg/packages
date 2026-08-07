@@ -26,6 +26,13 @@ jobs:
       - name: Analyze (zero tolerance — infos included)
         run: dart analyze --fatal-infos packages
 
+      - name: Rule 11 ratchet (void signatures only go down)
+        # Counts production void/Future<void> signatures per package
+        # against tool/rule11_baseline.txt — a rise fails (new void API),
+        # a fall fails until the baseline is tightened. Migration plan:
+        # the rule11 void-migration plan; sink ledger in the baseline file.
+        run: ./tool/rule11_ratchet.sh
+
       - name: Test sweep
         # One owner for the sweep, shared with local runs
         # (tool/test_sweep.sh). Per-package invocation is load-bearing:
