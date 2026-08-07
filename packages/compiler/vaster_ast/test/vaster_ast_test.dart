@@ -183,6 +183,51 @@ void main() {
       expect(seen!.verdict.name, equals('checkout_review_verdict'));
     });
 
+    test('Verify(repair:) re-verifies after repairing, and fails closed', () {
+      const verify = Verify(
+        run: Template.text('bash verify.sh'),
+        envId: 'devtest',
+        repair: Prompt(Template.text('fix it'), output: Binding('fixed')),
+        maxRounds: 2,
+        onFail: [Prompt(Template.text('give up'))],
+      );
+      final expanded = verify.build(baseContext) as Sequence;
+      final loop = expanded.children.last as DecideLoop;
+
+      // The repair edge re-runs the WHOLE verify sequence, so no
+      // downstream reader ever sees pre-repair evidence.
+      expect(loop.continueLabel, 'repair');
+      expect(loop.onContinue.first, isA<Prompt>(), reason: 'repair runs first');
+      expect(loop.onContinue.whereType<Execute>(), hasLength(1), reason: 're-executes verification');
+      expect(loop.onContinue.whereType<WriteFile>(), hasLength(1), reason: 'rewrites the artifact');
+      expect(loop.maxIterations, 2);
+
+      // Verification fails CLOSED: ambiguity and exhaustion abandon into
+      // onFail — never a silent pass.
+      expect(loop.defaultPath, 'abandon');
+      final abandon = loop.exits.firstWhere((e) => e.label == 'abandon');
+      expect(abandon.children, isNotEmpty, reason: 'exhaustion runs onFail');
+
+      // Without repair, the original single-shot Decide shape stands.
+      const plain = Verify(run: Template.text('x'));
+      expect((plain.build(baseContext) as Sequence).children.last, isA<Decide>());
+    });
+
+    test('Author accepts a DYNAMIC path and still applies discipline', () {
+      const author = Author(
+        agentId: 'engineer',
+        prompt: Template.text('Implement it.'),
+        path: Template(['/project/', Binding('task_file')]),
+        output: Binding('src'),
+        discipline: AuthorDiscipline.source,
+      );
+      final expanded = author.build(baseContext) as Sequence;
+      final task = expanded.children.first as Task;
+      expect(task.prompt.lower(), endsWith('no markdown fences, no commentary.'));
+      final write = expanded.children.last as WriteFile;
+      expect(write.path.lower(), '/project/\${task_file}');
+    });
+
     test('Ground expands to one ReadFile per binding, in declaration order', () {
       const ground = Ground({Binding('a'): '/p/a.md', Binding('b'): '/p/b.md'});
       final expanded = ground.build(baseContext) as Sequence;
@@ -214,7 +259,7 @@ void main() {
       final read = expanded.children.first as ReadFile;
       expect(read.path.lower(), '/p/lib/x.dart');
       final author = expanded.children.last as Author;
-      expect(author.path, '/p/lib/x.dart');
+      expect(author.path.lower(), '/p/lib/x.dart');
       expect(author.discipline, AuthorDiscipline.source);
       expect(author.prompt.lower(), contains('--- current /p/lib/x.dart ---'));
       expect(author.prompt.lower(), contains('\${review}'));
@@ -232,10 +277,10 @@ void main() {
     });
 
     test('Author expands to Task + WriteFile with the declared discipline', () {
-      const author = Author(
+      const author = Author.at(
+        '/out/model.dart',
         agentId: 'engineer',
         prompt: Template.text('Write the model.'),
-        path: '/out/model.dart',
         output: Binding('code'),
         discipline: AuthorDiscipline.source,
       );
@@ -248,10 +293,10 @@ void main() {
       expect(write.path.lower(), '/out/model.dart');
       expect(write.content.lower(), '\${code}');
 
-      const free = Author(
+      const free = Author.at(
+        '/x',
         agentId: 'e',
         prompt: Template.text('p'),
-        path: '/x',
         output: Binding('o'),
         discipline: AuthorDiscipline.free,
       );

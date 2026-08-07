@@ -85,9 +85,9 @@ Pipeline reviseFor(String targetDir) => Pipeline(
         priorReview,
       ]),
     ),
-    Author(
+    Author.at(
+      '/project/test/models/task_test.dart',
       agent: engineer,
-      path: '/project/test/models/task_test.dart',
       output: testSource,
       discipline: AuthorDiscipline.source,
       prompt: Template([
@@ -111,9 +111,9 @@ Pipeline reviseFor(String targetDir) => Pipeline(
       artifact: '/project/planning/code_review_round2.md',
       output: finalReview,
       maxRounds: 2,
-      revise: Author(
+      revise: Author.at(
+        '/project/lib/models/task.dart',
         agent: engineer,
-        path: '/project/lib/models/task.dart',
         output: modelSource,
         discipline: AuthorDiscipline.source,
         prompt: Template([

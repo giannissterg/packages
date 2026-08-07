@@ -282,9 +282,9 @@ void main(List<String> args) async {
         name: 'author_probe',
         children: [
           Mount(mount: StorageMount(mountPrefix: '/out')),
-          Author(
+          Author.at(
+            '/out/gen.dart',
             prompt: Template.text('Write a tiny Dart function.'),
-            path: '/out/gen.dart',
             output: Binding('code'),
             discipline: AuthorDiscipline.source,
           ),

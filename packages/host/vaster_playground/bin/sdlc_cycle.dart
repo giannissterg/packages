@@ -120,9 +120,9 @@ Pipeline sdlcFor(String targetDir) => Pipeline(
     }),
 
     // ── 1. Product: the PRD ──
-    Author(
+    Author.at(
+      '/project/planning/prd.md',
       agent: pm,
-      path: '/project/planning/prd.md',
       output: prd,
       prompt: Template.sections(
         const {'existing spec.md': specDoc, 'current lib/models/task.dart': modelCode},
@@ -139,9 +139,9 @@ Pipeline sdlcFor(String targetDir) => Pipeline(
     ),
 
     // ── 2. Engineering: the tech design ──
-    Author(
+    Author.at(
+      '/project/planning/tech_design.md',
       agent: techManager,
-      path: '/project/planning/tech_design.md',
       output: design,
       prompt: Template.sections(
         const {'prd.md': prd, 'lib/models/task.dart': modelCode, 'pubspec.yaml': pubspecDoc},
@@ -241,33 +241,34 @@ Pipeline sdlcFor(String targetDir) => Pipeline(
     ),
 
     // ── 5. The engineer implements THE TICKET (paths from the ticket) ──
-    Task(
+    // Author applies the source discipline as a TRAILING suffix; the
+    // dogfood's prose leak came from a hand-rolled Task+WriteFile pair
+    // whose instruction sat at the START of the prompt, far from where
+    // the model begins writing.
+    Author(
       agent: engineer,
+      path: const Template(['/project/', taskFile]),
       output: mainSource,
+      discipline: AuthorDiscipline.source,
       prompt: Template.sections(
         const {'the ticket': picked, 'tech_design.md': design, 'current lib/models/task.dart': modelCode},
-        lead: const [
-          'Implement exactly this ticket. Output ONLY the complete raw '
-              'source of the ticket\'s primary file — no fences, no '
-              'commentary.\n',
-        ],
+        lead: const ["Implement exactly this ticket, as the ticket's primary file.\n"],
       ),
     ),
-    const WriteFile(path: Template(['/project/', taskFile]), content: Template([mainSource])),
-    Task(
+    Author(
       agent: engineer,
+      path: const Template(['/project/', taskTestFile]),
       output: testSource,
+      discipline: AuthorDiscipline.source,
       prompt: Template.sections(
         const {'the ticket': picked, 'the implementation': mainSource},
         lead: const [
-          'Write the ticket\'s test file (import package:pocket_tasks/…, '
+          "Write the ticket's test file (import package:pocket_tasks/…, "
               'use package:flutter_test/flutter_test.dart), covering the '
-              'ticket\'s acceptance criteria. Output ONLY the complete raw '
-              'source — no fences, no commentary.\n',
+              "ticket's acceptance criteria.\n",
         ],
       ),
     ),
-    const WriteFile(path: Template(['/project/', taskTestFile]), content: Template([testSource])),
 
     // ── 6. DEV verification: the pipeline runs the real toolchain ──
     WriteFile.at(
@@ -312,9 +313,9 @@ Pipeline sdlcFor(String targetDir) => Pipeline(
     ),
 
     // ── 7. QA: acceptance criteria, one by one ──
-    Author(
+    Author.at(
+      '/project/planning/qa_report.md',
       agent: qa,
-      path: '/project/planning/qa_report.md',
       output: qaReport,
       prompt: Template.sections(
         const {
@@ -388,7 +389,7 @@ FakeVasterModel fakeTeam() => FakeVasterModel(
           '{"id":"T1","description":"Add TaskStore interface and InMemoryTaskStore.",'
           '"file":"lib/repositories/task_store.dart",'
           '"testFile":"test/repositories/task_store_test.dart","acceptance":"AC-1; AC-2"}';
-    } else if (prompt.contains('Implement exactly this ticket')) {
+    } else if (prompt.contains('primary file')) {
       reply =
           "import 'package:pocket_tasks/models/task.dart';\n\n"
           'abstract interface class TaskStore {\n'

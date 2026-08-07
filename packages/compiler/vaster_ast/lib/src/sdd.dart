@@ -183,13 +183,25 @@ class Clarify extends ComposableNode {
 
 /// Verification phase — run [run] in a sandbox, write the output as the
 /// verification artifact, and let the model judge it: [onPass] nests the
-/// verified continuation, [onFail] the remediation path (typically a revise
-/// loop back into implementation). An unresolvable judgment defaults to
-/// FAIL — verification is the one gate that must not pass on ambiguity.
+/// verified continuation, [onFail] the remediation path. An unresolvable
+/// judgment defaults to FAIL — verification is the one gate that must not
+/// pass on ambiguity.
+///
+/// With [repair] set, failure closes its own loop: the repair subtree runs
+/// and verification RE-RUNS, up to [maxRounds]. Without it, a repair placed
+/// in [onFail] leaves the verification artifact describing the state
+/// BEFORE the repair — stale evidence that downstream reviewers judge as
+/// fact (the SDLC dogfood's false FAIL: the repair fixed the file, but QA
+/// read the pre-repair output and failed the ticket).
+///
+/// Exhaustion and ambiguity both take the abandon exit into [onFail]:
+/// unlike a review loop, a verification loop must NEVER fall through to
+/// pass.
 ///
 /// Expands to: `Execute(run, output: const Binding('verification'))` →
 /// `WriteFile(verifyPath, '${verification}')` → `Decide(pass/fail,
-/// output: const Binding('verification_verdict'), defaultPath: 'fail')`.
+/// output: const Binding('verification_verdict'), defaultPath: 'fail')`,
+/// or the bounded `DecideLoop` when [repair] is set.
 class Verify extends ComposableNode {
   /// Code or command to execute in the sandbox.
   final Template run;
@@ -200,37 +212,80 @@ class Verify extends ComposableNode {
   final List<VasterNode> onPass;
   final List<VasterNode> onFail;
 
-  const Verify({required this.run, this.envId, this.onPass = const [], this.onFail = const []});
+  /// Fixes what verification reported, then verification runs AGAIN — so
+  /// the artifact and every downstream judgment see the repaired state.
+  /// Mutually exclusive with putting the repair in [onFail].
+  final VasterNode? repair;
+
+  /// Repair-round bound when [repair] is set (else
+  /// `DecisionPolicy.maxIterations`). Exhaustion abandons into [onFail].
+  final int? maxRounds;
+
+  const Verify({
+    required this.run,
+    this.envId,
+    this.onPass = const [],
+    this.onFail = const [],
+    this.repair,
+    this.maxRounds,
+  });
 
   @override
   VasterNode build(BuildContext context) {
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
     final verification = context.scopedBinding('verification');
-    return Sequence([
+    final verdict = context.scopedBinding('verification_verdict');
+    final verifySteps = <VasterNode>[
       Execute(envId: envId, code: run, output: verification),
       WriteFile(
         path: Template.text(SddConventions.scopedPath(context, conventions.verifyPath)),
         content: Template([verification]),
       ),
+    ];
+    final decidePrompt = Template([
+      'Below is the output of the verification run. Did verification '
+          'pass — no failures, errors, or unmet expectations?\n\nOutput:\n',
+      verification,
+    ]);
+    const passDescription = 'the output shows verification succeeded';
+    const failDescription = 'the output shows failures or is inconclusive';
+
+    if (repair != null) {
+      return Sequence([
+        ...verifySteps,
+        DecideLoop(
+          prompt: decidePrompt,
+          output: verdict,
+          body: const [],
+          continueLabel: 'repair',
+          continueDescription: 'the output shows failures a repair attempt should address',
+          // The repaired state is re-verified before anything downstream
+          // sees it — no stale evidence.
+          onContinue: [repair!, ...verifySteps],
+          exits: [
+            DecisionPath(label: 'pass', description: passDescription, children: onPass),
+            DecisionPath(
+              label: 'abandon',
+              description: 'verification still fails and repair will not help',
+              children: onFail,
+            ),
+          ],
+          // Fails closed: ambiguity AND exhaustion abandon, never pass.
+          defaultPath: 'abandon',
+          maxIterations: maxRounds,
+        ),
+      ]);
+    }
+
+    return Sequence([
+      ...verifySteps,
       Decide(
-        prompt: Template([
-          'Below is the output of the verification run. Did verification '
-              'pass — no failures, errors, or unmet expectations?\n\nOutput:\n',
-          verification,
-        ]),
-        output: context.scopedBinding('verification_verdict'),
+        prompt: decidePrompt,
+        output: verdict,
         defaultPath: 'fail',
         paths: [
-          DecisionPath(
-            label: 'pass',
-            description: 'the output shows verification succeeded',
-            children: onPass,
-          ),
-          DecisionPath(
-            label: 'fail',
-            description: 'the output shows failures or is inconclusive',
-            children: onFail,
-          ),
+          DecisionPath(label: 'pass', description: passDescription, children: onPass),
+          DecisionPath(label: 'fail', description: failDescription, children: onFail),
         ],
       ),
     ]);

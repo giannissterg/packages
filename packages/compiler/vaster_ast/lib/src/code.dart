@@ -43,9 +43,11 @@ class Author extends ComposableNode {
   final String? agentId;
   final Template prompt;
 
-  /// Literal destination path (interpolating paths stay with the explicit
-  /// `Task` + `WriteFile` form).
-  final String path;
+  // Two-form path storage (the `Template` idiom): a const constructor
+  // cannot build a Template in an initializer, so the literal and dynamic
+  // forms store separately and [path] unifies them.
+  final Template? _pathTemplate;
+  final String? _literalPath;
 
   /// The wire carrying the authored content — explicit, so later siblings
   /// (reviews, prompts) can reference what was written.
@@ -53,14 +55,36 @@ class Author extends ComposableNode {
 
   final AuthorDiscipline discipline;
 
+  /// Dynamic destination — the path itself interpolates bindings (a file
+  /// whose location comes from a ticket, a scoped artifact root, …).
+  /// Discipline still applies: this is why dynamic-path writes belong
+  /// here rather than in a hand-rolled `Task` + `WriteFile` pair, where
+  /// the content instruction drifts away from the end of the prompt.
   const Author({
     this.agent,
     this.agentId,
     required this.prompt,
-    required this.path,
+    required Template path,
     required this.output,
     this.discipline = AuthorDiscipline.document,
-  }) : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
+  }) : _pathTemplate = path,
+       _literalPath = null,
+       assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
+
+  /// Literal destination path — the common case.
+  const Author.at(
+    String path, {
+    this.agent,
+    this.agentId,
+    required this.prompt,
+    required this.output,
+    this.discipline = AuthorDiscipline.document,
+  }) : _literalPath = path,
+       _pathTemplate = null,
+       assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
+
+  /// The destination, unified across both forms.
+  Template get path => _pathTemplate ?? Template.text(_literalPath!);
 
   static const String _sourceOnly =
       '\n\nOutput ONLY the complete raw source file, starting with its '
@@ -80,7 +104,7 @@ class Author extends ComposableNode {
         output: output,
         prompt: Template([...prompt.parts, if (suffix.isNotEmpty) suffix]),
       ),
-      WriteFile.at(path, content: Template([output])),
+      WriteFile(path: path, content: Template([output])),
     ]);
   }
 }
@@ -127,10 +151,10 @@ class Revise extends ComposableNode {
     final current = context.scopedBinding('revise_current');
     return Sequence([
       ReadFile.at(path, output: current),
-      Author(
+      Author.at(
+        path,
         agent: agent,
         agentId: agentId,
-        path: path,
         output: output,
         discipline: discipline,
         prompt: Template([

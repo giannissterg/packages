@@ -81,9 +81,9 @@ Pipeline implementFor(String targetDir) => Pipeline(
       review: '/project/planning/review.md',
       pubspec: '/project/pubspec.yaml',
     }),
-    Author(
+    Author.at(
+      '/project/lib/models/task.dart',
       agent: engineer,
-      path: '/project/lib/models/task.dart',
       output: modelSource,
       discipline: AuthorDiscipline.source,
       prompt: Template.sections(
@@ -98,9 +98,9 @@ Pipeline implementFor(String targetDir) => Pipeline(
         ],
       ),
     ),
-    Author(
+    Author.at(
+      '/project/test/models/task_test.dart',
       agent: engineer,
-      path: '/project/test/models/task_test.dart',
       output: testSource,
       discipline: AuthorDiscipline.source,
       prompt: Template.sections(
