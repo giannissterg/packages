@@ -1,3 +1,13 @@
+## Unreleased
+
+- **`mountSandbox` routes by language** (found by the SDLC dogfood): an
+  ISA sandbox env now binds to a host-registered backend that speaks
+  its language (bootstrap `initialSandboxes` — e.g. `ProcessCodeSandbox`
+  for bash), wrapped under the env's id with the env's timeout policy;
+  the default isolate sandbox applies only when no backend matches.
+  Previously EVERY env hardcoded the isolate, so bash/python envs
+  silently ran the isolate's echo evaluator instead of executing.
+
 ## 0.5.0
 
 - **BREAKING (B2)**: the engine's prompt verbs require an explicit

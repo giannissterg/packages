@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `runPipeline` gains `sandboxes:` — host sandbox backends
+  (`ProcessCodeSandbox`, …) for `Sandbox`/`Verify`/`Execute` subtrees;
+  ISA envs bind to them by language. The umbrella barrel now exports
+  the isolate and process sandbox backends.
+
 - `runPipeline` gains `models:` — named `ModelDescriptor` → backend
   registrations, so `SelectModel` chains and descriptor-declared agents
   resolve to REAL models (previously only the default slot existed and

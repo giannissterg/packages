@@ -1,5 +1,19 @@
 ## Unreleased
 
+- `sdlc_cycle` — the FULL engineering cycle in one pipeline: PM writes a
+  PRD, tech manager writes a design and a schema'd JSON backlog
+  (`Produce`), an agent PICKS the next actionable ticket, an engineer
+  implements it (dynamic paths from the ticket), then three-tier
+  testing — unit (generated tests), DEV (the pipeline runs real
+  `flutter analyze`+`flutter test` through a process sandbox and a model
+  judges the output via `Verify`), QA (acceptance-criteria review) —
+  and the backlog records the outcome. The live run's QA tier CAUGHT a
+  real downstream failure (schema-less claude-cli pick → empty
+  path bindings → files at literal ${path}) and correctly FAILED the
+  ticket, auto-marking it blocked: bad work does not ship. Fixes
+  shipped from the finding: RunReport surfaces warnings; mountSandbox
+  routes by language; the pick step self-defends its JSON.
+
 - `revise_from_review` — dogfood phase three: the framework CLOSES ITS
   OWN REVIEW LOOP. Author applies the prior code review's blocking
   fixes to the generated model + tests, then `Review(revise: Author(…))`

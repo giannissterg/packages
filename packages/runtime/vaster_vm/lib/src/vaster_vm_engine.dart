@@ -628,15 +628,40 @@ class VasterVMEngine implements VasterVirtualMachine {
 
   @override
   CodeSandbox mountSandbox(String sandboxId, SandboxLanguage language, {Duration? timeout}) {
-    final sandbox = IsolateCodeSandbox(
-      descriptor: SandboxDescriptor(
-        sandboxId: sandboxId,
-        type: 'isolate',
-        description: 'ISA Isolate Sandbox',
-        supportedLanguages: [language],
-      ),
-      defaultPolicy: SandboxSecurityPolicy(maxTimeout: timeout ?? const Duration(seconds: 10)),
-    );
+    // The ISA names an ENV; the HOST owns the backend. Route to a
+    // registered sandbox that speaks the language (bootstrap
+    // `initialSandboxes` — e.g. a ProcessCodeSandbox for bash) and bind
+    // it under the env's id with the env's timeout policy; the default
+    // isolate sandbox applies only when no host backend speaks the
+    // language. (Found by the SDLC dogfood: this used to hardcode the
+    // isolate for EVERY language, so bash envs silently ran the
+    // isolate's echo evaluator instead of the process backend.)
+    final policy = SandboxSecurityPolicy(maxTimeout: timeout ?? const Duration(seconds: 10));
+    final backendId = sandboxManager.activeDescriptors
+        .where((d) => d.supportedLanguages.contains(language))
+        .map((d) => d.sandboxId)
+        .firstOrNull;
+    final backend = backendId == null ? null : sandboxManager.getSandbox(backendId);
+    final sandbox = backend == null
+        ? IsolateCodeSandbox(
+            descriptor: SandboxDescriptor(
+              sandboxId: sandboxId,
+              type: 'isolate',
+              description: 'ISA Isolate Sandbox',
+              supportedLanguages: [language],
+            ),
+            defaultPolicy: policy,
+          )
+        : _EnvBoundSandbox(
+            descriptor: SandboxDescriptor(
+              sandboxId: sandboxId,
+              type: backend.descriptor.type,
+              description: 'ISA env over ${backend.descriptor.sandboxId}',
+              supportedLanguages: [language],
+            ),
+            backend: backend,
+            defaultPolicy: policy,
+          );
     registerSandbox(sandbox);
     return sandbox;
   }
@@ -701,4 +726,34 @@ class VasterVMEngine implements VasterVirtualMachine {
       eventBusClosed: eventBusClosed,
     );
   }
+}
+
+/// An ISA sandbox ENV bound over a host-registered backend: same
+/// execution, the env's identity and timeout policy. The policy is
+/// injected per request (the backend's own default stays untouched —
+/// two envs over one backend may declare different timeouts).
+final class _EnvBoundSandbox implements CodeSandbox {
+  @override
+  final SandboxDescriptor descriptor;
+
+  @override
+  final SandboxSecurityPolicy defaultPolicy;
+
+  final CodeSandbox backend;
+
+  _EnvBoundSandbox({required this.descriptor, required this.backend, required this.defaultPolicy});
+
+  @override
+  Future<SandboxResult> run(SandboxRequest request, {CancellationToken? cancelToken}) => backend.run(
+    request.securityPolicy != null
+        ? request
+        : SandboxRequest(
+            codeOrCommand: request.codeOrCommand,
+            language: request.language,
+            inputs: request.inputs,
+            environment: request.environment,
+            securityPolicy: defaultPolicy,
+          ),
+    cancelToken: cancelToken,
+  );
 }

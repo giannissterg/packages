@@ -140,6 +140,24 @@ void main() {
     expect('${report.result}', contains('STEADY'));
   });
 
+  test('warnings surface: an unresolved interpolation is reported, not silent', () async {
+    // A path referencing a binding no step writes leaves `${…}` verbatim
+    // (the documented contract) — the report must make that LOUD.
+    final report = await runPipeline(
+      const Pipeline(
+        name: 'unresolved_warn',
+        children: [
+          Mount(mount: StorageMount(mountPrefix: '/mem')),
+          WriteFile(path: Template(['/mem/', Binding('never_bound')]), content: Template.text('x')),
+        ],
+      ),
+      backend: FakeVasterModel(),
+    );
+    expect(report.warnings, isNotEmpty, reason: 'unresolved path interpolation must be reported');
+    expect(report.warnings.join(), contains('never_bound'));
+    expect('$report', contains('⚠'));
+  });
+
   test('envelope JSON is valid JSON on disk', () async {
     final tmp = Directory.systemTemp.createTempSync('vaster_facade_json_');
     addTearDown(() => tmp.deleteSync(recursive: true));

@@ -39,6 +39,8 @@ export 'package:vaster_resources/vaster_resources.dart';
 export 'package:vaster_runtime/vaster_runtime.dart';
 export 'package:vaster_sandbox/vaster_sandbox.dart';
 export 'package:vaster_sandbox_ffi/vaster_sandbox_ffi.dart';
+export 'package:vaster_sandbox_isolate/vaster_sandbox_isolate.dart';
+export 'package:vaster_sandbox_process/vaster_sandbox_process.dart';
 export 'package:vaster_scheduler/vaster_scheduler.dart';
 export 'package:vaster_session/vaster_session.dart';
 export 'package:vaster_tool/vaster_tool.dart';

@@ -39,6 +39,14 @@ final class RunReport {
   /// Path of the recorded replay envelope; null when `record:` was not set.
   final String? envelopePath;
 
+  /// Non-fatal warnings the run emitted (`code: message @pcN`) — chiefly
+  /// unresolved `${…}` interpolations and unpaired transaction ops. A
+  /// halted run with warnings is a run that did something the author
+  /// probably did not intend (e.g. a file written to a literal
+  /// `${path}` because a binding never resolved). Surfaced here so those
+  /// stay loud instead of dying on the event bus.
+  final List<String> warnings;
+
   const RunReport({
     required this.state,
     required this.result,
@@ -46,6 +54,7 @@ final class RunReport {
     required this.consumedCost,
     required this.artifacts,
     required this.envelopePath,
+    this.warnings = const [],
   });
 
   bool get succeeded => state.status == RuntimeStatus.halted;
@@ -63,6 +72,12 @@ final class RunReport {
       }
     }
     if (envelopePath != null) buffer.writeln('envelope: $envelopePath');
+    if (warnings.isNotEmpty) {
+      buffer.writeln('warnings: ${warnings.length}');
+      for (final warning in warnings) {
+        buffer.writeln('  ⚠ $warning');
+      }
+    }
     if (state.status == RuntimeStatus.error) buffer.writeln('error   : ${state.errorDetails}');
     if (result != null) buffer.writeln('result  :\n$result');
     return buffer.toString();
@@ -90,13 +105,17 @@ Future<RunReport> runPipeline(
   ExecutionBudget? budget,
   String? record,
   Map<ModelDescriptor, VasterModel> models = const {},
+  List<CodeSandbox> sandboxes = const [],
 }) async {
   final program = const BasicWorkflowCompiler().compile(pipeline);
 
   final tape = ModelTape();
   final model = record != null ? RecordingVasterModel(inner: backend, tape: tape) : backend;
 
-  final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: model));
+  final vm = await VasterVMEngine.bootstrap(
+    config: VMConfig(defaultModel: model),
+    initialSandboxes: sandboxes,
+  );
   // Named models for SelectModel / descriptor-declared agents. When
   // recording, every registered model rides the SAME tape as the default —
   // one recording, whole run.
@@ -118,6 +137,10 @@ Future<RunReport> runPipeline(
     final fileSub = vm.eventBus.on<FileOperationEvent>().listen((event) {
       if (event.operation == FileOperationType.write) written[event.path] = event.sizeBytes;
     });
+    final warnings = <String>[];
+    final warnSub = vm.eventBus.on<RuntimeWarningEvent>().listen(
+          (event) => warnings.add('${event.code}: ${event.message} @pc${event.pc}'),
+        );
     final recorder = record != null ? (VasterExecutionRecorder()..attach(runtime)) : null;
 
     final state = await runtime.executeProgram(program);
@@ -128,6 +151,7 @@ Future<RunReport> runPipeline(
     // idiom the CLI's resume loop uses).
     await Future<void>.delayed(Duration.zero);
     await fileSub.cancel();
+    await warnSub.cancel();
 
     if (record != null) {
       File(record)
@@ -152,6 +176,7 @@ Future<RunReport> runPipeline(
         for (final entry in written.entries) PipelineArtifact(path: entry.key, sizeBytes: entry.value),
       ],
       envelopePath: record,
+      warnings: warnings,
     );
   } finally {
     await vm.shutdown();
