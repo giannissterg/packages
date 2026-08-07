@@ -7,6 +7,7 @@ export 'src/chat_message.dart';
 export 'src/context_cache_hint.dart';
 export 'src/content_part.dart';
 export 'src/generation_config.dart';
+export 'src/handler_vaster_model.dart';
 export 'src/model_capabilities.dart';
 export 'src/model_descriptor.dart';
 export 'src/model_request.dart';

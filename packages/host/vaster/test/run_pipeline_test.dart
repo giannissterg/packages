@@ -74,6 +74,43 @@ void main() {
     expect('$report', contains('error'));
   });
 
+  test('bring-your-own-model: a handler-wrapped call runs, records, and replays', () async {
+    final tmp = Directory.systemTemp.createTempSync('vaster_byom_');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final envelopePath = '${tmp.path}/byom.replay.json';
+
+    // "Your existing SDK call" — any function producing text.
+    var liveCalls = 0;
+    Future<String> myExistingSdkCall(String conversation) async {
+      liveCalls++;
+      return conversation.contains('Summarize') ? 'BYOM-SUMMARY' : 'BYOM-NOTES';
+    }
+
+    final report = await runPipeline(
+      buildPipeline(),
+      backend: VasterModel.fromTextHandler(
+        (request) => myExistingSdkCall(request.messages.last.text),
+        modelName: 'my-own-model',
+      ),
+      record: envelopePath,
+    );
+    expect(report.succeeded, isTrue, reason: 'error: ${report.state.errorDetails}');
+    expect('${report.result}', contains('BYOM-SUMMARY'));
+    expect(liveCalls, 2);
+
+    // The zero-cost story: the recording replays the SAME pipeline with
+    // ZERO live calls.
+    final replayReport = await runPipeline(
+      buildPipeline(),
+      backend: ReplayVasterModel(
+        tape: const ReplayEnvelopeCodec().decodeString(File(envelopePath).readAsStringSync()).tape,
+      ),
+    );
+    expect(replayReport.succeeded, isTrue);
+    expect('${replayReport.result}', contains('BYOM-SUMMARY'));
+    expect(liveCalls, 2, reason: 'replay made no live calls');
+  });
+
   test('envelope JSON is valid JSON on disk', () async {
     final tmp = Directory.systemTemp.createTempSync('vaster_facade_json_');
     addTearDown(() => tmp.deleteSync(recursive: true));

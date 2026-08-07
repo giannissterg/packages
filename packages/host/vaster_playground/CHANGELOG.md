@@ -1,3 +1,11 @@
+## Unreleased
+
+- `example_04_bring_your_own_model` — the BYO-model + zero-cost-replay
+  story: a local function standing in for "your existing SDK call"
+  wrapped via `VasterModel.fromTextHandler`, run through `runPipeline`
+  with `record:`, then the same pipeline replayed from the envelope
+  with zero live calls.
+
 ## 0.5.0
 
 - `plan_external_codebase` — dogfood bin: disk-mount ANOTHER codebase at

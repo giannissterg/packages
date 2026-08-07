@@ -1,3 +1,18 @@
+## Unreleased
+
+- **Bring-your-own-model is the first-class integration.**
+  `VasterModel.fromHandler` wraps the caller's OWN model invocation —
+  any SDK, proxy, or local server — as a full `VasterModel`: the handler
+  sees the complete request (messages, system instruction, tools,
+  `responseSchema`, `cancelToken`) and owns the response, including real
+  usage when it has it. `VasterModel.fromTextHandler` is the simple
+  tier: same request in, plain text out, default usage — the machine's
+  metering estimates and charges it. Streaming defaults to the
+  one-terminal-chunk synthesis of non-streaming backends
+  (`onGenerateStream` overrides). Exceptions propagate untouched, so
+  `ResilientVasterModel`, `RecordingVasterModel`, and cancellation
+  compose exactly as for shipped backends. Zero new dependencies.
+
 ## 0.5.0
 
 - **D**: `CancellationToken`/`CancelledException` moved to the new
