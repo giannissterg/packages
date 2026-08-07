@@ -1,5 +1,13 @@
 ## Unreleased
 
+- `revise_from_review` — dogfood phase three: the framework CLOSES ITS
+  OWN REVIEW LOOP. Author applies the prior code review's blocking
+  fixes to the generated model + tests, then `Review(revise: Author(…))`
+  re-reviews with the self-revising loop live (maxRounds 2). The live
+  run APPROVED on round one; externally verified: flutter analyze
+  clean, 24/24 tests pass incl. 100-id uniqueness, all fixes landed
+  without regressing the _restore contract.
+
 - `stress_lab` — eleven adversarial probes against the framework's
   edges (budget trips, program quotas, fallback chains, injected model
   faults, unresolved interpolation, trap recovery, decide-loop
