@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **BREAKING (Rule 11 V3)**: `pinRegion`/`unpinRegion` return the
+  region as (un)pinned (null when absent), `pruneLifetimes` returns its
+  freed report (ids + tokens; an empty report is an observable "pruned
+  nothing"), `syncSources` the number of regions upserted.
+
 - **BREAKING (Rule 11 V1)**: `addRegion` returns the displaced region,
   `registerSource` the displaced source, `installClassTable` the table
   it replaced — on the interface and both managers.

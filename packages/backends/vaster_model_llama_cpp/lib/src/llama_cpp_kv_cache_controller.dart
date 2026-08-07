@@ -122,11 +122,11 @@ class LlamaCppKvCacheController implements KvCacheController {
   }
 
   @override
-  Future<void> evict(KvCacheHandle handle) async {
+  Future<bool> evict(KvCacheHandle handle) async {
     final client = _clientFactory();
     try {
       await client.post(Uri.parse('$baseUrl/slots/$slotId?action=erase'));
-      _handles.remove(handle.contentFingerprint);
+      return _handles.remove(handle.contentFingerprint) != null;
     } finally {
       client.close();
     }

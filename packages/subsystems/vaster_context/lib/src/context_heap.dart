@@ -122,9 +122,13 @@ class ContextHeap {
 
   /// Clears all non-critical regions from the heap. Pinned regions are kept
   /// unless [force] is set.
-  void clearNonCritical({bool force = false}) {
+  /// Returns the number of regions removed (Rule 11 — a sweep that
+  /// removed nothing is observable).
+  int clearNonCritical({bool force = false}) {
+    final before = _regions.length;
     _regions.removeWhere((r) =>
         r.priority != ContextPriority.critical && (force || !r.isPinned));
+    return before - _regions.length;
   }
 
   /// Clears all regions from the heap.

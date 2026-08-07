@@ -117,9 +117,10 @@ class MmapKvCacheController implements KvCacheController, KvFrameResolver {
   }
 
   @override
-  Future<void> evict(KvCacheHandle handle) async {
+  Future<bool> evict(KvCacheHandle handle) async {
     final entry = _frames.remove(handle.contentFingerprint);
     entry?.$2.close(unlink: true);
+    return entry != null;
   }
 
   @override

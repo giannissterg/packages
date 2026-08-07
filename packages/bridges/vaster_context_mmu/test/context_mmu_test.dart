@@ -215,8 +215,8 @@ final class _CapturingController implements KvCacheController {
   Future<void> restore(KvCacheHandle handle) async {}
 
   @override
-  Future<void> evict(KvCacheHandle handle) async =>
-      _store.remove(handle.contentFingerprint);
+  Future<bool> evict(KvCacheHandle handle) async =>
+      _store.remove(handle.contentFingerprint) != null;
 
   @override
   Future<List<KvCacheHandle>> list() async => _store.values.toList();

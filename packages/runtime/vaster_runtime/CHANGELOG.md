@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Rule 11 V3: `CacheHintTracker.onRegionPinned` returns the hint now
+  tracked (null when the region has no live descriptor), `removeHint`
+  the hint it removed, `clear` how many it dropped.
+
 - Rule 11 V1 consumer: `AddContextOp` uses the displaced-region handle
   to drop the stale cache hint when a PINNED region is replaced by
   unpinned content (latent stale-fingerprint hole).

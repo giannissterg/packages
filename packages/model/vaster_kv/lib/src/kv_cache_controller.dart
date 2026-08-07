@@ -28,7 +28,9 @@ abstract interface class KvCacheController {
   Future<void> restore(KvCacheHandle handle);
 
   /// Releases [handle]'s physical state.
-  Future<void> evict(KvCacheHandle handle);
+/// Returns true when [handle] was present and evicted, false when it
+  /// was unknown — a no-op eviction is observable (Rule 11).
+  Future<bool> evict(KvCacheHandle handle);
 
   /// All currently materialized handles.
   Future<List<KvCacheHandle>> list();

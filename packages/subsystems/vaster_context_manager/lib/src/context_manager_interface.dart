@@ -50,10 +50,13 @@ abstract interface class ContextManager {
   bool unregisterSource(String id);
 
   /// Pins a context region by ID to prevent anti-eviction during budget pressure.
-  void pinRegion(String regionId);
+  /// Returns the region as pinned, null when [regionId] is absent —
+  /// pinning nothing is observable (Rule 11).
+  ContextRegion? pinRegion(String regionId);
 
   /// Unpins a context region by ID.
-  void unpinRegion(String regionId);
+  /// Returns the region as unpinned, null when absent.
+  ContextRegion? unpinRegion(String regionId);
 
   /// Returns a [ContextCacheDescriptor] for a region, computing or retrieving
   /// its SHA-256 content fingerprint for JIT provider-side context caching.
@@ -64,7 +67,8 @@ abstract interface class ContextManager {
   List<ContextCacheDescriptor> getPinnedCacheDescriptors();
 
   /// Synchronizes all registered context sources into the active [heap].
-  Future<void> syncSources();
+  /// Returns the number of source regions upserted into the heap.
+  Future<int> syncSources();
 
   /// Compresses regions toward [targetTokens] total using the registered
   /// compressors. [regionId] targets a single region; [includePinned] allows
@@ -89,5 +93,9 @@ abstract interface class ContextManager {
 
   /// Prunes expired context regions from the heap based on lifetime
   /// boundaries. Pinned and critical regions are kept unless [force].
-  void pruneLifetimes(Set<ContextLifetime> expiredLifetimes, {bool force = false});
+  /// Returns what the sweep freed — ids and tokens; an empty report is
+  /// an observable "pruned nothing".
+  ({List<String> prunedIds, int tokensFreed}) pruneLifetimes(
+      Set<ContextLifetime> expiredLifetimes,
+      {bool force = false});
 }

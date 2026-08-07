@@ -76,8 +76,12 @@ class InMemoryKvCacheController implements KvCacheController {
   }
 
   @override
-  Future<void> evict(KvCacheHandle handle) async {
-    if (_slots.remove(handle.contentFingerprint) != null) evictions++;
+  Future<bool> evict(KvCacheHandle handle) async {
+    if (_slots.remove(handle.contentFingerprint) != null) {
+      evictions++;
+      return true;
+    }
+    return false;
   }
 
   @override

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **BREAKING (Rule 11 V3)**: `KvCacheController.evict` returns whether
+  the handle was present and evicted — a no-op eviction is observable
+  across all four controller implementations.
+
 - **BREAKING**: the codec/value split — `KvStateImage` is now the parsed VALUE (zero-copy accessors, `prefixDivergence`); parsing, layout, and initialization live in `KvStateImageCodec`, a const-constructible external class (a v2 format arrives as another codec, not a static rewrite). `engineTagOf` stays static: it is a pure derivation convention.
 
 - **`KvStateImage` — the KV State Image codec (spec v1).** KV frames'

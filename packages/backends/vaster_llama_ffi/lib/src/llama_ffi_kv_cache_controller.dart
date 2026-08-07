@@ -133,13 +133,15 @@ final class LlamaFfiKvCacheController
           await _frameName(handle.contentFingerprint));
 
   @override
-  Future<void> evict(KvCacheHandle handle) async {
-    _known.remove(handle.contentFingerprint);
+  Future<bool> evict(KvCacheHandle handle) async {
+    final known = _known.remove(handle.contentFingerprint) != null;
     try {
       SharedMemoryFrame.attach(await _frameName(handle.contentFingerprint))
           .close(unlink: true);
+      return true;
     } on StateError {
       // Already gone — eviction is idempotent.
+      return known;
     }
   }
 

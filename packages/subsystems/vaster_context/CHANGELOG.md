@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Rule 11 V3: `clearNonCritical` returns the number of regions removed.
+
 - **BREAKING (Rule 11 V1)**: `ContextHeap.addRegion`/`replaceRegion`
   return the displaced same-id region; `addAll` the displaced list;
   `upsertFromSource` the region now standing in the heap (fresh /

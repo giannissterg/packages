@@ -116,14 +116,16 @@ class BasicContextManager implements ContextManager {
   // ── Pinning (in place — never reorders the heap) ───────────────────────
 
   @override
-  void pinRegion(String regionId) {
+  ContextRegion? pinRegion(String regionId) {
     heap.updateRegion(regionId, (r) => r.copyWith(isPinned: true));
+    return heap.getRegion(regionId);
   }
 
   @override
-  void unpinRegion(String regionId) {
+  ContextRegion? unpinRegion(String regionId) {
     heap.updateRegion(regionId, (r) => r.copyWith(isPinned: false));
     _cacheDescriptors.remove(regionId);
+    return heap.getRegion(regionId);
   }
 
   // ── Cache descriptors (self-healing on content change) ─────────────────
@@ -164,13 +166,16 @@ class BasicContextManager implements ContextManager {
   // ── Sync / compaction / compilation ────────────────────────────────────
 
   @override
-  Future<void> syncSources() async {
+  Future<int> syncSources() async {
+    var synced = 0;
     for (final source in _sources) {
       final sourced = await source.getRegions();
       for (final region in sourced) {
         heap.upsertFromSource(region, fingerprintOf: regionFingerprintOf);
+        synced++;
       }
     }
+    return synced;
   }
 
   @override
@@ -235,7 +240,9 @@ class BasicContextManager implements ContextManager {
   CompiledContext? get lastCompiled => _lastCompiled;
 
   @override
-  void pruneLifetimes(Set<ContextLifetime> expiredLifetimes, {bool force = false}) {
+  ({List<String> prunedIds, int tokensFreed}) pruneLifetimes(
+      Set<ContextLifetime> expiredLifetimes,
+      {bool force = false}) {
     final removedIds = <String>[];
     var tokensFreed = 0;
     for (final region in List<ContextRegion>.from(heap.regions)) {
@@ -256,6 +263,7 @@ class BasicContextManager implements ContextManager {
     if (removedIds.isNotEmpty) {
       _emitEvicted(removedIds, tokensFreed, 'lifetime');
     }
+    return (prunedIds: removedIds, tokensFreed: tokensFreed);
   }
 
   // ── Telemetry ──────────────────────────────────────────────────────────

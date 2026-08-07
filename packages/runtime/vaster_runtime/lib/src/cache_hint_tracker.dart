@@ -25,7 +25,9 @@ class CacheHintTracker {
   /// Queries [contextManager] for the region's cache descriptor,
   /// computes / retrieves its SHA-256 fingerprint, and stores a
   /// [ContextCacheHint] for downstream prompt calls.
-  void onRegionPinned(String regionId, ContextManager contextManager) {
+  /// Returns the hint now tracked for [regionId], null when the region
+  /// has no live cache descriptor (nothing to hint).
+  ContextCacheHint? onRegionPinned(String regionId, ContextManager contextManager) {
     final descriptor = contextManager.getCacheDescriptor(regionId);
     if (descriptor != null && !descriptor.isExpired) {
       _hints[regionId] = ContextCacheHint(
@@ -34,11 +36,17 @@ class CacheHintTracker {
         ttl: descriptor.ttl,
       );
     }
+    return _hints[regionId];
   }
 
   /// Removes the hint for [regionId] (e.g. when a region is unpinned).
-  void removeHint(String regionId) => _hints.remove(regionId);
+  /// Returns the hint it removed, null when none was tracked.
+  ContextCacheHint? removeHint(String regionId) => _hints.remove(regionId);
 
-  /// Clears all tracked hints (e.g. on program start).
-  void clear() => _hints.clear();
+  /// Clears all tracked hints (e.g. on program start); returns how many.
+  int clear() {
+    final n = _hints.length;
+    _hints.clear();
+    return n;
+  }
 }

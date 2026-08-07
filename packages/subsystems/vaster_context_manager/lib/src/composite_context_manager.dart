@@ -129,14 +129,12 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
-  void pinRegion(String regionId) {
-    _ownerOf(regionId)?.pinRegion(regionId);
-  }
+  ContextRegion? pinRegion(String regionId) =>
+      _ownerOf(regionId)?.pinRegion(regionId);
 
   @override
-  void unpinRegion(String regionId) {
-    _ownerOf(regionId)?.unpinRegion(regionId);
-  }
+  ContextRegion? unpinRegion(String regionId) =>
+      _ownerOf(regionId)?.unpinRegion(regionId);
 
   @override
   ContextCacheDescriptor? getCacheDescriptor(String regionId) =>
@@ -155,8 +153,10 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
-  Future<void> syncSources() async {
-    await Future.wait(children.map((child) => child.syncSources()));
+  Future<int> syncSources() async {
+    final counts =
+        await Future.wait(children.map((child) => child.syncSources()));
+    return counts.fold<int>(0, (sum, n) => sum + n);
   }
 
   @override
@@ -206,10 +206,16 @@ class CompositeContextManager implements ContextManager {
   CompiledContext? get lastCompiled => _lastCompiled;
 
   @override
-  void pruneLifetimes(Set<ContextLifetime> expiredLifetimes,
+  ({List<String> prunedIds, int tokensFreed}) pruneLifetimes(
+      Set<ContextLifetime> expiredLifetimes,
       {bool force = false}) {
+    final prunedIds = <String>[];
+    var tokensFreed = 0;
     for (final child in children) {
-      child.pruneLifetimes(expiredLifetimes, force: force);
+      final report = child.pruneLifetimes(expiredLifetimes, force: force);
+      prunedIds.addAll(report.prunedIds);
+      tokensFreed += report.tokensFreed;
     }
+    return (prunedIds: prunedIds, tokensFreed: tokensFreed);
   }
 }
