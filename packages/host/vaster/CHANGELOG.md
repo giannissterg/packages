@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `runPipeline` gains `models:` — named `ModelDescriptor` → backend
+  registrations, so `SelectModel` chains and descriptor-declared agents
+  resolve to REAL models (previously only the default slot existed and
+  every named descriptor silently fell through to it). Registered
+  models ride the same recording tape as the default.
+
 ## 0.5.0
 
 - **W0 (AST_REVIEW F0)**: `runPipeline` — the `runApp` of vaster. One

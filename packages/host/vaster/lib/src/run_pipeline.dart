@@ -89,6 +89,7 @@ Future<RunReport> runPipeline(
   required VasterModel backend,
   ExecutionBudget? budget,
   String? record,
+  Map<ModelDescriptor, VasterModel> models = const {},
 }) async {
   final program = const BasicWorkflowCompiler().compile(pipeline);
 
@@ -96,6 +97,15 @@ Future<RunReport> runPipeline(
   final model = record != null ? RecordingVasterModel(inner: backend, tape: tape) : backend;
 
   final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: model));
+  // Named models for SelectModel / descriptor-declared agents. When
+  // recording, every registered model rides the SAME tape as the default —
+  // one recording, whole run.
+  for (final entry in models.entries) {
+    vm.registerModel(
+      entry.key,
+      record != null ? RecordingVasterModel(inner: entry.value, tape: tape) : entry.value,
+    );
+  }
   try {
     final runtime = VasterRuntime(
       vm: vm,

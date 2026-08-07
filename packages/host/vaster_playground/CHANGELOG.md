@@ -1,5 +1,13 @@
 ## Unreleased
 
+- `stress_lab` — eleven adversarial probes against the framework's
+  edges (budget trips, program quotas, fallback chains, injected model
+  faults, unresolved interpolation, trap recovery, decide-loop
+  exhaustion, Provider+Builder grounding, Author discipline,
+  transaction rollback), each encoding the LEARNED contract: host
+  budgets exhaust to timedOut and charge post-call; program quotas
+  trap; agent failures write the sealed outcome register AND fail-stop.
+
 - `implement_from_plan` — dogfood phase two: the framework WRITES
   CODE into another codebase. Reads the target's committed plan.md AND
   review.md, implements the task model + unit tests as real files

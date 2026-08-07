@@ -111,6 +111,35 @@ void main() {
     expect(liveCalls, 2, reason: 'replay made no live calls');
   });
 
+  test('models: named descriptors resolve; a failing primary falls back', () async {
+    final report = await runPipeline(
+      const Pipeline(
+        name: 'named_models',
+        result: Binding('answer'),
+        children: [
+          SelectModel(
+            model: ModelDescriptor(provider: 't', modelId: 'flaky'),
+            fallbacks: [ModelDescriptor(provider: 't', modelId: 'steady')],
+            child: Prompt(Template.text('serve'), output: Binding('answer')),
+          ),
+        ],
+      ),
+      backend: FakeVasterModel(),
+      models: {
+        const ModelDescriptor(provider: 't', modelId: 'flaky'): VasterModel.fromTextHandler(
+          (request) async => throw StateError('injected 503'),
+          modelName: 'flaky',
+        ),
+        const ModelDescriptor(provider: 't', modelId: 'steady'): VasterModel.fromTextHandler(
+          (request) async => 'STEADY',
+          modelName: 'steady',
+        ),
+      },
+    );
+    expect(report.succeeded, isTrue, reason: 'error: ${report.state.errorDetails}');
+    expect('${report.result}', contains('STEADY'));
+  });
+
   test('envelope JSON is valid JSON on disk', () async {
     final tmp = Directory.systemTemp.createTempSync('vaster_facade_json_');
     addTearDown(() => tmp.deleteSync(recursive: true));

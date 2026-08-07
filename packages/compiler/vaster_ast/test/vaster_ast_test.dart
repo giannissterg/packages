@@ -183,6 +183,34 @@ void main() {
       expect(seen!.verdict.name, equals('checkout_review_verdict'));
     });
 
+    test('Author expands to Task + WriteFile with the declared discipline', () {
+      const author = Author(
+        agentId: 'engineer',
+        prompt: Template.text('Write the model.'),
+        path: '/out/model.dart',
+        output: Binding('code'),
+        discipline: AuthorDiscipline.source,
+      );
+      final expanded = author.build(baseContext) as Sequence;
+      final task = expanded.children.first as Task;
+      expect(task.prompt.lower(), startsWith('Write the model.'));
+      expect(task.prompt.lower(), contains('no markdown fences'), reason: 'source discipline appended');
+      expect(task.output?.name, 'code');
+      final write = expanded.children.last as WriteFile;
+      expect(write.path.lower(), '/out/model.dart');
+      expect(write.content.lower(), '\${code}');
+
+      const free = Author(
+        agentId: 'e',
+        prompt: Template.text('p'),
+        path: '/x',
+        output: Binding('o'),
+        discipline: AuthorDiscipline.free,
+      );
+      final freeTask = (free.build(baseContext) as Sequence).children.first as Task;
+      expect(freeTask.prompt.lower(), 'p', reason: 'free discipline appends nothing');
+    });
+
     test('ReadFile.at / WriteFile.at equal the Template-wrapped form (AST_REVIEW F4)', () {
       const sugar = ReadFile.at('/project/pubspec.yaml', output: Binding('pubspec'));
       const wrapped = ReadFile(path: Template.text('/project/pubspec.yaml'));
