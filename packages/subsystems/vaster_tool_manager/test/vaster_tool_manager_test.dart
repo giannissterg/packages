@@ -36,7 +36,7 @@ void main() {
       expect(manager.compiledDefinitions.first.name, equals('calc_sum'));
     });
 
-    test('dispatches function call and returns tool response ChatMessage', () async {
+    test('dispatches function call and returns its ToolResult', () async {
       final manager = BasicToolManager(
         tools: [
           FunctionTool.define(
@@ -53,11 +53,10 @@ void main() {
         arguments: {'location': 'Athens'},
       );
 
-      final messages = await manager.processFunctionCalls([call]);
-      expect(messages, hasLength(1));
-      expect(messages.first.role, equals(Role.tool));
+      final result = await manager.executeCall(call);
+      expect(result.isError, isFalse);
 
-      final resPart = messages.first.functionResponses.first;
+      final resPart = result.toResponsePart();
       expect(resPart.callId, equals('call_weather_1'));
       expect(resPart.response['temp'], equals('22C'));
     });

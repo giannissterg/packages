@@ -8,8 +8,8 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
-  vaster_model:
-    path: ../../model/vaster_model
+  vaster_cancellation:
+    path: ../../model/vaster_cancellation
   vaster_sandbox:
     path: ../../subsystems/vaster_sandbox
 

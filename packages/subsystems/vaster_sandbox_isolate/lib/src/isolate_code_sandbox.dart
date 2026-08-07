@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_cancellation/vaster_cancellation.dart';
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 
 /// Dart Isolate implementation of [CodeSandbox] for running Dart execution routines

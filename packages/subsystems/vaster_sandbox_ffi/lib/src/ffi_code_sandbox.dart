@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ffi';
 
-import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_cancellation/vaster_cancellation.dart';
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 
 /// Function signature for native C functions returning an int32 exit code.

@@ -13,6 +13,7 @@ workspace:
   # isa
   - packages/isa/vaster_instruction
   # model
+  - packages/model/vaster_cancellation
   - packages/model/vaster_kv
   - packages/model/vaster_model
   - packages/model/vaster_pricing

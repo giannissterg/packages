@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'cancellation_token.dart';
+import 'package:vaster_cancellation/vaster_cancellation.dart';
+
 import 'model_capabilities.dart';
 import 'model_request.dart';
 import 'model_response.dart';

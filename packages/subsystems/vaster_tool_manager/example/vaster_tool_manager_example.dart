@@ -16,11 +16,11 @@ void main() async {
 
   print('Compiled Tool Definitions for ModelRequest: ${manager.compiledDefinitions}');
 
-  final toolResponseMessages = await manager.processFunctionCalls([
+  final result = await manager.executeCall(
     const FunctionCallPart(callId: 'call_rf_1', name: 'read_workspace_file', arguments: {'path': 'ideas.md'}),
-  ]);
+  );
 
-  print('Tool Response Turn: ${toolResponseMessages.first.text}');
+  print('Tool Response Part: ${result.toResponsePart().response}');
 
   print('Done!');
 }

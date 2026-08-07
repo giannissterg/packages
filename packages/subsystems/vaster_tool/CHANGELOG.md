@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **BREAKING (B3)**: `ToolResult.toChatMessage()` is GONE. A per-call
+  tool message contradicted the one-turn-one-message batching rule that
+  `ToolTurnOutcome.toToolMessage()` owns (A1); the tool layer's output
+  is `toResponsePart()` — the transcript message is the turn's job.
+
 - **A1 — the guarded tool-turn pipeline.** `ToolCallGate` (with
   `NoopToolCallGate`, `CompositeToolCallGate` — a LIST of gates
   encapsulated as a gate — and `ToolCallGateBinding`), plus `ToolTurn` /

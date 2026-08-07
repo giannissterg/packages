@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_cancellation/vaster_cancellation.dart';
 
 void main() {
   group('CancellationToken', () {

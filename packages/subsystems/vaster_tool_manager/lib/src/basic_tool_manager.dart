@@ -54,14 +54,4 @@ class BasicToolManager implements ToolManager {
 
     return await tool.execute(callPart);
   }
-
-  @override
-  Future<List<ChatMessage>> processFunctionCalls(Iterable<FunctionCallPart> calls) async {
-    final responses = <ChatMessage>[];
-    for (final call in calls) {
-      final result = await executeCall(call);
-      responses.add(result.toChatMessage());
-    }
-    return responses;
-  }
 }

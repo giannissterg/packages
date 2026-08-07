@@ -1,4 +1,5 @@
-import 'cancellation_token.dart';
+import 'package:vaster_cancellation/vaster_cancellation.dart';
+
 import 'chat_message.dart';
 import 'context_cache_hint.dart';
 import 'generation_config.dart';

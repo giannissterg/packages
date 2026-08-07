@@ -14,8 +14,9 @@ bridges/vaster_replay 5
 host/vaster_cli 8
 host/vaster_playground 8
 isa/vaster_instruction 3
+model/vaster_cancellation 1
 model/vaster_kv 1
-model/vaster_model 4
+model/vaster_model 3
 runtime/vaster_machine_state 2
 runtime/vaster_runtime 19
 runtime/vaster_scheduler 5

@@ -1,4 +1,4 @@
-import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_cancellation/vaster_cancellation.dart';
 
 import 'sandbox_descriptor.dart';
 import 'sandbox_request.dart';

@@ -29,11 +29,6 @@ class ToolResult {
     this.executionDuration = Duration.zero,
   });
 
-  /// Converts this result into a [ChatMessage] tool response turn.
-  ChatMessage toChatMessage() {
-    return ChatMessage.toolResponse(callId, name, response);
-  }
-
   /// Converts this result into a [FunctionResponsePart].
   FunctionResponsePart toResponsePart() {
     return FunctionResponsePart(callId: callId, name: name, response: response);

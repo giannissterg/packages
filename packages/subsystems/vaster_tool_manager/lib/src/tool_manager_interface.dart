@@ -25,7 +25,4 @@ abstract interface class ToolManager {
 
   /// Executes a single [FunctionCallPart].
   Future<ToolResult> executeCall(FunctionCallPart callPart);
-
-  /// Dispatches multiple [FunctionCallPart]s and converts outputs into a list of [ChatMessage] tool responses.
-  Future<List<ChatMessage>> processFunctionCalls(Iterable<FunctionCallPart> calls);
 }

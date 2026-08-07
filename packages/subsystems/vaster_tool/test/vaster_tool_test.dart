@@ -41,9 +41,9 @@ void main() {
       expect(result.isError, isFalse);
       expect(result.response['result'], equals(42));
 
-      final chatMsg = result.toChatMessage();
-      expect(chatMsg.role, equals(Role.tool));
-      expect(chatMsg.functionResponses.first.response['result'], equals(42));
+      final resPart = result.toResponsePart();
+      expect(resPart.callId, equals('call_123'));
+      expect(resPart.response['result'], equals(42));
     });
 
     test('FunctionTool catches error during execution', () async {

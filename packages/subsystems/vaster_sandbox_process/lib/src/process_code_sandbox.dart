@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_cancellation/vaster_cancellation.dart';
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 
 /// CLI Process implementation of [CodeSandbox] for running system commands/scripts

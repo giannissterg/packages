@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **D**: `CancellationToken`/`CancelledException` moved to the new
+  `vaster_cancellation` leaf package and are re-exported here —
+  non-breaking for consumers of this package; packages that only need
+  cancellation (the sandboxes) now depend on the leaf directly.
+
 - **A4**: `ModelRetryEvent.modelIndex` — the failed member's chain
   index (0 = primary). Exact where a name lookup is not: a chain may
   contain the same model name twice, and hop reporting now survives it.
