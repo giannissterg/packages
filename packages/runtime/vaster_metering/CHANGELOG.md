@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **BREAKING (Rule 11 V2)**: `UsageSink.addTokens`/`addCost` return the
+  sink's new consumed totals (both sinks delegate the balance through).
+
 ## 0.2.0
 
 - Initial release: `ModelCallMeter` — the single metering pipeline for one

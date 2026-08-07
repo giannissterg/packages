@@ -60,19 +60,14 @@ class ExecutionBudget {
   }
 
   /// Deducts elapsed time from the budget.
-  void consumeTime(Duration elapsed) {
-    _consumedDuration += elapsed;
-  }
+  /// Returns the new consumed total (Rule 11 — the running balance).
+  Duration consumeTime(Duration elapsed) => _consumedDuration += elapsed;
 
-  /// Deducts tokens from the budget.
-  void consumeTokens(int tokens) {
-    _consumedTokens += tokens;
-  }
+  /// Deducts tokens from the budget; returns the new consumed total.
+  int consumeTokens(int tokens) => _consumedTokens += tokens;
 
-  /// Deducts cost from the budget.
-  void consumeCost(double cost) {
-    _consumedCost += cost;
-  }
+  /// Deducts cost from the budget; returns the new consumed total.
+  double consumeCost(double cost) => _consumedCost += cost;
 
   /// Creates a child budget bounded strictly by this parent's remaining capacity.
   ExecutionBudget createChildBudget({

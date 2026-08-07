@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Rule 11 V2: `VasterExecutionJournal.recordStep` returns the recorded
+  frame's step index — the handle seek/getFrameAt address it by.
+
 - `RequestDiffer` + sealed `RequestDelta`/`DivergenceReport` — the
   structured answer to "what changed?": positional candidate alignment,
   first-divergence char offsets with excerpts, fingerprint-relevant vs

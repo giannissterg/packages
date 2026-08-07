@@ -9,8 +9,12 @@ import 'package:vaster_resources/vaster_resources.dart';
 /// (quota trips) — the meter charges sinks in order and lets the trip
 /// propagate to the call site that owns error handling.
 abstract interface class UsageSink {
-  void addTokens(int tokens);
-  void addCost(double costUsd);
+  /// Absorbs [tokens] and returns the sink's new consumed-token total
+  /// (Rule 11 — the running balance).
+  int addTokens(int tokens);
+
+  /// Absorbs [costUsd] and returns the sink's new consumed-cost total.
+  double addCost(double costUsd);
 }
 
 /// Charges an [ExecutionBudget] (host-level capacity).
@@ -20,10 +24,10 @@ final class BudgetSink implements UsageSink {
   const BudgetSink(this.budget);
 
   @override
-  void addTokens(int tokens) => budget.consumeTokens(tokens);
+  int addTokens(int tokens) => budget.consumeTokens(tokens);
 
   @override
-  void addCost(double costUsd) => budget.consumeCost(costUsd);
+  double addCost(double costUsd) => budget.consumeCost(costUsd);
 }
 
 /// Charges a [ResourceTracker] (VM- or program-level quota).
@@ -38,10 +42,11 @@ final class TrackerSink implements UsageSink {
   const TrackerSink(this.tracker, {this.chargeTokens = true});
 
   @override
-  void addTokens(int tokens) {
-    if (chargeTokens) tracker.consumeTokens(tokens);
+  int addTokens(int tokens) {
+    if (chargeTokens) return tracker.consumeTokens(tokens);
+    return tracker.consumedTokens;
   }
 
   @override
-  void addCost(double costUsd) => tracker.consumeCost(costUsd);
+  double addCost(double costUsd) => tracker.consumeCost(costUsd);
 }

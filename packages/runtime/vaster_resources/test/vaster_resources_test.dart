@@ -2,6 +2,22 @@ import 'package:test/test.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 
 void main() {
+  test('consumption returns the running balance; applyQuota returns the '
+      'displaced quota (Rule 11)', () {
+    final tracker = ResourceTracker(quota: ResourceQuota.unlimited);
+    expect(tracker.consumeTokens(100), 100);
+    expect(tracker.consumeTokens(50), 150,
+        reason: 'the balance composes without a second getter call');
+    expect(tracker.recordToolCall(), 1);
+    expect(tracker.consumeCost(0.5), 0.5);
+
+    final displaced = tracker.applyQuota(ResourceQuota(maxTokenBudget: 10));
+    expect(displaced, same(ResourceQuota.unlimited),
+        reason: 'the quota it replaced is data, not a mystery');
+    expect(tracker.consumedTokens, 0, reason: 'applyQuota resets');
+  });
+
+
   group('ResourceQuota & ResourceTracker', () {
     test('tracks token usage and throws when quota exceeded', () {
       final tracker = ResourceTracker(

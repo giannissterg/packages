@@ -32,7 +32,10 @@ class ResourceTracker {
   /// Replaces the enforced quota and restarts measurement: all counters reset
   /// to zero and the deadline clock restarts. Used when a program scope
   /// declares a new quota (e.g. a `SetQuotaOp` in bytecode).
-  void applyQuota(ResourceQuota quota) {
+  /// Installs [quota] (resetting consumption) and returns the quota it
+  /// displaced (Rule 11).
+  ResourceQuota applyQuota(ResourceQuota quota) {
+    final displaced = _quota;
     _quota = quota;
     _consumedTokens = 0;
     _toolCallCount = 0;
@@ -40,10 +43,13 @@ class ResourceTracker {
     _stopwatch
       ..reset()
       ..start();
+    return displaced;
   }
 
   /// Consumes [count] tokens and checks quota limit.
-  void consumeTokens(int count) {
+  /// Returns the new consumed-token total (the running balance); throws
+  /// [QuotaExceededException] when the quota trips.
+  int consumeTokens(int count) {
     _consumedTokens += count;
     if (_quota.maxTokenBudget != null && _consumedTokens > _quota.maxTokenBudget!) {
       throw QuotaExceededException(
@@ -53,6 +59,7 @@ class ResourceTracker {
         quotaLimit: _quota.maxTokenBudget!,
       );
     }
+    return _consumedTokens;
   }
 
   /// Increments tool call count by [count] and checks quota limit.
@@ -60,7 +67,9 @@ class ResourceTracker {
   /// counters WITHOUT quota checks: the values were legal when captured, and
   /// a resume must not re-trip a quota the original run already survived —
   /// the next real consumption enforces as usual.
-  void restoreConsumed({
+  /// Returns the restored consumption snapshot (echo — the caller can
+  /// assert what the tracker now believes).
+  ({int tokens, double cost, int toolCalls}) restoreConsumed({
     required int tokens,
     required double cost,
     required int toolCalls,
@@ -68,9 +77,11 @@ class ResourceTracker {
     _consumedTokens = tokens;
     _consumedCost = cost;
     _toolCallCount = toolCalls;
+    return (tokens: _consumedTokens, cost: _consumedCost, toolCalls: _toolCallCount);
   }
 
-  void recordToolCall({int count = 1}) {
+  /// Returns the new tool-call total; throws when the quota trips.
+  int recordToolCall({int count = 1}) {
     _toolCallCount += count;
     if (_quota.maxToolCallsPerTask != null && _toolCallCount > _quota.maxToolCallsPerTask!) {
       throw QuotaExceededException(
@@ -80,10 +91,12 @@ class ResourceTracker {
         quotaLimit: _quota.maxToolCallsPerTask!,
       );
     }
+    return _toolCallCount;
   }
 
   /// Consumes [cost] monetary units and checks quota limit.
-  void consumeCost(double cost) {
+  /// Returns the new consumed-cost total; throws when the quota trips.
+  double consumeCost(double cost) {
     _consumedCost += cost;
     if (_quota.maxCostBudget != null && _consumedCost > _quota.maxCostBudget!) {
       throw QuotaExceededException(
@@ -93,10 +106,13 @@ class ResourceTracker {
         quotaLimit: _quota.maxCostBudget!,
       );
     }
+    return _consumedCost;
   }
 
   /// Checks if time deadline has expired.
-  void checkDeadline() {
+  /// Returns the time REMAINING before the deadline (null when no
+  /// deadline is declared); throws when it has already passed.
+  Duration? checkDeadline() {
     if (_quota.timeDeadline != null && _stopwatch.elapsed > _quota.timeDeadline!) {
       throw QuotaExceededException(
         resourceType: 'deadline',
@@ -105,5 +121,7 @@ class ResourceTracker {
         quotaLimit: _quota.timeDeadline!.inMilliseconds,
       );
     }
+    final deadline = _quota.timeDeadline;
+    return deadline == null ? null : deadline - _stopwatch.elapsed;
   }
 }

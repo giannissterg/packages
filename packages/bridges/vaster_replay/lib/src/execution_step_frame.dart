@@ -127,8 +127,11 @@ class VasterExecutionJournal {
   List<ExecutionStepFrame> get frames => List.unmodifiable(_frames);
 
   /// Appends a new [ExecutionStepFrame] to the journal.
-  void recordStep(ExecutionStepFrame frame) {
+  /// Appends [frame] and returns its zero-based step index — the handle
+  /// [getFrameAt] and seek operations address it by (Rule 11).
+  int recordStep(ExecutionStepFrame frame) {
     _frames.add(frame);
+    return _frames.length - 1;
   }
 
   /// Retrieves the step frame at zero-based [stepIndex], or null if out of range.
