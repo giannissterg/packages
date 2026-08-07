@@ -9,13 +9,15 @@ abstract interface class VasterFileSystem {
   Future<String> readText(String path);
 
   /// Writes text content to file at [path].
-  Future<void> writeText(String path, String content);
+/// Returns the number of BYTES written (Rule 11 receipt).
+  Future<int> writeText(String path, String content);
 
   /// Reads raw bytes of file at [path].
   Future<Uint8List> readBytes(String path);
 
   /// Writes raw bytes to file at [path].
-  Future<void> writeBytes(String path, Uint8List bytes);
+/// Returns the number of bytes written.
+  Future<int> writeBytes(String path, Uint8List bytes);
 
   /// Returns [FileDescriptor] handle containing file metadata, or null if file doesn't exist.
   Future<FileDescriptor?> getDescriptor(String path);

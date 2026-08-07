@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -39,10 +40,11 @@ class LocalVasterFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<void> writeText(String path, String content) async {
+  Future<int> writeText(String path, String content) async {
     final file = _resolveFile(path);
     await file.parent.create(recursive: true);
     await file.writeAsString(content);
+    return utf8.encode(content).length;
   }
 
   @override
@@ -52,10 +54,11 @@ class LocalVasterFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<void> writeBytes(String path, Uint8List bytes) async {
+  Future<int> writeBytes(String path, Uint8List bytes) async {
     final file = _resolveFile(path);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes);
+    return bytes.length;
   }
 
   @override

@@ -11,7 +11,7 @@ backends/vaster_model_google_ai 1
 backends/vaster_model_llama_cpp 2
 bridges/vaster_checkpoint 1
 bridges/vaster_context_mmu 2
-bridges/vaster_continuation_manager 6
+bridges/vaster_continuation_manager 3
 bridges/vaster_replay 9
 compiler/vaster_compiler 14
 host/vaster_cli 19
@@ -27,13 +27,12 @@ runtime/vaster_scheduler 6
 runtime/vaster_vm 3
 runtime/vaster_vm_api 1
 subsystems/vaster_agent_manager_advanced 2
-subsystems/vaster_agent_messaging 7
+subsystems/vaster_agent_messaging 6
 subsystems/vaster_context 1
 subsystems/vaster_context_manager 5
-subsystems/vaster_filesystem 3
-subsystems/vaster_filesystem_local 3
-subsystems/vaster_filesystem_manager 8
-subsystems/vaster_filesystem_memory 4
+subsystems/vaster_filesystem 1
+subsystems/vaster_filesystem_local 1
+subsystems/vaster_filesystem_memory 1
 subsystems/vaster_session 4
 subsystems/vaster_session_manager 2
 transports/vaster_mmap 15

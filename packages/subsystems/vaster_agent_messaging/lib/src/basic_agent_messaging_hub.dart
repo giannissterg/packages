@@ -55,13 +55,18 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
 
   /// Imports inboxes previously exported with [exportInboxes], replacing
   /// same-agent inboxes (checkpoint restore).
-  void importInboxes(Map<String, List<Map<String, dynamic>>> inboxes) {
+  /// Returns the number of messages hydrated across all inboxes — the
+  /// checkpoint-restore audit trail (Rule 11).
+  int importInboxes(Map<String, List<Map<String, dynamic>>> inboxes) {
+    var hydrated = 0;
     for (final entry in inboxes.entries) {
       _inboxes[entry.key] = [
         for (final m in entry.value)
           AgentMessage.fromJson(Map<String, dynamic>.from(m)),
       ];
+      hydrated += entry.value.length;
     }
+    return hydrated;
   }
 
   @override

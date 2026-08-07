@@ -30,9 +30,8 @@ class MemoryVasterFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<void> writeText(String path, String content) async {
-    await writeBytes(path, Uint8List.fromList(utf8.encode(content)));
-  }
+  Future<int> writeText(String path, String content) =>
+      writeBytes(path, Uint8List.fromList(utf8.encode(content)));
 
   @override
   Future<Uint8List> readBytes(String path) async {
@@ -45,10 +44,11 @@ class MemoryVasterFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<void> writeBytes(String path, Uint8List bytes) async {
+  Future<int> writeBytes(String path, Uint8List bytes) async {
     final norm = _normalizePath(path);
     _storage[norm] = Uint8List.fromList(bytes);
     _timestamps[norm] = DateTime.now();
+    return bytes.length;
   }
 
   /// Exports every file as base64 (checkpoint capture) — binary-safe.
@@ -57,14 +57,16 @@ class MemoryVasterFileSystem implements VasterFileSystem {
       };
 
   /// Imports files previously exported with [exportFilesBase64], replacing
-  /// same-path entries (checkpoint restore).
-  void importFilesBase64(Map<String, String> files) {
+  /// same-path entries (checkpoint restore); returns how many files were
+  /// restored — the audit trail (Rule 11).
+  int importFilesBase64(Map<String, String> files) {
     final now = DateTime.now();
     for (final entry in files.entries) {
       final norm = _normalizePath(entry.key);
       _storage[norm] = base64Decode(entry.value);
       _timestamps[norm] = now;
     }
+    return files.length;
   }
 
   @override

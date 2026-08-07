@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **BREAKING (Rule 11 V4)**: `beginTransaction`/`commit`/`rollback`
+  return the transaction depth they left behind; `importTransactions`
+  returns the restored depth — the checkpoint-restore audit trail.
+
 - **BREAKING (Rule 11 V1)**: `mount` returns the NORMALIZED prefix —
   the handle resolution actually uses.
 

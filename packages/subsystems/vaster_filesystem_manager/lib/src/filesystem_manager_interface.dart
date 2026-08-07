@@ -21,17 +21,19 @@ abstract interface class FileSystemManager {
   /// Bridges file content at [path] into a [FileContextSource] for context compilation.
   Future<FileContextSource> toContextSource(String path);
 
-  /// Begins a new snapshot transaction. Transactions NEST: each begin
-  /// pushes a frame; [commit]/[rollback] operate on the innermost one.
-  Future<void> beginTransaction();
+  /// Begins a new snapshot transaction and returns the new
+  /// [transactionDepth]. Transactions NEST: each begin pushes a frame;
+  /// [commit]/[rollback] operate on the innermost one.
+  Future<int> beginTransaction();
 
   /// Commits the innermost transaction (discards its rollback snapshot;
-  /// enclosing transactions keep theirs).
-  Future<void> commit();
+  /// enclosing transactions keep theirs) and returns the remaining depth.
+  Future<int> commit();
 
   /// Rolls the mounted filesystems back to the innermost transaction's
-  /// [beginTransaction] snapshot and closes that frame.
-  Future<void> rollback();
+  /// [beginTransaction] snapshot, closes that frame, and returns the
+  /// remaining depth.
+  Future<int> rollback();
 
   /// Number of currently open transaction frames. The runtime's error
   /// unwinding reads this at handler-push time and rolls back to it when a
@@ -47,6 +49,7 @@ abstract interface class FileSystemManager {
   List<Map<String, Map<String, String>>> exportTransactions();
 
   /// Restores frames previously exported with [exportTransactions],
-  /// replacing any currently open frames.
-  void importTransactions(List<Map<String, Map<String, String>>> frames);
+  /// replacing any currently open frames; returns the restored depth —
+  /// the checkpoint-restore audit trail (Rule 11).
+  int importTransactions(List<Map<String, Map<String, String>>> frames);
 }

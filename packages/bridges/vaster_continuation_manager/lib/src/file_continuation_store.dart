@@ -31,11 +31,12 @@ class FileContinuationStore implements ContinuationStore {
   }
 
   @override
-  Future<void> saveContinuation(VasterContinuation continuation) async {
+  Future<String> saveContinuation(VasterContinuation continuation) async {
     final dir = await _ensureDirectory();
     final file = _fileForId(dir, continuation.continuationId);
     final jsonString = const JsonEncoder.withIndent('  ').convert(continuation.toJson());
     await file.writeAsString(jsonString, flush: true);
+    return continuation.continuationId;
   }
 
   @override

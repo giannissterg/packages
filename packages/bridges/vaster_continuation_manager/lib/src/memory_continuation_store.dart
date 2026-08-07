@@ -7,8 +7,9 @@ class MemoryContinuationStore implements ContinuationStore {
   final Map<String, VasterContinuation> _storage = {};
 
   @override
-  Future<void> saveContinuation(VasterContinuation continuation) async {
+  Future<String> saveContinuation(VasterContinuation continuation) async {
     _storage[continuation.continuationId] = continuation;
+    return continuation.continuationId;
   }
 
   @override

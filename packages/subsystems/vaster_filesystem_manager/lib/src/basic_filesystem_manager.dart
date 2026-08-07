@@ -89,23 +89,24 @@ class BasicFileSystemManager implements FileSystemManager {
   int get transactionDepth => _transactionFrames.length;
 
   @override
-  Future<void> beginTransaction() async {
+  Future<int> beginTransaction() async {
     final frame = <String, FileSystemSnapshot>{};
     for (final entry in _mounts.entries) {
       frame[entry.key] = await entry.value.createSnapshot();
     }
     _transactionFrames.add(frame);
+    return _transactionFrames.length;
   }
 
   @override
-  Future<void> commit() async {
-    if (_transactionFrames.isEmpty) return;
-    _transactionFrames.removeLast();
+  Future<int> commit() async {
+    if (_transactionFrames.isNotEmpty) _transactionFrames.removeLast();
+    return _transactionFrames.length;
   }
 
   @override
-  Future<void> rollback() async {
-    if (_transactionFrames.isEmpty) return;
+  Future<int> rollback() async {
+    if (_transactionFrames.isEmpty) return 0;
     final frame = _transactionFrames.removeLast();
     for (final entry in frame.entries) {
       final fs = _mounts[entry.key];
@@ -113,6 +114,7 @@ class BasicFileSystemManager implements FileSystemManager {
         await fs.restoreSnapshot(entry.value);
       }
     }
+    return _transactionFrames.length;
   }
 
   @override
@@ -128,7 +130,7 @@ class BasicFileSystemManager implements FileSystemManager {
       ];
 
   @override
-  void importTransactions(List<Map<String, Map<String, String>>> frames) {
+  int importTransactions(List<Map<String, Map<String, String>>> frames) {
     _transactionFrames
       ..clear()
       ..addAll([
@@ -141,5 +143,6 @@ class BasicFileSystemManager implements FileSystemManager {
               }),
           },
       ]);
+    return _transactionFrames.length;
   }
 }
