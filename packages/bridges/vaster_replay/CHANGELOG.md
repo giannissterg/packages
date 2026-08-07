@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- `JsonComparator`/`JsonDivergence` — the normative deep-JSON frame
+  comparator (ISA.md §Conformance procedure: mathematical number
+  equality, exact key sets, first-divergence field paths) lives HERE,
+  the journal/envelope package, as its one home. Consumed by the
+  conformance suite's reference runner and the debugger's verified
+  materialization.
+
 ## 0.5.0
 
 - **BREAKING (C wave)**: `VasterExecutionRecorder.detach` returns the

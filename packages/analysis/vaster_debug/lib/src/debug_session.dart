@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:vaster_budget/vaster_budget.dart';
 import 'package:vaster_filesystem/vaster_filesystem.dart';
 import 'package:vaster_context/vaster_context.dart';
@@ -150,6 +152,10 @@ class DebugSession {
   VasterRuntime? _runtime;
   int _materializedStep = -1;
 
+  /// pc the materialized machine is ABOUT to execute — conformance-rule
+  /// verification compares it against the next frame before stepping.
+  int _materializedPc = 0;
+
   DebugSession._(this.envelope, this.warnings, this.vmFactory, this.materialization);
 
   /// Validates the envelope and constructs a session. Never refuses a
@@ -262,36 +268,39 @@ class DebugSession {
         _vm!.contextManager.installClassTable(ContextClassTable.fromJson(program.contextClasses!));
       }
       _materializedStep = -1;
+      _materializedPc = 0;
     }
 
     while (_materializedStep < _cursor) {
       final expected = journal.getFrameAt(_materializedStep + 1);
       if (expected == null) break;
 
-      final state = await _runtime!.executeStep(program, stepCount: 1);
-      _materializedStep++;
-
-      // Frame-exact verification: the recording and this toolchain must
-      // produce the same machine, or the debugger says exactly where not.
-      if (state.pc != expected.pc + 1 &&
-          state.status == RuntimeStatus.running &&
-          !_isControlFlow(expected.instruction)) {
+      // Frame-exact verification under the NORMATIVE conformance rules
+      // (ISA.md §Conformance procedure — the same rules a second-language
+      // runtime is held to). pc is compared BEFORE executing each step:
+      // jumps, calls, and decide landings are verified by the successor
+      // frame, with no control-flow special cases.
+      if (_materializedPc != expected.pc) {
         throw ReplayDivergence(
-          stepIndex: _materializedStep,
-          detail: 'PC after step is ${state.pc}, recorded instruction was '
-              'at ${expected.pc}',
+          stepIndex: _materializedStep + 1,
+          detail: 'pc before step is $_materializedPc, recorded frame '
+              'expects ${expected.pc}',
         );
       }
-      for (final entry in expected.registers.entries) {
-        final replayed = state.registers[entry.key];
-        if ('$replayed' != '${entry.value}') {
-          throw ReplayDivergence(
-            stepIndex: _materializedStep,
-            detail: 'register "${entry.key}" recorded '
-                '${_truncate('${entry.value}')} but replayed '
-                '${_truncate('$replayed')}',
-          );
-        }
+
+      final state = await _runtime!.executeStep(program, stepCount: 1);
+      _materializedStep++;
+      _materializedPc = state.pc;
+
+      // Registers: deep JSON value equality (mathematical numbers, exact
+      // key sets) — Dart-toString coercion is NOT the rule.
+      final divergence = const JsonComparator().diff(
+        expected.registers,
+        jsonDecode(jsonEncode(state.registers)),
+        path: 'registers',
+      );
+      if (divergence != null) {
+        throw ReplayDivergence(stepIndex: _materializedStep, detail: '$divergence');
       }
 
       if (state.status == RuntimeStatus.pausedForHuman) {
@@ -336,15 +345,4 @@ class DebugSession {
       lastCompiled: vm.contextManager.lastCompiled,
     );
   }
-
-  static bool _isControlFlow(VasterInstruction instruction) =>
-      instruction is JumpOp ||
-      instruction is JumpIfOp ||
-      instruction is CallOp ||
-      instruction is ReturnSubroutineOp ||
-      instruction is DecideOp ||
-      instruction is HaltOp;
-
-  static String _truncate(String value, [int max = 80]) =>
-      value.length <= max ? value : '${value.substring(0, max)}…';
 }

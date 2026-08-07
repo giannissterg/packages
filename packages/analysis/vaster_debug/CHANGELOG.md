@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Materialization verifies under the NORMATIVE conformance rules
+  (ISA.md §Conformance procedure): pc compared before each step —
+  successor-frame verification with no control-flow special cases —
+  and deep-JSON register equality via `JsonComparator` (exact key
+  sets, mathematical numbers). The Dart-`toString` coercion check and
+  the `_isControlFlow` skip-list are gone; `ReplayDivergence` now
+  carries the comparator's field-path detail. The committed real-model
+  fixture materializes unchanged under the stricter rules.
+
 - Disk-mounted recordings DEGRADE to the journal tier instead of
   refusing to load: `DebugSession.load` never throws for them anymore.
   The new required sealed `DebugSession.materialization`

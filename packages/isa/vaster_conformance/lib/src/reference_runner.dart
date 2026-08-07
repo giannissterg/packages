@@ -5,7 +5,6 @@ import 'package:vaster_replay/vaster_replay.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 import 'conformance_vector.dart';
-import 'json_compare.dart';
 
 /// Outcome of running one vector — sealed, carrying its data.
 sealed class ConformanceOutcome {

@@ -2,6 +2,7 @@
 library;
 
 export 'src/execution_recorder.dart';
+export 'src/json_compare.dart';
 export 'src/model_tape.dart';
 export 'src/replay_envelope.dart';
 export 'src/request_differ.dart';

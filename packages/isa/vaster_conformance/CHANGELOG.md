@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `JsonComparator`/`JsonDivergence` moved to `vaster_replay` (their one
+  home — the debugger consumes them too and must never depend on this
+  engine-carrying package); re-exported here unchanged.
+
 - **The ISA conformance suite (1.0 gate 2).** Fifteen golden vectors
   (replay envelopes + expectation manifests) covering all 42 core opcodes;
   the normative deep-JSON comparator (mathematical number equality, no

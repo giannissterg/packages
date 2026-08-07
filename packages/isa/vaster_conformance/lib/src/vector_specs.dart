@@ -6,7 +6,6 @@ import 'package:vaster_replay/vaster_replay.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 import 'conformance_vector.dart';
-import 'json_compare.dart';
 
 // The golden-vector generator core (spec: docs/specs/ISA.md §Conformance
 // procedure). Deterministic by construction: scripted responses, no host

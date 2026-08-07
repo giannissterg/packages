@@ -3,7 +3,8 @@
 /// docs/specs/ISA.md §Conformance procedure).
 library;
 
+export 'package:vaster_replay/vaster_replay.dart' show JsonComparator, JsonDivergence;
+
 export 'src/conformance_vector.dart';
-export 'src/json_compare.dart';
 export 'src/reference_runner.dart';
 export 'src/vector_specs.dart';
