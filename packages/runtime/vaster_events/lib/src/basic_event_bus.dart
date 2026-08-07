@@ -16,10 +16,11 @@ class BasicEventBus implements RuntimeEventBus {
   }
 
   @override
-  void publish(RuntimeEvent event) {
+  String publish(RuntimeEvent event) {
     if (!_controller.isClosed) {
       _controller.add(event);
     }
+    return event.eventId;
   }
 
   @override

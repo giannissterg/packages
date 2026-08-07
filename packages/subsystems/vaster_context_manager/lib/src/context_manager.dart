@@ -272,14 +272,15 @@ class BasicContextManager implements ContextManager {
   String _nextEventId(String kind) =>
       'ctx_${kind}_${DateTime.now().microsecondsSinceEpoch}_${_eventCounter++}';
 
-  void _emitEvicted(List<String> regionIds, int tokensFreed, String reason) {
+  /// Returns the published event's id, null when no bus is wired.
+  String? _emitEvicted(List<String> regionIds, int tokensFreed, String reason) {
     // Resolve classes before publishing — the regions may already be gone
     // from the heap by the time a subscriber looks.
     final classes = <String, String>{
       for (final id in regionIds)
         id: _classTable.resolve(heap.getRegion(id)?.classId).name,
     };
-    eventBus?.publish(ContextEvictedEvent(
+    return eventBus?.publish(ContextEvictedEvent(
       eventId: _nextEventId('evict'),
       evictedRegionIds: regionIds,
       tokensFreed: tokensFreed,

@@ -94,13 +94,14 @@ class BasicPolicyEngine implements PolicyEngine {
     return false;
   }
 
-  void _publishTelemetry(
+  /// Returns the published event's id, null when no bus is wired.
+  String? _publishTelemetry(
     ExecutionPolicy policy,
     PolicyAction action,
     String resource,
     PolicyDecision decision,
   ) {
-    eventBus?.publish(PolicyEvaluatedEvent(
+    return eventBus?.publish(PolicyEvaluatedEvent(
       eventId: 'evt_policy_eval_${DateTime.now().microsecondsSinceEpoch}',
       policyId: policy.policyId,
       action: action.name,

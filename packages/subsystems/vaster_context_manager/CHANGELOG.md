@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Rule 11 V7: eviction telemetry helpers return the published event id.
+
 - **BREAKING (Rule 11 V3)**: `pinRegion`/`unpinRegion` return the
   region as (un)pinned (null when absent), `pruneLifetimes` returns its
   freed report (ids + tokens; an empty report is an observable "pruned

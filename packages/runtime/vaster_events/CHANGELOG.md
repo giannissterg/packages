@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **BREAKING (Rule 11 V7)**: `publish` returns the event's id — the
+  correlation handle. Publish is NOT a sanctioned sink.
+
 - **BREAKING (Rule 11 V6)**: `RuntimeEventBus.close` returns whether
   this call closed it (idempotence observable).
 
