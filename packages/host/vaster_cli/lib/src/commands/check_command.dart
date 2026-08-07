@@ -27,7 +27,7 @@ class CheckCommand extends VasterCommand {
       'cost bound, and policy proofs.';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addOption(
       'policy',
       help: 'Policy to prove against: unlimited, read-only, or a JSON file.',
@@ -55,6 +55,7 @@ class CheckCommand extends VasterCommand {
     );
     parser.addFlag('json',
         negatable: false, help: 'Emit the report as machine-readable JSON.');
+    return parser;
   }
 
   @override

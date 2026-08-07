@@ -76,29 +76,41 @@ final class EffectLedger implements MachineStateComponent {
 
   bool get inScope => _frames.isNotEmpty;
 
-  void pushScope(int pc) => _frames.add(_EffectScopeFrame(pushPc: pc));
+  /// Opens a scope and returns the new depth (Rule 11 — same idiom as
+  /// the VFS transaction stack).
+  int pushScope(int pc) {
+    _frames.add(_EffectScopeFrame(pushPc: pc));
+    return _frames.length;
+  }
 
-  /// Closes the innermost scope. Records are retained while any enclosing
-  /// scope remains open; closing the outermost scope drops the store.
-  void popScope() {
-    if (_frames.isEmpty) return;
-    _frames.removeLast();
-    if (_frames.isEmpty) _records.clear();
+  /// Closes the innermost scope and returns the remaining depth. Records
+  /// are retained while any enclosing scope remains open; closing the
+  /// outermost scope drops the store.
+  int popScope() {
+    if (_frames.isNotEmpty) {
+      _frames.removeLast();
+      if (_frames.isEmpty) _records.clear();
+    }
+    return _frames.length;
   }
 
   /// Retry boundary of the innermost scope: the next attempt's calls count
-  /// occurrences from 1 again, lining up with the recorded ones.
-  void markRetry() {
-    if (_frames.isEmpty) return;
+  /// occurrences from 1 again, lining up with the recorded ones. Returns
+  /// how many occurrence cursors were reset.
+  int markRetry() {
+    if (_frames.isEmpty) return 0;
+    final reset = _frames.last.cursors.length;
     _frames.last.cursors.clear();
+    return reset;
   }
 
   /// Closes every scope above [targetDepth] — the error-unwinding path for
-  /// scopes a failure abandoned mid-region.
-  void unwindTo(int targetDepth) {
+  /// scopes a failure abandoned mid-region. Returns the depth it left.
+  int unwindTo(int targetDepth) {
     while (_frames.length > targetDepth) {
       popScope();
     }
+    return _frames.length;
   }
 
   /// Claims the next occurrence slot for (name, args) in the current
@@ -156,10 +168,12 @@ final class EffectLedger implements MachineStateComponent {
     return (result: result, replayed: false);
   }
 
-  /// Resets to program-start conditions.
-  void clear() {
+  /// Resets to program-start conditions; returns the records dropped.
+  int clear() {
+    final dropped = _records.length;
     _frames.clear();
     _records.clear();
+    return dropped;
   }
 
   @override

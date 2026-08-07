@@ -34,7 +34,7 @@ class ServeCommand extends VasterCommand {
       'shared-memory rings.';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addOption(
       'transport',
       abbr: 't',
@@ -77,6 +77,7 @@ class ServeCommand extends VasterCommand {
       help: 'Path to the Claude CLI binary (claude backend only).',
       defaultsTo: 'claude',
     );
+    return parser;
   }
 
   @override

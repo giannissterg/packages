@@ -23,7 +23,7 @@ class EvalCommand extends VasterCommand {
       'real metered cost per trial.';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addOption('trials',
         abbr: 'n', help: 'Trials to run (default 3).');
     parser.addOption(
@@ -39,6 +39,7 @@ class EvalCommand extends VasterCommand {
         help: 'Pass only when the declared result matches this pattern.');
     parser.addFlag('json',
         negatable: false, help: 'Emit the report as machine-readable JSON.');
+    return parser;
   }
 
   @override

@@ -32,7 +32,7 @@ abstract class VasterCommand {
   String get description;
 
   /// Configures command-specific flags and options on the provided [ArgParser].
-  void configureArgs(ArgParser parser) {}
+  ArgParser configureArgs(ArgParser parser) => parser;
 
   /// Executes the subcommand logic using the provided [CommandContext].
   ///

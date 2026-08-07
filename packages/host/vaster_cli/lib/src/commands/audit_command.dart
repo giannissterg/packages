@@ -23,7 +23,7 @@ class AuditCommand extends VasterCommand {
       'sandboxes, decision surface, human gates, budgets) without running it.';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addFlag(
       'json',
       help: 'Emit the audit as machine-readable JSON.',
@@ -35,6 +35,7 @@ class AuditCommand extends VasterCommand {
       help: 'Include ProgramAnalyzer diagnostics after the audit.',
       negatable: false,
     );
+    return parser;
   }
 
   @override

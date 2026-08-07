@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Rule 11 V8: `EffectLedger` scope ops return depths (push/pop/unwind)
+  and reset counts (markRetry, clear); `CallStack.push` returns the new
+  depth.
+
 - Rule 11 V3: `CacheHintTracker.onRegionPinned` returns the hint now
   tracked (null when the region has no live descriptor), `removeHint`
   the hint it removed, `clear` how many it dropped.

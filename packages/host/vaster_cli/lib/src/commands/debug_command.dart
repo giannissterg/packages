@@ -23,7 +23,7 @@ class DebugCommand extends VasterCommand {
       'through a run, inspecting registers, VFS, and context at any step.';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addOption(
       'program',
       abbr: 'p',
@@ -36,6 +36,7 @@ class DebugCommand extends VasterCommand {
       help: 'Semicolon/newline-separated debugger commands to execute '
           'non-interactively (e.g. "seek 12; regs; cat /workspace/spec.md").',
     );
+    return parser;
   }
 
   @override

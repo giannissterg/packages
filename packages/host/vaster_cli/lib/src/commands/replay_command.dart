@@ -26,7 +26,7 @@ class ReplayCommand extends VasterCommand {
       'divergence — with --diff, down to the character.';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addFlag('diff',
         negatable: false,
         help: 'On divergence, render a structured request diff against '
@@ -36,6 +36,7 @@ class ReplayCommand extends VasterCommand {
         abbr: 'p',
         help: 'Compiled program (.vbc/.json) for envelopes recorded '
             'before programs were embedded.');
+    return parser;
   }
 
   @override

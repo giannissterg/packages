@@ -49,8 +49,12 @@ class CallStack implements MachineStateComponent {
   /// Number of currently active frames.
   int get depth => _frames.length;
 
-  /// Pushes a new [ActivationRecord] for a subroutine call.
-  void push(ActivationRecord frame) => _frames.add(frame);
+  /// Pushes a new [ActivationRecord] for a subroutine call and returns
+  /// the new stack depth (Rule 11).
+  int push(ActivationRecord frame) {
+    _frames.add(frame);
+    return _frames.length;
+  }
 
   /// Pops and returns the most recent activation record.
   ///

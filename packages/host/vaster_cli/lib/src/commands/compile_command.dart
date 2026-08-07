@@ -29,7 +29,7 @@ class CompileCommand extends VasterCommand {
       '(or canonical JSON with --json).';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addOption(
       'output',
       abbr: 'o',
@@ -46,6 +46,7 @@ class CompileCommand extends VasterCommand {
       help: 'Analyze only — print diagnostics, write no artifact.',
       negatable: false,
     );
+    return parser;
   }
 
   @override

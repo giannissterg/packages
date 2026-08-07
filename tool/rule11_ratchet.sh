@@ -55,6 +55,12 @@ if [ "${1:-}" = "--update" ]; then
 #   - `void Function(...)` callback/observer types — a callback is its
 #     consumer's sink by construction (excluded from counts)
 #   - CLI _print*/terminal-output helpers — stdout is a genuine sink
+#
+# Everything else still counted above is OPPORTUNISTIC INVENTORY, not
+# sanctioned: private _helpers, native/FFI internals (llama, mmap), and
+# per-command CLI bodies migrate whenever their file is next touched —
+# the ratchet holds the line in between (plan: rule11-void-migration.md,
+# V8 closed the phased waves).
 LEDGER
   } > "$BASELINE"
   echo "baseline rewritten: $BASELINE"

@@ -24,7 +24,7 @@ class RunCommand extends VasterCommand {
       'or compiles and runs an AST pipeline script (.dart).';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addOption(
       'backend',
       abbr: 'b',
@@ -86,6 +86,7 @@ class RunCommand extends VasterCommand {
           'quanta may be in flight concurrently (model I/O overlaps across '
           'jobs). Default 1.',
     );
+    return parser;
   }
 
   @override

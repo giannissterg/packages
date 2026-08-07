@@ -17,13 +17,14 @@ class DisassembleCommand extends VasterCommand {
   String get description => 'Compiles a Vaster AST pipeline script and displays ISA bytecode disassembly.';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addFlag(
       'stats-only',
       abbr: 's',
       help: 'Output instruction breakdown statistics only without full listing.',
       negatable: false,
     );
+    return parser;
   }
 
   @override

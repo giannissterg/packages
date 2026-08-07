@@ -28,7 +28,7 @@ class ResumeCommand extends VasterCommand {
       '(see `vaster run --checkpoint-dir`).';
 
   @override
-  void configureArgs(ArgParser parser) {
+  ArgParser configureArgs(ArgParser parser) {
     parser.addOption(
       'backend',
       help: 'Model backend to resume on '
@@ -51,6 +51,7 @@ class ResumeCommand extends VasterCommand {
     );
     parser.addFlag('trace',
         negatable: false, help: 'Live disassembly trace while resuming.');
+    return parser;
   }
 
   @override

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Rule 11 V8: `configureArgs` echoes the configured parser across the
+  base command and all eleven commands (fluent registration).
+
 - Rule 11 V1: `registerCommand` returns the same-name command it
   displaced.
 
