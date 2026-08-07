@@ -1,3 +1,13 @@
+## Unreleased
+
+- VBC backward-decode is PROVEN, not just written: committed golden
+  fixtures produced by the real historical encoders (`v1_program.vbc`
+  from the formatVersion-1 toolchain at 49c0308^; `v2_legacy_classes.vbc`
+  from the early-v2 era whose header value was the class-table map) now
+  execute both legacy decode branches, plus the upgrade round-trip
+  (legacy decode → current encode → identical program). Named in
+  ISA.md §Versioning as the migration conformance anchors.
+
 ## 0.5.0
 
 - Effect-scope opcodes (REL-P4): `push_effect_scope` / `pop_effect_scope` /

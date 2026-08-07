@@ -1,0 +1,30 @@
+{
+  "programName": "v2_legacy_classes_probe",
+  "contextClasses": {
+    "classes": [
+      {
+        "name": "knowledge",
+        "band": 1
+      },
+      {
+        "name": "scratch",
+        "band": 2
+      }
+    ]
+  },
+  "instructions": [
+    {
+      "opcode": "set_register",
+      "registerName": "x",
+      "value": 7
+    },
+    {
+      "opcode": "prompt",
+      "promptText": "Use ${x}.",
+      "outputVar": "y"
+    },
+    {
+      "opcode": "halt"
+    }
+  ]
+}

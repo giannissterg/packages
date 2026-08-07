@@ -1,0 +1,52 @@
+{
+  "programName": "v1_compat_probe",
+  "instructions": [
+    {
+      "opcode": "set_register",
+      "registerName": "plan",
+      "value": {
+        "steps": [
+          "mount",
+          "write",
+          "read"
+        ],
+        "budget": 42,
+        "ratio": 0.75,
+        "active": true,
+        "note": null
+      }
+    },
+    {
+      "opcode": "increment_register",
+      "registerName": "counter",
+      "delta": 2
+    },
+    {
+      "opcode": "jump_if",
+      "targetPc": 4,
+      "conditionVar": "skip"
+    },
+    {
+      "opcode": "mount_fs",
+      "mountPrefix": "/mem"
+    },
+    {
+      "opcode": "write_file",
+      "vfsPath": "/mem/notes/${plan}.txt",
+      "content": "literal $$ and ${counter}"
+    },
+    {
+      "opcode": "read_file",
+      "vfsPath": "/mem/notes/${plan}.txt",
+      "outputVar": "readback"
+    },
+    {
+      "opcode": "prompt",
+      "promptText": "Summarize ${readback}.",
+      "outputVar": "summary"
+    },
+    {
+      "opcode": "halt"
+    }
+  ]
+}

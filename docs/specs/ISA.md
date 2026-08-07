@@ -294,3 +294,11 @@ is a `FormatException` naming it.
   REPLAY_ENVELOPE.md §Migration guarantees). The 1.0 promise: a program or
   recording produced on 1.x loads on any 1.y ≥ x via versioned migration,
   never silent rejection.
+- **Backward-decode anchors** — golden bytes produced by the REAL
+  historical encoders, committed in
+  `packages/isa/vaster_instruction/test/fixtures/`: `v1_program.vbc`
+  (formatVersion 1, no header section) and `v2_legacy_classes.vbc` (early
+  v2 whose header value was the class-table map). A conforming decoder
+  MUST parse those exact bytes and produce the committed
+  `.expected.json` programs; re-encoding at the current version MUST
+  round-trip identically. This is the migration promise, executed.

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
@@ -215,6 +216,66 @@ void main() {
           throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('quantum_entangle'))),
         );
         expect(() => VasterInstruction.fromJson({'outputVar': 'x'}), throwsA(isA<FormatException>()));
+      });
+    });
+
+    // The committed fixtures were produced by the REAL historical encoders
+    // (gate-1 discipline: versioned migration, proven — not just written):
+    //   v1_program.vbc          — formatVersion 1, encoded at 49c0308^
+    //   v2_legacy_classes.vbc   — early v2 whose header value WAS the
+    //                             class-table map, encoded at 49c0308
+    // Regeneration recipe: `git worktree add <tmp> <commit>`, add a bin
+    // script in the worktree's packages/vaster_instruction importing the
+    // old package, call program.toBytes(), copy the bytes out. The
+    // .expected.json goldens are the CURRENT toolchain's serialization of
+    // the verified decode, locked.
+    group('version migration (legacy golden bytes):', () {
+      Uint8List fixtureBytes(String name) => File('test/fixtures/$name.vbc').readAsBytesSync();
+      Map<String, dynamic> golden(String name) =>
+          jsonDecode(File('test/fixtures/$name.expected.json').readAsStringSync()) as Map<String, dynamic>;
+
+      test('v1 bytes decode: no header, exact instruction stream', () {
+        final program = VasterProgramBinary.fromBytes(fixtureBytes('v1_program'));
+        expect(program.programName, 'v1_compat_probe');
+        expect(program.resultBinding, isNull, reason: 'v1 predates the header');
+        expect(program.contextClasses, isNull);
+        expect(program.instructions, hasLength(8));
+        expect(jsonEncode(program.toJson()), jsonEncode(golden('v1_program')));
+      });
+
+      test('early-v2 bytes decode: the classes-as-header sniff branch', () {
+        final program = VasterProgramBinary.fromBytes(fixtureBytes('v2_legacy_classes'));
+        expect(program.programName, 'v2_legacy_classes_probe');
+        expect(
+          program.contextClasses,
+          containsPair('classes', anything),
+          reason: 'the header value WAS the class table in early v2',
+        );
+        expect(jsonEncode(program.toJson()), jsonEncode(golden('v2_legacy_classes')));
+      });
+
+      test('upgrade round-trip: legacy decode → current encode → identical program', () {
+        for (final name in ['v1_program', 'v2_legacy_classes']) {
+          final legacy = VasterProgramBinary.fromBytes(fixtureBytes(name));
+          final upgraded = legacy.toBytes();
+          expect(
+            upgraded[4] * 256 + upgraded[5],
+            VbcCodec.formatVersion,
+            reason: 'the migration path re-encodes at the current version',
+          );
+          final decoded = VasterProgramBinary.fromBytes(upgraded);
+          expect(
+            jsonEncode(decoded.toJson()),
+            jsonEncode(legacy.toJson()),
+            reason: '$name must survive the upgrade byte-for-byte in JSON terms',
+          );
+        }
+      });
+
+      test('legacy fixture corruption still fails typed', () {
+        final bytes = Uint8List.fromList(fixtureBytes('v1_program'));
+        bytes[bytes.length - 3] ^= 0xFF;
+        expect(() => VasterProgramBinary.fromBytes(bytes), throwsA(isA<VbcDecodeException>()));
       });
     });
   });
