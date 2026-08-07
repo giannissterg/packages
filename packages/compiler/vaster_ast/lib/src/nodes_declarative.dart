@@ -76,6 +76,9 @@ class Pipeline extends ComposableNode {
       // role inheritance stays with the Agent scope node (multiple roles
       // cannot meaningfully share one Provider<AgentRole> slot).
       for (final role in roles) AgentProvisionHeader(role: role),
+      // Roles the tree names via `agent:` slots provision here (F2) —
+      // `roles:` is only needed for `agentId:` string references.
+      const CollectedRolesSlot(),
       ...children,
     ]);
     if (model != null) {
@@ -656,4 +659,23 @@ final class Provider<T> extends VasterNode {
   const Provider({required this.value, required this.children});
 
   BuildContext applyToContext(BuildContext context) => context.provide<T>(value);
+}
+
+/// Builds a subtree from a scope-provided value, type-safely (AST_REVIEW
+/// F7 — the framework's `Builder` pattern): the counterpart of
+/// [Provider], for consumers. The function runs at build time with the
+/// context-RESOLVED `T`, so what it receives is the effective value under
+/// the current scope — never a guessed name or a stale default.
+///
+/// ```dart
+/// Builder<SddConventions>((context, conventions) =>
+///     ReadFile.at(conventions.specPath, output: specDoc)),
+/// ```
+final class Builder<T> extends ComposableNode {
+  final VasterNode Function(BuildContext context, T value) builder;
+
+  const Builder(this.builder);
+
+  @override
+  VasterNode build(BuildContext context) => builder(context, context.read<T>());
 }

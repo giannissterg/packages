@@ -340,7 +340,9 @@ void main() {
         pipeline([
           AgentTeam(
             roles: [role('analyst')],
-            children: const [Clarify(topic: 'billing requirements', agentId: 'analyst', maxQuestions: 3)],
+            children: const [
+              Clarify(topic: Template.text('billing requirements'), agentId: 'analyst', maxQuestions: 3),
+            ],
           ),
         ]),
       );

@@ -241,12 +241,21 @@ instead of working around it.
 
 ## 5. Sequencing
 
-| Wave | Items | Nature | Gate |
+| Wave | Items | Nature | Status |
 |---|---|---|---|
-| **W0** | F0 `runPipeline` + `RunReport` | additive, no AST churn | benchmark `main` ≤ ~25 lines; three in-repo harness duplications migrated |
-| **W1** | F3, F4, F6 | additive ctors/defaults | no existing tree breaks; benchmark tree adopts |
-| **W2** | F1, F2, F7 | compiler-behavior + one type break | fixture-drift guards updated deliberately; `vaster check` still proves the same program |
-| **W3** | F5 (`Sdd` scope) | additive sugar | benchmark loses its `Provider<>` wrapper |
+| **W0** | F0 `runPipeline` + `RunReport` | additive, no AST churn | ✅ 2026-08-07 — benchmark `main` ~10 substantive lines |
+| **W1** | F3, F4, F6 | additive ctors/defaults | ✅ 2026-08-07 — unnamed-positional promotions deferred to a future break (can't coexist with named-param ctors) |
+| **W2** | F1, F2, F7 | compiler-behavior + one type break | ✅ 2026-08-07 — fixture guards held: F1 preserved lowered prompts byte-for-byte; F2 adds zero instructions to role-declaring pipelines |
+| **W3** | F5 (`Sdd` scope) | additive sugar | ✅ 2026-08-07 |
+
+**Acceptance re-measure (all waves in):** the benchmark went 173 → 126
+lines. **Zero escaped-dollar strings: achieved** — bindings are declared
+once as consts and referenced as `Template` parts. The ≤86-line target was
+not met, and honestly won't be by AST work: the residual is the script's
+own scaffolding (scripted fake model ~15 lines, CLI arg parsing ~15, three
+deliberately verbose role instructions ~20) — example UX, not framework
+friction. The framework-attributable verbosity named in §1 (75-line
+harness, wrapper noise, double declarations, stringly glue) is gone.
 
 Every wave: `dart analyze --fatal-infos`, full sweep, Rule 11 ratchet, and the
 benchmark file re-measured against the acceptance criterion. W2 changes

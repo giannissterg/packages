@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **BREAKING — W2 (AST_REVIEW F1)**: `Specify.goal` and `Clarify.topic`
+  are `Template`-typed. Bound values interpolate as typed `Binding`
+  parts; the escaped-dollar string tier is gone from the sugar kit.
+  Migration is mechanical: `goal: 'x'` → `goal: Template.text('x')`.
+  Lowered prompt strings are byte-identical for pure-text goals —
+  recorded envelopes replay unchanged.
+
+- **W2 (AST_REVIEW F7)**: the `Builder` pattern. `Builder<T>` builds a
+  subtree from the context-resolved `T` (the consumer counterpart of
+  `Provider<T>`); the SDD phases gain `then:` builder slots handing
+  their EFFECTIVE output wires to the continuation — `Specify`/`Plan`
+  expose their output `Binding`, `Review` a `ReviewOutputs`
+  (review + verdict). Resolution happens inside build, so the exposed
+  bindings are correctly namespaced by construction.
+
+- **W3 (AST_REVIEW F5)**: `Sdd(root: …, children: […])` scope node —
+  SDD conventions for a subtree without the `Provider<SddConventions>`
+  spelling.
+
 - **W1 (AST_REVIEW F4)**: `ReadFile.at('/path', output: …)` and
   `WriteFile.at('/path', content: …)` — literal-path convenience without
   the `Template.text` wrapper. Const-safe via the same two-form storage

@@ -69,33 +69,42 @@ const reviewer = AgentRole(
       'testability. You call out anything not grounded in the real codebase.',
 );
 
+// Typed dataflow wires (F1/F7): declared once, referenced everywhere —
+// no escaped-dollar strings, no magic names.
+const pubspec = Binding('pubspec');
+const mainDart = Binding('main_dart');
+const review = Binding('review');
+
 Pipeline planFor(String targetDir) => Pipeline(
   name: 'external_codebase_plan',
-  result: const Binding('review'),
-  roles: const [architect, lead, reviewer],
+  result: review,
+  // No roles list (F2): the compiler collects the roles the tree names.
   mounts: [StorageMount.disk('/project', targetDir)],
   children: const [
-    Provider<SddConventions>(
-      value: SddConventions(root: '/project/planning'),
+    Sdd(
+      root: '/project/planning',
       children: [
         // Ground the pipeline in the REAL codebase: these are actual
         // file reads through the disk mount, not pasted context.
-        ReadFile.at('/project/pubspec.yaml', output: Binding('pubspec')),
-        ReadFile.at('/project/lib/main.dart', output: Binding('main_dart')),
+        ReadFile.at('/project/pubspec.yaml', output: pubspec),
+        ReadFile.at('/project/lib/main.dart', output: mainDart),
         Specify(
           agent: architect,
-          goal:
-              'Turn this freshly generated Flutter starter into "Pocket Tasks" — '
-              'a small offline-first personal task manager: task list with '
-              'add/edit/complete/delete, local persistence that survives restarts, '
-              'light/dark theming, and meaningful widget tests. Scope it as ONE '
-              'incremental milestone an individual developer ships in a week.\n\n'
-              'The ACTUAL current codebase you are planning against:\n\n'
-              '--- pubspec.yaml ---\n\${pubspec}\n\n'
-              '--- lib/main.dart ---\n\${main_dart}',
+          goal: Template([
+            'Turn this freshly generated Flutter starter into "Pocket Tasks" — '
+                'a small offline-first personal task manager: task list with '
+                'add/edit/complete/delete, local persistence that survives restarts, '
+                'light/dark theming, and meaningful widget tests. Scope it as ONE '
+                'incremental milestone an individual developer ships in a week.\n\n'
+                'The ACTUAL current codebase you are planning against:\n\n'
+                '--- pubspec.yaml ---\n',
+            pubspec,
+            '\n\n--- lib/main.dart ---\n',
+            mainDart,
+          ]),
         ),
         Plan(agent: lead),
-        Review(agent: reviewer),
+        Review(agent: reviewer, output: review),
       ],
     ),
   ],

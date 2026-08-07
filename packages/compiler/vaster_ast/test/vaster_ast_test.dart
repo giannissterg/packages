@@ -155,6 +155,34 @@ void main() {
       expect(enrichedContext.read<DatabaseConfig>().host, equals('primary.db'));
     });
 
+    test('Builder<T> hands the context-resolved value to its subtree (AST_REVIEW F7)', () {
+      const dbConfig = DatabaseConfig(host: 'primary.db', port: 5432);
+      final scoped = const Provider<DatabaseConfig>(
+        value: dbConfig,
+        children: [],
+      ).applyToContext(baseContext);
+
+      final builder = Builder<DatabaseConfig>(
+        (context, config) => Prompt(Template.text('Connect to ${config.host}')),
+      );
+      final expanded = builder.build(scoped);
+      expect((expanded as Prompt).prompt.lower(), equals('Connect to primary.db'));
+    });
+
+    test('Review.then receives the EFFECTIVE namespaced wires (AST_REVIEW F7)', () {
+      final scoped = baseContext.provide<BindingScopeData>(const BindingScopeData('checkout'));
+      ReviewOutputs? seen;
+      Review(
+        agentId: 'reviewer',
+        then: (context, outputs) {
+          seen = outputs;
+          return Prompt(Template(['Verdict was: ', outputs.verdict]));
+        },
+      ).build(scoped);
+      expect(seen!.review.name, equals('checkout_review'), reason: 'namespaced by the enclosing scope');
+      expect(seen!.verdict.name, equals('checkout_review_verdict'));
+    });
+
     test('ReadFile.at / WriteFile.at equal the Template-wrapped form (AST_REVIEW F4)', () {
       const sugar = ReadFile.at('/project/pubspec.yaml', output: Binding('pubspec'));
       const wrapped = ReadFile(path: Template.text('/project/pubspec.yaml'));

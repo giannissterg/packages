@@ -59,7 +59,9 @@ void main() {
         result: const Binding('clarifications'),
         name: 'clarify_e2e',
         roles: const [analyst],
-        children: const [Clarify(topic: 'billing requirements', agent: analyst, maxQuestions: 5)],
+        children: const [
+          Clarify(topic: Template.text('billing requirements'), agent: analyst, maxQuestions: 5),
+        ],
       ),
     );
 

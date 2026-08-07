@@ -408,7 +408,7 @@ void main() {
           name: 'review_loop',
           roles: [role('lead'), role('reviewer')],
           children: const [
-            Specify(goal: 'a thing', agentId: 'lead'),
+            Specify(goal: Template.text('a thing'), agentId: 'lead'),
             Plan(agentId: 'lead'),
             Review(
               agentId: 'reviewer',

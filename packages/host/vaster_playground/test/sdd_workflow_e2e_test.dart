@@ -88,7 +88,7 @@ void main() {
       name: 'sdd_flagship',
       roles: const [architect, lead, backend, frontend, reviewer],
       children: const [
-        Specify(goal: 'Let users sync their tasks across devices.', agent: architect),
+        Specify(goal: Template.text('Let users sync their tasks across devices.'), agent: architect),
         Plan(agent: lead),
         Review(
           agent: reviewer,
@@ -207,7 +207,7 @@ void main() {
         name: 'review_loop_e2e',
         roles: const [architect, lead, reviewer],
         children: const [
-          Specify(goal: 'the thing', agent: architect),
+          Specify(goal: Template.text('the thing'), agent: architect),
           Plan(agent: lead),
           Review(
             agent: reviewer,
@@ -269,7 +269,7 @@ void main() {
         name: 'sdd_revise',
         roles: const [architect, lead, reviewer, backend],
         children: const [
-          Specify(goal: 'a goal', agent: architect),
+          Specify(goal: Template.text('a goal'), agent: architect),
           Plan(agent: lead),
           Review(
             agent: reviewer,

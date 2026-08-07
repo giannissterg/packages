@@ -148,14 +148,14 @@ void main() {
 
     test('SDD Specify mints scoped defaults and honors overrides', () {
       final scoped = context.provide<BindingScopeData>(const BindingScopeData('auth'));
-      const phase = Specify(goal: 'do it');
+      const phase = Specify(goal: Template.text('do it'));
       final expanded = phase.build(scoped) as Sequence;
       final task = expanded.children.first as Task;
       expect(task.output?.name, equals('auth_spec'));
       final write = expanded.children.last as WriteFile;
       expect(write.path.lower(), equals('/workspace/auth_spec.md'));
 
-      const overridden = Specify(goal: 'do it', output: Binding('my_spec'));
+      const overridden = Specify(goal: Template.text('do it'), output: Binding('my_spec'));
       final task2 = (overridden.build(scoped) as Sequence).children.first as Task;
       expect(
         task2.output?.name,

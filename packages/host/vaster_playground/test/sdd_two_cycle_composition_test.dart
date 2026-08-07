@@ -25,7 +25,7 @@ void main() {
     );
 
     VasterNode cycle(String goal) => Sequence([
-      Specify(goal: goal, agent: architect),
+      Specify(goal: Template.text(goal), agent: architect),
       const Plan(agent: architect),
       const Review(agent: reviewer),
     ]);

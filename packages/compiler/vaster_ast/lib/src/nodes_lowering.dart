@@ -18,6 +18,17 @@ final class AgentProvisionHeader extends VasterNode {
   const AgentProvisionHeader({required this.role});
 }
 
+/// Lowering header: marks where provisioning for roles COLLECTED from the
+/// subtree is spliced (AST_REVIEW F2). [Pipeline] emits it after its
+/// explicit role headers; the compiler records the IR position and, after
+/// lowering the whole tree (subroutines included), inserts CreateAgent +
+/// CreateSession for every `agent:`-referenced role not already
+/// provisioned — declaring `roles:` is for roles the tree cannot see
+/// (`agentId:` string references).
+final class CollectedRolesSlot extends VasterNode {
+  const CollectedRolesSlot();
+}
+
 /// Lowering header: registers a tool set.
 final class ToolSetHeader extends VasterNode {
   final List<ToolDefinition> tools;

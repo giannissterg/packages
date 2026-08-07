@@ -43,10 +43,11 @@ void main() {
       mounts: [StorageMount(mountPrefix: '/workspace')],
       children: [
         Specify(
-          goal:
-              'Add a --version flag to a small command-line tool: it '
-              'prints the tool version and exits 0. Keep the spec under 300 '
-              'words.',
+          goal: Template.text(
+            'Add a --version flag to a small command-line tool: it '
+            'prints the tool version and exits 0. Keep the spec under 300 '
+            'words.',
+          ),
           agent: architect,
         ),
         Plan(agent: lead),

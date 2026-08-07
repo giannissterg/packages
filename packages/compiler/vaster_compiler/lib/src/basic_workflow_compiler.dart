@@ -74,6 +74,36 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       }
     }
 
+    // Pass 2c (F2): provision every role the tree named through an
+    // `agent:` slot but no explicit declaration covered — spliced at the
+    // slot Pipeline reserved, so collected roles provision exactly where
+    // declared ones do. Label IR makes the insertion safe: PCs exist
+    // only at assembly.
+    final collected = [
+      for (final role in state.seenRoles.values)
+        if (!state.provisionedAgents.contains(role.roleId)) role,
+    ];
+    if (collected.isNotEmpty) {
+      ir.items.insertAll(state.roleSpliceIndex ?? 0, [
+        for (final role in collected) ...[
+          IrInstruction(
+            CreateAgentOp(
+              descriptor: AgentDescriptor(
+                agentId: role.roleId,
+                name: role.name,
+                role: role.title,
+                systemInstruction: role.instruction,
+                modelDescriptor: role.model,
+                modelFallbacks: role.modelFallbacks,
+              ),
+            ),
+          ),
+          IrInstruction(CreateSessionOp(sessionId: AgentDescriptor.sessionIdFor(role.roleId))),
+        ],
+      ]);
+      state.provisionedAgents.addAll([for (final role in collected) role.roleId]);
+    }
+
     // Calls to subroutines that were never defined would surface as an
     // unbound-label StateError deep in assembly; report them as proper
     // compile errors instead.
@@ -548,6 +578,10 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         _lowerNodes(n.children, ir, childContext, state);
 
       case ComposableNode n:
+        // F2: every role the tree names through an `agent:` slot is
+        // collected here — Task is the choke point all sugar phases
+        // (SDD, coordination) funnel their role objects through.
+        if (n is Task && n.agent != null) _recordRole(n.agent!, state);
         final expanded = n.build(context);
         _lowerNode(expanded, ir, context, state);
 
@@ -561,7 +595,12 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
           ir.emit(SetRegisterOp(registerName: name, value: entry.value));
         }
 
+      case CollectedRolesSlot _:
+        // F2: remember where subtree-collected role provisioning splices.
+        state.roleSpliceIndex = ir.items.length;
+
       case AgentProvisionHeader n:
+        _recordRole(n.role, state);
         // Dedup between Pipeline.roles provisioning and nested Agent scopes.
         if (!state.provisionedAgents.add(n.role.roleId)) break;
         ir.emit(
@@ -749,6 +788,34 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
   }
 }
 
+/// F2: records a role the tree names and returns the CANONICAL definition
+/// in force for that id (first definition wins — Rule 11: the effect is
+/// nameable). A second, different definition under the same id is the
+/// failure the double declaration used to hide until runtime; it is
+/// diagnosed here as a compile error.
+AgentRole _recordRole(AgentRole role, _CompilerState state) {
+  final seen = state.seenRoles[role.roleId];
+  if (seen == null) {
+    state.seenRoles[role.roleId] = role;
+    return role;
+  }
+  final sameDefinition =
+      identical(seen, role) ||
+      (seen.name == role.name && seen.title == role.title && seen.instruction == role.instruction);
+  if (!sameDefinition) {
+    state.diagnostics.add(
+      CompileDiagnostic(
+        severity: CompileSeverity.error,
+        code: 'conflicting_agent_role',
+        message:
+            'Role "${role.roleId}" has two different definitions in this '
+            'pipeline — one roleId, one persona. Rename one of them.',
+      ),
+    );
+  }
+  return seen;
+}
+
 class _CompilerState {
   int _regCounter = 0;
   String? lastOutputRegister;
@@ -764,6 +831,15 @@ class _CompilerState {
   /// Agent role ids already provisioned this compilation (dedup between
   /// Pipeline.roles and nested Agent scopes).
   final Set<String> provisionedAgents = {};
+
+  /// IR position where provisioning for subtree-collected roles is
+  /// spliced (F2) — recorded by [CollectedRolesSlot] lowering.
+  int? roleSpliceIndex;
+
+  /// Every distinct [AgentRole] the tree names, keyed by roleId — both
+  /// explicitly provisioned and `agent:`-referenced. One id, one
+  /// definition: a second, DIFFERENT definition is a compile error.
+  final Map<String, AgentRole> seenRoles = {};
 
   /// Context classes declared by [ContextClasses] nodes — layered over the
   /// standard table into the program header (static metadata, not ops).

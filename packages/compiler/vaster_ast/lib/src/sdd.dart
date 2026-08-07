@@ -72,6 +72,31 @@ class SddConventions {
   String get verifyPath => '$root/$verifyFile';
 }
 
+/// Scope sugar (AST_REVIEW F5): SDD artifact conventions for a subtree
+/// without the `Provider<SddConventions>` spelling — the common case is
+/// one [root] override.
+///
+/// ```dart
+/// Sdd(root: '/project/planning', children: [Specify(…), Plan(…), Review(…)])
+/// ```
+class Sdd extends ComposableNode {
+  /// Artifact root directory (`spec.md`/`plan.md`/`review.md` land here).
+  final String root;
+
+  /// Full conventions override; when set, [root] is ignored.
+  final SddConventions? conventions;
+
+  final List<VasterNode> children;
+
+  const Sdd({this.root = '/workspace', this.conventions, required this.children});
+
+  @override
+  VasterNode build(BuildContext context) => Provider<SddConventions>(
+    value: conventions ?? SddConventions(root: root),
+    children: children,
+  );
+}
+
 /// Phase 0 — gather requirements from a human before specifying: the model
 /// asks one question per round and decides when it knows enough. The
 /// accumulated Q&A notes bind to [output] (default `clarifications`) for
@@ -81,7 +106,10 @@ class SddConventions {
 /// [AskHuman] → fold the answer into the running notes. [maxQuestions]
 /// bounds the loop (else `DecisionPolicy.maxIterations`, else 8).
 class Clarify extends ComposableNode {
-  final String topic;
+  /// The subject being clarified — a [Template], so bound values
+  /// interpolate as typed [Binding] parts (AST_REVIEW F1: no
+  /// escaped-dollar strings on the sugar tier).
+  final Template topic;
   final AgentRole? agent;
   final String? agentId;
   final int? maxQuestions;
@@ -102,8 +130,9 @@ class Clarify extends ComposableNode {
       InputsHeader(values: {output.name: '(nothing gathered yet)'}),
       DecideLoop(
         prompt: Template([
-          'You are gathering requirements about: $topic\n\n'
-              'Clarifications so far:\n',
+          'You are gathering requirements about: ',
+          ...topic.parts,
+          '\n\nClarifications so far:\n',
           output,
           '\n\nDo you have enough information to write a specification, or '
               'should you ask another question?',
@@ -117,8 +146,9 @@ class Clarify extends ComposableNode {
             agentId: agentId,
             output: question,
             prompt: Template([
-              'You are gathering requirements about: $topic\n'
-                  'Clarifications so far:\n',
+              'You are gathering requirements about: ',
+              ...topic.parts,
+              '\nClarifications so far:\n',
               output,
               '\n\nAsk the single most important unanswered question. '
                   'Reply with only the question.',
@@ -211,9 +241,12 @@ class Verify extends ComposableNode {
 /// the spec artifact exists and `spec` is bound for every later sibling.
 ///
 /// Expands to: `Task(output: const Binding('spec'))` → `WriteFile(specPath, '${spec}')`.
-/// The goal may interpolate pipeline [Inputs].
 class Specify extends ComposableNode {
-  final String goal;
+  /// The goal being specified — a [Template], so bound values (pipeline
+  /// inputs, file contents read into bindings) interpolate as typed
+  /// [Binding] parts (AST_REVIEW F1: no escaped-dollar strings on the
+  /// sugar tier).
+  final Template goal;
   final AgentRole? agent;
   final String? agentId;
 
@@ -223,7 +256,12 @@ class Specify extends ComposableNode {
   /// Artifact path override (default: the conventions' spec path).
   final String? artifact;
 
-  const Specify({required this.goal, this.agent, this.agentId, this.artifact, this.output})
+  /// Builder slot (AST_REVIEW F7): a subtree built with the phase's
+  /// EFFECTIVE output binding — resolved in context, so it is the
+  /// correctly-namespaced wire, never a guessed name.
+  final VasterNode Function(BuildContext context, Binding spec)? then;
+
+  const Specify({required this.goal, this.agent, this.agentId, this.artifact, this.output, this.then})
     : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 
   @override
@@ -235,16 +273,19 @@ class Specify extends ComposableNode {
         agent: agent,
         agentId: agentId,
         output: spec,
-        prompt: Template.text(
+        prompt: Template([
           'Write a complete, reviewable specification in Markdown for '
-          'the following goal. Cover scope, requirements, non-goals, and '
-          'acceptance criteria.\n\nGoal: $goal$_documentOnly',
-        ),
+              'the following goal. Cover scope, requirements, non-goals, and '
+              'acceptance criteria.\n\nGoal: ',
+          ...goal.parts,
+          _documentOnly,
+        ]),
       ),
       WriteFile(
         path: Template.text(SddConventions.scopedPath(context, artifact ?? conventions.specPath)),
         content: Template([spec]),
       ),
+      if (then != null) then!(context, spec),
     ]);
   }
 }
@@ -271,7 +312,11 @@ class Plan extends ComposableNode {
   /// embedded and the planner is instructed to fix every blocking issue.
   final Binding? addressing;
 
-  const Plan({this.agent, this.agentId, this.from, this.artifact, this.addressing, this.output})
+  /// Builder slot (AST_REVIEW F7): a subtree built with the phase's
+  /// EFFECTIVE output binding — resolved in context, never a guessed name.
+  final VasterNode Function(BuildContext context, Binding plan)? then;
+
+  const Plan({this.agent, this.agentId, this.from, this.artifact, this.addressing, this.output, this.then})
     : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 
   @override
@@ -306,6 +351,7 @@ class Plan extends ComposableNode {
         path: Template.text(SddConventions.scopedPath(context, artifact ?? conventions.planPath)),
         content: Template([plan]),
       ),
+      if (then != null) then!(context, plan),
     ]);
   }
 }
@@ -397,6 +443,19 @@ class Implement extends ComposableNode {
 ///   (else `DecisionPolicy.maxIterations`). Exhaustion approves and
 ///   proceeds: an endless review cycle must not hang the pipeline.
 ///
+/// The effective wires of a [Review] phase, handed to its `then` builder
+/// (AST_REVIEW F7): resolved in context, so both bindings are the
+/// correctly-namespaced ones — never guessed names.
+final class ReviewOutputs {
+  /// The written review text.
+  final Binding review;
+
+  /// The decision label (`approve`/`revise`).
+  final Binding verdict;
+
+  const ReviewOutputs({required this.review, required this.verdict});
+}
+
 /// The decision label binds to `review_verdict`.
 class Review extends ComposableNode {
   final AgentRole? agent;
@@ -431,6 +490,11 @@ class Review extends ComposableNode {
   /// [BindingScope].
   final Binding? verdict;
 
+  /// Builder slot (AST_REVIEW F7): a subtree built with the phase's
+  /// EFFECTIVE output wires after the review (and any revise loop)
+  /// completes.
+  final VasterNode Function(BuildContext context, ReviewOutputs outputs)? then;
+
   const Review({
     this.agent,
     this.agentId,
@@ -444,6 +508,7 @@ class Review extends ComposableNode {
     this.maxRounds,
     this.output,
     this.verdict,
+    this.then,
   }) : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId'),
        assert(revise == null || !gate, 'The revise loop is model-decided; combine gate with onRevise');
 
@@ -494,6 +559,10 @@ class Review extends ComposableNode {
     const approveDescription = 'no blocking issues — minor notes can ride along';
     const reviseDescription = 'blocking issues must be fixed first';
 
+    final thenNode = then == null
+        ? null
+        : then!(context, ReviewOutputs(review: review, verdict: reviewVerdict));
+
     if (gate) {
       return Sequence([
         ...reviewSteps,
@@ -503,6 +572,7 @@ class Review extends ComposableNode {
           onApprove: onApprove,
           onReject: onRevise,
         ),
+        ?thenNode,
       ]);
     }
     if (revise != null) {
@@ -522,6 +592,7 @@ class Review extends ComposableNode {
           defaultPath: 'approve',
           maxIterations: maxRounds,
         ),
+        ?thenNode,
       ]);
     }
     return Sequence([
@@ -535,6 +606,7 @@ class Review extends ComposableNode {
           DecisionPath(label: 'revise', description: reviseDescription, children: onRevise),
         ],
       ),
+      ?thenNode,
     ]);
   }
 }

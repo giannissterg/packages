@@ -78,7 +78,7 @@ Future<void> main() async {
     name: 'sdd_data_export',
     roles: const [architect, lead, backend, frontend, reviewer],
     children: const [
-      Specify(goal: 'Let users export their data as CSV or JSON.', agent: architect),
+      Specify(goal: Template.text('Let users export their data as CSV or JSON.'), agent: architect),
       Plan(agent: lead),
       Review(
         agent: reviewer,
