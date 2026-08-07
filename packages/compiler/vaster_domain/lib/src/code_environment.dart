@@ -11,17 +11,9 @@ class CodeEnvironment {
   /// Execution timeout in milliseconds.
   final int timeoutMs;
 
-  const CodeEnvironment({
-    required this.envId,
-    this.language = SandboxLanguage.dart,
-    this.timeoutMs = 10000,
-  });
+  const CodeEnvironment({required this.envId, this.language = SandboxLanguage.dart, this.timeoutMs = 10000});
 
-  Map<String, dynamic> toJson() => {
-        'envId': envId,
-        'language': language.name,
-        'timeoutMs': timeoutMs,
-      };
+  Map<String, dynamic> toJson() => {'envId': envId, 'language': language.name, 'timeoutMs': timeoutMs};
 
   factory CodeEnvironment.fromJson(Map<String, dynamic> json) {
     return CodeEnvironment(

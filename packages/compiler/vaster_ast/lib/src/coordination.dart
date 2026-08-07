@@ -39,10 +39,7 @@ class AgentTeam extends ComposableNode {
     return Provider<List<AgentRole>>(
       value: roles,
       children: [
-        Sequence([
-          for (final role in roles) Agent(role: role),
-          ...children,
-        ]),
+        Sequence([for (final role in roles) Agent(role: role), ...children]),
       ],
     );
   }
@@ -61,10 +58,7 @@ class FanOut extends ComposableNode {
 
   @override
   VasterNode build(BuildContext context) {
-    return Sequence([
-      ParallelTasks(entries: tasks),
-      ?synthesize,
-    ]);
+    return Sequence([ParallelTasks(entries: tasks), ?synthesize]);
   }
 }
 
@@ -114,13 +108,7 @@ class RefineLoop extends ComposableNode {
       continueLabel: 'revise',
       continueDescription: 'the critique lists issues that must be addressed',
       body: [worker, critic],
-      exits: [
-        DecisionPath(
-          label: acceptLabel,
-          description: acceptDescription,
-          children: onAccept,
-        ),
-      ],
+      exits: [DecisionPath(label: acceptLabel, description: acceptDescription, children: onAccept)],
       defaultPath: acceptLabel,
       maxIterations: maxRounds,
       output: output,
@@ -145,8 +133,7 @@ class RouteCase {
     this.agentId,
     required this.prompt,
     this.output,
-  }) : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+  }) : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 }
 
 /// Model-steered dispatch: the model triages [prompt] and routes to exactly
@@ -161,12 +148,7 @@ class Router extends ComposableNode {
   final String? defaultRoute;
   final Binding? output;
 
-  const Router({
-    required this.prompt,
-    required this.routes,
-    this.defaultRoute,
-    this.output,
-  });
+  const Router({required this.prompt, required this.routes, this.defaultRoute, this.output});
 
   @override
   VasterNode build(BuildContext context) {
@@ -180,12 +162,7 @@ class Router extends ComposableNode {
             label: route.label,
             description: route.description,
             children: [
-              Task(
-                agent: route.agent,
-                agentId: route.agentId,
-                prompt: route.prompt,
-                output: route.output,
-              ),
+              Task(agent: route.agent, agentId: route.agentId, prompt: route.prompt, output: route.output),
             ],
           ),
       ],
@@ -230,23 +207,14 @@ class Produce extends ComposableNode {
     required this.output,
     this.artifact,
     this.extract = const {},
-  }) : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+  }) : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
     return Sequence([
-      Task(
-        agent: agent,
-        agentId: agentId,
-        prompt: prompt,
-        outputSchema: schema,
-        output: output,
-      ),
-      for (final entry in extract.entries)
-        Extract(from: output, field: entry.key, output: entry.value),
-      if (artifact != null)
-        WriteFile(path: Template.text(artifact!), content: Template([output])),
+      Task(agent: agent, agentId: agentId, prompt: prompt, outputSchema: schema, output: output),
+      for (final entry in extract.entries) Extract(from: output, field: entry.key, output: entry.value),
+      if (artifact != null) WriteFile(path: Template.text(artifact!), content: Template([output])),
     ]);
   }
 }

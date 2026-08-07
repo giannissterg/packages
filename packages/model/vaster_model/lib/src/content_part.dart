@@ -34,15 +34,11 @@ final class TextPart extends ContentPart {
   }
 
   @override
-  Map<String, dynamic> toJson() => {
-        'type': 'text',
-        'text': text,
-      };
+  Map<String, dynamic> toJson() => {'type': 'text', 'text': text};
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TextPart && runtimeType == other.runtimeType && text == other.text;
+      identical(this, other) || other is TextPart && runtimeType == other.runtimeType && text == other.text;
 
   @override
   int get hashCode => text.hashCode;
@@ -56,10 +52,7 @@ final class InlineDataPart extends ContentPart {
   final String mimeType;
   final Uint8List bytes;
 
-  const InlineDataPart({
-    required this.mimeType,
-    required this.bytes,
-  });
+  const InlineDataPart({required this.mimeType, required this.bytes});
 
   factory InlineDataPart.fromJson(Map<String, dynamic> json) {
     final rawBytes = json['bytes'];
@@ -76,11 +69,7 @@ final class InlineDataPart extends ContentPart {
   }
 
   @override
-  Map<String, dynamic> toJson() => {
-        'type': 'inline_data',
-        'mimeType': mimeType,
-        'bytes': bytes.toList(),
-      };
+  Map<String, dynamic> toJson() => {'type': 'inline_data', 'mimeType': mimeType, 'bytes': bytes.toList()};
 
   @override
   bool operator ==(Object other) =>
@@ -111,28 +100,23 @@ final class FunctionCallPart extends ContentPart {
   final String name;
   final Map<String, dynamic> arguments;
 
-  const FunctionCallPart({
-    required this.callId,
-    required this.name,
-    required this.arguments,
-  });
+  const FunctionCallPart({required this.callId, required this.name, required this.arguments});
 
   factory FunctionCallPart.fromJson(Map<String, dynamic> json) {
     return FunctionCallPart(
       callId: json['callId'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      arguments: Map<String, dynamic>.from(
-          json['arguments'] as Map? ?? <String, dynamic>{}),
+      arguments: Map<String, dynamic>.from(json['arguments'] as Map? ?? <String, dynamic>{}),
     );
   }
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'function_call',
-        'callId': callId,
-        'name': name,
-        'arguments': arguments,
-      };
+    'type': 'function_call',
+    'callId': callId,
+    'name': name,
+    'arguments': arguments,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -146,8 +130,7 @@ final class FunctionCallPart extends ContentPart {
   int get hashCode => Object.hash(callId, name);
 
   @override
-  String toString() =>
-      'FunctionCallPart(callId: $callId, name: $name, args: $arguments)';
+  String toString() => 'FunctionCallPart(callId: $callId, name: $name, args: $arguments)';
 }
 
 /// Function / tool execution response returned to the model.
@@ -156,28 +139,23 @@ final class FunctionResponsePart extends ContentPart {
   final String name;
   final Map<String, dynamic> response;
 
-  const FunctionResponsePart({
-    required this.callId,
-    required this.name,
-    required this.response,
-  });
+  const FunctionResponsePart({required this.callId, required this.name, required this.response});
 
   factory FunctionResponsePart.fromJson(Map<String, dynamic> json) {
     return FunctionResponsePart(
       callId: json['callId'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      response: Map<String, dynamic>.from(
-          json['response'] as Map? ?? <String, dynamic>{}),
+      response: Map<String, dynamic>.from(json['response'] as Map? ?? <String, dynamic>{}),
     );
   }
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'function_response',
-        'callId': callId,
-        'name': name,
-        'response': response,
-      };
+    'type': 'function_response',
+    'callId': callId,
+    'name': name,
+    'response': response,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -191,8 +169,7 @@ final class FunctionResponsePart extends ContentPart {
   int get hashCode => Object.hash(callId, name);
 
   @override
-  String toString() =>
-      'FunctionResponsePart(callId: $callId, name: $name, response: $response)';
+  String toString() => 'FunctionResponsePart(callId: $callId, name: $name, response: $response)';
 }
 
 /// Model thought / internal reasoning text part (for chain-of-thought outputs).
@@ -206,17 +183,12 @@ final class ThoughtPart extends ContentPart {
   }
 
   @override
-  Map<String, dynamic> toJson() => {
-        'type': 'thought',
-        'thought': thought,
-      };
+  Map<String, dynamic> toJson() => {'type': 'thought', 'thought': thought};
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ThoughtPart &&
-          runtimeType == other.runtimeType &&
-          thought == other.thought;
+      other is ThoughtPart && runtimeType == other.runtimeType && thought == other.thought;
 
   @override
   int get hashCode => thought.hashCode;

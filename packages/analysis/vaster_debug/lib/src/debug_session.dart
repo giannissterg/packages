@@ -1,4 +1,3 @@
-
 import 'package:vaster_vm/vaster_vm.dart';
 
 import 'package:vaster_replay/vaster_replay.dart';
@@ -24,13 +23,10 @@ class DebugEnvelope {
   /// adds the debugger's program-hydration concern.
   factory DebugEnvelope.parse(String json, {VasterProgram? programOverride}) {
     final envelope = const ReplayEnvelopeCodec().decodeString(json);
-    final embedded = envelope.programJson == null
-        ? null
-        : VasterProgram.fromJson(envelope.programJson!);
+    final embedded = envelope.programJson == null ? null : VasterProgram.fromJson(envelope.programJson!);
     final program = programOverride ?? embedded;
     if (program == null) {
-      throw StateError(
-          'Envelope does not embed its program (recorded before v0.2.0) — '
+      throw StateError('Envelope does not embed its program (recorded before v0.2.0) — '
           'pass the compiled .vbc/.json via --program.');
     }
     return DebugEnvelope(
@@ -106,23 +102,19 @@ class DebugSession {
     final warnings = <String>[];
     for (final inst in envelope.program.instructions) {
       if (inst is MountFsOp && inst.diskPath != null) {
-        throw StateError(
-            'Program mounts host disk path "${inst.diskPath}" — replaying '
+        throw StateError('Program mounts host disk path "${inst.diskPath}" — replaying '
             'it would write the real filesystem. Debugging disk-mounted '
             'programs is not supported.');
       }
       if (inst is ExecSandboxOp || inst is RegisterSandboxOp) {
-        warnings.add(
-            'Program executes sandbox code: sandbox output is not recorded '
+        warnings.add('Program executes sandbox code: sandbox output is not recorded '
             'in the tape, so materialized VFS/context state may diverge '
             'from the original run.');
         break;
       }
     }
-    if (envelope.program.instructions
-        .any((i) => i is YieldHumanInteractionOp)) {
-      warnings.add(
-          'Program yields for human interaction: materialized state is '
+    if (envelope.program.instructions.any((i) => i is YieldHumanInteractionOp)) {
+      warnings.add('Program yields for human interaction: materialized state is '
           'unavailable past the first yield (human answers are not taped); '
           'journal views remain exact.');
     }
@@ -170,17 +162,14 @@ class DebugSession {
   List<ModelTapeEntry> get tapeEntries => tape.entries;
 
   /// The program's declared result value at the final frame, if any.
-  Object? get declaredResult => program.resultBinding == null
-      ? null
-      : journal.last?.registers[program.resultBinding];
+  Object? get declaredResult =>
+      program.resultBinding == null ? null : journal.last?.registers[program.resultBinding];
 
   // ── Materialized tier ────────────────────────────────────────────────────
 
   /// Number of tape entries consumed by the materialized machine so far —
   /// correlates the cursor position with "model calls made by now".
-  int get materializedModelCalls => _replayModel == null
-      ? 0
-      : tape.entries.length - _replayModel!.remaining;
+  int get materializedModelCalls => _replayModel == null ? 0 : tape.entries.length - _replayModel!.remaining;
 
   ReplayVasterModel? _replayModel;
 
@@ -190,8 +179,7 @@ class DebugSession {
   Future<VasterVirtualMachine> materialize() async {
     if (_vm == null || _materializedStep > _cursor) {
       _replayModel = ReplayVasterModel(tape: tape);
-      _vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: _replayModel!));
+      _vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: _replayModel!));
       _runtime = VasterRuntime(
         vm: _vm!,
         policy: ExecutionPolicy.unlimited,
@@ -204,8 +192,7 @@ class DebugSession {
       // program-header class table here — the replayed context machine must
       // link with the same segment table the recording used.
       if (program.contextClasses != null) {
-        _vm!.contextManager.installClassTable(
-            ContextClassTable.fromJson(program.contextClasses!));
+        _vm!.contextManager.installClassTable(ContextClassTable.fromJson(program.contextClasses!));
       }
       _materializedStep = -1;
     }
@@ -214,8 +201,7 @@ class DebugSession {
       final expected = journal.getFrameAt(_materializedStep + 1);
       if (expected == null) break;
 
-      final state =
-          await _runtime!.executeStep(program, stepCount: 1);
+      final state = await _runtime!.executeStep(program, stepCount: 1);
       _materializedStep++;
 
       // Frame-exact verification: the recording and this toolchain must
@@ -242,8 +228,7 @@ class DebugSession {
       }
 
       if (state.status == RuntimeStatus.pausedForHuman) {
-        throw StateError(
-            'Materialization reached a human-interaction yield at step '
+        throw StateError('Materialization reached a human-interaction yield at step '
             '$_materializedStep — human answers are not taped. Journal '
             'views remain available.');
       }
@@ -254,9 +239,7 @@ class DebugSession {
   /// VFS listing at the cursor (materializes on demand).
   Future<List<FileDescriptor>> listVfs(String path) async {
     final vm = await materialize();
-    final nodes = await vm.fileSystemManager
-        .resolveFileSystem(path)
-        .listDirectory(path, recursive: true);
+    final nodes = await vm.fileSystemManager.resolveFileSystem(path).listDirectory(path, recursive: true);
     return [
       for (final node in nodes)
         if (node is VirtualFile) node.descriptor,

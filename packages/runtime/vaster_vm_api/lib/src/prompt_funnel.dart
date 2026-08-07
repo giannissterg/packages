@@ -21,7 +21,7 @@ abstract interface class PromptFunnel {
   /// Direct (sessionless) model prompt turn.
   Future<ModelResponse> prompt(
     String promptText, {
-    VasterModel? model,
+    required VasterModel model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
     List<ContextCacheHint>? cacheHints,
@@ -32,7 +32,7 @@ abstract interface class PromptFunnel {
   Future<ModelResponse> promptInSession(
     String sessionId,
     String promptText, {
-    VasterModel? model,
+    required VasterModel model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
     List<ContextCacheHint>? cacheHints,
@@ -43,7 +43,7 @@ abstract interface class PromptFunnel {
   /// ABI-preserving path used by the runtime's tool-calling loop.
   Future<ModelResponse> promptWithHistory(
     List<ChatMessage> messages, {
-    VasterModel? model,
+    required VasterModel model,
     List<ToolDefinition>? tools,
     GenerationConfig? config,
     CancellationToken? cancelToken,
@@ -54,7 +54,7 @@ abstract interface class PromptFunnel {
   /// [prompt].
   Stream<ModelResponseChunk> promptStream(
     String promptText, {
-    VasterModel? model,
+    required VasterModel model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
     List<ContextCacheHint>? cacheHints,

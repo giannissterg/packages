@@ -32,14 +32,13 @@ class AgentRole {
   });
 
   Map<String, dynamic> toJson() => {
-        'roleId': roleId,
-        'name': name,
-        'title': title,
-        'instruction': instruction,
-        if (model != null) 'model': model!.toJson(),
-        if (modelFallbacks.isNotEmpty)
-          'modelFallbacks': [for (final f in modelFallbacks) f.toJson()],
-      };
+    'roleId': roleId,
+    'name': name,
+    'title': title,
+    'instruction': instruction,
+    if (model != null) 'model': model!.toJson(),
+    if (modelFallbacks.isNotEmpty) 'modelFallbacks': [for (final f in modelFallbacks) f.toJson()],
+  };
 
   factory AgentRole.fromJson(Map<String, dynamic> json) {
     return AgentRole(
@@ -48,8 +47,7 @@ class AgentRole {
       title: json['title'] as String? ?? '',
       instruction: json['instruction'] as String? ?? '',
       model: json['model'] != null
-          ? ModelDescriptor.fromJson(
-              Map<String, dynamic>.from(json['model'] as Map))
+          ? ModelDescriptor.fromJson(Map<String, dynamic>.from(json['model'] as Map))
           : null,
       modelFallbacks: [
         for (final f in json['modelFallbacks'] as List? ?? const [])

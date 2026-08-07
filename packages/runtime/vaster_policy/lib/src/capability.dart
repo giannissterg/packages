@@ -6,10 +6,7 @@ class Capability {
   final PolicyAction action;
   final ResourcePattern pattern;
 
-  const Capability({
-    required this.action,
-    required this.pattern,
-  });
+  const Capability({required this.action, required this.pattern});
 
   /// Factory helper for exact resource capability.
   factory Capability.exact(PolicyAction action, String value) =>
@@ -32,23 +29,18 @@ class Capability {
     return this.action == action && pattern.matches(resource);
   }
 
-  Map<String, dynamic> toJson() => {
-        'action': action.name,
-        'pattern': pattern.toJson(),
-      };
+  Map<String, dynamic> toJson() => {'action': action.name, 'pattern': pattern.toJson()};
 
   factory Capability.fromJson(Map<String, dynamic> json) {
     return Capability(
       action: PolicyAction.parse(json['action'] as String? ?? ''),
-      pattern: ResourcePattern.fromJson(
-          json['pattern'] as Map<String, dynamic>? ?? {}),
+      pattern: ResourcePattern.fromJson(json['pattern'] as Map<String, dynamic>? ?? {}),
     );
   }
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Capability && other.action == action && other.pattern == pattern;
+      identical(this, other) || other is Capability && other.action == action && other.pattern == pattern;
 
   @override
   int get hashCode => Object.hash(action, pattern);

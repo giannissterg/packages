@@ -71,8 +71,7 @@ class DisassembleCommand extends VasterCommand {
 
     // JSON program payloads: disassemble directly as well.
     if (targetPath.endsWith('.vaster.json') || targetPath.endsWith('.json')) {
-      final listing = const VasterDisassembler()
-          .disassembleJson(file.readAsStringSync());
+      final listing = const VasterDisassembler().disassembleJson(file.readAsStringSync());
       out.writeln(listing);
       return 0;
     }

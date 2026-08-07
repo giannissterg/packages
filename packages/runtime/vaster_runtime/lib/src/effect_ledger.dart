@@ -11,19 +11,14 @@ final class _EffectScopeFrame {
   final int pushPc;
   final Map<String, int> cursors;
 
-  _EffectScopeFrame({required this.pushPc, Map<String, int>? cursors})
-      : cursors = cursors ?? {};
+  _EffectScopeFrame({required this.pushPc, Map<String, int>? cursors}) : cursors = cursors ?? {};
 
-  Map<String, dynamic> toJson() => {
-        'pushPc': pushPc,
-        if (cursors.isNotEmpty) 'cursors': cursors,
-      };
+  Map<String, dynamic> toJson() => {'pushPc': pushPc, if (cursors.isNotEmpty) 'cursors': cursors};
 
-  factory _EffectScopeFrame.fromJson(Map<String, dynamic> json) =>
-      _EffectScopeFrame(
-        pushPc: (json['pushPc'] as num).toInt(),
-        cursors: Map<String, int>.from(json['cursors'] as Map? ?? {}),
-      );
+  factory _EffectScopeFrame.fromJson(Map<String, dynamic> json) => _EffectScopeFrame(
+    pushPc: (json['pushPc'] as num).toInt(),
+    cursors: Map<String, int>.from(json['cursors'] as Map? ?? {}),
+  );
 }
 
 /// One claimed occurrence slot (see [EffectLedger.claim]): either a
@@ -123,10 +118,7 @@ final class EffectLedger implements MachineStateComponent {
   /// dispatch dedup and (through the recorder adapter) both tool loops;
   /// batch consumers claim every entry in declaration order BEFORE
   /// fanning out.
-  EffectClaim claim({
-    required String name,
-    required Map<String, dynamic> arguments,
-  }) {
+  EffectClaim claim({required String name, required Map<String, dynamic> arguments}) {
     if (_frames.isEmpty) return const EffectClaim._(null, null);
     final frame = _frames.last;
     final callKey = '$name|${_canonical(arguments)}';
@@ -135,9 +127,7 @@ final class EffectLedger implements MachineStateComponent {
     final regionPath = _frames.map((f) => f.pushPc).join('/');
     final recordKey = '$regionPath|$callKey|$occurrence';
     final recorded = _records[recordKey];
-    return EffectClaim._(
-        recorded == null ? null : Map<String, dynamic>.from(recorded),
-        recordKey);
+    return EffectClaim._(recorded == null ? null : Map<String, dynamic>.from(recorded), recordKey);
   }
 
   /// Records [result] into [claim]'s slot and echoes it back so call
@@ -162,10 +152,9 @@ final class EffectLedger implements MachineStateComponent {
 
   @override
   Map<String, dynamic> captureState() => {
-        if (_frames.isNotEmpty)
-          'frames': [for (final f in _frames) f.toJson()],
-        if (_records.isNotEmpty) 'records': _records,
-      };
+    if (_frames.isNotEmpty) 'frames': [for (final f in _frames) f.toJson()],
+    if (_records.isNotEmpty) 'records': _records,
+  };
 
   @override
   void restoreState(Map<String, dynamic> snapshot) {
@@ -187,9 +176,7 @@ final class EffectLedger implements MachineStateComponent {
 
   static Object? _normalize(Object? value) {
     if (value is Map) {
-      final entries = value.entries
-          .map((e) => MapEntry('${e.key}', _normalize(e.value)))
-          .toList()
+      final entries = value.entries.map((e) => MapEntry('${e.key}', _normalize(e.value))).toList()
         ..sort((a, b) => a.key.compareTo(b.key));
       return {for (final e in entries) e.key: e.value};
     }

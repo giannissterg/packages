@@ -33,11 +33,7 @@ void main() {
         },
       );
 
-      const callPart = FunctionCallPart(
-        callId: 'call_123',
-        name: 'multiply',
-        arguments: {'a': 6, 'b': 7},
-      );
+      const callPart = FunctionCallPart(callId: 'call_123', name: 'multiply', arguments: {'a': 6, 'b': 7});
 
       final result = await tool.execute(callPart);
       expect(result.callId, equals('call_123'));
@@ -59,11 +55,7 @@ void main() {
         },
       );
 
-      const callPart = FunctionCallPart(
-        callId: 'call_err',
-        name: 'failing_tool',
-        arguments: {},
-      );
+      const callPart = FunctionCallPart(callId: 'call_err', name: 'failing_tool', arguments: {});
 
       final result = await tool.execute(callPart);
       expect(result.isError, isTrue);

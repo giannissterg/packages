@@ -127,9 +127,7 @@ class ExecutionTracer {
   String _formatOperands(VasterInstruction instruction) {
     final json = instruction.toJson()..remove('opcode');
     if (json.isEmpty) return '';
-    return json.entries
-        .map((e) => '${e.key}=${_formatValue(e.value, quoteStrings: false)}')
-        .join(', ');
+    return json.entries.map((e) => '${e.key}=${_formatValue(e.value, quoteStrings: false)}').join(', ');
   }
 
   String _formatValue(Object? value, {bool quoteStrings = true}) {
@@ -139,9 +137,7 @@ class ExecutionTracer {
       Map() || List() => jsonEncode(value),
       _ => '$value',
     };
-    return rendered.length <= valueTruncation
-        ? rendered
-        : '${rendered.substring(0, valueTruncation)}…';
+    return rendered.length <= valueTruncation ? rendered : '${rendered.substring(0, valueTruncation)}…';
   }
 
   String _formatDuration(Duration duration) {

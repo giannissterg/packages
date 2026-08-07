@@ -60,10 +60,8 @@ final class ToolTurnOutcome {
   /// The single tool-role message providers require: all of one turn's
   /// responses together, in call order. This rule lived as a duplicated
   /// comment in two loops; now it is a property of the type.
-  ChatMessage toToolMessage() => ChatMessage(
-        role: Role.tool,
-        parts: [for (final e in executions) e.result.toResponsePart()],
-      );
+  ChatMessage toToolMessage() =>
+      ChatMessage(role: Role.tool, parts: [for (final e in executions) e.result.toResponsePart()]);
 }
 
 /// Runs a [ToolTurn] through the guarded, effect-recorded pipeline —
@@ -112,36 +110,30 @@ final class ToolTurnRunner {
 
     // Phase 2 — execute the misses (sequentially or in parallel), commit
     // successes, replay the hits.
-    Future<ToolCallExecution> settle(
-        ({FunctionCallPart call, ToolEffectClaim claim}) plan) async {
+    Future<ToolCallExecution> settle(({FunctionCallPart call, ToolEffectClaim claim}) plan) async {
       switch (plan.claim) {
         case ToolEffectReplay(:final result):
-          return ReplayedCall(ToolResult(
-            callId: plan.call.callId,
-            name: plan.call.name,
-            response: result,
-          ));
+          return ReplayedCall(ToolResult(callId: plan.call.callId, name: plan.call.name, response: result));
         case ToolEffectSlot slot:
           final result = await dispatch(plan.call);
-          return ExecutedCall(result.isError
-              ? result
-              : ToolResult(
-                  callId: result.callId,
-                  name: result.name,
-                  response: recorder.commit(slot, result.response),
-                  executionDuration: result.executionDuration,
-                ));
+          return ExecutedCall(
+            result.isError
+                ? result
+                : ToolResult(
+                    callId: result.callId,
+                    name: result.name,
+                    response: recorder.commit(slot, result.response),
+                    executionDuration: result.executionDuration,
+                  ),
+          );
         case ToolEffectInert():
           return ExecutedCall(await dispatch(plan.call));
       }
     }
 
     final executions = switch (concurrency) {
-      ToolTurnConcurrency.parallel =>
-        await Future.wait(plans.map(settle)),
-      ToolTurnConcurrency.sequential => [
-          for (final plan in plans) await settle(plan),
-        ],
+      ToolTurnConcurrency.parallel => await Future.wait(plans.map(settle)),
+      ToolTurnConcurrency.sequential => [for (final plan in plans) await settle(plan)],
     };
     return ToolTurnOutcome(executions);
   }

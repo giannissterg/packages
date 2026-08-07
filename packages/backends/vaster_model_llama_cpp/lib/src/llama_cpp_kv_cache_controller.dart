@@ -31,11 +31,8 @@ class LlamaCppKvCacheController implements KvCacheController {
   }) : _clientFactory = clientFactory ?? http.Client.new;
 
   @override
-  KvCacheCapabilities get capabilities => const KvCacheCapabilities(
-        isStateAddressed: true,
-        supportsPersistence: true,
-        supportsEviction: true,
-      );
+  KvCacheCapabilities get capabilities =>
+      const KvCacheCapabilities(isStateAddressed: true, supportsPersistence: true, supportsEviction: true);
 
   @override
   String get backendId => 'llama_cpp';
@@ -43,8 +40,7 @@ class LlamaCppKvCacheController implements KvCacheController {
   String _filename(String fingerprint) => 'vaster_${fingerprint.substring(0, 24)}.bin';
 
   @override
-  Future<KvCacheHandle?> lookup(String contentFingerprint) async =>
-      _handles[contentFingerprint];
+  Future<KvCacheHandle?> lookup(String contentFingerprint) async => _handles[contentFingerprint];
 
   @override
   Future<KvCacheHandle> materialize({
@@ -62,19 +58,13 @@ class LlamaCppKvCacheController implements KvCacheController {
       final prefill = await client.post(
         Uri.parse('$baseUrl/completion'),
         headers: {'content-type': 'application/json'},
-        body: jsonEncode({
-          'prompt': content,
-          'n_predict': 0,
-          'id_slot': slotId,
-          'cache_prompt': true,
-        }),
+        body: jsonEncode({'prompt': content, 'n_predict': 0, 'id_slot': slotId, 'cache_prompt': true}),
       );
       if (prefill.statusCode != 200) {
         throw StateError('llama.cpp prefill failed ${prefill.statusCode}: ${prefill.body}');
       }
       final prefillJson = jsonDecode(prefill.body) as Map<String, dynamic>;
-      final promptTokens =
-          (prefillJson['tokens_evaluated'] as int?) ?? tokenEstimate ?? 0;
+      final promptTokens = (prefillJson['tokens_evaluated'] as int?) ?? tokenEstimate ?? 0;
 
       // 2. Save the slot's KV tensor state to disk.
       final filename = _filename(contentFingerprint);
@@ -113,8 +103,7 @@ class LlamaCppKvCacheController implements KvCacheController {
         body: jsonEncode({'filename': handle.handleId}),
       );
       if (response.statusCode != 200) {
-        throw StateError(
-            'llama.cpp slot restore failed ${response.statusCode}: ${response.body}');
+        throw StateError('llama.cpp slot restore failed ${response.statusCode}: ${response.body}');
       }
       return true; // the slot really loaded server-side
     } finally {

@@ -87,15 +87,13 @@ class ExecutionStepFrame {
       callStack: [
         for (final raw in (json['callStack'] as List? ?? const []))
           ActivationRecord(
-            functionName:
-                (raw as Map)['functionName'] as String? ?? '',
+            functionName: (raw as Map)['functionName'] as String? ?? '',
             returnPc: raw['returnPc'] as int? ?? 0,
             outputVar: raw['outputVar'] as String?,
           ),
       ],
-      modelOutput: rawModel == null
-          ? null
-          : ModelResponse.fromJson(Map<String, dynamic>.from(rawModel as Map)),
+      modelOutput:
+          rawModel == null ? null : ModelResponse.fromJson(Map<String, dynamic>.from(rawModel as Map)),
       timestamp: DateTime.tryParse(json['timestamp'] as String? ?? ''),
     );
   }
@@ -156,8 +154,7 @@ class VasterExecutionJournal {
   }
 
   /// Finds every step frame recorded at program counter [pc], in order.
-  List<ExecutionStepFrame> framesAtPc(int pc) =>
-      _frames.where((f) => f.pc == pc).toList(growable: false);
+  List<ExecutionStepFrame> framesAtPc(int pc) => _frames.where((f) => f.pc == pc).toList(growable: false);
 
   /// Clears all recorded step frames; returns how many were dropped.
   int clear() {

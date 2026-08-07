@@ -60,13 +60,13 @@ class HumanInteractionRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'requestId': requestId,
-        'type': type.name,
-        'prompt': prompt,
-        if (options.isNotEmpty) 'options': options,
-        if (outputVar != null) 'outputVar': outputVar,
-        if (timeoutMs != null) 'timeoutMs': timeoutMs,
-      };
+    'requestId': requestId,
+    'type': type.name,
+    'prompt': prompt,
+    if (options.isNotEmpty) 'options': options,
+    if (outputVar != null) 'outputVar': outputVar,
+    if (timeoutMs != null) 'timeoutMs': timeoutMs,
+  };
 
   factory HumanInteractionRequest.fromJson(Map<String, dynamic> json) {
     return HumanInteractionRequest(
@@ -107,10 +107,7 @@ class HumanInteractionResponse {
   }
 
   /// Factory helper for creating a rejection response.
-  factory HumanInteractionResponse.reject({
-    required String requestId,
-    required String reason,
-  }) {
+  factory HumanInteractionResponse.reject({required String requestId, required String reason}) {
     return HumanInteractionResponse(
       requestId: requestId,
       status: HumanResponseStatus.rejected,
@@ -119,10 +116,7 @@ class HumanInteractionResponse {
   }
 
   /// Factory helper for answering a question or providing input.
-  factory HumanInteractionResponse.answer({
-    required String requestId,
-    required String answerText,
-  }) {
+  factory HumanInteractionResponse.answer({required String requestId, required String answerText}) {
     return HumanInteractionResponse(
       requestId: requestId,
       status: HumanResponseStatus.answered,
@@ -131,11 +125,11 @@ class HumanInteractionResponse {
   }
 
   Map<String, dynamic> toJson() => {
-        'requestId': requestId,
-        'status': status.name,
-        'value': value,
-        if (metadata.isNotEmpty) 'metadata': metadata,
-      };
+    'requestId': requestId,
+    'status': status.name,
+    'value': value,
+    if (metadata.isNotEmpty) 'metadata': metadata,
+  };
 
   factory HumanInteractionResponse.fromJson(Map<String, dynamic> json) {
     return HumanInteractionResponse(

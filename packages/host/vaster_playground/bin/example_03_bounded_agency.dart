@@ -17,29 +17,25 @@ import 'package:vaster_vm/vaster_vm.dart';
 void main() async {
   const pipeline = Pipeline(
     name: 'incident_router',
-    inputs: {
-      Binding('incident'): 'Checkout latency p99 jumped from 300ms to 9s.',
-    },
+    inputs: {Binding('incident'): 'Checkout latency p99 jumped from 300ms to 9s.'},
     result: Binding('route'),
     children: [
       Decide(
-        prompt: Template.text('How should this incident be handled?\n'
-            '\${incident}'),
+        prompt: Template.text(
+          'How should this incident be handled?\n'
+          '\${incident}',
+        ),
         output: Binding('route'),
         paths: [
           DecisionPath(
             label: 'auto_fix',
             description: 'safe to remediate automatically',
-            children: [
-              Prompt(Template.text('Apply the standard remediation runbook.')),
-            ],
+            children: [Prompt(Template.text('Apply the standard remediation runbook.'))],
           ),
           DecisionPath(
             label: 'escalate',
             description: 'needs a human on-call engineer',
-            children: [
-              Prompt(Template.text('Draft the page for the on-call engineer.')),
-            ],
+            children: [Prompt(Template.text('Draft the page for the on-call engineer.'))],
           ),
         ],
       ),
@@ -52,22 +48,21 @@ void main() async {
   // The fake model answers the decision prompt with the structured choice
   // the runtime asks for, and echoes any other prompt. A real backend gets
   // the identical contract: choose one label, give a rationale.
-  final model = FakeVasterModel(handler: (request) {
-    final prompt = request.messages.last.text;
-    if (prompt.contains('Choose exactly one')) {
-      return ModelResponse(
-        message: ChatMessage.model(jsonEncode({
-          'choice': 'escalate',
-          'rationale': 'a 30x latency regression needs a human now',
-        })),
-      );
-    }
-    return ModelResponse(message: ChatMessage.model('done: $prompt'));
-  });
-
-  final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(defaultModel: model),
+  final model = FakeVasterModel(
+    handler: (request) {
+      final prompt = request.messages.last.text;
+      if (prompt.contains('Choose exactly one')) {
+        return ModelResponse(
+          message: ChatMessage.model(
+            jsonEncode({'choice': 'escalate', 'rationale': 'a 30x latency regression needs a human now'}),
+          ),
+        );
+      }
+      return ModelResponse(message: ChatMessage.model('done: $prompt'));
+    },
   );
+
+  final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: model));
   final runtime = VasterRuntime(
     vm: vm,
     policy: ExecutionPolicy.unlimited,

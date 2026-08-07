@@ -21,11 +21,7 @@ import 'nexus_api_pipeline.dart';
 /// Pass [useGeminiCli] = `true` or specify [modelName] (e.g. `'gemini-2.5-flash'`)
 /// (or provide a custom [model]) to execute the pipeline using the real local
 /// Gemini CLI backend ([GeminiCliVasterModel]).
-Future<void> runPlayground({
-  VasterModel? model,
-  bool useGeminiCli = false,
-  String? modelName,
-}) async {
+Future<void> runPlayground({VasterModel? model, bool useGeminiCli = false, String? modelName}) async {
   final isGemini = useGeminiCli || modelName != null || model is GeminiCliVasterModel;
   _printBanner(useGeminiCli: isGemini, modelName: modelName);
 
@@ -91,16 +87,15 @@ Future<void> runPlayground({
 
     _printPhase('CONTINUATION SNAPSHOT', 'Capturing VasterContinuation snapshot to JSON');
     final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
-    final snapshot = await continuationManager.capture(
-      runtime,
-      program.programName,
-    );
+    final snapshot = await continuationManager.capture(runtime, program.programName);
     final snapshotJson = snapshot.toJson();
 
     stdout.writeln('  ✓ Captured VasterContinuation snapshot ID: ${snapshot.continuationId}');
     stdout.writeln('  ✓ Resume PC: ${snapshot.resumePc}');
-    stdout.writeln('  ✓ Machine components: '
-        '${snapshot.machineState.components.keys.join(', ')}');
+    stdout.writeln(
+      '  ✓ Machine components: '
+      '${snapshot.machineState.components.keys.join(', ')}',
+    );
     stdout.writeln('  ✓ JSON Payload Keys: ${snapshotJson.keys.join(', ')}\n');
 
     _printPhase('RESUMPTION', 'Restoring VasterContinuation & approving deployment turn');

@@ -21,8 +21,7 @@ void main() {
   VasterProgram buildProgram() => VasterProgram(
         programName: 'durable_probe',
         instructions: [
-          SetQuotaOp(
-              quota: ResourceQuota(maxTokenBudget: 100000)), // pc 0
+          SetQuotaOp(quota: ResourceQuota(maxTokenBudget: 100000)), // pc 0
           const AddContextOp(
             // pc 1
             regionId: 'brief',
@@ -32,15 +31,10 @@ void main() {
           ),
           const CreateSessionOp(sessionId: 'sess_main'), // pc 2
           const SetSessionOp(sessionId: 'sess_main'), // pc 3
-          const PromptOp(
-              promptText: 'first turn before suspension',
-              outputVar: 'pre'), // pc 4
-          const WriteFileOp(
-              vfsPath: '/mem/pre.txt', content: 'written before'), // pc 5
+          const PromptOp(promptText: 'first turn before suspension', outputVar: 'pre'), // pc 4
+          const WriteFileOp(vfsPath: '/mem/pre.txt', content: 'written before'), // pc 5
           const CallOp(targetPc: 9, functionName: 'gated'), // pc 6
-          const WriteFileOp(
-              vfsPath: '/mem/post.txt',
-              content: 'after return: ${'\${answer}'}'), // pc 7
+          const WriteFileOp(vfsPath: '/mem/post.txt', content: 'after return: ${'\${answer}'}'), // pc 7
           const HaltOp(), // pc 8
           // ── subroutine 'gated' ──
           YieldHumanInteractionOp(
@@ -53,18 +47,14 @@ void main() {
               outputVar: 'answer',
             ),
           ),
-          const PromptOp(
-              promptText: 'turn after resume, same session',
-              outputVar: 'post'), // pc 10
+          const PromptOp(promptText: 'turn after resume, same session', outputVar: 'post'), // pc 10
           const ReturnSubroutineOp(), // pc 11
         ],
       );
 
-  test('capture at a HITL pause inside a subroutine, resume in a FRESH VM',
-      () async {
+  test('capture at a HITL pause inside a subroutine, resume in a FRESH VM', () async {
     // ── Act I: original process ──
-    final vmA = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+    final vmA = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     final runtimeA = VasterRuntime(
       vm: vmA,
       policy: ExecutionPolicy.unlimited,
@@ -74,10 +64,8 @@ void main() {
     final program = buildProgram();
 
     final paused = await runtimeA.executeProgram(program);
-    expect(paused.status, RuntimeStatus.pausedForHuman,
-        reason: 'error: ${paused.errorDetails}');
-    expect(runtimeA.callStackSnapshot, isNotEmpty,
-        reason: 'paused inside the subroutine');
+    expect(paused.status, RuntimeStatus.pausedForHuman, reason: 'error: ${paused.errorDetails}');
+    expect(runtimeA.callStackSnapshot, isNotEmpty, reason: 'paused inside the subroutine');
 
     final checkpointJson = jsonEncode(MachineCheckpoint.capture(
       runtime: runtimeA,
@@ -92,10 +80,8 @@ void main() {
     await vmA.shutdown();
 
     // ── Act II: a fresh process, nothing but the JSON string ──
-    final restored = MachineCheckpoint.fromJson(
-        jsonDecode(checkpointJson) as Map<String, dynamic>);
-    final vmB = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+    final restored = MachineCheckpoint.fromJson(jsonDecode(checkpointJson) as Map<String, dynamic>);
+    final vmB = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     addTearDown(vmB.shutdown);
 
     final finalState = await restored.resume(
@@ -105,8 +91,7 @@ void main() {
       respond: HumanInteractionResponse.approve(requestId: 'gate'),
     );
 
-    expect(finalState.status, RuntimeStatus.halted,
-        reason: 'error: ${finalState.errorDetails}');
+    expect(finalState.status, RuntimeStatus.halted, reason: 'error: ${finalState.errorDetails}');
 
     // Registers: pre-suspension value survived; post-resume values exist;
     // the RET landed back in the caller (post.txt written after return).
@@ -114,8 +99,7 @@ void main() {
     expect('${finalState.registers['post']}', isNotEmpty);
     expect(finalState.registers['answer_status'], isTrue);
 
-    Future<String> read(String path) =>
-        vmB.fileSystemManager.resolveFileSystem(path).readText(path);
+    Future<String> read(String path) => vmB.fileSystemManager.resolveFileSystem(path).readText(path);
     expect(await read('/mem/pre.txt'), 'written before',
         reason: 'memory VFS files must survive the process boundary');
     expect(await read('/mem/post.txt'), contains('after return'),
@@ -125,10 +109,8 @@ void main() {
     // in the same session the post-resume prompt used.
     final session = vmB.sessionManager.getSession('sess_main');
     expect(session, isNotNull);
-    expect(
-        session!.history.map((m) => m.text),
-        containsAll(
-            ['first turn before suspension', 'turn after resume, same session']),
+    expect(session!.history.map((m) => m.text),
+        containsAll(['first turn before suspension', 'turn after resume, same session']),
         reason: 'one continuous conversation across the suspension');
 
     // Context heap restored, pinned bit intact.
@@ -137,10 +119,8 @@ void main() {
     expect(region!.isPinned, isTrue);
   });
 
-  test('quota meters continue from, not restart at, captured values',
-      () async {
-    final vmA = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+  test('quota meters continue from, not restart at, captured values', () async {
+    final vmA = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     final runtimeA = VasterRuntime(
       vm: vmA,
       policy: ExecutionPolicy.unlimited,
@@ -149,20 +129,17 @@ void main() {
     );
     final program = buildProgram();
     await runtimeA.executeProgram(program);
-    final captured = MachineCheckpoint.capture(
-        runtime: runtimeA, vm: vmA, program: program);
-    final quotaState =
-        captured.continuation.machineState.components['quota']!;
+    final captured = MachineCheckpoint.capture(runtime: runtimeA, vm: vmA, program: program);
+    final quotaState = captured.continuation.machineState.components['quota']!;
     final tokensAtCapture = (quotaState['consumedTokens'] as num).toInt();
     expect(tokensAtCapture, greaterThan(0));
     await vmA.shutdown();
 
-    final vmB = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+    final vmB = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     addTearDown(vmB.shutdown);
-    final runtimeB = await MachineCheckpoint.fromJson(
-            jsonDecode(jsonEncode(captured.toJson())) as Map<String, dynamic>)
-        .restoreRuntime(
+    final runtimeB =
+        await MachineCheckpoint.fromJson(jsonDecode(jsonEncode(captured.toJson())) as Map<String, dynamic>)
+            .restoreRuntime(
       vm: vmB,
       policy: ExecutionPolicy.unlimited,
       scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
@@ -180,9 +157,8 @@ void main() {
 
   test('checkpoint JSON round-trips and rejects unknown format versions', () {
     final vmless = MachineCheckpoint(
-      programVbcBase64: base64Encode(
-          const VasterProgram(programName: 'p', instructions: [HaltOp()])
-              .toBytes()),
+      programVbcBase64:
+          base64Encode(const VasterProgram(programName: 'p', instructions: [HaltOp()]).toBytes()),
       continuation: VasterContinuation(
         continuationId: 'c1',
         programName: 'p',
@@ -201,17 +177,13 @@ void main() {
       capturedAt: DateTime.utc(2026, 8, 5),
     );
 
-    final restored = MachineCheckpoint.fromJson(
-        jsonDecode(jsonEncode(vmless.toJson())) as Map<String, dynamic>);
-    expect(
-        restored.continuation.machineState.components['registers']?['data']
-            ?['x'],
-        1);
+    final restored =
+        MachineCheckpoint.fromJson(jsonDecode(jsonEncode(vmless.toJson())) as Map<String, dynamic>);
+    expect(restored.continuation.machineState.components['registers']?['data']?['x'], 1);
     expect(restored.budgetConsumedDuration, const Duration(seconds: 3));
     expect(restored.decodeProgram().programName, 'p');
 
     final tampered = vmless.toJson()..['formatVersion'] = 99;
-    expect(() => MachineCheckpoint.fromJson(tampered),
-        throwsA(isA<FormatException>()));
+    expect(() => MachineCheckpoint.fromJson(tampered), throwsA(isA<FormatException>()));
   });
 }

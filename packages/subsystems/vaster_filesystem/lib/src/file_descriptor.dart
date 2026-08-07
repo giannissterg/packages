@@ -20,11 +20,11 @@ class FileDescriptor {
   });
 
   Map<String, dynamic> toJson() => {
-        'path': path,
-        'sizeBytes': sizeBytes,
-        'mimeType': mimeType,
-        'modifiedTimestamp': modifiedTimestamp.toIso8601String(),
-      };
+    'path': path,
+    'sizeBytes': sizeBytes,
+    'mimeType': mimeType,
+    'modifiedTimestamp': modifiedTimestamp.toIso8601String(),
+  };
 
   factory FileDescriptor.fromJson(Map<String, dynamic> json) {
     return FileDescriptor(
@@ -38,6 +38,5 @@ class FileDescriptor {
   }
 
   @override
-  String toString() =>
-      'FileDescriptor(path: "$path", size: ${sizeBytes}B, mime: $mimeType)';
+  String toString() => 'FileDescriptor(path: "$path", size: ${sizeBytes}B, mime: $mimeType)';
 }

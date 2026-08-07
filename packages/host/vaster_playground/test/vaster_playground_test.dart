@@ -78,24 +78,21 @@ void main() {
   });
 
   group('Nexus API Pipeline — Typed Context Injection', () {
-    test(
-      'ProvisionAgentTeamComponent reads ProjectConfig and includes project name in instructions',
-      () {
-        const cfg = ProjectConfig(projectName: 'MyApp', language: 'Go');
-        const component = ProvisionAgentTeamComponent();
-        final context = BuildContext(
-          pipelineSpec: PipelineSpec(name: 'test'),
-          typedValues: {ProjectConfig: cfg},
-        );
+    test('ProvisionAgentTeamComponent reads ProjectConfig and includes project name in instructions', () {
+      const cfg = ProjectConfig(projectName: 'MyApp', language: 'Go');
+      const component = ProvisionAgentTeamComponent();
+      final context = BuildContext(
+        pipelineSpec: PipelineSpec(name: 'test'),
+        typedValues: {ProjectConfig: cfg},
+      );
 
-        final expanded = component.build(context);
-        final team = expanded as AgentTeam;
+      final expanded = component.build(context);
+      final team = expanded as AgentTeam;
 
-        expect(team.roles, hasLength(7));
-        expect(team.roles.first.instruction, contains('MyApp'));
-        expect(team.roles.first.instruction, contains('Go'));
-      },
-    );
+      expect(team.roles, hasLength(7));
+      expect(team.roles.first.instruction, contains('MyApp'));
+      expect(team.roles.first.instruction, contains('Go'));
+    });
 
     test('SecurityAuditComponent reads SecurityPolicy and includes OWASP clause when required', () {
       const policy = SecurityPolicy(requireOWASPAudit: true, maxCvssScore: 5);
@@ -190,8 +187,7 @@ void main() {
       final archDoc = await vm.fileSystemManager
           .resolveFileSystem('/workspace/docs/architecture.md')
           .readText('/workspace/docs/architecture.md');
-      expect(archDoc, isNot(contains(r'${')),
-          reason: 'placeholders must resolve, not be written verbatim');
+      expect(archDoc, isNot(contains(r'${')), reason: 'placeholders must resolve, not be written verbatim');
       expect(archDoc, isNotEmpty);
       final auditDoc = await vm.fileSystemManager
           .resolveFileSystem('/workspace/reports/security_audit.md')
@@ -241,15 +237,23 @@ void main() {
           // Write a topic brief to VFS
           WriteFile(
             path: Template.text('/workspace/topic.txt'),
-            content: Template.text('Topic: Evaluate the trade-offs between microservices and monolithic architecture.'),
+            content: Template.text(
+              'Topic: Evaluate the trade-offs between microservices and monolithic architecture.',
+            ),
           ),
           // Researcher reads the brief and produces a summary
           ReadFile(path: Template.text('/workspace/topic.txt')),
           Task(
             agentId: 'researcher',
-            prompt: Template(['Research the following topic and produce a summary:\n\n', Binding('topic_brief')]),
+            prompt: Template([
+              'Research the following topic and produce a summary:\n\n',
+              Binding('topic_brief'),
+            ]),
           ),
-          WriteFile(path: Template.text('/workspace/research.md'), content: Template([Binding('research_summary')])),
+          WriteFile(
+            path: Template.text('/workspace/research.md'),
+            content: Template([Binding('research_summary')]),
+          ),
           // Two reviewers review in parallel
           ParallelTasks(
             entries: [
@@ -270,7 +274,10 @@ void main() {
             requestId: 'research_approval',
             prompt: Template.text('Approve the research summary and reviews?'),
             onApprove: [
-              WriteFile(path: Template.text('/workspace/final_report.md'), content: Template(['Approved!\n\n', Binding('research_summary')])),
+              WriteFile(
+                path: Template.text('/workspace/final_report.md'),
+                content: Template(['Approved!\n\n', Binding('research_summary')]),
+              ),
             ],
           ),
         ],
@@ -294,9 +301,7 @@ void main() {
       expect(parallelOps.first.dispatches, hasLength(2));
 
       // ── Execute ──
-      final fakeModel = FakeVasterModel(
-        defaultResponseText: 'Task completed successfully.',
-      );
+      final fakeModel = FakeVasterModel(defaultResponseText: 'Task completed successfully.');
       final vm = await VasterVMEngine.bootstrap(
         config: VMConfig(defaultModel: fakeModel, rootMountPath: '/workspace'),
       );

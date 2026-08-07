@@ -51,14 +51,11 @@ final class DefiniteAssignment {
           final predIn = inSets[pred];
           if (predIn == null) continue; // not yet computed: skip (top)
           final predOut = {...predIn, ...writes[pred]!};
-          merged = merged == null
-              ? predOut
-              : merged.intersection(predOut);
+          merged = merged == null ? predOut : merged.intersection(predOut);
         }
         if (merged == null) continue;
         final current = inSets[pc];
-        if (current == null || current.length != merged.length ||
-            !current.containsAll(merged)) {
+        if (current == null || current.length != merged.length || !current.containsAll(merged)) {
           inSets[pc] = merged;
           changed = true;
         }
@@ -71,9 +68,11 @@ final class DefiniteAssignment {
       final definitelySet = inSets[pc] ?? const <String>{};
       for (final register in reads[pc]!) {
         if (definitelySet.contains(register)) continue;
-        findings.add(everWritten.contains(register)
-            ? PossiblyUnsetRead(register: register, pc: pc)
-            : ReadNeverWritten(register: register, pc: pc));
+        findings.add(
+          everWritten.contains(register)
+              ? PossiblyUnsetRead(register: register, pc: pc)
+              : ReadNeverWritten(register: register, pc: pc),
+        );
       }
     }
     return findings;
@@ -81,36 +80,30 @@ final class DefiniteAssignment {
 
   /// Register names mentioned by `${name}` in an interpolated field.
   static Set<String> interpolationReads(String text) => {
-        if (RegisterInterpolation.mentions(text))
-          for (final m in RegisterInterpolation.token.allMatches(text))
-            if (m.group(1) != null) m.group(1)!,
-      };
+    if (RegisterInterpolation.mentions(text))
+      for (final m in RegisterInterpolation.token.allMatches(text))
+        if (m.group(1) != null) m.group(1)!,
+  };
 
-  static Set<String> _readsOf(VasterInstruction instruction) =>
-      switch (instruction) {
-        PromptOp op => interpolationReads(op.promptText),
-        DispatchAgentTaskOp op => interpolationReads(op.taskPrompt),
-        DispatchParallelTasksOp op => {
-            for (final d in op.dispatches) ...interpolationReads(d.taskPrompt),
-          },
-        WriteFileOp op => {
-            ...interpolationReads(op.vfsPath),
-            ...interpolationReads(op.content),
-          },
-        ReadFileOp op => interpolationReads(op.vfsPath),
-        ExecSandboxOp op => interpolationReads(op.code),
-        AddContextOp op => interpolationReads(op.text),
-        DecideOp op => interpolationReads(op.prompt),
-        YieldHumanInteractionOp op => interpolationReads(op.request.prompt),
-        SendMessageOp op => _payloadReads(op.payload),
-        JumpIfOp op => {op.conditionVar},
-        CompareRegisterOp op => {op.leftVar},
-        ConcatRegisterOp op => {...op.sourceVars},
-        JsonExtractOp op => {op.sourceVar},
-        ReturnSubroutineOp op => {?op.returnRegister},
-        IncrementRegisterOp op => {op.registerName},
-        _ => const {},
-      };
+  static Set<String> _readsOf(VasterInstruction instruction) => switch (instruction) {
+    PromptOp op => interpolationReads(op.promptText),
+    DispatchAgentTaskOp op => interpolationReads(op.taskPrompt),
+    DispatchParallelTasksOp op => {for (final d in op.dispatches) ...interpolationReads(d.taskPrompt)},
+    WriteFileOp op => {...interpolationReads(op.vfsPath), ...interpolationReads(op.content)},
+    ReadFileOp op => interpolationReads(op.vfsPath),
+    ExecSandboxOp op => interpolationReads(op.code),
+    AddContextOp op => interpolationReads(op.text),
+    DecideOp op => interpolationReads(op.prompt),
+    YieldHumanInteractionOp op => interpolationReads(op.request.prompt),
+    SendMessageOp op => _payloadReads(op.payload),
+    JumpIfOp op => {op.conditionVar},
+    CompareRegisterOp op => {op.leftVar},
+    ConcatRegisterOp op => {...op.sourceVars},
+    JsonExtractOp op => {op.sourceVar},
+    ReturnSubroutineOp op => {?op.returnRegister},
+    IncrementRegisterOp op => {op.registerName},
+    _ => const {},
+  };
 
   static Set<String> _payloadReads(Map<String, dynamic> payload) {
     final reads = <String>{};
@@ -129,36 +122,29 @@ final class DefiniteAssignment {
     return reads;
   }
 
-  static Set<String> _writesOf(VasterInstruction instruction) =>
-      switch (instruction) {
-        SetRegisterOp op => {op.registerName},
-        IncrementRegisterOp op => {op.registerName},
-        CompareRegisterOp op => {op.targetVar},
-        ConcatRegisterOp op => {op.targetVar},
-        JsonExtractOp op => {op.targetVar},
-        PromptOp op => {?op.outputVar},
-        DispatchAgentTaskOp op => {?op.outputVar},
-        DispatchParallelTasksOp op => {
-            for (final d in op.dispatches) ?d.outputVar,
-          },
-        DecideOp op => {
-            ?op.outputVar,
-            if (op.outputVar != null) decideRationaleRegister(op.outputVar!),
-          },
-        YieldHumanInteractionOp op => {
-            ?op.request.outputVar,
-            if (op.request.outputVar != null)
-              hitlStatusRegister(op.request.outputVar!),
-          },
-        ReadFileOp op => {?op.outputVar},
-        ExecSandboxOp op => {?op.outputVar},
-        PopMessageOp op => {?op.outputVar},
-        CompressContextOp op => {?op.outputVar},
-        // The subroutine's return write lands on the caller's continuation,
-        // which is only reachable through the matched return — attributing
-        // it to the call keeps the analysis sound for compiler-shaped
-        // programs. Arguments are written before the jump.
-        CallOp op => {...op.arguments.keys, ?op.outputVar},
-        _ => const {},
-      };
+  static Set<String> _writesOf(VasterInstruction instruction) => switch (instruction) {
+    SetRegisterOp op => {op.registerName},
+    IncrementRegisterOp op => {op.registerName},
+    CompareRegisterOp op => {op.targetVar},
+    ConcatRegisterOp op => {op.targetVar},
+    JsonExtractOp op => {op.targetVar},
+    PromptOp op => {?op.outputVar},
+    DispatchAgentTaskOp op => {?op.outputVar},
+    DispatchParallelTasksOp op => {for (final d in op.dispatches) ?d.outputVar},
+    DecideOp op => {?op.outputVar, if (op.outputVar != null) decideRationaleRegister(op.outputVar!)},
+    YieldHumanInteractionOp op => {
+      ?op.request.outputVar,
+      if (op.request.outputVar != null) hitlStatusRegister(op.request.outputVar!),
+    },
+    ReadFileOp op => {?op.outputVar},
+    ExecSandboxOp op => {?op.outputVar},
+    PopMessageOp op => {?op.outputVar},
+    CompressContextOp op => {?op.outputVar},
+    // The subroutine's return write lands on the caller's continuation,
+    // which is only reachable through the matched return — attributing
+    // it to the call keeps the analysis sound for compiler-shaped
+    // programs. Arguments are written before the jump.
+    CallOp op => {...op.arguments.keys, ?op.outputVar},
+    _ => const {},
+  };
 }

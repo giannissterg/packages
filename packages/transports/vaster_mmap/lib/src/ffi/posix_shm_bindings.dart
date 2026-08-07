@@ -27,12 +27,10 @@ final Pointer<Void> mapFailed = Pointer.fromAddress(-1);
 // arguments are passed on the stack, so declaring `mode` as a fixed register
 // argument corrupts it (segments get created with garbage permission bits and
 // later re-opens fail nondeterministically). `VarArgs` emits the correct ABI.
-typedef NativeShmOpen = Int32 Function(
-    Pointer<Utf8> name, Int32 oflag, VarArgs<(Int32,)>);
+typedef NativeShmOpen = Int32 Function(Pointer<Utf8> name, Int32 oflag, VarArgs<(Int32,)>);
 typedef DartShmOpen = int Function(Pointer<Utf8> name, int oflag, int mode);
 
-typedef NativeOpen = Int32 Function(
-    Pointer<Utf8> path, Int32 oflag, VarArgs<(Int32,)>);
+typedef NativeOpen = Int32 Function(Pointer<Utf8> path, Int32 oflag, VarArgs<(Int32,)>);
 typedef DartOpen = int Function(Pointer<Utf8> path, int oflag, int mode);
 
 typedef NativeShmUnlink = Int32 Function(Pointer<Utf8> name);
@@ -44,8 +42,10 @@ typedef DartClose = int Function(int fd);
 typedef NativeFtruncate = Int32 Function(Int32 fd, Int64 length);
 typedef DartFtruncate = int Function(int fd, int length);
 
-typedef NativeMmap = Pointer<Void> Function(Pointer<Void> addr, Size len, Int32 prot, Int32 flags, Int32 fd, Int64 offset);
-typedef DartMmap = Pointer<Void> Function(Pointer<Void> addr, int len, int prot, int flags, int fd, int offset);
+typedef NativeMmap = Pointer<Void> Function(
+    Pointer<Void> addr, Size len, Int32 prot, Int32 flags, Int32 fd, Int64 offset);
+typedef DartMmap = Pointer<Void> Function(
+    Pointer<Void> addr, int len, int prot, int flags, int fd, int offset);
 
 typedef NativeMunmap = Int32 Function(Pointer<Void> addr, Size len);
 typedef DartMunmap = int Function(Pointer<Void> addr, int len);

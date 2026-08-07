@@ -24,12 +24,14 @@ void main() {
     test('responseSchema lowers to native json_schema constraint', () {
       final request = ModelRequest(
         messages: [ChatMessage.user('extract')],
-        generationConfig: const GenerationConfig(responseSchema: {
-          'type': 'object',
-          'properties': {
-            'name': {'type': 'string'},
+        generationConfig: const GenerationConfig(
+          responseSchema: {
+            'type': 'object',
+            'properties': {
+              'name': {'type': 'string'},
+            },
           },
-        }),
+        ),
       );
       final body = LlamaCppVasterModel.buildRequestBody(request, slotId: 0);
       expect(body['json_schema'], isNotNull);
@@ -38,15 +40,9 @@ void main() {
     test('stable prefix ordering: system + history render before live turn', () {
       final request = ModelRequest(
         systemInstruction: ChatMessage.system('SYS'),
-        messages: [
-          ChatMessage.user('turn 1'),
-          ChatMessage.model('answer 1'),
-          ChatMessage.user('turn 2'),
-        ],
+        messages: [ChatMessage.user('turn 1'), ChatMessage.model('answer 1'), ChatMessage.user('turn 2')],
       );
-      final prompt =
-          LlamaCppVasterModel.buildRequestBody(request, slotId: 0)['prompt']
-              as String;
+      final prompt = LlamaCppVasterModel.buildRequestBody(request, slotId: 0)['prompt'] as String;
       expect(prompt.indexOf('SYS'), lessThan(prompt.indexOf('turn 1')));
       expect(prompt.indexOf('turn 1'), lessThan(prompt.indexOf('answer 1')));
       expect(prompt.indexOf('answer 1'), lessThan(prompt.indexOf('turn 2')));
@@ -82,10 +78,7 @@ void main() {
     });
 
     test('stopped_limit maps to maxTokens', () {
-      final response = LlamaCppVasterModel.parseResponse({
-        'content': 'truncated…',
-        'stopped_limit': true,
-      });
+      final response = LlamaCppVasterModel.parseResponse({'content': 'truncated…', 'stopped_limit': true});
       expect(response.finishReason, equals(FinishReason.maxTokens));
     });
   });

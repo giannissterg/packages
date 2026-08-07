@@ -67,8 +67,9 @@ enum InstructionOpcode {
       if (op.name == lower) return op;
     }
     throw FormatException(
-        'Unknown ISA opcode "$value" — the program was likely produced by a '
-        'newer toolchain than this runtime supports.');
+      'Unknown ISA opcode "$value" — the program was likely produced by a '
+      'newer toolchain than this runtime supports.',
+    );
   }
 
   @override

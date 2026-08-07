@@ -31,10 +31,7 @@ class PolicyDecision {
   bool get isDenied => kind == PolicyDecisionKind.deny;
   bool get isRequiresApproval => kind == PolicyDecisionKind.requiresHumanApproval;
 
-  Map<String, dynamic> toJson() => {
-        'kind': kind.name,
-        'reason': reason,
-      };
+  Map<String, dynamic> toJson() => {'kind': kind.name, 'reason': reason};
 
   factory PolicyDecision.fromJson(Map<String, dynamic> json) {
     final kind = PolicyDecisionKind.parse(json['kind'] as String? ?? '');
@@ -52,15 +49,15 @@ class PolicyDecision {
 
 class _AllowDecision extends PolicyDecision {
   const _AllowDecision([String reason = 'Operation authorized by policy.'])
-      : super._(PolicyDecisionKind.allow, reason);
+    : super._(PolicyDecisionKind.allow, reason);
 }
 
 class _DenyDecision extends PolicyDecision {
   const _DenyDecision([String reason = 'Operation denied by policy.'])
-      : super._(PolicyDecisionKind.deny, reason);
+    : super._(PolicyDecisionKind.deny, reason);
 }
 
 class _RequiresApprovalDecision extends PolicyDecision {
   const _RequiresApprovalDecision([String reason = 'Operation requires human approval.'])
-      : super._(PolicyDecisionKind.requiresHumanApproval, reason);
+    : super._(PolicyDecisionKind.requiresHumanApproval, reason);
 }

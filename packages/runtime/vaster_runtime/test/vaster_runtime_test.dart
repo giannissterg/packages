@@ -11,10 +11,7 @@ void main() {
     setUp(() async {
       fakeModel = FakeVasterModel(defaultResponseText: '{"status": "ok", "code": 200}');
       vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(
-          defaultModel: fakeModel,
-          rootMountPath: '/mem',
-        ),
+        config: VMConfig(defaultModel: fakeModel, rootMountPath: '/mem'),
       );
       runtime = VasterRuntime(
         vm: vm,
@@ -163,12 +160,14 @@ void main() {
       await restrictedVm.shutdown();
     });
 
-    test('executeStep halting a program prunes step-scoped context regions',
-        () async {
-      const program = VasterProgram(programName: 'sliced_ctx', instructions: [
-        AddContextOp(regionId: 'step_region', label: 'step', text: 'x', lifetime: 'step'),
-        HaltOp(),
-      ]);
+    test('executeStep halting a program prunes step-scoped context regions', () async {
+      const program = VasterProgram(
+        programName: 'sliced_ctx',
+        instructions: [
+          AddContextOp(regionId: 'step_region', label: 'step', text: 'x', lifetime: 'step'),
+          HaltOp(),
+        ],
+      );
 
       // Drive to halt through the time-sliced entry point, one instruction at
       // a time, never touching executeProgram.
@@ -178,31 +177,37 @@ void main() {
 
       state = await runtime.executeStep(program, stepCount: 1);
       expect(state.status, equals(RuntimeStatus.halted));
-      expect(vm.contextManager.getRegion('step_region'), isNull,
-          reason: 'halting via a quantum must expire step-scoped regions '
-              'exactly like a run to completion');
+      expect(
+        vm.contextManager.getRegion('step_region'),
+        isNull,
+        reason:
+            'halting via a quantum must expire step-scoped regions '
+            'exactly like a run to completion',
+      );
     });
 
     test('emits tool and sandbox telemetry on the event bus', () async {
       // Model: first turn calls the tool, continuation answers with text.
-      final toolModel = FakeVasterModel(handler: (request) {
-        final answered = request.messages
-            .where((m) => m.role == Role.tool)
-            .expand((m) => m.parts)
-            .whereType<FunctionResponsePart>()
-            .isNotEmpty;
-        if (!answered) {
-          return const ModelResponse(
-            message: ChatMessage(role: Role.model, parts: [
-              FunctionCallPart(callId: 'call_ping', name: 'ping', arguments: {}),
-            ]),
-            finishReason: FinishReason.toolCalls,
-          );
-        }
-        return ModelResponse(message: ChatMessage.model('done'));
-      });
-      final vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: toolModel));
+      final toolModel = FakeVasterModel(
+        handler: (request) {
+          final answered = request.messages
+              .where((m) => m.role == Role.tool)
+              .expand((m) => m.parts)
+              .whereType<FunctionResponsePart>()
+              .isNotEmpty;
+          if (!answered) {
+            return const ModelResponse(
+              message: ChatMessage(
+                role: Role.model,
+                parts: [FunctionCallPart(callId: 'call_ping', name: 'ping', arguments: {})],
+              ),
+              finishReason: FinishReason.toolCalls,
+            );
+          }
+          return ModelResponse(message: ChatMessage.model('done'));
+        },
+      );
+      final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: toolModel));
       final runtime = VasterRuntime(
         vm: vm,
         policy: ExecutionPolicy.unlimited,
@@ -217,26 +222,33 @@ void main() {
       vm.eventBus.on<ToolFinishedEvent>().listen(toolFinished.add);
       vm.eventBus.on<SandboxExecutedEvent>().listen(sandboxExecuted.add);
 
-      vm.registerTool(FunctionTool.define(
-        name: 'ping',
-        description: 'Ping',
-        parametersSchema: const {'type': 'object', 'properties': {}},
-        handler: (_) => {'pong': true},
-      ));
-      vm.registerSandbox(IsolateCodeSandbox(
-        descriptor: const SandboxDescriptor(
-          sandboxId: 'iso_events',
-          type: 'isolate',
-          description: 'Event telemetry sandbox',
+      vm.registerTool(
+        FunctionTool.define(
+          name: 'ping',
+          description: 'Ping',
+          parametersSchema: const {'type': 'object', 'properties': {}},
+          handler: (_) => {'pong': true},
         ),
-        evaluator: (code, inputs) => 'evaluated',
-      ));
+      );
+      vm.registerSandbox(
+        IsolateCodeSandbox(
+          descriptor: const SandboxDescriptor(
+            sandboxId: 'iso_events',
+            type: 'isolate',
+            description: 'Event telemetry sandbox',
+          ),
+          evaluator: (code, inputs) => 'evaluated',
+        ),
+      );
 
-      const program = VasterProgram(programName: 'telemetry', instructions: [
-        PromptOp(promptText: 'ping the tool', outputVar: 'r0'),
-        ExecSandboxOp(sandboxId: 'iso_events', code: '1 + 1', outputVar: 's0'),
-        HaltOp(),
-      ]);
+      const program = VasterProgram(
+        programName: 'telemetry',
+        instructions: [
+          PromptOp(promptText: 'ping the tool', outputVar: 'r0'),
+          ExecSandboxOp(sandboxId: 'iso_events', code: '1 + 1', outputVar: 's0'),
+          HaltOp(),
+        ],
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, equals(RuntimeStatus.halted));
@@ -258,19 +270,22 @@ void main() {
     });
 
     test('HITL pause inside a scheduled quantum can be resumed', () async {
-      const program = VasterProgram(programName: 'sliced_hitl', instructions: [
-        YieldHumanInteractionOp(
-          request: HumanInteractionRequest(
-            requestId: 'req_q',
-            type: HumanInteractionType.approval,
-            prompt: 'Continue?',
-            options: ['approve', 'reject'],
-            outputVar: 'answer',
+      const program = VasterProgram(
+        programName: 'sliced_hitl',
+        instructions: [
+          YieldHumanInteractionOp(
+            request: HumanInteractionRequest(
+              requestId: 'req_q',
+              type: HumanInteractionType.approval,
+              prompt: 'Continue?',
+              options: ['approve', 'reject'],
+              outputVar: 'answer',
+            ),
           ),
-        ),
-        SetRegisterOp(registerName: 'after', value: 'resumed'),
-        HaltOp(),
-      ]);
+          SetRegisterOp(registerName: 'after', value: 'resumed'),
+          HaltOp(),
+        ],
+      );
 
       final paused = await runtime.executeStep(program, stepCount: 5);
       expect(paused.status, equals(RuntimeStatus.pausedForHuman));

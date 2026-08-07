@@ -56,23 +56,17 @@ abstract interface class AgentManager {
   });
 
   /// Dispatches an [AgentTask] to a target agent by ID or [AgentDescriptor].
-  Future<AgentOutput> dispatchTask({
-    required String agentId,
-    required AgentTask task,
-  });
+  Future<AgentOutput> dispatchTask({required String agentId, required AgentTask task});
 
   /// Dispatches multiple tasks across agents concurrently, preserving input
   /// order in the returned outputs. Part of the interface so the runtime's
   /// DispatchParallelTasksOp works against any manager — a capability this
   /// fundamental must not require downcasting to an implementation.
-  Future<List<AgentOutput>> dispatchParallelTasks(
-    List<({String agentId, AgentTask task})> dispatches,
-  );
+  Future<List<AgentOutput>> dispatchParallelTasks(List<({String agentId, AgentTask task})> dispatches);
 
   /// Dispatches an [AgentTask] directly using an [AgentDescriptor] handle.
   Future<AgentOutput> dispatchDescriptorTask({
     required AgentDescriptor agentDescriptor,
     required AgentTask task,
-  }) =>
-      dispatchTask(agentId: agentDescriptor.agentId, task: task);
+  }) => dispatchTask(agentId: agentDescriptor.agentId, task: task);
 }

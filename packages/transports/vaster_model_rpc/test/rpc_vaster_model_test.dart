@@ -106,15 +106,12 @@ void main() {
   });
 
   test('full usage crosses the wire field-for-field (generate)', () async {
-    final response = await client.generate(
-        ModelRequest(messages: [ChatMessage.user('usage?')]));
+    final response = await client.generate(ModelRequest(messages: [ChatMessage.user('usage?')]));
     expectRichUsage(response.usage);
   });
 
   test('full usage crosses the wire on the terminal stream chunk', () async {
-    final chunks = await client
-        .generateStream(ModelRequest(messages: [ChatMessage.user('usage?')]))
-        .toList();
+    final chunks = await client.generateStream(ModelRequest(messages: [ChatMessage.user('usage?')])).toList();
 
     expect(chunks[0].usage, isNull);
     expect(chunks.last.usage, isNotNull);

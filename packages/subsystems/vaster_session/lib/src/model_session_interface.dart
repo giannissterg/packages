@@ -1,5 +1,6 @@
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
+
 import 'session_descriptor.dart';
 
 /// Interface representing an active interactive session binding a [VasterModel],

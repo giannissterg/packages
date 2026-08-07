@@ -6,26 +6,27 @@ void main() async {
   print('      Vaster Gemini CLI Backend Model Demonstration            ');
   print('================================================================\n');
 
-  final model = GeminiCliVasterModel(
-    executablePath: 'gemini',
-    extraArgs: ['--skip-trust'],
-  );
+  final model = GeminiCliVasterModel(executablePath: 'gemini', extraArgs: ['--skip-trust']);
 
   print('Model initialized: ${model.modelName}');
-  print('Capabilities: streaming=${model.capabilities.supportsStreaming}, reasoning=${model.capabilities.supportsReasoning}\n');
+  print(
+    'Capabilities: streaming=${model.capabilities.supportsStreaming}, reasoning=${model.capabilities.supportsReasoning}\n',
+  );
 
   print('--- 1. Non-Streaming Generation ---');
   final request = ModelRequest(
-    systemInstruction: ChatMessage.system('You are a helpful AI assistant for the Vaster LLM Virtual Machine.'),
-    messages: [
-      ChatMessage.user('Summarize the purpose of an LLM Virtual Machine in 2 concise sentences.'),
-    ],
+    systemInstruction: ChatMessage.system(
+      'You are a helpful AI assistant for the Vaster LLM Virtual Machine.',
+    ),
+    messages: [ChatMessage.user('Summarize the purpose of an LLM Virtual Machine in 2 concise sentences.')],
   );
 
   try {
     final response = await model.generate(request);
     print('Response:\n${response.message.text}\n');
-    print('Tokens: prompt=${response.usage.promptTokenCount}, candidates=${response.usage.candidatesTokenCount}');
+    print(
+      'Tokens: prompt=${response.usage.promptTokenCount}, candidates=${response.usage.candidatesTokenCount}',
+    );
   } catch (e) {
     print('Error: $e');
   }

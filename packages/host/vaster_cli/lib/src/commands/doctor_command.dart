@@ -45,7 +45,8 @@ class DoctorCommand extends VasterCommand {
     // Check GEMINI_API_KEY
     final apiKey = Platform.environment['GEMINI_API_KEY'] ?? Platform.environment['GOOGLE_AI_API_KEY'];
     if (apiKey != null && apiKey.isNotEmpty) {
-      out.writeln('  ✓ GEMINI_API_KEY    : Configured (${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)})');
+      out.writeln(
+          '  ✓ GEMINI_API_KEY    : Configured (${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)})');
     } else {
       out.writeln('  ℹ GEMINI_API_KEY    : Not set (Using Fake or Gemini CLI mode)');
     }
@@ -63,8 +64,7 @@ class DoctorCommand extends VasterCommand {
       out.writeln('  ℹ libllama          : not found at $libPath '
           '(brew install llama.cpp for --backend llama)');
     }
-    final llamaModel = Platform.environment['VASTER_LLAMA_MODEL'] ??
-        defaultLlamaModelPath();
+    final llamaModel = Platform.environment['VASTER_LLAMA_MODEL'] ?? defaultLlamaModelPath();
     if (File(llamaModel).existsSync()) {
       final mb = (File(llamaModel).lengthSync() / (1024 * 1024)).round();
       out.writeln('  ✓ llama model       : $llamaModel (${mb}MB)');

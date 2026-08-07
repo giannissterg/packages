@@ -20,11 +20,11 @@ class AgentTask {
   });
 
   Map<String, dynamic> toJson() => {
-        'taskId': taskId,
-        'inputPrompt': inputPrompt,
-        'priority': priority,
-        if (metadata.isNotEmpty) 'metadata': metadata,
-      };
+    'taskId': taskId,
+    'inputPrompt': inputPrompt,
+    'priority': priority,
+    if (metadata.isNotEmpty) 'metadata': metadata,
+  };
 
   factory AgentTask.fromJson(Map<String, dynamic> json) {
     return AgentTask(
@@ -36,6 +36,5 @@ class AgentTask {
   }
 
   @override
-  String toString() =>
-      'AgentTask(id: "$taskId", priority: $priority, promptLength: ${inputPrompt.length})';
+  String toString() => 'AgentTask(id: "$taskId", priority: $priority, promptLength: ${inputPrompt.length})';
 }

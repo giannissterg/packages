@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:vaster_agent_basic/vaster_agent_basic.dart';
 import 'package:vaster_agent_manager/vaster_agent_manager.dart';
 import 'package:vaster_context/vaster_context.dart';
@@ -86,8 +87,7 @@ class AdvancedAgentManager implements AgentManager {
       List.unmodifiable(_entries.values.map((e) => e.agent.descriptor));
 
   @override
-  List<VasterAgent> get activeAgents =>
-      List.unmodifiable(_entries.values.map((e) => e.agent));
+  List<VasterAgent> get activeAgents => List.unmodifiable(_entries.values.map((e) => e.agent));
 
   @override
   VasterAgent? registerAgent(VasterAgent agent, {String? parentAgentId}) {
@@ -114,8 +114,7 @@ class AdvancedAgentManager implements AgentManager {
 
   /// The agent's full lifecycle position (sealed, data-carrying). Unknown
   /// agents are [AgentTerminated].
-  AgentLifecycle lifecycleOf(String agentId) =>
-      _entries[agentId]?.lifecycle ?? const AgentTerminated();
+  AgentLifecycle lifecycleOf(String agentId) => _entries[agentId]?.lifecycle ?? const AgentTerminated();
 
   @override
   AgentState getAgentState(String agentId) => lifecycleOf(agentId).asState;
@@ -164,8 +163,7 @@ class AdvancedAgentManager implements AgentManager {
     if (parentAgentId != null) {
       int depth = _calculateDepth(parentAgentId);
       if (depth >= maxTreeDepth) {
-        throw StateError(
-            'Cannot spawn subagent: Supervisor tree depth limit ($maxTreeDepth) reached.');
+        throw StateError('Cannot spawn subagent: Supervisor tree depth limit ($maxTreeDepth) reached.');
       }
     }
 
@@ -175,7 +173,8 @@ class AdvancedAgentManager implements AgentManager {
     // recreating the agent must adopt that session, not throw on the
     // duplicate id. For an existing session the passed contextManager is
     // unused (the session keeps the one it was restored with).
-    final session = sessionManager.getSession(sessionId) ??
+    final session =
+        sessionManager.getSession(sessionId) ??
         await sessionManager.createSession(
           sessionId: sessionId,
           model: model,
@@ -186,14 +185,16 @@ class AdvancedAgentManager implements AgentManager {
     // region so it actually reaches ModelRequest.systemInstruction — before
     // this, descriptor.systemInstruction never left the descriptor.
     if (descriptor.systemInstruction.trim().isNotEmpty) {
-      session.contextManager.addRegion(ContextRegion.text(
-        id: 'system:agent:${descriptor.agentId}',
-        label: 'agent "${descriptor.agentId}" system instruction',
-        role: Role.system,
-        text: descriptor.systemInstruction,
-        classId: ContextClassTable.systemClassName,
-        isPinned: true,
-      ));
+      session.contextManager.addRegion(
+        ContextRegion.text(
+          id: 'system:agent:${descriptor.agentId}',
+          label: 'agent "${descriptor.agentId}" system instruction',
+          role: Role.system,
+          text: descriptor.systemInstruction,
+          classId: ContextClassTable.systemClassName,
+          isPinned: true,
+        ),
+      );
     }
 
     final agent = BasicVasterAgent(
@@ -211,28 +212,22 @@ class AdvancedAgentManager implements AgentManager {
   }
 
   @override
-  Future<AgentOutput> dispatchTask({
-    required String agentId,
-    required AgentTask task,
-  }) {
+  Future<AgentOutput> dispatchTask({required String agentId, required AgentTask task}) {
     final entry = _entries[agentId];
     if (entry == null) {
-      return Future.value(_refusal(agentId, task,
-          'Agent "$agentId" is not registered in AdvancedAgentManager.'));
+      return Future.value(
+        _refusal(agentId, task, 'Agent "$agentId" is not registered in AdvancedAgentManager.'),
+      );
     }
     if (entry.lifecycle is AgentPaused) {
-      return Future.value(
-          _refusal(agentId, task, 'Agent "$agentId" is currently paused.'));
+      return Future.value(_refusal(agentId, task, 'Agent "$agentId" is currently paused.'));
     }
 
     // Actor rule: one task at a time per agent, FIFO. Acceptance is visible
     // immediately in the lifecycle's queue depth.
     final result = entry.mailbox.enqueue(() => _runTask(entry, task));
     if (entry.lifecycle case AgentRunning(:final activeTaskId)) {
-      entry.lifecycle = AgentRunning(
-        activeTaskId: activeTaskId,
-        queuedTasks: entry.mailbox.pendingTasks - 1,
-      );
+      entry.lifecycle = AgentRunning(activeTaskId: activeTaskId, queuedTasks: entry.mailbox.pendingTasks - 1);
     }
     return result;
   }
@@ -245,52 +240,53 @@ class AdvancedAgentManager implements AgentManager {
       return _refusal(agentId, task, 'Agent "$agentId" is currently paused.');
     }
 
-    entry.lifecycle = AgentRunning(
-      activeTaskId: task.taskId,
-      queuedTasks: entry.mailbox.pendingTasks - 1,
-    );
+    entry.lifecycle = AgentRunning(activeTaskId: task.taskId, queuedTasks: entry.mailbox.pendingTasks - 1);
 
-    eventBus.publish(ModelStartedEvent(
-      eventId: 'evt_start_${task.taskId}',
-      sessionId: entry.agent.session.sessionId,
-      modelName: entry.agent.session.model.modelName,
-      promptTokenCount: TokenEstimate.forText(task.inputPrompt),
-      metadata: const {'estimated': true},
-    ));
+    eventBus.publish(
+      ModelStartedEvent(
+        eventId: 'evt_start_${task.taskId}',
+        sessionId: entry.agent.session.sessionId,
+        modelName: entry.agent.session.model.modelName,
+        promptTokenCount: TokenEstimate.forText(task.inputPrompt),
+        metadata: const {'estimated': true},
+      ),
+    );
 
     try {
       final output = await entry.agent.run(task);
 
       final aggregate = output.aggregateUsage;
-      eventBus.publish(ModelFinishedEvent(
-        eventId: 'evt_finish_${task.taskId}',
-        sessionId: entry.agent.session.sessionId,
-        finishReason: output.isSuccess ? 'stop' : 'error',
-        totalTokens: aggregate.totalTokenCount > 0
-            ? aggregate.totalTokenCount
-            : TokenEstimate.forText(output.outputText),
-        executionDuration: output.executionDuration,
-        metadata: {
-          if (aggregate.totalTokenCount == 0) 'estimated': true,
-        },
-      ));
+      eventBus.publish(
+        ModelFinishedEvent(
+          eventId: 'evt_finish_${task.taskId}',
+          sessionId: entry.agent.session.sessionId,
+          finishReason: output.isSuccess ? 'stop' : 'error',
+          totalTokens: aggregate.totalTokenCount > 0
+              ? aggregate.totalTokenCount
+              : TokenEstimate.forText(output.outputText),
+          executionDuration: output.executionDuration,
+          metadata: {if (aggregate.totalTokenCount == 0) 'estimated': true},
+        ),
+      );
       // Task-level usage rollup — only when no per-turn listener is
       // installed. With [onTurnUsage] wired, its owner already emitted one
       // event per model turn; a rollup on top would double-count the task.
       // Cost is wire-reported only here — the manager owns no pricing
       // catalog.
       if (onTurnUsage == null) {
-        eventBus.publish(ModelUsageEvent(
-          eventId: 'evt_usage_${task.taskId}',
-          modelName: entry.agent.session.model.modelName,
-          callSite: 'agent_task',
-          promptTokenCount: aggregate.promptTokenCount,
-          candidatesTokenCount: aggregate.candidatesTokenCount,
-          totalTokenCount: aggregate.totalTokenCount,
-          costUsd: aggregate.costUsd,
-          estimated: aggregate.source == UsageSource.estimated,
-          usage: aggregate.toJson(),
-        ));
+        eventBus.publish(
+          ModelUsageEvent(
+            eventId: 'evt_usage_${task.taskId}',
+            modelName: entry.agent.session.model.modelName,
+            callSite: 'agent_task',
+            promptTokenCount: aggregate.promptTokenCount,
+            candidatesTokenCount: aggregate.candidatesTokenCount,
+            totalTokenCount: aggregate.totalTokenCount,
+            costUsd: aggregate.costUsd,
+            estimated: aggregate.source == UsageSource.estimated,
+            usage: aggregate.toJson(),
+          ),
+        );
       }
 
       return output;
@@ -305,31 +301,24 @@ class AdvancedAgentManager implements AgentManager {
     }
   }
 
-  static AgentOutput _refusal(String agentId, AgentTask task, String reason) =>
-      AgentOutput(
-        taskId: task.taskId,
-        agentId: agentId,
-        outputText: '',
-        outcome: TaskRefused(reason: reason),
-      );
+  static AgentOutput _refusal(String agentId, AgentTask task, String reason) => AgentOutput(
+    taskId: task.taskId,
+    agentId: agentId,
+    outputText: '',
+    outcome: TaskRefused(reason: reason),
+  );
 
   @override
   Future<AgentOutput> dispatchDescriptorTask({
     required AgentDescriptor agentDescriptor,
     required AgentTask task,
-  }) =>
-      dispatchTask(agentId: agentDescriptor.agentId, task: task);
+  }) => dispatchTask(agentId: agentDescriptor.agentId, task: task);
 
   /// Dispatches multiple tasks in parallel — concurrent across agents,
   /// serialized per agent (see the actor semantics above).
   @override
-  Future<List<AgentOutput>> dispatchParallelTasks(
-    List<({String agentId, AgentTask task})> dispatches,
-  ) async {
-    final futures = dispatches.map((d) => dispatchTask(
-          agentId: d.agentId,
-          task: d.task,
-        ));
+  Future<List<AgentOutput>> dispatchParallelTasks(List<({String agentId, AgentTask task})> dispatches) async {
+    final futures = dispatches.map((d) => dispatchTask(agentId: d.agentId, task: d.task));
     return await Future.wait(futures);
   }
 

@@ -30,14 +30,11 @@ void main() {
         resultBinding: 'final_out',
         instructions: [
           SetQuotaOp(quota: ResourceQuota(maxTokenBudget: 500000)), // 0
-          const AddContextOp(
-              regionId: 'ctx', label: 'ctx', text: 'ground truth',
-              pinned: true), // 1
+          const AddContextOp(regionId: 'ctx', label: 'ctx', text: 'ground truth', pinned: true), // 1
           const CreateSessionOp(sessionId: 'sess_g'), // 2
           const SetSessionOp(sessionId: 'sess_g'), // 3
           RegisterToolSetOp(tools: const [
-            ToolDefinition(
-                name: 'noop', description: 'n', parametersSchema: {}),
+            ToolDefinition(name: 'noop', description: 'n', parametersSchema: {}),
           ]), // 4
           const SelectModelOp(
               descriptor: ModelDescriptor(provider: 'gauntlet_down', modelId: 'p'),
@@ -48,8 +45,7 @@ void main() {
           const WriteFileOp(vfsPath: '/mem/tx.txt', content: 'clean'), // 7
           const PushEffectScopeOp(), // 8 (open across every capture below)
           const PushErrorHandlerOp(targetPc: 18, errorVar: 'err'), // 9
-          const SendMessageOp(
-              senderId: 'a', recipientId: 'b', payload: {'note': 'durable'}),
+          const SendMessageOp(senderId: 'a', recipientId: 'b', payload: {'note': 'durable'}),
           // 10
           const PromptOp(promptText: 'turn one', outputVar: 'r1'), // 11
           const CallOp(targetPc: 20, functionName: 'sub'), // 12
@@ -60,14 +56,11 @@ void main() {
           // frame visibly changes final_out to contain 'dirty'.
           const BeginTransactionOp(), // 14
           const WriteFileOp(vfsPath: '/mem/tx.txt', content: 'dirty'), // 15
-          const ReadFileOp(
-              vfsPath: '/not_mounted/boom.txt', outputVar: 'never'), // 16
+          const ReadFileOp(vfsPath: '/not_mounted/boom.txt', outputVar: 'never'), // 16
           const HaltOp(), // 17 (skipped: handler jumps to 18)
-          const ReadFileOp(
-              vfsPath: '/mem/tx.txt', outputVar: 'tx_state'), // 18 (catch)
+          const ReadFileOp(vfsPath: '/mem/tx.txt', outputVar: 'tx_state'), // 18 (catch)
           const ConcatRegisterOp(
-              targetVar: 'final_out',
-              sourceVars: ['r1', 'sub_out', 'inbox_out', 'tx_state']),
+              targetVar: 'final_out', sourceVars: ['r1', 'sub_out', 'inbox_out', 'tx_state']),
           // 19 + halt below
           const SetRegisterOp(registerName: 'sub_out', value: 'sub_ran'), // 20
           const ReturnSubroutineOp(), // 21
@@ -75,21 +68,17 @@ void main() {
       );
 
   Future<(VasterVMEngine, VasterRuntime)> boot() async {
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     // The gauntlet's model chain: a dead primary and a live fallback —
     // registered identically in every fresh VM so only MACHINE state
     // decides which one serves.
     vm.modelRegistry.registerModel(
       const ModelDescriptor(provider: 'gauntlet_down', modelId: 'p'),
-      FakeVasterModel(
-          modelName: 'gauntlet-down',
-          handler: (req) => throw StateError('API error 500 down')),
+      FakeVasterModel(modelName: 'gauntlet-down', handler: (req) => throw StateError('API error 500 down')),
     );
     vm.modelRegistry.registerModel(
       const ModelDescriptor(provider: 'gauntlet_up', modelId: 'f'),
-      FakeVasterModel(
-          modelName: 'gauntlet-up', defaultResponseText: 'served by fallback'),
+      FakeVasterModel(modelName: 'gauntlet-up', defaultResponseText: 'served by fallback'),
     );
     final runtime = VasterRuntime(
       vm: vm,
@@ -100,16 +89,14 @@ void main() {
     return (vm, runtime);
   }
 
-  test('CHECKPOINT ANYWHERE: every boundary restores to the same outcome',
-      () async {
+  test('CHECKPOINT ANYWHERE: every boundary restores to the same outcome', () async {
     final program = stateHeavyProgram();
 
     // Reference: the uninterrupted run.
     final (vmRef, runtimeRef) = await boot();
     final reference = await runtimeRef.executeProgram(program);
     // The program is built to end via the error handler path.
-    expect(reference.status, RuntimeStatus.halted,
-        reason: 'reference error: ${reference.errorDetails}');
+    expect(reference.status, RuntimeStatus.halted, reason: 'reference error: ${reference.errorDetails}');
     final referenceOut = '${reference.registers['final_out']}';
     expect(referenceOut, isNotEmpty);
     expect(referenceOut, contains('served by fallback'),
@@ -140,16 +127,13 @@ void main() {
       ).toJson());
       state = await runtimeA.executeStep(program, stepCount: 1);
     }
-    expect(state.status, RuntimeStatus.halted,
-        reason: 'stepped error: ${state.errorDetails}');
+    expect(state.status, RuntimeStatus.halted, reason: 'stepped error: ${state.errorDetails}');
     await vmA.shutdown();
-    expect(checkpoints.length, greaterThan(8),
-        reason: 'the gauntlet must actually execute its breadth');
+    expect(checkpoints.length, greaterThan(8), reason: 'the gauntlet must actually execute its breadth');
 
     // Every checkpoint resumes in a FRESH VM to the same final output.
     for (final entry in checkpoints.entries) {
-      final restored = MachineCheckpoint.fromJson(
-          jsonDecode(entry.value) as Map<String, dynamic>);
+      final restored = MachineCheckpoint.fromJson(jsonDecode(entry.value) as Map<String, dynamic>);
       final (vmB, _) = await boot();
       final resumed = await restored.resume(
         vm: vmB,
@@ -166,8 +150,7 @@ void main() {
     }
   });
 
-  test('round-trip completeness: capture → restore → capture is deep-equal',
-      () async {
+  test('round-trip completeness: capture → restore → capture is deep-equal', () async {
     final program = stateHeavyProgram();
     final (vmA, runtimeA) = await boot();
     // Stop mid-gauntlet (after the subroutine call is on the stack).
@@ -180,21 +163,19 @@ void main() {
     await vmA.shutdown();
 
     final (vmB, runtimeB) = await boot();
-    runtimeB.restoreSnapshot(MachineSnapshot.fromJson(
-        jsonDecode(jsonEncode(mid!.toJson())) as Map<String, dynamic>));
+    runtimeB.restoreSnapshot(
+        MachineSnapshot.fromJson(jsonDecode(jsonEncode(mid!.toJson())) as Map<String, dynamic>));
     final recaptured = runtimeB.captureSnapshot();
     expect(jsonEncode(recaptured.toJson()), jsonEncode(mid!.toJson()),
         reason: 'a restore must reproduce the machine exactly');
     await vmB.shutdown();
   });
 
-  test('INBOX SURVIVAL: a message sent before suspension pops after resume',
-      () async {
+  test('INBOX SURVIVAL: a message sent before suspension pops after resume', () async {
     final program = VasterProgram(
       programName: 'durable_mail',
       instructions: [
-        const SendMessageOp(
-            senderId: 'a', recipientId: 'b', payload: {'note': 'survive me'}),
+        const SendMessageOp(senderId: 'a', recipientId: 'b', payload: {'note': 'survive me'}),
         YieldHumanInteractionOp(
           request: const HumanInteractionRequest(
             requestId: 'gate',
@@ -211,30 +192,25 @@ void main() {
     final (vmA, runtimeA) = await boot();
     final paused = await runtimeA.executeProgram(program);
     expect(paused.status, RuntimeStatus.pausedForHuman);
-    final json = jsonEncode(MachineCheckpoint.capture(
-            runtime: runtimeA, vm: vmA, program: program)
-        .toJson());
+    final json = jsonEncode(MachineCheckpoint.capture(runtime: runtimeA, vm: vmA, program: program).toJson());
     await vmA.shutdown();
 
     final (vmB, _) = await boot();
-    final resumed = await MachineCheckpoint.fromJson(
-            jsonDecode(json) as Map<String, dynamic>)
-        .resume(
+    final resumed = await MachineCheckpoint.fromJson(jsonDecode(json) as Map<String, dynamic>).resume(
       vm: vmB,
       policy: ExecutionPolicy.unlimited,
       scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
       respond: HumanInteractionResponse.approve(requestId: 'gate'),
     );
-    expect(resumed.status, RuntimeStatus.halted,
-        reason: 'error: ${resumed.errorDetails}');
+    expect(resumed.status, RuntimeStatus.halted, reason: 'error: ${resumed.errorDetails}');
     expect('${resumed.registers['delivered']}', contains('survive me'),
         reason: 'undelivered actor messages are durable state');
     await vmB.shutdown();
   });
-  test('DISK MOUNT SURVIVAL: a pre-suspension MountFsOp is re-established '
+  test(
+      'DISK MOUNT SURVIVAL: a pre-suspension MountFsOp is re-established '
       'on resume', () async {
-    final diskDir =
-        Directory.systemTemp.createTempSync('vaster_disk_mount_');
+    final diskDir = Directory.systemTemp.createTempSync('vaster_disk_mount_');
     addTearDown(() => diskDir.deleteSync(recursive: true));
 
     final program = VasterProgram(
@@ -249,8 +225,7 @@ void main() {
             outputVar: 'g',
           ),
         ), // 1
-        const WriteFileOp(
-            vfsPath: '/out/artifact.txt', content: 'post-resume'), // 2
+        const WriteFileOp(vfsPath: '/out/artifact.txt', content: 'post-resume'), // 2
         const HaltOp(), // 3
       ],
     );
@@ -258,9 +233,7 @@ void main() {
     final (vmA, runtimeA) = await boot();
     final paused = await runtimeA.executeProgram(program);
     expect(paused.status, RuntimeStatus.pausedForHuman);
-    final json = jsonEncode(MachineCheckpoint.capture(
-            runtime: runtimeA, vm: vmA, program: program)
-        .toJson());
+    final json = jsonEncode(MachineCheckpoint.capture(runtime: runtimeA, vm: vmA, program: program).toJson());
     await vmA.shutdown();
 
     // The fresh VM never executed the MountFsOp (it is pre-gate) — the
@@ -269,19 +242,14 @@ void main() {
     // the prefix.
     final (vmB, _) = await boot();
     addTearDown(vmB.shutdown);
-    final resumed = await MachineCheckpoint.fromJson(
-            jsonDecode(json) as Map<String, dynamic>)
-        .resume(
+    final resumed = await MachineCheckpoint.fromJson(jsonDecode(json) as Map<String, dynamic>).resume(
       vm: vmB,
       policy: ExecutionPolicy.unlimited,
       scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
       respond: HumanInteractionResponse.approve(requestId: 'gate'),
     );
-    expect(resumed.status, RuntimeStatus.halted,
-        reason: 'error: ${resumed.errorDetails}');
-    expect(File('${diskDir.path}/artifact.txt').readAsStringSync(),
-        'post-resume',
+    expect(resumed.status, RuntimeStatus.halted, reason: 'error: ${resumed.errorDetails}');
+    expect(File('${diskDir.path}/artifact.txt').readAsStringSync(), 'post-resume',
         reason: 'the post-resume write must land on the REAL disk mount');
   });
-
 }

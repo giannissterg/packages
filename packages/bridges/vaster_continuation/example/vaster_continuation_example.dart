@@ -81,9 +81,7 @@ void main() async {
   );
 
   print('   Status: ${finalState.status.name}');
-  final log = await vm.fileSystemManager
-      .resolveFileSystem('/mem/release.log')
-      .readText('/mem/release.log');
+  final log = await vm.fileSystemManager.resolveFileSystem('/mem/release.log').readText('/mem/release.log');
   print('   Release Log: "$log"');
   print('✅ Pipeline completed successfully!');
 }

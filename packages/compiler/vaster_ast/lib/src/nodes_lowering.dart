@@ -66,12 +66,7 @@ final class TaskExecution extends VasterNode {
   final String? output;
   final Map<String, dynamic>? outputSchema;
 
-  const TaskExecution({
-    required this.agentId,
-    required this.prompt,
-    this.output,
-    this.outputSchema,
-  });
+  const TaskExecution({required this.agentId, required this.prompt, this.output, this.outputSchema});
 }
 
 /// Lowering header: a resolved [Execute] dispatch.
@@ -80,11 +75,7 @@ final class ExecuteExecution extends VasterNode {
   final String code;
   final String? output;
 
-  const ExecuteExecution({
-    required this.envId,
-    required this.code,
-    this.output,
-  });
+  const ExecuteExecution({required this.envId, required this.code, this.output});
 }
 
 /// Lowering header: a resolved [SendMessage].
@@ -93,11 +84,7 @@ final class SendMessageExecution extends VasterNode {
   final String toId;
   final Map<String, dynamic> payload;
 
-  const SendMessageExecution({
-    required this.fromId,
-    required this.toId,
-    required this.payload,
-  });
+  const SendMessageExecution({required this.fromId, required this.toId, required this.payload});
 }
 
 /// Lowering header: a resolved [ReceiveMessage].

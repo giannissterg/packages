@@ -136,8 +136,8 @@ class UnitTestingComponent extends ComposableNode {
     return Agent(
       role: qaRole,
       child: const WriteFile(
-          path: Template.text('/test/calculator_test.dart'),
-          content: Template.text('''
+        path: Template.text('/test/calculator_test.dart'),
+        content: Template.text('''
 import 'package:smart_calculator/calculator.dart';
 import 'package:test/test.dart';
 
@@ -171,7 +171,7 @@ void main() {
   });
 }
 '''),
-        ),
+      ),
     );
   }
 }
@@ -198,12 +198,7 @@ void main() async {
   // Assembly of Software Engineering Composable Nodes into root Pipeline
   const pipeline = Pipeline(
     spec: PipelineSpec(name: 'software_engineering_dart_project'),
-    mounts: [
-      StorageMount(
-        mountPrefix: '/',
-        diskPath: '/tmp/vaster_dart_project',
-      ),
-    ],
+    mounts: [StorageMount(mountPrefix: '/', diskPath: '/tmp/vaster_dart_project')],
     children: [
       DartProjectBootstrapComponent(projectName: 'smart_calculator'),
       FeatureImplementationComponent(),
@@ -220,10 +215,7 @@ void main() async {
   final liveModel = GeminiCliVasterModel(modelName: 'gemini-2.5-flash');
 
   final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(
-      defaultModel: liveModel,
-      rootMountPath: outputDiskPath,
-    ),
+    config: VMConfig(defaultModel: liveModel, rootMountPath: outputDiskPath),
   );
 
   // Mount real local disk filesystem to VFS

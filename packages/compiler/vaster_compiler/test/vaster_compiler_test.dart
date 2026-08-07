@@ -24,7 +24,10 @@ class BootstrapStorageComponent extends ComposableNode {
     return Transaction(
       children: [
         Mount(mount: StorageMount(mountPrefix: prefix)),
-        WriteFile(path: Template.text('$prefix/readme.md'), content: Template.text('Pipeline: ${context.pipelineSpec.name}')),
+        WriteFile(
+          path: Template.text('$prefix/readme.md'),
+          content: Template.text('Pipeline: ${context.pipelineSpec.name}'),
+        ),
       ],
     );
   }
@@ -67,10 +70,7 @@ void main() {
               instruction: 'Design the auth system.',
             ),
           ),
-          Task(
-            agentId: 'architect',
-            prompt: Template.text('Design the Auth Service API.'),
-          ),
+          Task(agentId: 'architect', prompt: Template.text('Design the Auth Service API.')),
         ],
       );
 
@@ -89,22 +89,14 @@ void main() {
       expect(program.instructions.last, isA<HaltOp>());
     });
 
-    test('Task(transactional: false) opts out of the transaction bracket',
-        () {
+    test('Task(transactional: false) opts out of the transaction bracket', () {
       const pipeline = Pipeline(
         spec: PipelineSpec(name: 'raw_task_pipeline'),
-        children: [
-          Task(
-            agentId: 'worker',
-            prompt: Template.text('Do the work.'),
-            transactional: false,
-          ),
-        ],
+        children: [Task(agentId: 'worker', prompt: Template.text('Do the work.'), transactional: false)],
       );
       final program = compiler.compile(pipeline);
       expect(program.instructions.whereType<BeginTransactionOp>(), isEmpty);
-      expect(program.instructions.whereType<DispatchAgentTaskOp>(),
-          hasLength(1));
+      expect(program.instructions.whereType<DispatchAgentTaskOp>(), hasLength(1));
     });
 
     test('expands ComposableNode recursively during compilation', () {
@@ -190,9 +182,7 @@ void main() {
         children: [
           Provider<ReviewPolicy>(
             value: policy,
-            children: [
-              PolicyAwareReviewComponent(filePath: '/src/auth.dart', auditorRoleId: 'auditor'),
-            ],
+            children: [PolicyAwareReviewComponent(filePath: '/src/auth.dart', auditorRoleId: 'auditor')],
           ),
         ],
       );
@@ -216,9 +206,7 @@ void main() {
         children: [
           Provider<ReviewPolicy>(
             value: policy,
-            children: [
-              PolicyAwareReviewComponent(filePath: '/src/db.dart', auditorRoleId: 'db_auditor'),
-            ],
+            children: [PolicyAwareReviewComponent(filePath: '/src/db.dart', auditorRoleId: 'db_auditor')],
           ),
           Prompt(Template.text('End of pipeline')),
         ],
@@ -260,9 +248,7 @@ void main() {
       // The result is header metadata now — no ConcatRegisterOp/__output__.
       expect(program.resultBinding, equals('analysis'));
       expect(
-        program.instructions
-            .whereType<ConcatRegisterOp>()
-            .any((op) => op.targetVar == '__output__'),
+        program.instructions.whereType<ConcatRegisterOp>().any((op) => op.targetVar == '__output__'),
         isFalse,
       );
 

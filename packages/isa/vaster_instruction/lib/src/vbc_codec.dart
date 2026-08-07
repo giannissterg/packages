@@ -77,9 +77,9 @@ final class VbcCodec {
     final pool = <String, int>{};
     final poolStrings = <String>[];
     int intern(String value) => pool.putIfAbsent(value, () {
-          poolStrings.add(value);
-          return poolStrings.length - 1;
-        });
+      poolStrings.add(value);
+      return poolStrings.length - 1;
+    });
 
     void collectStrings(Object? value) {
       switch (value) {
@@ -99,8 +99,7 @@ final class VbcCodec {
 
     intern(program.programName);
     collectStrings(program.headerJson);
-    final instructionMaps =
-        program.instructions.map((i) => i.toJson()).toList(growable: false);
+    final instructionMaps = program.instructions.map((i) => i.toJson()).toList(growable: false);
     for (final map in instructionMaps) {
       collectStrings(map);
     }
@@ -166,8 +165,7 @@ final class VbcCodec {
           _writeValue(out, entry, pool);
         });
       default:
-        throw ArgumentError(
-            'VBC cannot encode value of type ${value.runtimeType}');
+        throw ArgumentError('VBC cannot encode value of type ${value.runtimeType}');
     }
   }
 
@@ -188,8 +186,9 @@ final class VbcCodec {
     final version = header.getUint16(4, Endian.big);
     if (version < minSupportedVersion || version > formatVersion) {
       throw VbcDecodeException(
-          'Unsupported VBC version $version (supported: '
-          '$minSupportedVersion–$formatVersion).');
+        'Unsupported VBC version $version (supported: '
+        '$minSupportedVersion–$formatVersion).',
+      );
     }
 
     final storedDigest = bytes.sublist(8, 40);
@@ -197,8 +196,7 @@ final class VbcCodec {
     final actualDigest = sha256.convert(payload).bytes;
     for (var i = 0; i < 32; i++) {
       if (storedDigest[i] != actualDigest[i]) {
-        throw const VbcDecodeException(
-            'Checksum mismatch: payload is corrupt.');
+        throw const VbcDecodeException('Checksum mismatch: payload is corrupt.');
       }
     }
 
@@ -235,17 +233,13 @@ final class VbcCodec {
         }
       }
       final instructionCount = reader.readVarint();
-      final instructions = List<VasterInstruction>.generate(
-        instructionCount,
-        (_) {
-          final value = _readValue(reader, poolAt);
-          if (value is! Map<String, dynamic>) {
-            throw const VbcDecodeException(
-                'Instruction entry is not a map.');
-          }
-          return VasterInstruction.fromJson(value);
-        },
-      );
+      final instructions = List<VasterInstruction>.generate(instructionCount, (_) {
+        final value = _readValue(reader, poolAt);
+        if (value is! Map<String, dynamic>) {
+          throw const VbcDecodeException('Instruction entry is not a map.');
+        }
+        return VasterInstruction.fromJson(value);
+      });
 
       return VasterProgram(
         programName: programName,
@@ -277,8 +271,7 @@ final class VbcCodec {
         return poolAt(reader.readVarint());
       case _tagList:
         final length = reader.readVarint();
-        return List<Object?>.generate(
-            length, (_) => _readValue(reader, poolAt));
+        return List<Object?>.generate(length, (_) => _readValue(reader, poolAt));
       case _tagMap:
         final length = reader.readVarint();
         final map = <String, dynamic>{};
@@ -352,6 +345,5 @@ extension VasterProgramBinary on VasterProgram {
   Uint8List toBytes() => const VbcCodec().encode(this);
 
   /// Decodes VBC bytes into a program.
-  static VasterProgram fromBytes(Uint8List bytes) =>
-      const VbcCodec().decode(bytes);
+  static VasterProgram fromBytes(Uint8List bytes) => const VbcCodec().decode(bytes);
 }

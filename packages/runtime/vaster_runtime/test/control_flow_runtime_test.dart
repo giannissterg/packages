@@ -13,8 +13,7 @@ void main() {
     late VasterRuntime runtime;
 
     setUp(() async {
-      vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: FakeVasterModel()));
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
       runtime = VasterRuntime(
         vm: vm,
         policy: ExecutionPolicy.unlimited,
@@ -27,8 +26,7 @@ void main() {
       await vm.shutdown();
     });
 
-    test('hand-assembled counted loop: increments run exactly N times',
-        () async {
+    test('hand-assembled counted loop: increments run exactly N times', () async {
       // 0: i = 0
       // 1: total = 0
       // 2: c = (i < 3)
@@ -43,8 +41,7 @@ void main() {
         instructions: [
           SetRegisterOp(registerName: 'i', value: 0),
           SetRegisterOp(registerName: 'total', value: 0),
-          CompareRegisterOp(
-              leftVar: 'i', operator: 'lt', rightValue: 3, targetVar: 'c'),
+          CompareRegisterOp(leftVar: 'i', operator: 'lt', rightValue: 3, targetVar: 'c'),
           JumpIfOp(conditionVar: 'c', targetPc: 5),
           JumpOp(targetPc: 8),
           IncrementRegisterOp(registerName: 'total', delta: 2),
@@ -60,18 +57,14 @@ void main() {
       expect(state.registers['total'], 6);
     });
 
-    test('compare uses loose equality across num/string register values',
-        () async {
+    test('compare uses loose equality across num/string register values', () async {
       const program = VasterProgram(
         programName: 'loose_eq',
         instructions: [
           SetRegisterOp(registerName: 'a', value: '5'),
-          CompareRegisterOp(
-              leftVar: 'a', operator: 'eq', rightValue: 5, targetVar: 'eq'),
-          CompareRegisterOp(
-              leftVar: 'a', operator: 'ge', rightValue: 4, targetVar: 'ge'),
-          CompareRegisterOp(
-              leftVar: 'a', operator: 'ne', rightValue: 6, targetVar: 'ne'),
+          CompareRegisterOp(leftVar: 'a', operator: 'eq', rightValue: 5, targetVar: 'eq'),
+          CompareRegisterOp(leftVar: 'a', operator: 'ge', rightValue: 4, targetVar: 'ge'),
+          CompareRegisterOp(leftVar: 'a', operator: 'ne', rightValue: 6, targetVar: 'ne'),
           HaltOp(),
         ],
       );

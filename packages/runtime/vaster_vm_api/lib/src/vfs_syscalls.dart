@@ -13,16 +13,14 @@ final class VfsSyscalls {
   static const String writeFileName = 'write_file';
   static const String readFileName = 'read_file';
 
-  static Future<Map<String, dynamic>> writeFile(
-      FileSystemManager fs, Map<String, dynamic> args) async {
+  static Future<Map<String, dynamic>> writeFile(FileSystemManager fs, Map<String, dynamic> args) async {
     final path = args['path']?.toString() ?? '';
     final content = args['content']?.toString() ?? '';
     await fs.resolveFileSystem(path).writeText(path, content);
     return {'status': 'ok', 'path': path};
   }
 
-  static Future<Map<String, dynamic>> readFile(
-      FileSystemManager fs, Map<String, dynamic> args) async {
+  static Future<Map<String, dynamic>> readFile(FileSystemManager fs, Map<String, dynamic> args) async {
     final path = args['path']?.toString() ?? '';
     final content = await fs.resolveFileSystem(path).readText(path);
     return {'content': content};

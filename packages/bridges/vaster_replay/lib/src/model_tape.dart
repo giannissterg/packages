@@ -43,8 +43,7 @@ final class ModelTape {
   Map<String, dynamic> toJson() => {
         'version': formatVersion,
         if (recordedModelName != null) 'recordedModelName': recordedModelName,
-        if (recordedCapabilities != null)
-          'recordedCapabilities': recordedCapabilities!.toJson(),
+        if (recordedCapabilities != null) 'recordedCapabilities': recordedCapabilities!.toJson(),
         'entries': [for (final e in entries) e.toJson()],
       };
 
@@ -52,8 +51,7 @@ final class ModelTape {
         recordedModelName: json['recordedModelName'] as String?,
         recordedCapabilities: json['recordedCapabilities'] == null
             ? null
-            : ModelCapabilities.fromJson(Map<String, dynamic>.from(
-                json['recordedCapabilities'] as Map)),
+            : ModelCapabilities.fromJson(Map<String, dynamic>.from(json['recordedCapabilities'] as Map)),
         entries: [
           for (final raw in (json['entries'] as List? ?? []))
             ModelTapeEntry.fromJson(Map<String, dynamic>.from(raw as Map)),
@@ -67,8 +65,7 @@ final class ModelTape {
   static String fingerprintOf(ModelRequest request) {
     final canonical = jsonEncode({
       'messages': [
-        for (final message in request.messages)
-          {'role': message.role.name, 'text': message.text},
+        for (final message in request.messages) {'role': message.role.name, 'text': message.text},
       ],
       'tools': [for (final tool in request.tools) tool.name],
       'schema': request.generationConfig.responseSchema,
@@ -128,8 +125,7 @@ final class ModelTapeEntry {
   Map<String, dynamic> toJson() => {
         'fingerprint': fingerprint,
         'requestPreview': requestPreview,
-        if (recorded case FullRecordedRequest(:final requestJson))
-          'request': requestJson,
+        if (recorded case FullRecordedRequest(:final requestJson)) 'request': requestJson,
         'response': responseJson,
       };
 
@@ -137,11 +133,9 @@ final class ModelTapeEntry {
         fingerprint: json['fingerprint'] as String? ?? '',
         requestPreview: json['requestPreview'] as String? ?? '',
         recorded: json['request'] is Map
-            ? FullRecordedRequest(
-                Map<String, dynamic>.from(json['request'] as Map))
+            ? FullRecordedRequest(Map<String, dynamic>.from(json['request'] as Map))
             : const PreviewOnlyRequest(),
-        responseJson:
-            Map<String, dynamic>.from(json['response'] as Map? ?? {}),
+        responseJson: Map<String, dynamic>.from(json['response'] as Map? ?? {}),
       );
 }
 
@@ -220,8 +214,7 @@ final class RecordingVasterModel implements VasterModel {
   }
 
   @override
-  Stream<ModelResponseChunk> generateStream(ModelRequest request) =>
-      inner.generateStream(request);
+  Stream<ModelResponseChunk> generateStream(ModelRequest request) => inner.generateStream(request);
 }
 
 /// Answers generate() calls from a recorded [tape] — zero tokens, zero

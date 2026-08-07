@@ -27,8 +27,7 @@ final class Binding {
 
   /// A namespaced child binding: `Binding('spec').inNamespace('checkout')`
   /// → `checkout_spec`.
-  Binding inNamespace(String namespace) =>
-      namespace.isEmpty ? this : Binding('${namespace}_$name');
+  Binding inNamespace(String namespace) => namespace.isEmpty ? this : Binding('${namespace}_$name');
 
   // Identity equality on purpose: overriding == would make Binding illegal
   // as a const map key (Inputs). The NAME is the wire — two bindings with
@@ -60,14 +59,10 @@ final class Template {
   final List<Object>? _parts;
   final String? _text;
 
-  const Template(List<Object> parts)
-      : _parts = parts,
-        _text = null;
+  const Template(List<Object> parts) : _parts = parts, _text = null;
 
   /// Pure-text template.
-  const Template.text(String text)
-      : _text = text,
-        _parts = null;
+  const Template.text(String text) : _text = text, _parts = null;
 
   /// The template's parts: `String` literals and `Binding` references.
   List<Object> get parts => _parts ?? [_text!];
@@ -75,13 +70,10 @@ final class Template {
   /// Joins to the ISA `${name}` interpolation string. Sugar nodes use this
   /// when feeding primitives/lowering headers; the compiler adds part
   /// validation diagnostics around the same join.
-  String lower() => parts
-      .map((p) => p is Binding ? '\${${p.name}}' : p.toString())
-      .join();
+  String lower() => parts.map((p) => p is Binding ? '\${${p.name}}' : p.toString()).join();
 
   @override
-  String toString() =>
-      'Template(${parts.map((p) => p is Binding ? p : "'$p'").join(', ')})';
+  String toString() => 'Template(${parts.map((p) => p is Binding ? p : "'$p'").join(', ')})';
 }
 
 /// Declarative branch condition for `When` — an expression over bound
@@ -106,8 +98,7 @@ sealed class Cond {
   const factory Cond.equals(Binding binding, Object value) = CondEquals._;
 
   /// True when the bound value does not loosely equal [value].
-  const factory Cond.notEquals(Binding binding, Object value) =
-      CondNotEquals._;
+  const factory Cond.notEquals(Binding binding, Object value) = CondNotEquals._;
 
   /// Logical negation — free at compile time (branch targets swap).
   const factory Cond.not(Cond inner) = CondNot._;
@@ -166,12 +157,7 @@ class BindingScope extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final parent = context.tryRead<BindingScopeData>();
-    final full = parent == null || parent.namespace.isEmpty
-        ? namespace
-        : '${parent.namespace}_$namespace';
-    return Provider<BindingScopeData>(
-      value: BindingScopeData(full),
-      children: [child],
-    );
+    final full = parent == null || parent.namespace.isEmpty ? namespace : '${parent.namespace}_$namespace';
+    return Provider<BindingScopeData>(value: BindingScopeData(full), children: [child]);
   }
 }

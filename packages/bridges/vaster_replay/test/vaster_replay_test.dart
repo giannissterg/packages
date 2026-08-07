@@ -160,8 +160,7 @@ void main() {
         registers: {'r0': 'hello', 'count': 42},
       );
 
-      final restored =
-          ExecutionStepFrame.fromJson(jsonDecode(jsonEncode(frame.toJson())));
+      final restored = ExecutionStepFrame.fromJson(jsonDecode(jsonEncode(frame.toJson())));
 
       expect(restored.stepIndex, equals(3));
       expect(restored.pc, equals(7));
@@ -185,8 +184,7 @@ void main() {
           registers: {'x': 1},
         ));
 
-      final restored =
-          VasterExecutionJournal.fromJson(jsonDecode(jsonEncode(journal.toJson())));
+      final restored = VasterExecutionJournal.fromJson(jsonDecode(jsonEncode(journal.toJson())));
 
       expect(restored.length, equals(2));
       expect(restored.last?.instruction, isA<HaltOp>());
@@ -317,8 +315,7 @@ void main() {
       expect(() => engine.resume(runtime), throwsStateError);
     });
 
-    test('recorder chains a previously attached observer instead of clobbering it',
-        () async {
+    test('recorder chains a previously attached observer instead of clobbering it', () async {
       final observed = <int>[];
       runtime.stepObserver = (pc, inst, regs) => observed.add(pc);
 
@@ -334,8 +331,7 @@ void main() {
       expect(observed, equals([0, 1]), reason: 'chained observer still fires');
 
       recorder.detach();
-      expect(runtime.stepObserver, isNotNull,
-          reason: 'detach restores the prior observer');
+      expect(runtime.stepObserver, isNotNull, reason: 'detach restores the prior observer');
     });
 
     test('recorder and tracer compose in either attach order', () async {
@@ -372,8 +368,7 @@ void main() {
       final recorder = VasterExecutionRecorder()..attach(runtime);
       recorder.attach(other);
 
-      expect(runtime.stepObserver, isNull,
-          reason: 'the first runtime was released on re-attach');
+      expect(runtime.stepObserver, isNull, reason: 'the first runtime was released on re-attach');
       expect(other.stepObserver, isNotNull);
 
       // Re-attaching to the same runtime must not chain the recorder to itself.
@@ -383,8 +378,7 @@ void main() {
         HaltOp(),
       ]);
       await other.executeProgram(program);
-      expect(recorder.journal.length, equals(2),
-          reason: 'each instruction recorded exactly once');
+      expect(recorder.journal.length, equals(2), reason: 'each instruction recorded exactly once');
 
       recorder.detach();
       expect(other.stepObserver, isNull);

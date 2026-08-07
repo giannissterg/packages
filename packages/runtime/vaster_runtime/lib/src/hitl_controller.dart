@@ -1,6 +1,7 @@
 import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_machine_state/vaster_machine_state.dart';
+
 import 'register_file.dart';
 import 'runtime_status.dart';
 
@@ -35,15 +36,11 @@ class HitlController implements MachineStateComponent {
   /// Stores [request] as the pending interaction, publishes a
   /// [HumanInteractionRequiredEvent] on [eventBus], and returns
   /// [RuntimeStatus.pausedForHuman] for the caller to set.
-  RuntimeStatus pause({
-    required HumanInteractionRequest request,
-    required int currentPc,
-  }) {
+  RuntimeStatus pause({required HumanInteractionRequest request, required int currentPc}) {
     _pendingRequest = request;
-    eventBus.publish(HumanInteractionRequiredEvent(
-      eventId: 'evt_hitl_$currentPc',
-      request: request.toJson(),
-    ));
+    eventBus.publish(
+      HumanInteractionRequiredEvent(eventId: 'evt_hitl_$currentPc', request: request.toJson()),
+    );
     return RuntimeStatus.pausedForHuman;
   }
 
@@ -59,18 +56,14 @@ class HitlController implements MachineStateComponent {
   /// [YieldHumanInteractionOp] that caused the pause).
   ///
   /// Throws [StateError] if called with no pending request.
-  int consume({
-    required HumanInteractionResponse response,
-    required RegisterFile registers,
-  }) {
+  int consume({required HumanInteractionResponse response, required RegisterFile registers}) {
     final req = _pendingRequest;
     if (req == null) {
       throw StateError('HitlController.consume: no pending human interaction request.');
     }
     if (req.outputVar != null) {
       registers.write(req.outputVar!, response.value);
-      registers.write(
-          hitlStatusRegister(req.outputVar!), response.status.isAffirmative);
+      registers.write(hitlStatusRegister(req.outputVar!), response.status.isAffirmative);
     }
     _pendingRequest = null;
     return 1; // advance past YieldHumanInteractionOp
@@ -89,16 +82,14 @@ class HitlController implements MachineStateComponent {
 
   @override
   Map<String, dynamic> captureState() => {
-        if (_pendingRequest != null)
-          'pendingRequest': _pendingRequest!.toJson(),
-      };
+    if (_pendingRequest != null) 'pendingRequest': _pendingRequest!.toJson(),
+  };
 
   @override
   void restoreState(Map<String, dynamic> snapshot) {
     final pending = snapshot['pendingRequest'];
     _pendingRequest = pending == null
         ? null
-        : HumanInteractionRequest.fromJson(
-            Map<String, dynamic>.from(pending as Map));
+        : HumanInteractionRequest.fromJson(Map<String, dynamic>.from(pending as Map));
   }
 }

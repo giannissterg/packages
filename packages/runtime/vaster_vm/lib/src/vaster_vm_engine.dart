@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:vaster_agent_manager_advanced/vaster_agent_manager_advanced.dart';
 import 'package:vaster_agent_messaging/vaster_agent_messaging.dart';
 import 'package:vaster_budget/vaster_budget.dart';
@@ -153,8 +154,8 @@ class VasterVMEngine implements VasterVirtualMachine {
     final toolManager = BasicToolManager(tools: initialTools);
     final sandboxManager = BasicSandboxManager(sandboxes: initialSandboxes);
     final activePolicyEngine = policyEngine ?? BasicPolicyEngine(eventBus: eventBus);
-    final activeScheduler = scheduler ??
-        BasicVasterScheduler(taskQueue: PriorityTaskQueue(), cores: config.cores);
+    final activeScheduler =
+        scheduler ?? BasicVasterScheduler(taskQueue: PriorityTaskQueue(), cores: config.cores);
     final activeRootBudget = rootBudget ?? ExecutionBudget.unlimited();
 
     // GAP-3a: agents hold this binding eagerly; the executing runtime
@@ -174,19 +175,15 @@ class VasterVMEngine implements VasterVirtualMachine {
       // ON TOP — the dormant AgentDescriptor.policy field becomes law.
       toolCallGateFor: (descriptor) => descriptor.policy != null
           ? CompositeToolCallGate([
-              PolicyGuard(
-                  engine: activePolicyEngine, policy: descriptor.policy!),
+              PolicyGuard(engine: activePolicyEngine, policy: descriptor.policy!),
               agentToolGate,
             ])
           : agentToolGate,
       // Tool-loop turns were invisible to metering: only a task-level rollup
       // with wire-reported cost existed. Per-turn wiring meters every model
       // call an agent makes as it happens.
-      onTurnUsage: (usage, modelName) => agentTurnMeter.charge(
-        usage: usage,
-        modelName: modelName,
-        callSite: 'agent_turn',
-      ),
+      onTurnUsage: (usage, modelName) =>
+          agentTurnMeter.charge(usage: usage, modelName: modelName, callSite: 'agent_turn'),
     );
 
     final modelRegistry = ModelRegistry(defaultModel: config.defaultModel);
@@ -225,31 +222,35 @@ class VasterVMEngine implements VasterVirtualMachine {
     // runtime's tool-calling loop executes these two names through its own
     // policy-gated built-in path (which takes precedence); these registrations
     // serve definition advertisement and agent/tool-manager callers.
-    vm.registerTool(FunctionTool.define(
-      name: VfsSyscalls.writeFileName,
-      description: 'Write text content to a file in the virtual filesystem.',
-      parametersSchema: const {
-        'type': 'object',
-        'properties': {
-          'path': {'type': 'string', 'description': 'Absolute VFS path'},
-          'content': {'type': 'string', 'description': 'Text content to write'},
+    vm.registerTool(
+      FunctionTool.define(
+        name: VfsSyscalls.writeFileName,
+        description: 'Write text content to a file in the virtual filesystem.',
+        parametersSchema: const {
+          'type': 'object',
+          'properties': {
+            'path': {'type': 'string', 'description': 'Absolute VFS path'},
+            'content': {'type': 'string', 'description': 'Text content to write'},
+          },
+          'required': ['path', 'content'],
         },
-        'required': ['path', 'content'],
-      },
-      handler: (args) => VfsSyscalls.writeFile(vm.fileSystemManager, args),
-    ));
-    vm.registerTool(FunctionTool.define(
-      name: VfsSyscalls.readFileName,
-      description: 'Read text content from a file in the virtual filesystem.',
-      parametersSchema: const {
-        'type': 'object',
-        'properties': {
-          'path': {'type': 'string', 'description': 'Absolute VFS path'},
+        handler: (args) => VfsSyscalls.writeFile(vm.fileSystemManager, args),
+      ),
+    );
+    vm.registerTool(
+      FunctionTool.define(
+        name: VfsSyscalls.readFileName,
+        description: 'Read text content from a file in the virtual filesystem.',
+        parametersSchema: const {
+          'type': 'object',
+          'properties': {
+            'path': {'type': 'string', 'description': 'Absolute VFS path'},
+          },
+          'required': ['path'],
         },
-        'required': ['path'],
-      },
-      handler: (args) => VfsSyscalls.readFile(vm.fileSystemManager, args),
-    ));
+        handler: (args) => VfsSyscalls.readFile(vm.fileSystemManager, args),
+      ),
+    );
 
     return vm;
   }
@@ -265,12 +266,7 @@ class VasterVMEngine implements VasterVirtualMachine {
   }) {
     final jobId = 'job_${_jobs.length + 1}_${program.programName}';
 
-    final runtime = VasterRuntime(
-      vm: this,
-      policy: policy,
-      budget: budget,
-      scheduler: scheduler,
-    );
+    final runtime = VasterRuntime(vm: this, policy: policy, budget: budget, scheduler: scheduler);
 
     final job = ProgramExecutionJob(
       jobId: jobId,
@@ -310,8 +306,7 @@ class VasterVMEngine implements VasterVirtualMachine {
   }
 
   Future<RuntimeState> _runJobQuantum(ProgramExecutionJob job) async {
-    final state =
-        await job.runtime.executeStep(job.program, stepCount: _stepQuantum);
+    final state = await job.runtime.executeStep(job.program, stepCount: _stepQuantum);
     job.lastState = state;
     _quantumResults?[job.jobId] = state;
     if (!job.isDone && !job.isPausedForHuman) _enqueueQuantum(job);
@@ -346,8 +341,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       if (!job.isDone && !job.isPausedForHuman && job.budget.isExpired) {
         job.lastState = job.lastState.copyWith(
           status: RuntimeStatus.timedOut,
-          errorDetails:
-              'Execution budget or deadline expired before quantum dispatch',
+          errorDetails: 'Execution budget or deadline expired before quantum dispatch',
         );
         results[job.jobId] = job.lastState;
       }
@@ -357,10 +351,7 @@ class VasterVMEngine implements VasterVirtualMachine {
   }
 
   @override
-  Future<ModelSession> createSession({
-    required String sessionId,
-    ModelDescriptor? modelDescriptor,
-  }) async {
+  Future<ModelSession> createSession({required String sessionId, ModelDescriptor? modelDescriptor}) async {
     // Get-or-create: ISA programs may provision the same session twice (e.g.
     // CreateAgentOp followed by CreateSessionOp for the same role). The strict
     // duplicate guard lives in BasicSessionManager.createSession.
@@ -382,11 +373,13 @@ class VasterVMEngine implements VasterVirtualMachine {
       contextManager: _layeredContextManager(model),
     );
 
-    eventBus.publish(SessionCreatedEvent(
-      eventId: 'evt_session_created_$sessionId',
-      sessionId: sessionId,
-      modelName: model.modelName,
-    ));
+    eventBus.publish(
+      SessionCreatedEvent(
+        eventId: 'evt_session_created_$sessionId',
+        sessionId: sessionId,
+        modelName: model.modelName,
+      ),
+    );
 
     return session;
   }
@@ -394,16 +387,14 @@ class VasterVMEngine implements VasterVirtualMachine {
   @override
   Future<ModelResponse> prompt(
     String promptText, {
-    VasterModel? model,
+    required VasterModel model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
     List<ContextCacheHint>? cacheHints,
   }) async {
     cancelToken?.throwIfCancelled();
     resourceTracker.checkDeadline();
-    final activeModel = model ?? this.config.defaultModel;
-
-    final compiled = await _compileGlobalContext(activeModel);
+    final compiled = await _compileGlobalContext(model);
     final request = ModelRequest(
       systemInstruction: compiled.systemInstruction,
       messages: [...compiled.messages, ChatMessage.user(promptText)],
@@ -412,13 +403,12 @@ class VasterVMEngine implements VasterVirtualMachine {
       cacheHints: cacheHints ?? const [],
     );
 
-    final response = await activeModel.generate(request);
+    final response = await model.generate(request);
     _meterCall(
       response.usage.totalTokenCount > 0
           ? response.usage
-          : TokenEstimate.forExchange(
-              prompt: promptText, output: response.text),
-      activeModel,
+          : TokenEstimate.forExchange(prompt: promptText, output: response.text),
+      model,
       servedBy: response.servedBy,
     );
 
@@ -431,7 +421,7 @@ class VasterVMEngine implements VasterVirtualMachine {
   @override
   Future<ModelResponse> promptWithHistory(
     List<ChatMessage> messages, {
-    VasterModel? model,
+    required VasterModel model,
     List<ToolDefinition>? tools,
     GenerationConfig? config,
     CancellationToken? cancelToken,
@@ -439,9 +429,7 @@ class VasterVMEngine implements VasterVirtualMachine {
   }) async {
     cancelToken?.throwIfCancelled();
     resourceTracker.checkDeadline();
-    final activeModel = model ?? this.config.defaultModel;
-
-    final compiled = await _compileGlobalContext(activeModel);
+    final compiled = await _compileGlobalContext(model);
     final request = ModelRequest(
       systemInstruction: compiled.systemInstruction,
       messages: [...compiled.messages, ...messages],
@@ -451,7 +439,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       cacheHints: cacheHints ?? const [],
     );
 
-    final response = await activeModel.generate(request);
+    final response = await model.generate(request);
     _meterCall(
       response.usage.totalTokenCount > 0
           ? response.usage
@@ -460,7 +448,7 @@ class VasterVMEngine implements VasterVirtualMachine {
               promptTokenCount: TokenEstimate.forMessages(messages),
               candidatesTokenCount: TokenEstimate.forText(response.text),
             ),
-      activeModel,
+      model,
       servedBy: response.servedBy,
     );
 
@@ -473,7 +461,7 @@ class VasterVMEngine implements VasterVirtualMachine {
   Future<ModelResponse> promptInSession(
     String sessionId,
     String promptText, {
-    VasterModel? model,
+    required VasterModel model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
     List<ContextCacheHint>? cacheHints,
@@ -497,9 +485,8 @@ class VasterVMEngine implements VasterVirtualMachine {
     _meterCall(
       response.usage.totalTokenCount > 0
           ? response.usage
-          : TokenEstimate.forExchange(
-              prompt: promptText, output: response.text),
-      model ?? this.config.defaultModel,
+          : TokenEstimate.forExchange(prompt: promptText, output: response.text),
+      model,
       servedBy: response.servedBy,
     );
 
@@ -514,14 +501,13 @@ class VasterVMEngine implements VasterVirtualMachine {
   /// prefix validation caught live (a knowledge-state restore was
   /// rejected against a knowledge-less prompt). With no regions
   /// installed the compile is empty and requests are unchanged.
-  Future<CompiledContext> _compileGlobalContext(VasterModel activeModel) =>
-      contextManager.compileContext(
-        budget: TokenBudget(
-          maxContextTokens: activeModel.capabilities.maxContextTokens,
-          reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
-          reservedToolTokens: 0,
-        ),
-      );
+  Future<CompiledContext> _compileGlobalContext(VasterModel activeModel) => contextManager.compileContext(
+    budget: TokenBudget(
+      maxContextTokens: activeModel.capabilities.maxContextTokens,
+      reservedOutputTokens: activeModel.capabilities.maxOutputTokens,
+      reservedToolTokens: 0,
+    ),
+  );
 
   /// Meters one model call at the VM funnel through [meter]: one
   /// [ModelUsageEvent] published before charging (usage stays observable even
@@ -530,13 +516,8 @@ class VasterVMEngine implements VasterVirtualMachine {
   /// [servedBy] is the response's serving-model stamp — set when a fallback
   /// chain member served the call, so attribution (and the catalog rate)
   /// follows the model that really ran, not the chain's head.
-  void _meterCall(UsageMetadata usage, VasterModel model,
-          {String? servedBy}) =>
-      meter.charge(
-        usage: usage,
-        modelName: servedBy ?? model.modelName,
-        callSite: 'vm_prompt',
-      );
+  void _meterCall(UsageMetadata usage, VasterModel model, {String? servedBy}) =>
+      meter.charge(usage: usage, modelName: servedBy ?? model.modelName, callSite: 'vm_prompt');
 
   /// Layered context for anything that owns a conversation: a private
   /// manager (history source + session-local regions) over the shared
@@ -546,49 +527,36 @@ class VasterVMEngine implements VasterVirtualMachine {
   /// or pinned context silently vanishes from one of them (found live:
   /// plain sessions were built with a bare private manager and never saw
   /// global Knowledge).
-  CompositeContextManager _layeredContextManager(VasterModel model) =>
-      CompositeContextManager(
-        children: [
-          BasicContextManager(
-            eventBus: eventBus,
-            compressors: [
-              _meteredCompressor(model),
-              const TruncatingCompressor(),
-            ],
-          ),
-          contextManager,
-        ],
-        compressors: [
-          _meteredCompressor(model),
-          const TruncatingCompressor(),
-        ],
-      );
+  CompositeContextManager _layeredContextManager(VasterModel model) => CompositeContextManager(
+    children: [
+      BasicContextManager(
+        eventBus: eventBus,
+        compressors: [_meteredCompressor(model), const TruncatingCompressor()],
+      ),
+      contextManager,
+    ],
+    compressors: [_meteredCompressor(model), const TruncatingCompressor()],
+  );
 
   /// A summarizing compressor whose token burn is on the books: compaction
   /// calls meter through the VM pipeline like any other model call.
-  SummarizingCompressor _meteredCompressor(VasterModel model) =>
-      SummarizingCompressor(
-        model: model,
-        onUsage: (usage) => meter.charge(
-          usage: usage,
-          modelName: model.modelName,
-          callSite: 'context_compression',
-        ),
-      );
+  SummarizingCompressor _meteredCompressor(VasterModel model) => SummarizingCompressor(
+    model: model,
+    onUsage: (usage) =>
+        meter.charge(usage: usage, modelName: model.modelName, callSite: 'context_compression'),
+  );
 
   @override
   Stream<ModelResponseChunk> promptStream(
     String promptText, {
-    VasterModel? model,
+    required VasterModel model,
     GenerationConfig? config,
     CancellationToken? cancelToken,
     List<ContextCacheHint>? cacheHints,
   }) async* {
     cancelToken?.throwIfCancelled();
     resourceTracker.checkDeadline();
-    final activeModel = model ?? this.config.defaultModel;
-
-    final compiled = await _compileGlobalContext(activeModel);
+    final compiled = await _compileGlobalContext(model);
     final request = ModelRequest(
       systemInstruction: compiled.systemInstruction,
       messages: [...compiled.messages, ChatMessage.user(promptText)],
@@ -604,17 +572,15 @@ class VasterVMEngine implements VasterVirtualMachine {
     UsageMetadata? streamUsage;
     final textBuffer = StringBuffer();
     try {
-      await for (final chunk in activeModel.generateStream(request)) {
+      await for (final chunk in model.generateStream(request)) {
         if (chunk.textDelta != null) textBuffer.write(chunk.textDelta);
         if (chunk.usage != null) streamUsage = chunk.usage;
         yield chunk;
       }
     } finally {
       _meterCall(
-        streamUsage ??
-            TokenEstimate.forExchange(
-                prompt: promptText, output: textBuffer.toString()),
-        activeModel,
+        streamUsage ?? TokenEstimate.forExchange(prompt: promptText, output: textBuffer.toString()),
+        model,
       );
       // Turn boundary — same discipline as the session path.
       contextManager.pruneLifetimes({ContextLifetime.ephemeral});
@@ -627,23 +593,23 @@ class VasterVMEngine implements VasterVirtualMachine {
 
     // Bridge: Publish file operation event — under the NORMALIZED prefix,
     // the identity resolution actually uses.
-    eventBus.publish(FileOperationEvent(
-      eventId: 'evt_mount_$normalized',
-      operation: FileOperationType.mount,
-      path: normalized,
-      sizeBytes: 0,
-    ));
+    eventBus.publish(
+      FileOperationEvent(
+        eventId: 'evt_mount_$normalized',
+        operation: FileOperationType.mount,
+        path: normalized,
+        sizeBytes: 0,
+      ),
+    );
     return normalized;
   }
 
   @override
-  Map<String, VasterModel> registerModel(
-          ModelDescriptor descriptor, VasterModel model) =>
+  Map<String, VasterModel> registerModel(ModelDescriptor descriptor, VasterModel model) =>
       modelRegistry.registerModel(descriptor, model);
 
   @override
-  ExecutableTool? registerTool(ExecutableTool tool) =>
-      toolManager.registerTool(tool);
+  ExecutableTool? registerTool(ExecutableTool tool) => toolManager.registerTool(tool);
 
   @override
   SandboxRegistration registerSandbox(CodeSandbox sandbox) {
@@ -657,13 +623,11 @@ class VasterVMEngine implements VasterVirtualMachine {
     );
     // Both registrations displace; reporting one hid the other.
     final displacedTool = toolManager.registerTool(sandboxTool);
-    return SandboxRegistration(
-        displacedSandbox: displacedSandbox, displacedBridgedTool: displacedTool);
+    return SandboxRegistration(displacedSandbox: displacedSandbox, displacedBridgedTool: displacedTool);
   }
 
   @override
-  CodeSandbox mountSandbox(String sandboxId, SandboxLanguage language,
-      {Duration? timeout}) {
+  CodeSandbox mountSandbox(String sandboxId, SandboxLanguage language, {Duration? timeout}) {
     final sandbox = IsolateCodeSandbox(
       descriptor: SandboxDescriptor(
         sandboxId: sandboxId,
@@ -671,28 +635,22 @@ class VasterVMEngine implements VasterVirtualMachine {
         description: 'ISA Isolate Sandbox',
         supportedLanguages: [language],
       ),
-      defaultPolicy: SandboxSecurityPolicy(
-        maxTimeout: timeout ?? const Duration(seconds: 10),
-      ),
+      defaultPolicy: SandboxSecurityPolicy(maxTimeout: timeout ?? const Duration(seconds: 10)),
     );
     registerSandbox(sandbox);
     return sandbox;
   }
 
   @override
-  Future<VasterAgent> createAgent({
-    required AgentDescriptor descriptor,
-    VasterModel? model,
-    String? parentAgentId,
-  }) async {
-    // Precedence: explicit host override → descriptor chain → VM default.
+  Future<VasterAgent> createAgent({required AgentDescriptor descriptor, String? parentAgentId}) async {
+    // Precedence: descriptor chain → VM default (B2: the model override
+    // parameter is gone — an agent's model is descriptor configuration).
     // A declared chain (GAP-3b) resolves through the registry and composes
     // the same one-attempt ResilientVasterModel as the runtime's active
     // model: each member tried once, model-kind failures advance
     // (publishing ModelFallbackEvent), cancellation never does, and the
     // serving member stamps servedBy for attribution.
-    final activeModel =
-        model ?? _resolveDescriptorChain(descriptor) ?? config.defaultModel;
+    final activeModel = _resolveDescriptorChain(descriptor) ?? config.defaultModel;
 
     return await agentManager.createAgent(
       descriptor: descriptor,
@@ -714,10 +672,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       );
 
   @override
-  Future<AgentOutput> runAgentTask(
-    AgentTask task, {
-    String? agentId,
-  }) async {
+  Future<AgentOutput> runAgentTask(AgentTask task, {String? agentId}) async {
     resourceTracker.checkDeadline();
 
     String targetAgentId = agentId ?? VasterVirtualMachine.defaultRootAgentId;
@@ -732,10 +687,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       ),
     );
 
-    return await agentManager.dispatchTask(
-      agentId: targetAgentId,
-      task: task,
-    );
+    return await agentManager.dispatchTask(agentId: targetAgentId, task: task);
   }
 
   @override

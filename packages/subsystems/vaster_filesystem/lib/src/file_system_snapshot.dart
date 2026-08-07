@@ -8,13 +8,10 @@ class FileSystemSnapshot {
   /// Timestamp when snapshot was created.
   final DateTime timestamp;
 
-  FileSystemSnapshot({
-    required Map<String, Uint8List> files,
-    DateTime? timestamp,
-  })  : files = Map.unmodifiable(files),
-        timestamp = timestamp ?? DateTime.now();
+  FileSystemSnapshot({required Map<String, Uint8List> files, DateTime? timestamp})
+    : files = Map.unmodifiable(files),
+      timestamp = timestamp ?? DateTime.now();
 
   @override
-  String toString() =>
-      'FileSystemSnapshot(files: ${files.length}, timestamp: $timestamp)';
+  String toString() => 'FileSystemSnapshot(files: ${files.length}, timestamp: $timestamp)';
 }

@@ -20,11 +20,11 @@ class SessionDescriptor {
   }) : createdTimestamp = createdTimestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-        'sessionId': sessionId,
-        'modelName': modelName,
-        'createdTimestamp': createdTimestamp.toIso8601String(),
-        if (metadata.isNotEmpty) 'metadata': metadata,
-      };
+    'sessionId': sessionId,
+    'modelName': modelName,
+    'createdTimestamp': createdTimestamp.toIso8601String(),
+    if (metadata.isNotEmpty) 'metadata': metadata,
+  };
 
   factory SessionDescriptor.fromJson(Map<String, dynamic> json) {
     return SessionDescriptor(
@@ -38,6 +38,5 @@ class SessionDescriptor {
   }
 
   @override
-  String toString() =>
-      'SessionDescriptor(id: $sessionId, model: $modelName, created: $createdTimestamp)';
+  String toString() => 'SessionDescriptor(id: $sessionId, model: $modelName, created: $createdTimestamp)';
 }

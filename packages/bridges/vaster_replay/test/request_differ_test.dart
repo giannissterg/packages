@@ -11,8 +11,7 @@ void main() {
         fingerprint: ModelTape.fingerprintOf(request),
         requestPreview: 'p',
         recorded: FullRecordedRequest(request.toJson()),
-        responseJson:
-            ModelResponse(message: ChatMessage.model('r')).toJson(),
+        responseJson: ModelResponse(message: ChatMessage.model('r')).toJson(),
       );
 
   ModelRequest request({
@@ -30,8 +29,7 @@ void main() {
     final recorded = entryFor(request());
     final live = request(turns: ['Story facts: Bo is a CAT.', 'Continue.']);
 
-    final report =
-        differ.diff(live: live, candidate: recorded, callIndex: 2, candidateIndex: 2);
+    final report = differ.diff(live: live, candidate: recorded, callIndex: 2, candidateIndex: 2);
 
     final delta = report.deltas.whereType<MessageTextDelta>().single;
     expect(delta.index, 0);
@@ -44,10 +42,8 @@ void main() {
 
   test('a grown prompt reports the length change and the tail offset', () {
     final recorded = entryFor(request());
-    final live = request(
-        turns: ['Story facts: Bo is a dog. Bo hates thunder.', 'Continue.']);
-    final report =
-        differ.diff(live: live, candidate: recorded, callIndex: 0, candidateIndex: 0);
+    final live = request(turns: ['Story facts: Bo is a dog. Bo hates thunder.', 'Continue.']);
+    final report = differ.diff(live: live, candidate: recorded, callIndex: 0, candidateIndex: 0);
     final delta = report.deltas.whereType<MessageTextDelta>().single;
     expect(delta.offset, 'Story facts: Bo is a dog.'.length,
         reason: 'a strict prefix diverges at the shorter length');
@@ -56,21 +52,17 @@ void main() {
 
   test('an inserted message reports count and cascades honestly', () {
     final recorded = entryFor(request());
-    final live = request(
-        turns: ['Story facts: Bo is a dog.', 'NEW instruction.', 'Continue.']);
-    final report =
-        differ.diff(live: live, candidate: recorded, callIndex: 1, candidateIndex: 1);
+    final live = request(turns: ['Story facts: Bo is a dog.', 'NEW instruction.', 'Continue.']);
+    final report = differ.diff(live: live, candidate: recorded, callIndex: 1, candidateIndex: 1);
     expect(report.deltas.whereType<MessageCountDelta>().single.live, 3);
     // The shared-prefix walk still pinpoints where texts start disagreeing.
     expect(report.deltas.whereType<MessageTextDelta>(), isNotEmpty);
   });
 
-  test('system-instruction drift is informational, never fingerprint-blamed',
-      () {
+  test('system-instruction drift is informational, never fingerprint-blamed', () {
     final recorded = entryFor(request());
     final live = request(system: 'You are a strict storyteller.');
-    final report =
-        differ.diff(live: live, candidate: recorded, callIndex: 0, candidateIndex: 0);
+    final report = differ.diff(live: live, candidate: recorded, callIndex: 0, candidateIndex: 0);
     final delta = report.deltas.whereType<SystemInstructionDelta>().single;
     expect(delta.affectsFingerprint, isFalse);
     expect(report.render(), contains('informational'));
@@ -80,39 +72,31 @@ void main() {
   });
 
   test('cache-hint drift is informational with fingerprints listed', () {
-    final recorded = entryFor(request(
-        hints: [const ContextCacheHint(regionId: 'r', contentFingerprint: 'aaa')]));
-    final live = request(
-        hints: [const ContextCacheHint(regionId: 'r', contentFingerprint: 'bbb')]);
-    final report =
-        differ.diff(live: live, candidate: recorded, callIndex: 0, candidateIndex: 0);
+    final recorded =
+        entryFor(request(hints: [const ContextCacheHint(regionId: 'r', contentFingerprint: 'aaa')]));
+    final live = request(hints: [const ContextCacheHint(regionId: 'r', contentFingerprint: 'bbb')]);
+    final report = differ.diff(live: live, candidate: recorded, callIndex: 0, candidateIndex: 0);
     final delta = report.deltas.whereType<CacheHintsDelta>().single;
     expect(delta.added, ['bbb']);
     expect(delta.removed, ['aaa']);
   });
 
   test('a v1 candidate names the limitation instead of guessing', () {
-    const recorded = ModelTapeEntry(
-        fingerprint: 'f', requestPreview: 'old preview', responseJson: {});
-    final report = differ.diff(
-        live: request(), candidate: recorded, callIndex: 0, candidateIndex: 0);
+    const recorded = ModelTapeEntry(fingerprint: 'f', requestPreview: 'old preview', responseJson: {});
+    final report = differ.diff(live: request(), candidate: recorded, callIndex: 0, candidateIndex: 0);
     expect(report.candidatePreviewOnly, isTrue);
     expect(report.render(), contains('v1 (preview only)'));
     expect(report.render(), contains('re-record'));
   });
 
-  test('no candidate at this position → the tape is shorter than the run',
-      () {
-    final report = differ.diff(
-        live: request(), candidate: null, callIndex: 4, candidateIndex: null);
+  test('no candidate at this position → the tape is shorter than the run', () {
+    final report = differ.diff(live: request(), candidate: null, callIndex: 4, candidateIndex: null);
     expect(report.render(), contains('more model calls than the tape holds'));
   });
 
-  test('identical content against the candidate → order divergence named',
-      () {
+  test('identical content against the candidate → order divergence named', () {
     final recorded = entryFor(request());
-    final report = differ.diff(
-        live: request(), candidate: recorded, callIndex: 0, candidateIndex: 0);
+    final report = differ.diff(live: request(), candidate: recorded, callIndex: 0, candidateIndex: 0);
     expect(report.deltas, isEmpty);
     expect(report.render(), contains('call ORDER'));
   });
@@ -120,8 +104,7 @@ void main() {
   test('newlines are visible in excerpts', () {
     final recorded = entryFor(request(turns: ['line one\nline two']));
     final live = request(turns: ['line one\nline 2wo']);
-    final report =
-        differ.diff(live: live, candidate: recorded, callIndex: 0, candidateIndex: 0);
+    final report = differ.diff(live: live, candidate: recorded, callIndex: 0, candidateIndex: 0);
     final delta = report.deltas.whereType<MessageTextDelta>().single;
     expect(delta.liveExcerpt, contains('⏎'));
   });

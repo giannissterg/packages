@@ -5,10 +5,8 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// The program-header class table installs at load, and AddContextOp regions
 /// resolve against it.
 void main() {
-  test('executeProgram installs the header table; regions carry classes',
-      () async {
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+  test('executeProgram installs the header table; regions carry classes', () async {
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     final runtime = VasterRuntime(
       vm: vm,
       policy: ExecutionPolicy.unlimited,

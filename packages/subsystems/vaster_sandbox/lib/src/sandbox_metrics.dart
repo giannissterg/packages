@@ -6,19 +6,14 @@ class SandboxMetrics {
   /// CPU time spent executing.
   final Duration? cpuTime;
 
-  const SandboxMetrics({
-    this.peakMemoryBytes,
-    this.cpuTime,
-  });
+  const SandboxMetrics({this.peakMemoryBytes, this.cpuTime});
 
-  const SandboxMetrics.empty()
-      : peakMemoryBytes = null,
-        cpuTime = null;
+  const SandboxMetrics.empty() : peakMemoryBytes = null, cpuTime = null;
 
   Map<String, dynamic> toJson() => {
-        if (peakMemoryBytes != null) 'peakMemoryBytes': peakMemoryBytes,
-        if (cpuTime != null) 'cpuTimeMs': cpuTime!.inMilliseconds,
-      };
+    if (peakMemoryBytes != null) 'peakMemoryBytes': peakMemoryBytes,
+    if (cpuTime != null) 'cpuTimeMs': cpuTime!.inMilliseconds,
+  };
 
   factory SandboxMetrics.fromJson(Map<String, dynamic> json) {
     return SandboxMetrics(
@@ -28,5 +23,6 @@ class SandboxMetrics {
   }
 
   @override
-  String toString() => 'SandboxMetrics(peakRAM: ${peakMemoryBytes ?? 'n/a'}, cpuTime: ${cpuTime?.inMilliseconds ?? 'n/a'}ms)';
+  String toString() =>
+      'SandboxMetrics(peakRAM: ${peakMemoryBytes ?? 'n/a'}, cpuTime: ${cpuTime?.inMilliseconds ?? 'n/a'}ms)';
 }

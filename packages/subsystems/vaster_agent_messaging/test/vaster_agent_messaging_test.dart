@@ -28,12 +28,9 @@ void main() {
     });
 
     test('pops next unread message and marks read', () {
-      hub.sendMessage(AgentMessage(
-        messageId: 'm1',
-        senderAgentId: 's',
-        recipientAgentId: 'r',
-        payload: {'v': 1},
-      ));
+      hub.sendMessage(
+        AgentMessage(messageId: 'm1', senderAgentId: 's', recipientAgentId: 'r', payload: {'v': 1}),
+      );
 
       final popped = hub.popNextMessage('r');
       expect(popped?.messageId, equals('m1'));
@@ -47,19 +44,18 @@ void main() {
       final received = <AgentMessage>[];
       hub.getMessageStream('r2').listen(received.add);
 
-      hub.sendMessage(AgentMessage(
-        messageId: 'm_other',
-        senderAgentId: 's',
-        recipientAgentId: 'r1',
-        payload: {},
-      ));
+      hub.sendMessage(
+        AgentMessage(messageId: 'm_other', senderAgentId: 's', recipientAgentId: 'r1', payload: {}),
+      );
 
-      hub.sendMessage(AgentMessage(
-        messageId: 'm_target',
-        senderAgentId: 's',
-        recipientAgentId: 'r2',
-        payload: {'text': 'hi'},
-      ));
+      hub.sendMessage(
+        AgentMessage(
+          messageId: 'm_target',
+          senderAgentId: 's',
+          recipientAgentId: 'r2',
+          payload: {'text': 'hi'},
+        ),
+      );
 
       await Future.delayed(const Duration(milliseconds: 10));
       expect(received, hasLength(1));

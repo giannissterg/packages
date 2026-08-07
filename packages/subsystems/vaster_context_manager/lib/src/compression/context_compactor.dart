@@ -21,8 +21,7 @@ final class CompactionEntry {
   });
 
   @override
-  String toString() =>
-      'CompactionEntry($regionId: $tokensBefore -> $tokensAfter tok via $compressorId)';
+  String toString() => 'CompactionEntry($regionId: $tokensBefore -> $tokensAfter tok via $compressorId)';
 }
 
 /// The result of a compaction pass.
@@ -33,14 +32,9 @@ final class CompactionReport {
   /// Total estimated tokens still held after compaction.
   final int tokensRemaining;
 
-  const CompactionReport({
-    required this.entries,
-    required this.tokensFreed,
-    required this.tokensRemaining,
-  });
+  const CompactionReport({required this.entries, required this.tokensFreed, required this.tokensRemaining});
 
-  static const empty =
-      CompactionReport(entries: [], tokensFreed: 0, tokensRemaining: 0);
+  static const empty = CompactionReport(entries: [], tokensFreed: 0, tokensRemaining: 0);
 
   @override
   String toString() =>
@@ -69,13 +63,11 @@ final class ContextCompactor {
   ContextCompressibility _compressibilityOf(ContextRegion r) =>
       r.effectiveCompressibility(classTable.resolve(r.classId));
 
-  ContextPriority _priorityOf(ContextRegion r) =>
-      r.effectivePriority(classTable.resolve(r.classId));
+  ContextPriority _priorityOf(ContextRegion r) => r.effectivePriority(classTable.resolve(r.classId));
 
   /// Classes whose eviction policy is `never` are immutable under pressure:
   /// compressing the system prompt would be as dishonest as evicting it.
-  bool _isImmutable(ContextRegion r) =>
-      classTable.resolve(r.classId).eviction == EvictionPolicy.never;
+  bool _isImmutable(ContextRegion r) => classTable.resolve(r.classId).eviction == EvictionPolicy.never;
 
   ContextCompressor? _selectFor(ContextCompressibility level) {
     if (level == ContextCompressibility.none) return null;
@@ -114,27 +106,29 @@ final class ContextCompactor {
 
     // Candidates: compressible, big enough, unpinned unless included, not
     // already compressed, optionally a single target region.
-    final candidates = regions
-        .where((r) =>
-            _compressibilityOf(r) != ContextCompressibility.none &&
-            !_isImmutable(r) &&
-            r.estimatedTokens >= minRegionTokens &&
-            (includePinned || !r.isPinned) &&
-            !r.isCompressed &&
-            (onlyRegionId == null || r.id == onlyRegionId))
-        .toList()
-      // Least important, biggest wins first: priority asc, utility asc, size
-      // desc; id tie-break keeps the pass deterministic.
-      ..sort((a, b) {
-        final byPriority =
-            _priorityOf(a).index.compareTo(_priorityOf(b).index);
-        if (byPriority != 0) return byPriority;
-        final byUtility = a.utility.compareTo(b.utility);
-        if (byUtility != 0) return byUtility;
-        final bySize = b.estimatedTokens.compareTo(a.estimatedTokens);
-        if (bySize != 0) return bySize;
-        return a.id.compareTo(b.id);
-      });
+    final candidates =
+        regions
+            .where(
+              (r) =>
+                  _compressibilityOf(r) != ContextCompressibility.none &&
+                  !_isImmutable(r) &&
+                  r.estimatedTokens >= minRegionTokens &&
+                  (includePinned || !r.isPinned) &&
+                  !r.isCompressed &&
+                  (onlyRegionId == null || r.id == onlyRegionId),
+            )
+            .toList()
+          // Least important, biggest wins first: priority asc, utility asc, size
+          // desc; id tie-break keeps the pass deterministic.
+          ..sort((a, b) {
+            final byPriority = _priorityOf(a).index.compareTo(_priorityOf(b).index);
+            if (byPriority != 0) return byPriority;
+            final byUtility = a.utility.compareTo(b.utility);
+            if (byUtility != 0) return byUtility;
+            final bySize = b.estimatedTokens.compareTo(a.estimatedTokens);
+            if (bySize != 0) return bySize;
+            return a.id.compareTo(b.id);
+          });
 
     final entries = <CompactionEntry>[];
     var freed = 0;
@@ -152,10 +146,11 @@ final class ContextCompactor {
       if (onlyRegionId != null) {
         target = targetTokens;
       } else {
-        final quarter =
-            (region.estimatedTokens ~/ 4).clamp(minRegionTokens, region.estimatedTokens);
-        final coverDeficit = (region.estimatedTokens - deficit)
-            .clamp(minRegionTokens, region.estimatedTokens);
+        final quarter = (region.estimatedTokens ~/ 4).clamp(minRegionTokens, region.estimatedTokens);
+        final coverDeficit = (region.estimatedTokens - deficit).clamp(
+          minRegionTokens,
+          region.estimatedTokens,
+        );
         target = coverDeficit > quarter ? coverDeficit : quarter;
       }
 
@@ -163,22 +158,20 @@ final class ContextCompactor {
       if (result.tokensSaved <= 0) continue;
 
       await apply(result.region);
-      entries.add(CompactionEntry(
-        regionId: region.id,
-        compressorId: compressor.id,
-        tokensBefore: region.estimatedTokens,
-        tokensAfter: result.region.estimatedTokens,
-        lossy: result.lossy,
-      ));
+      entries.add(
+        CompactionEntry(
+          regionId: region.id,
+          compressorId: compressor.id,
+          tokensBefore: region.estimatedTokens,
+          tokensAfter: result.region.estimatedTokens,
+          lossy: result.lossy,
+        ),
+      );
       freed += result.tokensSaved;
       total -= result.tokensSaved;
       deficit = total - targetTokens;
     }
 
-    return CompactionReport(
-      entries: entries,
-      tokensFreed: freed,
-      tokensRemaining: total,
-    );
+    return CompactionReport(entries: entries, tokensFreed: freed, tokensRemaining: total);
   }
 }

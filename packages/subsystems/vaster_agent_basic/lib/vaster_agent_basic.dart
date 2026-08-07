@@ -2,4 +2,5 @@
 library;
 
 export 'package:vaster_agent/vaster_agent.dart';
+
 export 'src/basic_vaster_agent.dart';

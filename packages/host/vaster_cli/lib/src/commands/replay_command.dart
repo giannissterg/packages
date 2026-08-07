@@ -21,8 +21,7 @@ class ReplayCommand extends VasterCommand {
   String get name => 'replay';
 
   @override
-  String get description =>
-      'Re-executes a recorded envelope against its tape and reports '
+  String get description => 'Re-executes a recorded envelope against its tape and reports '
       'divergence — with --diff, down to the character.';
 
   @override
@@ -57,8 +56,7 @@ class ReplayCommand extends VasterCommand {
 
     final ReplayEnvelope envelope;
     try {
-      envelope = const ReplayEnvelopeCodec()
-          .decodeString(file.readAsStringSync());
+      envelope = const ReplayEnvelopeCodec().decodeString(file.readAsStringSync());
     } on Object catch (e) {
       err.writeln('Error: invalid envelope: $e');
       return 1;
@@ -70,9 +68,7 @@ class ReplayCommand extends VasterCommand {
       final programFile = File(programPath);
       program = programPath.endsWith('.vbc')
           ? VasterProgramBinary.fromBytes(programFile.readAsBytesSync())
-          : VasterProgram.fromJson(
-              jsonDecode(programFile.readAsStringSync())
-                  as Map<String, dynamic>);
+          : VasterProgram.fromJson(jsonDecode(programFile.readAsStringSync()) as Map<String, dynamic>);
     } else if (envelope.programJson != null) {
       program = VasterProgram.fromJson(envelope.programJson!);
     } else {
@@ -90,8 +86,7 @@ class ReplayCommand extends VasterCommand {
         '${tape.recordedModelName ?? 'unknown backend'}');
 
     final replayModel = ReplayVasterModel(tape: tape);
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: replayModel));
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: replayModel));
     final runtime = VasterRuntime(
       vm: vm,
       policy: ExecutionPolicy.unlimited,
@@ -102,12 +97,10 @@ class ReplayCommand extends VasterCommand {
     int reportDivergence(TapeDivergenceException e) {
       err.writeln('\n✗ $e');
       if (results['diff'] as bool? ?? false) {
-        final candidateIndex =
-            e.callIndex < tape.entries.length ? e.callIndex : null;
+        final candidateIndex = e.callIndex < tape.entries.length ? e.callIndex : null;
         final report = const RequestDiffer().diff(
           live: e.liveRequest,
-          candidate:
-              candidateIndex == null ? null : tape.entries[candidateIndex],
+          candidate: candidateIndex == null ? null : tape.entries[candidateIndex],
           callIndex: e.callIndex,
           candidateIndex: candidateIndex,
         );
@@ -143,9 +136,6 @@ class ReplayCommand extends VasterCommand {
     }
   }
 
-  static int tapeVersionOf(ModelTape tape) => tape.entries
-          .any((e) => e.recorded is FullRecordedRequest)
-      ? 2
-      : 1;
-
+  static int tapeVersionOf(ModelTape tape) =>
+      tape.entries.any((e) => e.recorded is FullRecordedRequest) ? 2 : 1;
 }

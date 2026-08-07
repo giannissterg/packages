@@ -24,27 +24,21 @@ void main(List<String> args) {
         label: 'story facts',
         pinned: true,
         text: Template.text(
-            'Story facts: Bo is a small brown dog who lives at the edge of '
-            'a pine forest with a lighthouse keeper named Ana. Bo fears '
-            'thunder but loves the sea.'),
+          'Story facts: Bo is a small brown dog who lives at the edge of '
+          'a pine forest with a lighthouse keeper named Ana. Bo fears '
+          'thunder but loves the sea.',
+        ),
         child: Sequence([
           Prompt(
-            Template.text('Using the story facts, write the opening line '
-                'of a story about \${hero}.'),
+            Template.text(
+              'Using the story facts, write the opening line '
+              'of a story about \${hero}.',
+            ),
             output: Binding('line1'),
           ),
-          Prompt(
-            Template.text('Continue with one line after:\n\${line1}'),
-            output: Binding('line2'),
-          ),
-          Prompt(
-            Template.text('Continue with one line after:\n\${line2}'),
-            output: Binding('line3'),
-          ),
-          Prompt(
-            Template.text('Write the closing line after:\n\${line3}'),
-            output: Binding('line4'),
-          ),
+          Prompt(Template.text('Continue with one line after:\n\${line1}'), output: Binding('line2')),
+          Prompt(Template.text('Continue with one line after:\n\${line2}'), output: Binding('line3')),
+          Prompt(Template.text('Write the closing line after:\n\${line3}'), output: Binding('line4')),
         ]),
       ),
     ],
@@ -55,6 +49,8 @@ void main(List<String> args) {
   Directory(outDir).createSync(recursive: true);
   final path = '$outDir/story_lines.vbc';
   File(path).writeAsBytesSync(program.toBytes());
-  stdout.writeln('compiled ${program.instructions.length} instructions → '
-      '$path (resultBinding: ${program.resultBinding})');
+  stdout.writeln(
+    'compiled ${program.instructions.length} instructions → '
+    '$path (resultBinding: ${program.resultBinding})',
+  );
 }

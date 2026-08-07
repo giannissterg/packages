@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:vaster_budget/vaster_budget.dart';
+
 import 'execution_state.dart';
 import 'task_priority.dart';
 
@@ -25,6 +27,6 @@ class ScheduledTask<T> {
     required this.action,
     DateTime? createdAt,
     this.state = ExecutionState.created,
-  })  : budget = budget ?? ExecutionBudget.unlimited(),
-        createdAt = createdAt ?? DateTime.now();
+  }) : budget = budget ?? ExecutionBudget.unlimited(),
+       createdAt = createdAt ?? DateTime.now();
 }

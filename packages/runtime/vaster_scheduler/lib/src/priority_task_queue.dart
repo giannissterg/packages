@@ -41,7 +41,7 @@ class PriorityTaskQueue {
   }
 
   /// Clears all queued tasks.
-/// Drops every queued task; returns how many were dropped.
+  /// Drops every queued task; returns how many were dropped.
   int clear() {
     final dropped = _queue.length;
     _queue.clear();

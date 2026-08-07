@@ -33,13 +33,11 @@ final class MessageRoleDelta extends RequestDelta {
   final int index;
   final String live;
   final String recorded;
-  const MessageRoleDelta(
-      {required this.index, required this.live, required this.recorded});
+  const MessageRoleDelta({required this.index, required this.live, required this.recorded});
   @override
   bool get affectsFingerprint => true;
   @override
-  String describe() =>
-      'message[$index] role: $live live vs $recorded recorded';
+  String describe() => 'message[$index] role: $live live vs $recorded recorded';
 }
 
 final class MessageTextDelta extends RequestDelta {
@@ -100,9 +98,7 @@ final class SystemInstructionDelta extends RequestDelta {
   final String liveExcerpt;
   final String recordedExcerpt;
   const SystemInstructionDelta(
-      {required this.offset,
-      required this.liveExcerpt,
-      required this.recordedExcerpt});
+      {required this.offset, required this.liveExcerpt, required this.recordedExcerpt});
   @override
   bool get affectsFingerprint => false;
   @override
@@ -167,8 +163,7 @@ final class DivergenceReport {
       return buffer.toString();
     }
     for (final delta in deltas) {
-      buffer.writeln(
-          '  ${delta.affectsFingerprint ? '✗' : 'ℹ'} ${delta.describe()}');
+      buffer.writeln('  ${delta.affectsFingerprint ? '✗' : 'ℹ'} ${delta.describe()}');
     }
     return buffer.toString();
   }
@@ -192,41 +187,30 @@ final class RequestDiffer {
   }) {
     if (candidate == null) {
       return DivergenceReport(
-          callIndex: callIndex,
-          candidateIndex: null,
-          candidatePreviewOnly: false,
-          deltas: const []);
+          callIndex: callIndex, candidateIndex: null, candidatePreviewOnly: false, deltas: const []);
     }
     final recorded = switch (candidate.recorded) {
-      FullRecordedRequest(:final requestJson) =>
-        ModelRequest.fromJson(requestJson),
+      FullRecordedRequest(:final requestJson) => ModelRequest.fromJson(requestJson),
       PreviewOnlyRequest() => null,
     };
     if (recorded == null) {
       return DivergenceReport(
-          callIndex: callIndex,
-          candidateIndex: candidateIndex,
-          candidatePreviewOnly: true,
-          deltas: const []);
+          callIndex: callIndex, candidateIndex: candidateIndex, candidatePreviewOnly: true, deltas: const []);
     }
 
     final deltas = <RequestDelta>[];
 
     if (live.messages.length != recorded.messages.length) {
-      deltas.add(MessageCountDelta(
-          live: live.messages.length, recorded: recorded.messages.length));
+      deltas.add(MessageCountDelta(live: live.messages.length, recorded: recorded.messages.length));
     }
-    final shared = live.messages.length < recorded.messages.length
-        ? live.messages.length
-        : recorded.messages.length;
+    final shared =
+        live.messages.length < recorded.messages.length ? live.messages.length : recorded.messages.length;
     for (var i = 0; i < shared; i++) {
       final liveMessage = live.messages[i];
       final recordedMessage = recorded.messages[i];
       if (liveMessage.role.name != recordedMessage.role.name) {
-        deltas.add(MessageRoleDelta(
-            index: i,
-            live: liveMessage.role.name,
-            recorded: recordedMessage.role.name));
+        deltas.add(
+            MessageRoleDelta(index: i, live: liveMessage.role.name, recorded: recordedMessage.role.name));
       }
       final offset = _firstDifference(liveMessage.text, recordedMessage.text);
       if (offset != -1) {
@@ -244,8 +228,7 @@ final class RequestDiffer {
 
     final liveTools = live.tools.map((t) => t.name).toSet();
     final recordedTools = recorded.tools.map((t) => t.name).toSet();
-    if (liveTools.length != recordedTools.length ||
-        !liveTools.containsAll(recordedTools)) {
+    if (liveTools.length != recordedTools.length || !liveTools.containsAll(recordedTools)) {
       deltas.add(ToolsDelta(
         added: (liveTools.difference(recordedTools)).toList()..sort(),
         removed: (recordedTools.difference(liveTools)).toList()..sort(),
@@ -255,8 +238,7 @@ final class RequestDiffer {
     final liveSchema = live.generationConfig.responseSchema;
     final recordedSchema = recorded.generationConfig.responseSchema;
     if (jsonEncode(liveSchema) != jsonEncode(recordedSchema)) {
-      deltas.add(SchemaDelta(
-          liveHas: liveSchema != null, recordedHas: recordedSchema != null));
+      deltas.add(SchemaDelta(liveHas: liveSchema != null, recordedHas: recordedSchema != null));
     }
 
     final liveSystem = live.systemInstruction?.text ?? '';
@@ -271,10 +253,8 @@ final class RequestDiffer {
     }
 
     final liveHints = live.cacheHints.map((h) => h.contentFingerprint).toSet();
-    final recordedHints =
-        recorded.cacheHints.map((h) => h.contentFingerprint).toSet();
-    if (liveHints.length != recordedHints.length ||
-        !liveHints.containsAll(recordedHints)) {
+    final recordedHints = recorded.cacheHints.map((h) => h.contentFingerprint).toSet();
+    if (liveHints.length != recordedHints.length || !liveHints.containsAll(recordedHints)) {
       deltas.add(CacheHintsDelta(
         added: (liveHints.difference(recordedHints)).toList()..sort(),
         removed: (recordedHints.difference(liveHints)).toList()..sort(),
@@ -301,9 +281,7 @@ final class RequestDiffer {
 
   String _excerpt(String text, int offset) {
     final start = offset - excerptContext < 0 ? 0 : offset - excerptContext;
-    final end = offset + excerptContext > text.length
-        ? text.length
-        : offset + excerptContext;
+    final end = offset + excerptContext > text.length ? text.length : offset + excerptContext;
     final head = start > 0 ? '…' : '';
     final tail = end < text.length ? '…' : '';
     return '$head${text.substring(start, end).replaceAll('\n', '⏎')}$tail';

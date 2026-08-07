@@ -1,4 +1,5 @@
 import 'package:vaster_model/vaster_model.dart';
+
 import 'sandbox_descriptor.dart';
 import 'sandbox_request.dart';
 import 'sandbox_result.dart';
@@ -13,8 +14,5 @@ abstract interface class CodeSandbox {
   SandboxSecurityPolicy get defaultPolicy;
 
   /// Executes code or commands inside the isolated sandbox environment.
-  Future<SandboxResult> run(
-    SandboxRequest request, {
-    CancellationToken? cancelToken,
-  });
+  Future<SandboxResult> run(SandboxRequest request, {CancellationToken? cancelToken});
 }

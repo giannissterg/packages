@@ -9,34 +9,39 @@ import 'package:vaster_eval/vaster_eval.dart';
 /// the numbers `docs/RELIABILITY.md` publishes.
 void main() {
   test('the reliability benchmark set passes end to end', () async {
-    final rows =
-        <({ReliabilityBenchmark benchmark, VariantReport report})>[];
+    final rows = <({ReliabilityBenchmark benchmark, VariantReport report})>[];
 
     for (final benchmark in ReliabilityBenchmarks.builtin.all) {
-      final harness = EvalHarness(
-        scorer: benchmark.scorer,
-        trialsPerVariant: benchmark.ciTrials,
-      );
+      final harness = EvalHarness(scorer: benchmark.scorer, trialsPerVariant: benchmark.ciTrials);
       final report = await harness.run([benchmark.ciVariant()]);
       final variant = report.variants.single;
       rows.add((benchmark: benchmark, report: variant));
 
-      expect(variant.successRate, 1.0,
-          reason: '${benchmark.id}: '
-              '${variant.trials.map((t) => t.score.detail).join('; ')}');
+      expect(
+        variant.successRate,
+        1.0,
+        reason:
+            '${benchmark.id}: '
+            '${variant.trials.map((t) => t.score.detail).join('; ')}',
+      );
 
       // Tape benchmarks are fidelity locks: the replayed totals must equal
       // the recorded real run's, token for token, cent for cent.
       if (benchmark.expectedTokens != null) {
-        expect(variant.totalTokens, benchmark.expectedTokens,
-            reason: '${benchmark.id}: total tokens drifted from the '
-                'recorded run');
+        expect(
+          variant.totalTokens,
+          benchmark.expectedTokens,
+          reason:
+              '${benchmark.id}: total tokens drifted from the '
+              'recorded run',
+        );
       }
       if (benchmark.expectedCostUsd != null) {
-        expect(variant.totalCostUsd,
-            closeTo(benchmark.expectedCostUsd!, 1e-6),
-            reason:
-                '${benchmark.id}: cost drifted from the recorded run');
+        expect(
+          variant.totalCostUsd,
+          closeTo(benchmark.expectedCostUsd!, 1e-6),
+          reason: '${benchmark.id}: cost drifted from the recorded run',
+        );
       }
     }
 

@@ -125,15 +125,12 @@ final class MachineCheckpoint {
       // empty map and ride `diskMounts` instead.
       memoryMounts: {
         for (final entry in vm.fileSystemManager.mounts.entries)
-          if (entry.value.exportFilesBase64() case final files
-              when files.isNotEmpty)
-            entry.key: files,
+          if (entry.value.exportFilesBase64() case final files when files.isNotEmpty) entry.key: files,
       },
       diskMounts: {
         for (final entry in vm.fileSystemManager.mounts.entries)
           if (entry.value is LocalVasterFileSystem)
-            entry.key:
-                (entry.value as LocalVasterFileSystem).rootDirectory.path,
+            entry.key: (entry.value as LocalVasterFileSystem).rootDirectory.path,
       },
       openTransactions: vm.fileSystemManager.exportTransactions(),
       messageInboxes: vm.messagingHub.exportInboxes(),
@@ -145,8 +142,7 @@ final class MachineCheckpoint {
   }
 
   /// The checkpointed program, decoded from its embedded VBC bytes.
-  VasterProgram decodeProgram() =>
-      VasterProgramBinary.fromBytes(base64Decode(programVbcBase64));
+  VasterProgram decodeProgram() => VasterProgramBinary.fromBytes(base64Decode(programVbcBase64));
 
   /// Builds a host budget whose consumption continues from the checkpoint
   /// (no double-charge, no free ride). Limits are the resuming host's call.
@@ -192,15 +188,13 @@ final class MachineCheckpoint {
       if (existing != null) {
         existing.importFilesBase64(entry.value);
       } else {
-        vm.mountFileSystem(
-            entry.key, MemoryVasterFileSystem()..importFilesBase64(entry.value));
+        vm.mountFileSystem(entry.key, MemoryVasterFileSystem()..importFilesBase64(entry.value));
       }
     }
 
     for (final entry in diskMounts.entries) {
       if (vm.fileSystemManager.mounts[entry.key] == null) {
-        vm.mountFileSystem(entry.key,
-            LocalVasterFileSystem(entry.value, mountPrefix: entry.key));
+        vm.mountFileSystem(entry.key, LocalVasterFileSystem(entry.value, mountPrefix: entry.key));
       }
     }
     if (openTransactions.isNotEmpty) {
@@ -227,8 +221,7 @@ final class MachineCheckpoint {
     ExecutionBudget? budget,
     HumanInteractionResponse? respond,
   }) async {
-    final runtime = await restoreRuntime(
-        vm: vm, policy: policy, scheduler: scheduler, budget: budget);
+    final runtime = await restoreRuntime(vm: vm, policy: policy, scheduler: scheduler, budget: budget);
     return resumeWith(runtime, respond: respond);
   }
 
@@ -265,28 +258,24 @@ final class MachineCheckpoint {
   factory MachineCheckpoint.fromJson(Map<String, dynamic> json) {
     final version = (json['formatVersion'] as num?)?.toInt() ?? 0;
     if (version != currentFormatVersion) {
-      throw FormatException(
-          'Checkpoint format v$version is not supported by this build '
+      throw FormatException('Checkpoint format v$version is not supported by this build '
           '(speaks v$currentFormatVersion).');
     }
     return MachineCheckpoint(
       formatVersion: version,
       programVbcBase64: json['programVbcBase64'] as String,
-      continuation: VasterContinuation.fromJson(
-          Map<String, dynamic>.from(json['continuation'] as Map)),
+      continuation: VasterContinuation.fromJson(Map<String, dynamic>.from(json['continuation'] as Map)),
       sessions: [
         for (final s in json['sessions'] as List? ?? const [])
           SessionSnapshot.fromJson(Map<String, dynamic>.from(s as Map)),
       ],
       contextRegions: [
-        for (final r in json['contextRegions'] as List? ?? const [])
-          Map<String, dynamic>.from(r as Map),
+        for (final r in json['contextRegions'] as List? ?? const []) Map<String, dynamic>.from(r as Map),
       ],
       memoryMounts: {
         for (final entry in (json['memoryMounts'] as Map? ?? const {}).entries)
           entry.key.toString(): {
-            for (final f in (entry.value as Map).entries)
-              f.key.toString(): f.value.toString(),
+            for (final f in (entry.value as Map).entries) f.key.toString(): f.value.toString(),
           },
       },
       diskMounts: {
@@ -298,26 +287,20 @@ final class MachineCheckpoint {
           {
             for (final entry in (frame as Map).entries)
               entry.key.toString(): {
-                for (final f in (entry.value as Map).entries)
-                  f.key.toString(): f.value.toString(),
+                for (final f in (entry.value as Map).entries) f.key.toString(): f.value.toString(),
               },
           },
       ],
       messageInboxes: {
-        for (final entry
-            in (json['messageInboxes'] as Map? ?? const {}).entries)
+        for (final entry in (json['messageInboxes'] as Map? ?? const {}).entries)
           entry.key.toString(): [
-            for (final m in entry.value as List)
-              Map<String, dynamic>.from(m as Map),
+            for (final m in entry.value as List) Map<String, dynamic>.from(m as Map),
           ],
       },
-      budgetConsumedTokens:
-          (json['budgetConsumedTokens'] as num?)?.toInt() ?? 0,
-      budgetConsumedCost:
-          (json['budgetConsumedCost'] as num?)?.toDouble() ?? 0.0,
-      budgetConsumedDuration: Duration(
-          milliseconds:
-              (json['budgetConsumedDurationMs'] as num?)?.toInt() ?? 0),
+      budgetConsumedTokens: (json['budgetConsumedTokens'] as num?)?.toInt() ?? 0,
+      budgetConsumedCost: (json['budgetConsumedCost'] as num?)?.toDouble() ?? 0.0,
+      budgetConsumedDuration:
+          Duration(milliseconds: (json['budgetConsumedDurationMs'] as num?)?.toInt() ?? 0),
       capturedAt: DateTime.parse(json['capturedAt'] as String),
     );
   }

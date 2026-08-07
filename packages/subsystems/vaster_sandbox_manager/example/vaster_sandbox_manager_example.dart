@@ -5,14 +5,16 @@ void main() async {
   print('=== Vaster Sandbox Manager Example ===');
 
   final manager = BasicSandboxManager();
-  manager.registerSandbox(IsolateCodeSandbox(
-    descriptor: const SandboxDescriptor(
-      sandboxId: 'iso_demo',
-      type: 'isolate',
-      description: 'Demo Isolate',
+  manager.registerSandbox(
+    IsolateCodeSandbox(
+      descriptor: const SandboxDescriptor(
+        sandboxId: 'iso_demo',
+        type: 'isolate',
+        description: 'Demo Isolate',
+      ),
+      evaluator: (code, inputs) => 'Demo evaluation success',
     ),
-    evaluator: (code, inputs) => 'Demo evaluation success',
-  ));
+  );
 
   final tool = manager.createSandboxTool(sandboxId: 'iso_demo');
   print('Created Sandbox ExecutableTool: ${tool.name}');

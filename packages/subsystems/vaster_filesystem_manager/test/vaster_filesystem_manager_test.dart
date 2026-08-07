@@ -11,10 +11,7 @@ void main() {
       final fsWork = MemoryVasterFileSystem();
       await fsWork.writeText('/workspace/ideas.md', 'Workspace ideas');
 
-      final FileSystemManager manager = BasicFileSystemManager(mounts: {
-        '/mem': fsMem,
-        '/workspace': fsWork,
-      });
+      final FileSystemManager manager = BasicFileSystemManager(mounts: {'/mem': fsMem, '/workspace': fsWork});
 
       expect(manager.mounts.length, equals(2));
       expect(manager.resolveFileSystem('/mem/notes.txt'), equals(fsMem));
@@ -35,17 +32,17 @@ void main() {
       expect(contextSource.content, equals('Document for context manager.'));
     });
 
-    test('mount returns the normalized prefix — the resolution handle',
-        () {
+    test('mount returns the normalized prefix — the resolution handle', () {
       final manager = BasicFileSystemManager();
-      expect(manager.mount('workspace///', MemoryVasterFileSystem()),
-          '/workspace',
-          reason: 'Rule 11: the caller sees the identity resolution uses');
+      expect(
+        manager.mount('workspace///', MemoryVasterFileSystem()),
+        '/workspace',
+        reason: 'Rule 11: the caller sees the identity resolution uses',
+      );
       expect(manager.mounts.keys, contains('/workspace'));
     });
 
-    test('re-mounting an existing prefix is observable via mounts map',
-        () {
+    test('re-mounting an existing prefix is observable via mounts map', () {
       final manager = BasicFileSystemManager();
       final first = MemoryVasterFileSystem();
       manager.mount('/m', first);
@@ -67,8 +64,7 @@ void main() {
       expect(await fs.readText('/data.json'), contains('version": 1'));
     });
 
-    test('transactions NEST: inner commit keeps the outer rollback intact',
-        () async {
+    test('transactions NEST: inner commit keeps the outer rollback intact', () async {
       final fs = MemoryVasterFileSystem();
       await fs.writeText('/data.json', 'v1');
       final manager = BasicFileSystemManager(mounts: {'/': fs});
@@ -89,8 +85,7 @@ void main() {
       expect(await fs.readText('/data.json'), 'v1');
     });
 
-    test('inner rollback restores to the inner begin, not the outer one',
-        () async {
+    test('inner rollback restores to the inner begin, not the outer one', () async {
       final fs = MemoryVasterFileSystem();
       await fs.writeText('/data.json', 'v1');
       final manager = BasicFileSystemManager(mounts: {'/': fs});

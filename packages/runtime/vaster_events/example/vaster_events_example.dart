@@ -13,20 +13,24 @@ void main() async {
     print('Model Completed: ${event.sessionId} in ${event.executionDuration.inMilliseconds}ms');
   });
 
-  bus.publish(ToolCalledEvent(
-    eventId: 'evt_1',
-    callId: 'c_99',
-    toolName: 'read_workspace_file',
-    arguments: {'path': 'ideas.md'},
-  ));
+  bus.publish(
+    ToolCalledEvent(
+      eventId: 'evt_1',
+      callId: 'c_99',
+      toolName: 'read_workspace_file',
+      arguments: {'path': 'ideas.md'},
+    ),
+  );
 
-  bus.publish(ModelFinishedEvent(
-    eventId: 'evt_2',
-    sessionId: 'session_demo',
-    finishReason: 'stop',
-    totalTokens: 120,
-    executionDuration: const Duration(milliseconds: 250),
-  ));
+  bus.publish(
+    ModelFinishedEvent(
+      eventId: 'evt_2',
+      sessionId: 'session_demo',
+      finishReason: 'stop',
+      totalTokens: 120,
+      executionDuration: const Duration(milliseconds: 250),
+    ),
+  );
 
   await Future.delayed(const Duration(milliseconds: 20));
   await bus.close();

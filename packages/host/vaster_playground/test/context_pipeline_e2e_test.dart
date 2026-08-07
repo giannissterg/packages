@@ -14,11 +14,9 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// programs.
 void main() {
   group('E2E smoke — compiled context-managed pipeline', () {
-    test('AddContext -> Task -> CompressContext -> EvictContext + inspection',
-        () async {
+    test('AddContext -> Task -> CompressContext -> EvictContext + inspection', () async {
       final fakeModel = FakeVasterModel(defaultResponseText: 'Design done.');
-      final vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: fakeModel));
+      final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: fakeModel));
       final runtime = VasterRuntime(
         vm: vm,
         policy: ExecutionPolicy.unlimited,
@@ -51,8 +49,9 @@ void main() {
             compressibility: ContextCompressibility.truncate,
           ),
           const Agent(
-              role: architect,
-              child: Task(prompt: Template.text('Design the notes app architecture'))),
+            role: architect,
+            child: Task(prompt: Template.text('Design the notes app architecture')),
+          ),
           const CompressContext(targetTokens: 100000),
           const EvictContext(regionId: 'meeting_log'),
         ],
@@ -69,25 +68,24 @@ void main() {
       // Inspection through the VM workspace facade.
       final report = vm.contextWorkspace.inspect();
       expect(report.rows.map((r) => r.id), contains('project_brief'));
-      expect(report.rows.map((r) => r.id), isNot(contains('meeting_log')),
-          reason: 'evicted by EvictContext');
-      final brief =
-          report.rows.firstWhere((r) => r.id == 'project_brief');
+      expect(report.rows.map((r) => r.id), isNot(contains('meeting_log')), reason: 'evicted by EvictContext');
+      final brief = report.rows.firstWhere((r) => r.id == 'project_brief');
       expect(brief.isPinned, isTrue);
       expect(report.toPrettyString(), contains('project_brief'));
 
       await vm.shutdown();
     });
 
-    test('analyzer emits info (not warning) for externally provisioned regions',
-        () {
-      const program = VasterProgram(programName: 'ext', instructions: [
-        EvictContextOp(regionId: 'provisioned_by_host'),
-        HaltOp(),
-      ]);
+    test('analyzer emits info (not warning) for externally provisioned regions', () {
+      const program = VasterProgram(
+        programName: 'ext',
+        instructions: [
+          EvictContextOp(regionId: 'provisioned_by_host'),
+          HaltOp(),
+        ],
+      );
       final diagnostics = const ProgramAnalyzer().analyze(program);
-      final regionDiags =
-          diagnostics.where((d) => d.code == 'ctx_unknown_region');
+      final regionDiags = diagnostics.where((d) => d.code == 'ctx_unknown_region');
       expect(regionDiags, hasLength(1));
       expect(regionDiags.single.severity, equals(CompileSeverity.info));
     });
@@ -96,8 +94,7 @@ void main() {
   group('Knowledge — declarative context scope', () {
     test('the region exists during the scope and is gone after it', () async {
       final fakeModel = FakeVasterModel();
-      final vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: fakeModel));
+      final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: fakeModel));
       final runtime = VasterRuntime(
         vm: vm,
         policy: ExecutionPolicy.unlimited,
@@ -107,20 +104,19 @@ void main() {
 
       // Pause mid-scope via HITL to observe the mounted region, then resume
       // to scope exit and observe the unmount.
-      final program = const BasicWorkflowCompiler().compile(Pipeline(
-        name: 'knowledge_lifetime',
-        children: const [
-          Knowledge(
-            label: 'house rules',
-            text: Template.text('Answer tersely.'),
-            pinned: true,
-            child: YieldHuman(
-              requestId: 'mid_scope',
-              prompt: 'pause here',
+      final program = const BasicWorkflowCompiler().compile(
+        Pipeline(
+          name: 'knowledge_lifetime',
+          children: const [
+            Knowledge(
+              label: 'house rules',
+              text: Template.text('Answer tersely.'),
+              pinned: true,
+              child: YieldHuman(requestId: 'mid_scope', prompt: 'pause here'),
             ),
-          ),
-        ],
-      ));
+          ],
+        ),
+      );
 
       final paused = await runtime.executeProgram(program);
       expect(paused.status, equals(RuntimeStatus.pausedForHuman));
@@ -132,8 +128,11 @@ void main() {
         HumanInteractionResponse.approve(requestId: 'mid_scope'),
       );
       expect(done.status, equals(RuntimeStatus.halted));
-      expect(vm.contextManager.getRegion('knowledge_house_rules'), isNull,
-          reason: 'scope exit unmounts the region, pinning notwithstanding');
+      expect(
+        vm.contextManager.getRegion('knowledge_house_rules'),
+        isNull,
+        reason: 'scope exit unmounts the region, pinning notwithstanding',
+      );
 
       await vm.shutdown();
     });

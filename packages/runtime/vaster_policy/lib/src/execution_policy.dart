@@ -18,10 +18,7 @@ class ExecutionPolicy {
   });
 
   /// Canonical unlimited policy allowing all actions unconditionally.
-  static const unlimited = ExecutionPolicy(
-    policyId: 'unlimited',
-    defaultAllow: true,
-  );
+  static const unlimited = ExecutionPolicy(policyId: 'unlimited', defaultAllow: true);
 
   /// Canonical read-only policy allowing reading files and executing models,
   /// but denying file writes, file deletes, and sandbox execution.
@@ -41,13 +38,11 @@ class ExecutionPolicy {
   );
 
   Map<String, dynamic> toJson() => {
-        'policyId': policyId,
-        'allowedCapabilities':
-            allowedCapabilities.map((c) => c.toJson()).toList(),
-        'deniedCapabilities':
-            deniedCapabilities.map((c) => c.toJson()).toList(),
-        'defaultAllow': defaultAllow,
-      };
+    'policyId': policyId,
+    'allowedCapabilities': allowedCapabilities.map((c) => c.toJson()).toList(),
+    'deniedCapabilities': deniedCapabilities.map((c) => c.toJson()).toList(),
+    'defaultAllow': defaultAllow,
+  };
 
   factory ExecutionPolicy.fromJson(Map<String, dynamic> json) {
     return ExecutionPolicy(

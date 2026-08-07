@@ -1,5 +1,6 @@
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 import 'package:vaster_tool/vaster_tool.dart';
+
 import 'sandbox_manager_interface.dart';
 
 /// Standard implementation of [SandboxManager].
@@ -51,11 +52,9 @@ class BasicSandboxManager implements SandboxManager {
       );
     }
 
-    return await sandbox.run(SandboxRequest(
-      codeOrCommand: codeOrCommand,
-      language: language,
-      inputs: inputs,
-    ));
+    return await sandbox.run(
+      SandboxRequest(codeOrCommand: codeOrCommand, language: language, inputs: inputs),
+    );
   }
 
   @override

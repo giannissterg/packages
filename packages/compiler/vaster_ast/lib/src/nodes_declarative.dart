@@ -60,8 +60,7 @@ class Pipeline extends ComposableNode {
     this.inputs = const {},
     this.result,
     this.children = const [],
-  }) : assert((name == null) != (spec == null),
-            'Provide exactly one of name/spec');
+  }) : assert((name == null) != (spec == null), 'Provide exactly one of name/spec');
 
   /// The effective specification ([spec], or one built from [name]).
   PipelineSpec get effectiveSpec => spec ?? PipelineSpec(name: name!);
@@ -69,9 +68,7 @@ class Pipeline extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     VasterNode tree = PipelineBody([
-      if (inputs.isNotEmpty)
-        InputsHeader(
-            values: {for (final e in inputs.entries) e.key.name: e.value}),
+      if (inputs.isNotEmpty) InputsHeader(values: {for (final e in inputs.entries) e.key.name: e.value}),
       if (model != null) SelectModelHeader(model: model!),
       if (tools.isNotEmpty) ToolSetHeader(tools: tools),
       for (final mount in mounts) MountHeader(mount: mount),
@@ -95,9 +92,9 @@ class Pipeline extends ComposableNode {
     }
     if (inputs.isNotEmpty) {
       tree = Provider<PipelineInputs>(
-          value: PipelineInputs(
-              {for (final e in inputs.entries) e.key.name: e.value}),
-          children: [tree]);
+        value: PipelineInputs({for (final e in inputs.entries) e.key.name: e.value}),
+        children: [tree],
+      );
     }
     return Provider<PipelineSpec>(value: effectiveSpec, children: [tree]);
   }
@@ -223,27 +220,14 @@ class BudgetScope extends ComposableNode {
   /// The subtree bounded by this budget; omit to only declare it.
   final VasterNode? child;
 
-  const BudgetScope({
-    this.maxTokens,
-    this.maxCost,
-    this.maxDuration,
-    this.child,
-  });
+  const BudgetScope({this.maxTokens, this.maxCost, this.maxDuration, this.child});
 
   @override
   VasterNode build(BuildContext context) {
     return Provider<BudgetConstraint>(
-      value: BudgetConstraint(
-        maxTokens: maxTokens,
-        maxCost: maxCost,
-        maxDuration: maxDuration,
-      ),
+      value: BudgetConstraint(maxTokens: maxTokens, maxCost: maxCost, maxDuration: maxDuration),
       children: [
-        BudgetHeader(
-          maxTokens: maxTokens,
-          maxCost: maxCost,
-          maxDuration: maxDuration,
-        ),
+        BudgetHeader(maxTokens: maxTokens, maxCost: maxCost, maxDuration: maxDuration),
         ?child,
       ],
     );
@@ -256,11 +240,7 @@ final class BudgetConstraint {
   final double? maxCost;
   final Duration? maxDuration;
 
-  const BudgetConstraint({
-    this.maxTokens,
-    this.maxCost,
-    this.maxDuration,
-  });
+  const BudgetConstraint({this.maxTokens, this.maxCost, this.maxDuration});
 }
 
 /// Dispatches a task to an agent.
@@ -296,24 +276,18 @@ class Task extends ComposableNode {
     this.output,
     this.outputSchema,
     this.transactional = true,
-  }) : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+  }) : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
-    final id = agent?.roleId ??
-        agentId ??
-        context.tryRead<AgentRole>()?.roleId ??
-        'default';
+    final id = agent?.roleId ?? agentId ?? context.tryRead<AgentRole>()?.roleId ?? 'default';
     final execution = TaskExecution(
       agentId: id,
       prompt: prompt.lower(),
       output: output?.name,
       outputSchema: outputSchema,
     );
-    return transactional
-        ? Transaction(children: [execution])
-        : execution;
+    return transactional ? Transaction(children: [execution]) : execution;
   }
 }
 
@@ -399,11 +373,7 @@ final class When extends VasterNode {
   final List<VasterNode> then;
   final List<VasterNode> otherwise;
 
-  const When({
-    required this.condition,
-    required this.then,
-    this.otherwise = const [],
-  });
+  const When({required this.condition, required this.then, this.otherwise = const []});
 }
 
 /// Transactional step boundary — automatically rolls back VFS state on failure.
@@ -458,28 +428,14 @@ class SendMessage extends ComposableNode {
   final String? fromId;
   final Map<String, dynamic> payload;
 
-  const SendMessage({
-    this.to,
-    this.toId,
-    this.from,
-    this.fromId,
-    required this.payload,
-  })  : assert((to == null) != (toId == null),
-            'Provide exactly one of to/toId'),
-        assert(from == null || fromId == null,
-            'Provide at most one of from/fromId');
+  const SendMessage({this.to, this.toId, this.from, this.fromId, required this.payload})
+    : assert((to == null) != (toId == null), 'Provide exactly one of to/toId'),
+      assert(from == null || fromId == null, 'Provide at most one of from/fromId');
 
   @override
   VasterNode build(BuildContext context) {
-    final senderId = from?.roleId ??
-        fromId ??
-        context.tryRead<AgentRole>()?.roleId ??
-        'anonymous';
-    return SendMessageExecution(
-      fromId: senderId,
-      toId: to?.roleId ?? toId!,
-      payload: payload,
-    );
+    final senderId = from?.roleId ?? fromId ?? context.tryRead<AgentRole>()?.roleId ?? 'anonymous';
+    return SendMessageExecution(fromId: senderId, toId: to?.roleId ?? toId!, payload: payload);
   }
 }
 
@@ -491,15 +447,11 @@ class ReceiveMessage extends ComposableNode {
   final Binding? output;
 
   const ReceiveMessage({this.agent, this.agentId, this.output})
-      : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+    : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
-    final id = agent?.roleId ??
-        agentId ??
-        context.tryRead<AgentRole>()?.roleId ??
-        'anonymous';
+    final id = agent?.roleId ?? agentId ?? context.tryRead<AgentRole>()?.roleId ?? 'anonymous';
     return ReceiveMessageExecution(agentId: id, output: output?.name);
   }
 }
@@ -511,11 +463,7 @@ class DecisionPath {
   final String description;
   final List<VasterNode> children;
 
-  const DecisionPath({
-    required this.label,
-    required this.description,
-    this.children = const [],
-  });
+  const DecisionPath({required this.label, required this.description, this.children = const []});
 }
 
 /// Declarative decision/iteration policy, injected Flutter-Theme-style via
@@ -551,12 +499,7 @@ final class Decide extends VasterNode {
   /// `<output>_rationale`. Auto-allocated when omitted.
   final Binding? output;
 
-  const Decide({
-    required this.prompt,
-    required this.paths,
-    this.defaultPath,
-    this.output,
-  });
+  const Decide({required this.prompt, required this.paths, this.defaultPath, this.output});
 }
 
 /// Declarative model-driven iteration: run [body], then the model decides
@@ -632,12 +575,7 @@ final class AskHuman extends VasterNode {
   final List<String> options;
   final Binding? output;
 
-  const AskHuman({
-    required this.requestId,
-    required this.prompt,
-    this.options = const [],
-    this.output,
-  });
+  const AskHuman({required this.requestId, required this.prompt, this.options = const [], this.output});
 }
 
 /// ComposableNode providing a Flutter-style human approval gate with
@@ -659,21 +597,23 @@ class ApprovalGate extends ComposableNode {
 
   @override
   VasterNode build(BuildContext context) {
-    return Transaction(children: [
-      YieldHuman(
-        requestId: requestId,
-        interactionType: 'approval',
-        prompt: prompt.lower(),
-        options: const ['approve', 'reject'],
-        output: requestId,
-        timeoutMs: timeoutMs,
-      ),
-      When(
-        condition: Cond.isTrue(Binding(hitlStatusRegister(requestId))),
-        then: onApprove,
-        otherwise: onReject,
-      ),
-    ]);
+    return Transaction(
+      children: [
+        YieldHuman(
+          requestId: requestId,
+          interactionType: 'approval',
+          prompt: prompt.lower(),
+          options: const ['approve', 'reject'],
+          output: requestId,
+          timeoutMs: timeoutMs,
+        ),
+        When(
+          condition: Cond.isTrue(Binding(hitlStatusRegister(requestId))),
+          then: onApprove,
+          otherwise: onReject,
+        ),
+      ],
+    );
   }
 }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_sandbox/vaster_sandbox.dart';
 
@@ -26,18 +27,12 @@ class ProcessCodeSandbox implements CodeSandbox {
         SandboxLanguage.python,
       ],
     ),
-    this.defaultPolicy = const SandboxSecurityPolicy(
-      maxTimeout: Duration(seconds: 30),
-      allowNetwork: false,
-    ),
+    this.defaultPolicy = const SandboxSecurityPolicy(maxTimeout: Duration(seconds: 30), allowNetwork: false),
     this.workingDirectory,
   });
 
   @override
-  Future<SandboxResult> run(
-    SandboxRequest request, {
-    CancellationToken? cancelToken,
-  }) async {
+  Future<SandboxResult> run(SandboxRequest request, {CancellationToken? cancelToken}) async {
     cancelToken?.throwIfCancelled();
     final policy = request.securityPolicy ?? defaultPolicy;
     final watch = Stopwatch()..start();
@@ -57,8 +52,7 @@ class ProcessCodeSandbox implements CodeSandbox {
     final args = parts.skip(1).toList();
 
     // Check command whitelist if policy specifies allowedCommands
-    if (policy.allowedCommands != null &&
-        !policy.allowedCommands!.contains(executable)) {
+    if (policy.allowedCommands != null && !policy.allowedCommands!.contains(executable)) {
       return SandboxResult.securityViolation(
         violatedRule: SecurityViolationRule.allowedCommands,
         executionTime: Duration.zero,
@@ -105,20 +99,14 @@ class ProcessCodeSandbox implements CodeSandbox {
       );
     } on TimeoutException {
       watch.stop();
-      return SandboxResult.timeout(
-        maxTimeout: policy.maxTimeout,
-        executionTime: watch.elapsed,
-      );
+      return SandboxResult.timeout(maxTimeout: policy.maxTimeout, executionTime: watch.elapsed);
     } catch (e, st) {
       watch.stop();
       return SandboxResult.failure(
         exitCode: 1,
         stderr: 'Process error: $e',
         executionTime: watch.elapsed,
-        errorDetails: SandboxErrorDetails(
-          exceptionType: e.runtimeType.toString(),
-          stackTrace: st.toString(),
-        ),
+        errorDetails: SandboxErrorDetails(exceptionType: e.runtimeType.toString(), stackTrace: st.toString()),
       );
     }
   }

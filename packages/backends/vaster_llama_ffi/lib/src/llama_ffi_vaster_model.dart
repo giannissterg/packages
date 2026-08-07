@@ -56,15 +56,15 @@ final class LlamaFfiVasterModel implements VasterModel {
     this.defaultMaxOutputTokens = 256,
     this.promptComposer = const LlamaPromptComposer(),
   }) : capabilities = ModelCapabilities(
-          maxContextTokens: maxContextTokens,
-          maxOutputTokens: defaultMaxOutputTokens,
-          supportsStreaming: true,
-          supportsFunctionCalling: false,
-          supportsVision: false,
-          supportsSystemInstruction: true,
-          supportsReasoning: false,
-          reportsCostUsd: false,
-        );
+         maxContextTokens: maxContextTokens,
+         maxOutputTokens: defaultMaxOutputTokens,
+         supportsStreaming: true,
+         supportsFunctionCalling: false,
+         supportsVision: false,
+         supportsSystemInstruction: true,
+         supportsReasoning: false,
+         reportsCostUsd: false,
+       );
 
   @override
   Future<ModelResponse> generate(ModelRequest request) async {
@@ -86,11 +86,12 @@ final class LlamaFfiVasterModel implements VasterModel {
       }
     }
 
-    final maxTokens =
-        request.generationConfig.maxOutputTokens ?? defaultMaxOutputTokens;
-    final (promptTokens, reuse, text, generatedTokens, hitLimit) =
-        await worker.runGenerate(
-            text: prompt, maxTokens: maxTokens, restoreFrame: restoreFrame);
+    final maxTokens = request.generationConfig.maxOutputTokens ?? defaultMaxOutputTokens;
+    final (promptTokens, reuse, text, generatedTokens, hitLimit) = await worker.runGenerate(
+      text: prompt,
+      maxTokens: maxTokens,
+      restoreFrame: restoreFrame,
+    );
 
     return ModelResponse(
       message: ChatMessage.model(text),
@@ -98,8 +99,10 @@ final class LlamaFfiVasterModel implements VasterModel {
       usage: UsageMetadata(
         promptTokenCount: promptTokens,
         candidatesTokenCount: generatedTokens,
-        cacheReadTokenCount:
-            switch (reuse) { KvReuseValidated(:final reusedTokens) => reusedTokens, _ => 0 },
+        cacheReadTokenCount: switch (reuse) {
+          KvReuseValidated(:final reusedTokens) => reusedTokens,
+          _ => 0,
+        },
         source: UsageSource.measured,
       ),
       rawResponse: {'kvReuse': reuse.toJson()},

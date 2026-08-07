@@ -56,9 +56,7 @@ class GeminiCliVasterModel implements VasterModel {
 
     if (result.exitCode != 0) {
       final errorMsg = _extractErrorMessage(result.stdout.toString(), result.stderr.toString());
-      throw StateError(
-        'Gemini CLI failed with exit code ${result.exitCode}: $errorMsg',
-      );
+      throw StateError('Gemini CLI failed with exit code ${result.exitCode}: $errorMsg');
     }
 
     return _parseJsonResponse(result.stdout.toString());
@@ -79,9 +77,7 @@ class GeminiCliVasterModel implements VasterModel {
     // Close stdin immediately so gemini does not wait for stdin EOF
     await process.stdin.close();
 
-    final lineStream = process.stdout
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
+    final lineStream = process.stdout.transform(utf8.decoder).transform(const LineSplitter());
 
     await for (final line in lineStream) {
       final trimmed = line.trim();
@@ -101,10 +97,7 @@ class GeminiCliVasterModel implements VasterModel {
         if (type == 'message') {
           final content = json['content'] as String? ?? '';
           if (content.isNotEmpty) {
-            yield ModelResponseChunk(
-              delta: TextPart(content),
-              textDelta: content,
-            );
+            yield ModelResponseChunk(delta: TextPart(content), textDelta: content);
           }
         } else if (type == 'result') {
           final stats = json['stats'] as Map<String, dynamic>?;
@@ -122,17 +115,12 @@ class GeminiCliVasterModel implements VasterModel {
     final exitCode = await process.exitCode;
     if (exitCode != 0) {
       final stderrText = await process.stderr.transform(utf8.decoder).join();
-      throw StateError(
-        'Gemini CLI stream failed with exit code $exitCode: ${stderrText.trim()}',
-      );
+      throw StateError('Gemini CLI stream failed with exit code $exitCode: ${stderrText.trim()}');
     }
   }
 
   /// Builds command-line arguments for Gemini CLI process execution.
-  List<String> _buildCliArgs({
-    required String prompt,
-    required String outputFormat,
-  }) {
+  List<String> _buildCliArgs({required String prompt, required String outputFormat}) {
     return [
       '-p',
       prompt,
@@ -147,8 +135,7 @@ class GeminiCliVasterModel implements VasterModel {
   String _buildPrompt(ModelRequest request) {
     final buffer = StringBuffer();
 
-    if (request.systemInstruction != null &&
-        request.systemInstruction!.text.trim().isNotEmpty) {
+    if (request.systemInstruction != null && request.systemInstruction!.text.trim().isNotEmpty) {
       buffer.writeln('System Instruction:');
       buffer.writeln(request.systemInstruction!.text.trim());
       buffer.writeln();
@@ -167,9 +154,7 @@ class GeminiCliVasterModel implements VasterModel {
     final jsonEndIndex = stdoutText.lastIndexOf('}');
 
     if (jsonStartIndex == -1 || jsonEndIndex == -1 || jsonEndIndex < jsonStartIndex) {
-      throw FormatException(
-        'Could not locate valid JSON in Gemini CLI stdout:\n$stdoutText',
-      );
+      throw FormatException('Could not locate valid JSON in Gemini CLI stdout:\n$stdoutText');
     }
 
     final jsonSubstring = stdoutText.substring(jsonStartIndex, jsonEndIndex + 1);
@@ -212,10 +197,8 @@ class GeminiCliVasterModel implements VasterModel {
       for (final modelEntry in modelsMap.values) {
         if (modelEntry is Map && modelEntry['tokens'] is Map) {
           final tokens = modelEntry['tokens'] as Map<String, dynamic>;
-          totalInput +=
-              (tokens['prompt'] as int? ?? tokens['input'] as int? ?? 0);
-          totalOutput +=
-              (tokens['candidates'] as int? ?? tokens['output'] as int? ?? 0);
+          totalInput += (tokens['prompt'] as int? ?? tokens['input'] as int? ?? 0);
+          totalOutput += (tokens['candidates'] as int? ?? tokens['output'] as int? ?? 0);
           totalCached += tokens['cached'] as int? ?? 0;
           totalThoughts += tokens['thoughts'] as int? ?? 0;
           totalTool += tokens['tool'] as int? ?? 0;
@@ -244,8 +227,7 @@ class GeminiCliVasterModel implements VasterModel {
       final jsonStart = stdoutText.indexOf('{');
       final jsonEnd = stdoutText.lastIndexOf('}');
       if (jsonStart != -1 && jsonEnd > jsonStart) {
-        final json = jsonDecode(stdoutText.substring(jsonStart, jsonEnd + 1))
-            as Map<String, dynamic>;
+        final json = jsonDecode(stdoutText.substring(jsonStart, jsonEnd + 1)) as Map<String, dynamic>;
         if (json.containsKey('error')) {
           final errMap = json['error'] as Map<String, dynamic>?;
           return errMap?['message'] as String? ?? stderrText;

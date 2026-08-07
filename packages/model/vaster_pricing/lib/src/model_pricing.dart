@@ -19,8 +19,8 @@ class ModelPricing {
     required this.outputUsdPerMTok,
     double? cacheReadUsdPerMTok,
     double? cacheWriteUsdPerMTok,
-  })  : cacheReadUsdPerMTok = cacheReadUsdPerMTok ?? inputUsdPerMTok * 0.1,
-        cacheWriteUsdPerMTok = cacheWriteUsdPerMTok ?? inputUsdPerMTok * 1.25;
+  }) : cacheReadUsdPerMTok = cacheReadUsdPerMTok ?? inputUsdPerMTok * 0.1,
+       cacheWriteUsdPerMTok = cacheWriteUsdPerMTok ?? inputUsdPerMTok * 1.25;
 
   /// Zero-cost pricing for local/self-hosted inference.
   static const ModelPricing free = ModelPricing(
@@ -36,15 +36,12 @@ class ModelPricing {
   /// the remainder bills at the uncached input rate). Thought tokens bill as
   /// output.
   double costOf(UsageMetadata usage) {
-    final uncachedInput = usage.promptTokenCount -
-        usage.cacheReadTokenCount -
-        usage.cacheCreationTokenCount;
+    final uncachedInput = usage.promptTokenCount - usage.cacheReadTokenCount - usage.cacheCreationTokenCount;
     final input = uncachedInput < 0 ? 0 : uncachedInput;
     return (input * inputUsdPerMTok +
             usage.cacheReadTokenCount * cacheReadUsdPerMTok +
             usage.cacheCreationTokenCount * cacheWriteUsdPerMTok +
-            (usage.candidatesTokenCount + usage.thoughtsTokenCount) *
-                outputUsdPerMTok) /
+            (usage.candidatesTokenCount + usage.thoughtsTokenCount) * outputUsdPerMTok) /
         1e6;
   }
 }

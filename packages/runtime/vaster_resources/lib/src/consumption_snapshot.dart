@@ -6,15 +6,10 @@ final class ConsumptionSnapshot {
   final double cost;
   final int toolCalls;
 
-  const ConsumptionSnapshot({
-    required this.tokens,
-    required this.cost,
-    required this.toolCalls,
-  });
+  const ConsumptionSnapshot({required this.tokens, required this.cost, required this.toolCalls});
 
   static const zero = ConsumptionSnapshot(tokens: 0, cost: 0, toolCalls: 0);
 
   @override
-  String toString() =>
-      'ConsumptionSnapshot($tokens tok, \$$cost, $toolCalls tool call(s))';
+  String toString() => 'ConsumptionSnapshot($tokens tok, \$$cost, $toolCalls tool call(s))';
 }

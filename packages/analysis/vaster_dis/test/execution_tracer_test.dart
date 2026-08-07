@@ -9,8 +9,7 @@ void main() {
     late VasterRuntime runtime;
 
     setUp(() async {
-      vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: FakeVasterModel()));
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
       runtime = VasterRuntime(
         vm: vm,
         policy: ExecutionPolicy.unlimited,
@@ -23,16 +22,18 @@ void main() {
       await vm.shutdown();
     });
 
-    test('emits one disassembly line per instruction with register deltas',
-        () async {
+    test('emits one disassembly line per instruction with register deltas', () async {
       final lines = <String>[];
       final tracer = ExecutionTracer(runtime, sink: lines.add)..attach();
 
-      const program = VasterProgram(programName: 'trace_demo', instructions: [
-        SetRegisterOp(registerName: 'greeting', value: 'hello'),
-        PromptOp(promptText: 'say hi', outputVar: 'r0'),
-        HaltOp(),
-      ]);
+      const program = VasterProgram(
+        programName: 'trace_demo',
+        instructions: [
+          SetRegisterOp(registerName: 'greeting', value: 'hello'),
+          PromptOp(promptText: 'say hi', outputVar: 'r0'),
+          HaltOp(),
+        ],
+      );
       await runtime.executeProgram(program);
       tracer.detach();
 
@@ -52,58 +53,56 @@ void main() {
       expect(runtime.stepObserver, isNull);
     });
 
-    test('chains a previously attached observer instead of clobbering it',
-        () async {
+    test('chains a previously attached observer instead of clobbering it', () async {
       final observed = <int>[];
       runtime.stepObserver = (pc, inst, regs) => observed.add(pc);
 
       final lines = <String>[];
       final tracer = ExecutionTracer(runtime, sink: lines.add)..attach();
 
-      const program = VasterProgram(programName: 'chain', instructions: [
-        SetRegisterOp(registerName: 'x', value: 1),
-        HaltOp(),
-      ]);
+      const program = VasterProgram(
+        programName: 'chain',
+        instructions: [
+          SetRegisterOp(registerName: 'x', value: 1),
+          HaltOp(),
+        ],
+      );
       await runtime.executeProgram(program);
 
       expect(lines.where((l) => l.startsWith('[')), hasLength(2));
       expect(observed, equals([0, 1]), reason: 'chained observer still fires');
 
       tracer.detach();
-      expect(runtime.stepObserver, isNotNull,
-          reason: 'detach restores the prior observer');
+      expect(runtime.stepObserver, isNotNull, reason: 'detach restores the prior observer');
     });
   });
 
   group('VFS syscall tools registered at bootstrap', () {
-    test('write_file/read_file are advertised in the tool table and executable',
-        () async {
-      final vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: FakeVasterModel()));
+    test('write_file/read_file are advertised in the tool table and executable', () async {
+      final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
 
       final names = vm.toolManager.compiledDefinitions.map((d) => d.name).toSet();
       expect(names, containsAll(['write_file', 'read_file']));
 
       // Executable through the symbol table (the agent/tool-manager path).
-      final writeResult = await vm.toolManager.executeCall(const FunctionCallPart(
-        callId: 'c1',
-        name: 'write_file',
-        arguments: {'path': '/mem/via_tool.txt', 'content': 'from tool table'},
-      ));
+      final writeResult = await vm.toolManager.executeCall(
+        const FunctionCallPart(
+          callId: 'c1',
+          name: 'write_file',
+          arguments: {'path': '/mem/via_tool.txt', 'content': 'from tool table'},
+        ),
+      );
       expect(writeResult.isError, isFalse);
 
-      final readResult = await vm.toolManager.executeCall(const FunctionCallPart(
-        callId: 'c2',
-        name: 'read_file',
-        arguments: {'path': '/mem/via_tool.txt'},
-      ));
+      final readResult = await vm.toolManager.executeCall(
+        const FunctionCallPart(callId: 'c2', name: 'read_file', arguments: {'path': '/mem/via_tool.txt'}),
+      );
       expect(readResult.response['content'], equals('from tool table'));
 
       await vm.shutdown();
     });
 
-    test('read-only policy still traps write_file through the tool loop',
-        () async {
+    test('read-only policy still traps write_file through the tool loop', () async {
       // Policy allows the toolCall + fileRead actions but denies fileWrite —
       // the built-in syscall precedence must enforce it even though a
       // registered write_file tool exists in the table.
@@ -114,32 +113,33 @@ void main() {
           Capability.any(PolicyAction.fileRead),
           Capability.any(PolicyAction.modelGenerate),
         ],
-        deniedCapabilities: [
-          Capability.any(PolicyAction.fileWrite),
-        ],
+        deniedCapabilities: [Capability.any(PolicyAction.fileWrite)],
         defaultAllow: false,
       );
 
-      final fakeModel = FakeVasterModel(handler: (request) {
-        final answered =
-            request.messages.any((m) => m.role == Role.tool);
-        if (answered) {
-          return ModelResponse(message: ChatMessage.model('done'));
-        }
-        return ModelResponse(
-          message: const ChatMessage(role: Role.model, parts: [
-            FunctionCallPart(
-              callId: 'w1',
-              name: 'write_file',
-              arguments: {'path': '/mem/blocked.txt', 'content': 'nope'},
+      final fakeModel = FakeVasterModel(
+        handler: (request) {
+          final answered = request.messages.any((m) => m.role == Role.tool);
+          if (answered) {
+            return ModelResponse(message: ChatMessage.model('done'));
+          }
+          return ModelResponse(
+            message: const ChatMessage(
+              role: Role.model,
+              parts: [
+                FunctionCallPart(
+                  callId: 'w1',
+                  name: 'write_file',
+                  arguments: {'path': '/mem/blocked.txt', 'content': 'nope'},
+                ),
+              ],
             ),
-          ]),
-          finishReason: FinishReason.toolCalls,
-        );
-      });
+            finishReason: FinishReason.toolCalls,
+          );
+        },
+      );
 
-      final vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: fakeModel));
+      final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: fakeModel));
       final runtime = VasterRuntime(
         vm: vm,
         policy: policy,
@@ -147,10 +147,13 @@ void main() {
         scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
       );
 
-      const program = VasterProgram(programName: 'blocked', instructions: [
-        PromptOp(promptText: 'write it', outputVar: 'r0'),
-        HaltOp(),
-      ]);
+      const program = VasterProgram(
+        programName: 'blocked',
+        instructions: [
+          PromptOp(promptText: 'write it', outputVar: 'r0'),
+          HaltOp(),
+        ],
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, equals(RuntimeStatus.error));

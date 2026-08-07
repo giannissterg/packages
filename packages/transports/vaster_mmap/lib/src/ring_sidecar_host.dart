@@ -61,7 +61,7 @@ final class RingSidecarHost {
   }
 
   /// Asks the serve loop to exit after the in-flight request (if any).
-/// Requests the serve loop stop; returns true when this call performed
+  /// Requests the serve loop stop; returns true when this call performed
   /// the transition (a repeat stop is an observable no-op).
   bool stop() {
     if (_stopping) return false;
@@ -76,8 +76,7 @@ final class RingSidecarHost {
       if (action != 'generate') {
         return jsonEncode({'error': 'unsupported action "$action"'});
       }
-      final response =
-          await model.generate(envelopeCodec.decodeGenerate(envelope));
+      final response = await model.generate(envelopeCodec.decodeGenerate(envelope));
       return jsonEncode(response.toJson());
     } on Object catch (e) {
       return jsonEncode({'error': e.toString()});

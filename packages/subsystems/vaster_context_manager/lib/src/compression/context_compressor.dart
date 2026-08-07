@@ -16,8 +16,7 @@ abstract interface class ContextCompressor {
   /// region with the same id, updated messages + estimatedTokens, and a
   /// populated [ContextRegion.compression]. Must never throw for recoverable
   /// conditions — degrade instead.
-  Future<CompressionResult> compress(ContextRegion region,
-      {required int targetTokens});
+  Future<CompressionResult> compress(ContextRegion region, {required int targetTokens});
 }
 
 /// Outcome of one region compression.
@@ -31,9 +30,5 @@ final class CompressionResult {
   /// Whether original content was discarded.
   final bool lossy;
 
-  const CompressionResult({
-    required this.region,
-    required this.tokensSaved,
-    required this.lossy,
-  });
+  const CompressionResult({required this.region, required this.tokensSaved, required this.lossy});
 }

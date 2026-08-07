@@ -29,8 +29,7 @@ class ServeCommand extends VasterCommand {
   List<String> get aliases => const ['server'];
 
   @override
-  String get description =>
-      'Hosts a model backend for other processes, over a Unix socket or '
+  String get description => 'Hosts a model backend for other processes, over a Unix socket or '
       'shared-memory rings.';
 
   @override
@@ -94,8 +93,8 @@ class ServeCommand extends VasterCommand {
     var dispose = _noDispose;
     if (backend == 'llama') {
       try {
-        final resolved = await resolveBackendModel(
-            results: results, context: context, err: context.stderrSink);
+        final resolved =
+            await resolveBackendModel(results: results, context: context, err: context.stderrSink);
         model = resolved.model;
         dispose = resolved.dispose;
       } on StateError catch (e) {
@@ -103,8 +102,7 @@ class ServeCommand extends VasterCommand {
         return 1;
       }
     } else if (backend == 'claude-api') {
-      model = ClaudeApiVasterModel(
-          targetModel: results['model'] as String? ?? 'claude-opus-5');
+      model = ClaudeApiVasterModel(targetModel: results['model'] as String? ?? 'claude-opus-5');
     } else if (backend == 'claude') {
       model = ClaudeCliVasterModel(
         executablePath: results['claude-bin'] as String? ?? 'claude',
@@ -112,8 +110,7 @@ class ServeCommand extends VasterCommand {
       );
     } else {
       model = GoogleAiVasterModel(
-        apiKey: Platform.environment['GEMINI_API_KEY'] ??
-            Platform.environment['GOOGLE_AI_API_KEY'],
+        apiKey: Platform.environment['GEMINI_API_KEY'] ?? Platform.environment['GOOGLE_AI_API_KEY'],
         targetModel: results['model'] as String? ?? 'gemini-2.0-flash',
       );
     }
@@ -130,11 +127,9 @@ class ServeCommand extends VasterCommand {
 
   static Future<void> _noDispose() async {}
 
-  Future<int> _serveOverSocket(
-      CommandContext context, VasterModel model) async {
+  Future<int> _serveOverSocket(CommandContext context, VasterModel model) async {
     final out = context.stdoutSink;
-    final socketPath =
-        context.parsedResults['socket'] as String? ?? context.socketPath;
+    final socketPath = context.parsedResults['socket'] as String? ?? context.socketPath;
 
     out.writeln('======================================================================');
     out.writeln('  VASTER MODEL SIDECAR — UNIX SOCKET TRANSPORT');
@@ -168,8 +163,7 @@ class ServeCommand extends VasterCommand {
   /// path, including a serve-loop failure.
   Future<int> _serveOverRings(CommandContext context, VasterModel model) async {
     final out = context.stdoutSink;
-    final ringPrefix =
-        context.parsedResults['ring'] as String? ?? 'vaster_llama';
+    final ringPrefix = context.parsedResults['ring'] as String? ?? 'vaster_llama';
 
     SharedMemoryRing? requestRing;
     SharedMemoryRing? responseRing;

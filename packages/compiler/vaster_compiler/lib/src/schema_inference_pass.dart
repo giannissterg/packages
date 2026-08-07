@@ -49,16 +49,16 @@ class SchemaInferencePass {
       final inst = out[pc];
       out[pc] = switch (inst) {
         PromptOp(responseSchema: null) => PromptOp(
-            promptText: inst.promptText,
-            outputVar: inst.outputVar,
-            responseSchema: schema,
-          ),
+          promptText: inst.promptText,
+          outputVar: inst.outputVar,
+          responseSchema: schema,
+        ),
         DispatchAgentTaskOp(responseSchema: null) => DispatchAgentTaskOp(
-            agentId: inst.agentId,
-            taskPrompt: inst.taskPrompt,
-            outputVar: inst.outputVar,
-            responseSchema: schema,
-          ),
+          agentId: inst.agentId,
+          taskPrompt: inst.taskPrompt,
+          outputVar: inst.outputVar,
+          responseSchema: schema,
+        ),
         _ => inst, // explicit schema present — annotation wins
       };
     }

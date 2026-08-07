@@ -46,8 +46,7 @@ const int _fixedHeaderSize = 36;
 int _align4(int offset) => (offset + 3) & ~3;
 int _align8(int offset) => (offset + 7) & ~7;
 
-int _tokenOffset(int fingerprintLength) =>
-    _align4(_fixedHeaderSize + fingerprintLength);
+int _tokenOffset(int fingerprintLength) => _align4(_fixedHeaderSize + fingerprintLength);
 
 int _stateOffset(int fingerprintLength, int tokenCount) =>
     _align8(_tokenOffset(fingerprintLength) + 4 * tokenCount);
@@ -64,8 +63,13 @@ final class KvStateImage {
 
   final int _fingerprintLength;
 
-  KvStateImage._(this._bytes, this._data, this._fingerprintLength,
-      {required this.tokenCount, required this.stateSize});
+  KvStateImage._(
+    this._bytes,
+    this._data,
+    this._fingerprintLength, {
+    required this.tokenCount,
+    required this.stateSize,
+  });
 
   // ── Accessors — every one a zero-copy view ─────────────────────────
 
@@ -80,14 +84,14 @@ final class KvStateImage {
   int get engineTag => _data.getUint64(16, Endian.little);
 
   /// Fingerprint of the source content this state was derived from.
-  String get contentFingerprint => utf8.decode(Uint8List.view(_bytes.buffer,
-      _bytes.offsetInBytes + _fixedHeaderSize, _fingerprintLength));
+  String get contentFingerprint =>
+      utf8.decode(Uint8List.view(_bytes.buffer, _bytes.offsetInBytes + _fixedHeaderSize, _fingerprintLength));
 
   /// The decoded-prefix token ids — a zero-copy `Int32List` view over
   /// the image (host-endian view; correct on all supported LE hosts,
   /// see spec §Endianness).
-  Int32List get tokenIds => Int32List.view(_bytes.buffer,
-      _bytes.offsetInBytes + _tokenOffset(_fingerprintLength), tokenCount);
+  Int32List get tokenIds =>
+      Int32List.view(_bytes.buffer, _bytes.offsetInBytes + _tokenOffset(_fingerprintLength), tokenCount);
 
   /// Byte offset of the state section within the image — the
   /// pointer-arithmetic path: an engine reads/writes state at
@@ -95,8 +99,7 @@ final class KvStateImage {
   int get stateOffset => _stateOffset(_fingerprintLength, tokenCount);
 
   /// The opaque engine-state section as a zero-copy view.
-  Uint8List get stateBytes => Uint8List.view(
-      _bytes.buffer, _bytes.offsetInBytes + stateOffset, stateSize);
+  Uint8List get stateBytes => Uint8List.view(_bytes.buffer, _bytes.offsetInBytes + stateOffset, stateSize);
 
   /// Total image length in bytes (trailing container bytes are ignored
   /// per spec).
@@ -153,15 +156,10 @@ final class KvStateImageCodec {
 
   /// Total image length for the given dimensions — what a producer must
   /// allocate (e.g. as a frame's payload size) before [initialize].
-  int layoutSize({
-    required String contentFingerprint,
-    required int tokenCount,
-    required int stateSize,
-  }) {
+  int layoutSize({required String contentFingerprint, required int tokenCount, required int stateSize}) {
     RangeError.checkNotNegative(tokenCount, 'tokenCount');
     RangeError.checkNotNegative(stateSize, 'stateSize');
-    return _stateOffset(utf8.encode(contentFingerprint).length, tokenCount) +
-        stateSize;
+    return _stateOffset(utf8.encode(contentFingerprint).length, tokenCount) + stateSize;
   }
 
   /// Writes the header, fingerprint, token ids, and zero padding into
@@ -185,13 +183,14 @@ final class KvStateImageCodec {
 
     _checkAlignment(bytes);
     if (bytes.length < total) {
-      throw ArgumentError('buffer holds ${bytes.length} bytes; the image '
-          'needs $total (${tokenIds.length} tokens, '
-          '${fingerprint.length}-byte fingerprint, $stateSize state bytes).');
+      throw ArgumentError(
+        'buffer holds ${bytes.length} bytes; the image '
+        'needs $total (${tokenIds.length} tokens, '
+        '${fingerprint.length}-byte fingerprint, $stateSize state bytes).',
+      );
     }
 
-    final data =
-        ByteData.view(bytes.buffer, bytes.offsetInBytes, stateOffset);
+    final data = ByteData.view(bytes.buffer, bytes.offsetInBytes, stateOffset);
     data
       ..setUint32(0, kvStateImageMagic, Endian.little)
       ..setUint32(4, kvStateImageVersion, Endian.little)
@@ -200,12 +199,9 @@ final class KvStateImageCodec {
       ..setUint64(16, engineTag, Endian.little)
       ..setUint64(24, stateSize, Endian.little)
       ..setUint32(32, fingerprint.length, Endian.little);
-    bytes.setRange(_fixedHeaderSize, _fixedHeaderSize + fingerprint.length,
-        fingerprint);
+    bytes.setRange(_fixedHeaderSize, _fixedHeaderSize + fingerprint.length, fingerprint);
     bytes.fillRange(_fixedHeaderSize + fingerprint.length, tokenOffset, 0);
-    Int32List.view(bytes.buffer, bytes.offsetInBytes + tokenOffset,
-            tokenIds.length)
-        .setAll(0, tokenIds);
+    Int32List.view(bytes.buffer, bytes.offsetInBytes + tokenOffset, tokenIds.length).setAll(0, tokenIds);
     bytes.fillRange(tokenOffset + 4 * tokenIds.length, stateOffset, 0);
 
     return parse(bytes);
@@ -222,29 +218,35 @@ final class KvStateImageCodec {
     _checkAlignment(bytes);
     if (bytes.length < _fixedHeaderSize) {
       throw KvStateImageFormatException(
-          'truncated: ${bytes.length} bytes cannot hold the '
-          '$_fixedHeaderSize-byte fixed header.');
+        'truncated: ${bytes.length} bytes cannot hold the '
+        '$_fixedHeaderSize-byte fixed header.',
+      );
     }
-    final data = ByteData.view(bytes.buffer, bytes.offsetInBytes,
-        bytes.length);
+    final data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.length);
 
     final magic = data.getUint32(0, Endian.little);
     if (magic != kvStateImageMagic) {
-      throw KvStateImageFormatException('bad magic '
-          '0x${magic.toRadixString(16)} (expected "VKVI" '
-          '0x${kvStateImageMagic.toRadixString(16)}) — not a KV state '
-          'image, or a pre-format frame.');
+      throw KvStateImageFormatException(
+        'bad magic '
+        '0x${magic.toRadixString(16)} (expected "VKVI" '
+        '0x${kvStateImageMagic.toRadixString(16)}) — not a KV state '
+        'image, or a pre-format frame.',
+      );
     }
     final version = data.getUint32(4, Endian.little);
     if (version != kvStateImageVersion) {
-      throw KvStateImageFormatException('unsupported version $version '
-          '(this reader implements v$kvStateImageVersion).');
+      throw KvStateImageFormatException(
+        'unsupported version $version '
+        '(this reader implements v$kvStateImageVersion).',
+      );
     }
     final flags = data.getUint32(8, Endian.little);
     if (flags != 0) {
-      throw KvStateImageFormatException('unknown flags '
-          '0x${flags.toRadixString(16)} — v1 readers reject flags they '
-          'do not understand.');
+      throw KvStateImageFormatException(
+        'unknown flags '
+        '0x${flags.toRadixString(16)} — v1 readers reject flags they '
+        'do not understand.',
+      );
     }
 
     final tokenCount = data.getUint32(12, Endian.little);
@@ -256,36 +258,39 @@ final class KvStateImageCodec {
     final total = stateOffset + stateSize;
     if (bytes.length < total) {
       throw KvStateImageFormatException(
-          'truncated: header declares $tokenCount tokens, '
-          '$fingerprintLength-byte fingerprint, $stateSize state bytes '
-          '($total total) but the buffer holds ${bytes.length}.');
+        'truncated: header declares $tokenCount tokens, '
+        '$fingerprintLength-byte fingerprint, $stateSize state bytes '
+        '($total total) but the buffer holds ${bytes.length}.',
+      );
     }
 
     for (var i = _fixedHeaderSize + fingerprintLength; i < tokenOffset; i++) {
       if (bytes[i] != 0) {
         throw KvStateImageFormatException(
-            'non-zero fingerprint padding at offset $i — corrupt image '
-            'or non-conformant writer.');
+          'non-zero fingerprint padding at offset $i — corrupt image '
+          'or non-conformant writer.',
+        );
       }
     }
     for (var i = tokenOffset + 4 * tokenCount; i < stateOffset; i++) {
       if (bytes[i] != 0) {
         throw KvStateImageFormatException(
-            'non-zero token padding at offset $i — corrupt image or '
-            'non-conformant writer.');
+          'non-zero token padding at offset $i — corrupt image or '
+          'non-conformant writer.',
+        );
       }
     }
 
-    return KvStateImage._(bytes, data, fingerprintLength,
-        tokenCount: tokenCount, stateSize: stateSize);
+    return KvStateImage._(bytes, data, fingerprintLength, tokenCount: tokenCount, stateSize: stateSize);
   }
 
   void _checkAlignment(Uint8List bytes) {
     if (bytes.offsetInBytes % 8 != 0) {
       throw KvStateImageAlignmentException(
-          'image base at buffer offset ${bytes.offsetInBytes} is not '
-          '8-byte aligned — the container must present an aligned '
-          'payload (spec §Layout).');
+        'image base at buffer offset ${bytes.offsetInBytes} is not '
+        '8-byte aligned — the container must present an aligned '
+        'payload (spec §Layout).',
+      );
     }
   }
 }

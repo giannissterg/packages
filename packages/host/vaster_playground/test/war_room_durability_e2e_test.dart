@@ -34,33 +34,27 @@ void main() {
     return (vm, runtime);
   }
 
-  test('the war room dies at its gate and launches from JSON in a fresh VM',
-      () async {
+  test('the war room dies at its gate and launches from JSON in a fresh VM', () async {
     final program = compiler.compile(warRoom());
 
     // ── Act I: run to the gate, checkpoint, die ──
     final (vmA, runtimeA) = await boot(buildModel());
     final paused = await runtimeA.executeProgram(program);
-    expect(paused.status, RuntimeStatus.pausedForHuman,
-        reason: 'error: ${paused.errorDetails}');
+    expect(paused.status, RuntimeStatus.pausedForHuman, reason: 'error: ${paused.errorDetails}');
     expect(runtimeA.pendingHumanRequest?.requestId, 'launch_gate');
     // The sealed phase carries the request it waits on (MS-P6).
     expect(
       runtimeA.phase,
-      isA<PhasePausedForHuman>().having(
-          (p) => p.request.requestId, 'request', 'launch_gate'),
+      isA<PhasePausedForHuman>().having((p) => p.request.requestId, 'request', 'launch_gate'),
     );
 
-    final checkpointJson = jsonEncode(MachineCheckpoint.capture(
-      runtime: runtimeA,
-      vm: vmA,
-      program: program,
-    ).toJson());
+    final checkpointJson = jsonEncode(
+      MachineCheckpoint.capture(runtime: runtimeA, vm: vmA, program: program).toJson(),
+    );
     await vmA.shutdown();
 
     // ── Act II: fresh VM, JSON only ──
-    final restored = MachineCheckpoint.fromJson(
-        jsonDecode(checkpointJson) as Map<String, dynamic>);
+    final restored = MachineCheckpoint.fromJson(jsonDecode(checkpointJson) as Map<String, dynamic>);
     final (vmB, _) = await boot(buildModel());
     addTearDown(vmB.shutdown);
 
@@ -74,8 +68,7 @@ void main() {
       respond: HumanInteractionResponse.approve(requestId: 'launch_gate'),
     );
 
-    expect(finalState.status, RuntimeStatus.halted,
-        reason: 'error: ${finalState.errorDetails}');
+    expect(finalState.status, RuntimeStatus.halted, reason: 'error: ${finalState.errorDetails}');
     expect(runtimeB.phase, isA<PhaseHalted>());
 
     // The launch happened with pre-suspension dataflow intact.
@@ -83,18 +76,21 @@ void main() {
         .resolveFileSystem('/workspace/LAUNCH.txt')
         .readText('/workspace/LAUNCH.txt');
     expect(launch, contains('LAUNCHED orion'));
-    expect(launch, contains('GO'),
-        reason: 'the extracted verdict crossed the process boundary');
+    expect(launch, contains('GO'), reason: 'the extracted verdict crossed the process boundary');
     expect('${finalState.registers['final_verdict']}', 'shipped');
-    expect('${finalState.registers['inbox']}', contains('orion'),
-        reason: 'actor-message dataflow from before the suspension');
+    expect(
+      '${finalState.registers['inbox']}',
+      contains('orion'),
+      reason: 'actor-message dataflow from before the suspension',
+    );
 
     // Pre-suspension work products crossed too.
     expect(
-        await vmB.fileSystemManager
-            .resolveFileSystem('/workspace/notes/kickoff.txt')
-            .readText('/workspace/notes/kickoff.txt'),
-        contains('war room open'));
+      await vmB.fileSystemManager
+          .resolveFileSystem('/workspace/notes/kickoff.txt')
+          .readText('/workspace/notes/kickoff.txt'),
+      contains('war room open'),
+    );
   });
 
   test('a tape-driven run checkpoints and resumes identically', () async {
@@ -102,40 +98,31 @@ void main() {
 
     // Record the pre-gate model traffic once.
     final tape = ModelTape();
-    final (vmRec, runtimeRec) = await boot(
-        RecordingVasterModel(inner: buildModel(), tape: tape));
+    final (vmRec, runtimeRec) = await boot(RecordingVasterModel(inner: buildModel(), tape: tape));
     final recPaused = await runtimeRec.executeProgram(program);
     expect(recPaused.status, RuntimeStatus.pausedForHuman);
     await vmRec.shutdown();
     expect(tape.entries, isNotEmpty);
 
     // Replay-driven run to the gate: zero live model calls.
-    final (vmA, runtimeA) = await boot(
-        ReplayVasterModel(tape: ModelTape.fromJson(tape.toJson())));
+    final (vmA, runtimeA) = await boot(ReplayVasterModel(tape: ModelTape.fromJson(tape.toJson())));
     final paused = await runtimeA.executeProgram(program);
-    expect(paused.status, RuntimeStatus.pausedForHuman,
-        reason: 'error: ${paused.errorDetails}');
-    final json = jsonEncode(MachineCheckpoint.capture(
-            runtime: runtimeA, vm: vmA, program: program)
-        .toJson());
+    expect(paused.status, RuntimeStatus.pausedForHuman, reason: 'error: ${paused.errorDetails}');
+    final json = jsonEncode(MachineCheckpoint.capture(runtime: runtimeA, vm: vmA, program: program).toJson());
     await vmA.shutdown();
 
     // Resume the replay-recorded machine in a fresh VM (also tape-backed —
     // record on one backend, resume on another is the durable promise).
-    final (vmB, _) = await boot(
-        ReplayVasterModel(tape: ModelTape.fromJson(tape.toJson())));
+    final (vmB, _) = await boot(ReplayVasterModel(tape: ModelTape.fromJson(tape.toJson())));
     addTearDown(vmB.shutdown);
-    final finalState = await MachineCheckpoint.fromJson(
-            jsonDecode(json) as Map<String, dynamic>)
-        .resume(
+    final finalState = await MachineCheckpoint.fromJson(jsonDecode(json) as Map<String, dynamic>).resume(
       vm: vmB,
       policy: ExecutionPolicy.unlimited,
       scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
       respond: HumanInteractionResponse.approve(requestId: 'launch_gate'),
     );
 
-    expect(finalState.status, RuntimeStatus.halted,
-        reason: 'error: ${finalState.errorDetails}');
+    expect(finalState.status, RuntimeStatus.halted, reason: 'error: ${finalState.errorDetails}');
     expect('${finalState.registers['final_verdict']}', 'shipped');
     final launch = await vmB.fileSystemManager
         .resolveFileSystem('/workspace/LAUNCH.txt')

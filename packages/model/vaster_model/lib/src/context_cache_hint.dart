@@ -22,10 +22,10 @@ class ContextCacheHint {
   });
 
   Map<String, dynamic> toJson() => {
-        'regionId': regionId,
-        'contentFingerprint': contentFingerprint,
-        'ttlMs': ttl.inMilliseconds,
-      };
+    'regionId': regionId,
+    'contentFingerprint': contentFingerprint,
+    'ttlMs': ttl.inMilliseconds,
+  };
 
   factory ContextCacheHint.fromJson(Map<String, dynamic> json) {
     return ContextCacheHint(

@@ -19,25 +19,20 @@ class ToolDescriptor {
 
   /// Converts this descriptor to a [ToolDefinition] for inclusion in a [ModelRequest].
   ToolDefinition toDefinition() {
-    return ToolDefinition(
-      name: name,
-      description: description,
-      parametersSchema: parametersSchema,
-    );
+    return ToolDefinition(name: name, description: description, parametersSchema: parametersSchema);
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'parametersSchema': parametersSchema,
-      };
+    'name': name,
+    'description': description,
+    'parametersSchema': parametersSchema,
+  };
 
   factory ToolDescriptor.fromJson(Map<String, dynamic> json) {
     return ToolDescriptor(
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      parametersSchema: Map<String, dynamic>.from(
-          json['parametersSchema'] as Map? ?? <String, dynamic>{}),
+      parametersSchema: Map<String, dynamic>.from(json['parametersSchema'] as Map? ?? <String, dynamic>{}),
     );
   }
 

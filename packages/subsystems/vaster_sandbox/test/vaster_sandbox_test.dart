@@ -20,10 +20,7 @@ void main() {
     });
 
     test('SandboxSecurityPolicy defaults and json roundtrip', () {
-      const policy = SandboxSecurityPolicy(
-        maxTimeout: Duration(seconds: 15),
-        allowNetwork: false,
-      );
+      const policy = SandboxSecurityPolicy(maxTimeout: Duration(seconds: 15), allowNetwork: false);
 
       final json = policy.toJson();
       final restored = SandboxSecurityPolicy.fromJson(json);

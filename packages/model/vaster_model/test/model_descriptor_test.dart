@@ -4,10 +4,7 @@ import 'package:vaster_model/vaster_model.dart';
 void main() {
   group('ModelDescriptor Primitive', () {
     test('creates ModelDescriptor with provider and modelId', () {
-      const descriptor = ModelDescriptor(
-        provider: 'gemini_cli',
-        modelId: 'gemini-2.5-flash',
-      );
+      const descriptor = ModelDescriptor(provider: 'gemini_cli', modelId: 'gemini-2.5-flash');
       expect(descriptor.provider, equals('gemini_cli'));
       expect(descriptor.modelId, equals('gemini-2.5-flash'));
       expect(descriptor.descriptorKey, equals('gemini_cli:gemini-2.5-flash'));

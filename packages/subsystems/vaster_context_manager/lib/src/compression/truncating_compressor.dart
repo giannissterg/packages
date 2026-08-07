@@ -32,12 +32,11 @@ final class TruncatingCompressor implements ContextCompressor {
   @override
   ContextCompressibility get level => ContextCompressibility.truncate;
 
-  static int _estimate(Iterable<ChatMessage> messages) => messages.fold(
-      0, (sum, m) => sum + (m.text.length / 4).ceil() + 4);
+  static int _estimate(Iterable<ChatMessage> messages) =>
+      messages.fold(0, (sum, m) => sum + (m.text.length / 4).ceil() + 4);
 
   @override
-  Future<CompressionResult> compress(ContextRegion region,
-      {required int targetTokens}) async {
+  Future<CompressionResult> compress(ContextRegion region, {required int targetTokens}) async {
     final messages = List<ChatMessage>.of(region.messages);
     final before = region.estimatedTokens;
 
@@ -49,15 +48,13 @@ final class TruncatingCompressor implements ContextCompressor {
         ? messages.take(keepHeadMessages).toList()
         : <ChatMessage>[];
     final tail = <ChatMessage>[];
-    final droppable = messages.sublist(
-        head.length, messages.length); // candidates, tail carved from the end
+    final droppable = messages.sublist(head.length, messages.length); // candidates, tail carved from the end
 
     // Keep the freshest tail messages; drop from the front of the droppable
     // window until under target (or nothing left to drop).
     final kept = List<ChatMessage>.of(droppable);
     var dropped = 0;
-    while (kept.length > keepTailMessages &&
-        _estimate([...head, ...tail, ...kept]) + 16 > targetTokens) {
+    while (kept.length > keepTailMessages && _estimate([...head, ...tail, ...kept]) + 16 > targetTokens) {
       kept.removeAt(0);
       dropped++;
     }
@@ -68,8 +65,9 @@ final class TruncatingCompressor implements ContextCompressor {
 
     final omittedTokens = before - _estimate([...head, ...kept]);
     final marker = ChatMessage.user(
-        '[context truncated: $dropped message(s), ~$omittedTokens tokens '
-        'omitted from "${region.label}"]');
+      '[context truncated: $dropped message(s), ~$omittedTokens tokens '
+      'omitted from "${region.label}"]',
+    );
 
     final newMessages = [...head, marker, ...kept];
     final after = _estimate(newMessages);
@@ -84,10 +82,6 @@ final class TruncatingCompressor implements ContextCompressor {
       ),
     );
 
-    return CompressionResult(
-      region: compressed,
-      tokensSaved: (before - after).clamp(0, before),
-      lossy: true,
-    );
+    return CompressionResult(region: compressed, tokensSaved: (before - after).clamp(0, before), lossy: true);
   }
 }

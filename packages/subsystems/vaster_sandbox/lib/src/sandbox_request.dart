@@ -27,12 +27,12 @@ class SandboxRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'codeOrCommand': codeOrCommand,
-        'language': language.name,
-        if (inputs.isNotEmpty) 'inputs': inputs,
-        if (environment.isNotEmpty) 'environment': environment,
-        if (securityPolicy != null) 'securityPolicy': securityPolicy!.toJson(),
-      };
+    'codeOrCommand': codeOrCommand,
+    'language': language.name,
+    if (inputs.isNotEmpty) 'inputs': inputs,
+    if (environment.isNotEmpty) 'environment': environment,
+    if (securityPolicy != null) 'securityPolicy': securityPolicy!.toJson(),
+  };
 
   factory SandboxRequest.fromJson(Map<String, dynamic> json) {
     return SandboxRequest(
@@ -47,6 +47,5 @@ class SandboxRequest {
   }
 
   @override
-  String toString() =>
-      'SandboxRequest(lang: ${language.name}, codeLength: ${codeOrCommand.length})';
+  String toString() => 'SandboxRequest(lang: ${language.name}, codeLength: ${codeOrCommand.length})';
 }

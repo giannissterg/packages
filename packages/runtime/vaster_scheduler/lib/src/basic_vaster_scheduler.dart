@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:vaster_budget/vaster_budget.dart';
+
 import 'execution_state.dart';
 import 'priority_task_queue.dart';
 import 'scheduled_task.dart';
@@ -15,7 +17,7 @@ abstract interface class VasterScheduler {
     required String taskName,
     TaskPriority priority = TaskPriority.normal,
     DateTime? deadline,
-    ExecutionBudget? budget,
+    required ExecutionBudget budget,
     required Future<T> Function() action,
   });
 
@@ -23,7 +25,7 @@ abstract interface class VasterScheduler {
   Future<T> scheduleOpcode<T>({
     required String taskName,
     TaskPriority priority = TaskPriority.normal,
-    ExecutionBudget? budget,
+    required ExecutionBudget budget,
     required Future<T> Function() action,
   });
 
@@ -55,8 +57,7 @@ class BasicVasterScheduler implements VasterScheduler {
   /// Tasks currently being executed, across all cores.
   final Set<ScheduledTask<dynamic>> _running = {};
 
-  BasicVasterScheduler({required this.taskQueue, this.cores = 1})
-      : assert(cores >= 1, 'cores must be >= 1');
+  BasicVasterScheduler({required this.taskQueue, this.cores = 1}) : assert(cores >= 1, 'cores must be >= 1');
 
   /// Unmodifiable snapshot of the tasks currently in flight.
   List<ScheduledTask<dynamic>> get runningTasks => List.unmodifiable(_running);
@@ -64,8 +65,7 @@ class BasicVasterScheduler implements VasterScheduler {
   /// The single in-flight task when running serially; with multiple cores,
   /// an arbitrary in-flight task (kept for backward compatibility — prefer
   /// [runningTasks]).
-  ScheduledTask<dynamic>? get currentRunningTask =>
-      _running.isEmpty ? null : _running.first;
+  ScheduledTask<dynamic>? get currentRunningTask => _running.isEmpty ? null : _running.first;
 
   @override
   Future<ScheduledTask<T>> submitTask<T>({
@@ -73,7 +73,7 @@ class BasicVasterScheduler implements VasterScheduler {
     required String taskName,
     TaskPriority priority = TaskPriority.normal,
     DateTime? deadline,
-    ExecutionBudget? budget,
+    required ExecutionBudget budget,
     required Future<T> Function() action,
   }) async {
     final task = ScheduledTask<T>(
@@ -93,11 +93,10 @@ class BasicVasterScheduler implements VasterScheduler {
   Future<T> scheduleOpcode<T>({
     required String taskName,
     TaskPriority priority = TaskPriority.normal,
-    ExecutionBudget? budget,
+    required ExecutionBudget budget,
     required Future<T> Function() action,
   }) async {
-    final effectiveBudget = budget ?? ExecutionBudget.unlimited();
-    if (effectiveBudget.isExpired) {
+    if (budget.isExpired) {
       throw TimeoutException('Execution budget or deadline expired before executing opcode $taskName');
     }
     return action();
@@ -146,8 +145,7 @@ class BasicVasterScheduler implements VasterScheduler {
         if (dispatched) continue;
         final inFlight = _running.toList();
         if (inFlight.isEmpty) return;
-        await Future.any(inFlight.map((t) => t.completer.future))
-            .then<void>((_) {}, onError: (Object _) {});
+        await Future.any(inFlight.map((t) => t.completer.future)).then<void>((_) {}, onError: (Object _) {});
       }
     }
 

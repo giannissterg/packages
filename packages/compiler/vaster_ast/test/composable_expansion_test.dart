@@ -25,13 +25,11 @@ void main() {
       expect(expanded.children[1], isA<Prompt>());
       final evict = expanded.children.last as EvictContext;
       expect(evict.regionId, equals(add.regionId));
-      expect(evict.force, isTrue,
-          reason: 'scope exit evicts even pinned regions');
+      expect(evict.force, isTrue, reason: 'scope exit evicts even pinned regions');
     });
 
     test('ContextBudget expands to compact-on-entry', () {
-      const node = ContextBudget(
-          maxTokens: 9000, child: Prompt(Template.text('go')));
+      const node = ContextBudget(maxTokens: 9000, child: Prompt(Template.text('go')));
       final expanded = node.build(context) as Sequence;
       final compress = expanded.children.first as CompressContext;
       expect(compress.targetTokens, equals(9000));
@@ -64,10 +62,14 @@ void main() {
         attempts: 3,
         onExhausted: [Prompt(Template.text('give up'))],
       );
-      expect(node, isNot(isA<ComposableNode>()),
-          reason: 'Resilient lowers to the canonical retry loop in the '
-              'compiler — constant code size, cost-bound-priced attempts '
-              '— instead of O(attempts) nested TryCatch');
+      expect(
+        node,
+        isNot(isA<ComposableNode>()),
+        reason:
+            'Resilient lowers to the canonical retry loop in the '
+            'compiler — constant code size, cost-bound-priced attempts '
+            '— instead of O(attempts) nested TryCatch',
+      );
       expect(node.attempts, 3);
       expect(node.onExhausted, hasLength(1));
     });
@@ -78,15 +80,17 @@ void main() {
         defaultRoute: 'triage',
         routes: [
           RouteCase(
-              label: 'infra',
-              description: 'infrastructure',
-              agentId: 'sre',
-              prompt: Template.text('investigate')),
+            label: 'infra',
+            description: 'infrastructure',
+            agentId: 'sre',
+            prompt: Template.text('investigate'),
+          ),
           RouteCase(
-              label: 'triage',
-              description: 'route it',
-              agentId: 'triager',
-              prompt: Template.text('route')),
+            label: 'triage',
+            description: 'route it',
+            agentId: 'triager',
+            prompt: Template.text('route'),
+          ),
         ],
       );
       final decide = node.build(context) as Decide;
@@ -129,17 +133,13 @@ void main() {
 
   group('Scope-provided bindings', () {
     test('BindingScope namespaces defaults; nesting composes', () {
-      const scope = BindingScope(
-          namespace: 'outer', child: Prompt(Template.text('x')));
+      const scope = BindingScope(namespace: 'outer', child: Prompt(Template.text('x')));
       final provider = scope.build(context) as Provider<BindingScopeData>;
       expect(provider.value.namespace, equals('outer'));
 
-      final innerContext =
-          context.provide<BindingScopeData>(const BindingScopeData('outer'));
-      const inner = BindingScope(
-          namespace: 'inner', child: Prompt(Template.text('y')));
-      final innerProvider =
-          inner.build(innerContext) as Provider<BindingScopeData>;
+      final innerContext = context.provide<BindingScopeData>(const BindingScopeData('outer'));
+      const inner = BindingScope(namespace: 'inner', child: Prompt(Template.text('y')));
+      final innerProvider = inner.build(innerContext) as Provider<BindingScopeData>;
       expect(innerProvider.value.namespace, equals('outer_inner'));
 
       expect(innerContext.scopedBinding('spec').name, equals('outer_spec'));
@@ -147,8 +147,7 @@ void main() {
     });
 
     test('SDD Specify mints scoped defaults and honors overrides', () {
-      final scoped =
-          context.provide<BindingScopeData>(const BindingScopeData('auth'));
+      final scoped = context.provide<BindingScopeData>(const BindingScopeData('auth'));
       const phase = Specify(goal: 'do it');
       final expanded = phase.build(scoped) as Sequence;
       final task = expanded.children.first as Task;
@@ -157,10 +156,12 @@ void main() {
       expect(write.path.lower(), equals('/workspace/auth_spec.md'));
 
       const overridden = Specify(goal: 'do it', output: Binding('my_spec'));
-      final task2 =
-          (overridden.build(scoped) as Sequence).children.first as Task;
-      expect(task2.output?.name, equals('my_spec'),
-          reason: 'explicit bindings always win over scoped defaults');
+      final task2 = (overridden.build(scoped) as Sequence).children.first as Task;
+      expect(
+        task2.output?.name,
+        equals('my_spec'),
+        reason: 'explicit bindings always win over scoped defaults',
+      );
     });
   });
 }

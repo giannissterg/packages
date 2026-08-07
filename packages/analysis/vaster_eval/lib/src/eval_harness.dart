@@ -75,10 +75,8 @@ final class EvalHarness {
     clock.stop();
 
     final resultRegister = variant.program.resultBinding;
-    final resultValue =
-        resultRegister == null ? null : state.registers[resultRegister];
-    final run = TrialRun(
-        program: variant.program, state: state, resultValue: resultValue);
+    final resultValue = resultRegister == null ? null : state.registers[resultRegister];
+    final run = TrialRun(program: variant.program, state: state, resultValue: resultValue);
 
     final result = TrialResult(
       trial: trial,

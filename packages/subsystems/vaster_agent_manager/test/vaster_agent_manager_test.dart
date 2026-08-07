@@ -12,12 +12,7 @@ void main() {
 
     test('AgentTreeNode construction', () {
       const node = AgentTreeNode(
-        descriptor: AgentDescriptor(
-          agentId: 'a1',
-          name: 'AgentOne',
-          role: 'Role',
-          systemInstruction: 'Inst',
-        ),
+        descriptor: AgentDescriptor(agentId: 'a1', name: 'AgentOne', role: 'Role', systemInstruction: 'Inst'),
         state: AgentState.idle,
       );
 

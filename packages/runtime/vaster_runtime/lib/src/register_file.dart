@@ -22,7 +22,7 @@ class RegisterFile implements MachineStateComponent {
   void writeAll(Map<String, dynamic> values) => _data.addAll(values);
 
   /// Clears all register state.
-/// Clears every register; returns how many were dropped.
+  /// Clears every register; returns how many were dropped.
   int clear() {
     final dropped = _data.length;
     _data.clear();
@@ -70,8 +70,9 @@ class RegisterFile implements MachineStateComponent {
     }
     if (decoded is! Map) {
       return ExtractParseFailure(
-          sourceVar: sourceVar,
-          detail: 'value is ${decoded.runtimeType}, not a JSON object');
+        sourceVar: sourceVar,
+        detail: 'value is ${decoded.runtimeType}, not a JSON object',
+      );
     }
     if (!decoded.containsKey(jsonKey)) {
       return ExtractKeyMissing(
@@ -86,10 +87,7 @@ class RegisterFile implements MachineStateComponent {
   }
 
   /// Concatenates the string values of [sourceVars] (in order) into [targetVar].
-  void concat({
-    required String targetVar,
-    required List<String> sourceVars,
-  }) {
+  void concat({required String targetVar, required List<String> sourceVars}) {
     final buffer = StringBuffer();
     for (final name in sourceVars) {
       final v = _data[name];

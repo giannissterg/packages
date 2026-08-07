@@ -28,8 +28,7 @@ const int frameVersion = 2;
 
 /// The frame's segment identity, composed from the shared [SegmentTag]
 /// convention.
-const SegmentTag frameTag =
-    SegmentTag(magic: frameMagic, version: frameVersion, protocol: 'frame');
+const SegmentTag frameTag = SegmentTag(magic: frameMagic, version: frameVersion, protocol: 'frame');
 
 /// A named POSIX shared-memory **blob segment** holding a single immutable
 /// payload — the physical-frame primitive underneath zero-copy KV state
@@ -77,10 +76,8 @@ final class SharedMemoryFrame {
   /// Creates the named frame with [payload], or — when a peer already
   /// materialized it — validates and attaches to the existing frame
   /// (see *Content-addressed idempotency* above).
-  factory SharedMemoryFrame.create(String name, Uint8List payload,
-      {int meta = 0}) {
-    final segment =
-        ShmSegment.open(name: name, size: _headerSize + payload.length);
+  factory SharedMemoryFrame.create(String name, Uint8List payload, {int meta = 0}) {
+    final segment = ShmSegment.open(name: name, size: _headerSize + payload.length);
     final header = segment.base.cast<FrameHeader>();
 
     if (segment.isOwner) {
@@ -99,8 +96,7 @@ final class SharedMemoryFrame {
     final existingLength = header.ref.payloadLength;
     if (existingLength != payload.length) {
       segment.close(unlink: false);
-      throw StateError(
-          'Frame "$name" already exists with a $existingLength-byte payload; '
+      throw StateError('Frame "$name" already exists with a $existingLength-byte payload; '
           'refusing to overwrite it with ${payload.length} bytes — '
           'content-addressed names must not collide.');
     }
@@ -116,10 +112,8 @@ final class SharedMemoryFrame {
   /// Single-writer discipline: the frame is publishable to peers only once
   /// the owner's fill completes — same content-at-rest contract as [create],
   /// which fills before returning.
-  factory SharedMemoryFrame.allocate(String name,
-      {required int payloadLength, int meta = 0}) {
-    final segment =
-        ShmSegment.open(name: name, size: _headerSize + payloadLength);
+  factory SharedMemoryFrame.allocate(String name, {required int payloadLength, int meta = 0}) {
+    final segment = ShmSegment.open(name: name, size: _headerSize + payloadLength);
     final header = segment.base.cast<FrameHeader>();
 
     if (segment.isOwner) {
@@ -134,8 +128,7 @@ final class SharedMemoryFrame {
     final existingLength = header.ref.payloadLength;
     if (existingLength != payloadLength) {
       segment.close(unlink: false);
-      throw StateError(
-          'Frame "$name" already exists with a $existingLength-byte payload; '
+      throw StateError('Frame "$name" already exists with a $existingLength-byte payload; '
           'refusing a $payloadLength-byte allocation — '
           'content-addressed names must not collide.');
     }
@@ -159,8 +152,7 @@ final class SharedMemoryFrame {
       probe.close(unlink: false);
     }
 
-    final segment =
-        ShmSegment.attach(name: name, size: _headerSize + payloadLength);
+    final segment = ShmSegment.attach(name: name, size: _headerSize + payloadLength);
     return SharedMemoryFrame._(segment, payloadLength, meta);
   }
 
@@ -171,8 +163,7 @@ final class SharedMemoryFrame {
   /// move state directly between an inference engine and the shared pages
   /// (e.g. `llama_state_seq_get_data`/`set_data`) without staging through
   /// the Dart heap. Valid for [payloadLength] bytes until [close].
-  Pointer<Uint8> get payloadPointer =>
-      Pointer<Uint8>.fromAddress(_segment.base.address + _headerSize);
+  Pointer<Uint8> get payloadPointer => Pointer<Uint8>.fromAddress(_segment.base.address + _headerSize);
 
   /// Detaches from the frame; with [unlink] the underlying segment is
   /// destroyed (eviction). Detach is the default for creator and attacher

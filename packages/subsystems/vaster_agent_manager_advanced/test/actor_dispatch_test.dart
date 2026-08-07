@@ -31,23 +31,21 @@ void main() {
     globalActive = 0;
     globalMaxActive = 0;
 
-    model = FakeVasterModel(handler: (request) async {
-      // Attribute the call to an agent via its system-instruction region
-      // (each agent's session compiles its own instruction into context).
-      final owner = request.systemInstruction?.text ?? 'unknown';
-      active[owner] = (active[owner] ?? 0) + 1;
-      globalActive++;
-      maxActive[owner] =
-          active[owner]! > (maxActive[owner] ?? 0) ? active[owner]! : maxActive[owner] ?? 0;
-      globalMaxActive = globalActive > globalMaxActive ? globalActive : globalMaxActive;
-      await Future<void>.delayed(const Duration(milliseconds: 15));
-      active[owner] = active[owner]! - 1;
-      globalActive--;
-      return ModelResponse(
-        message: ChatMessage.model('done'),
-        finishReason: FinishReason.stop,
-      );
-    });
+    model = FakeVasterModel(
+      handler: (request) async {
+        // Attribute the call to an agent via its system-instruction region
+        // (each agent's session compiles its own instruction into context).
+        final owner = request.systemInstruction?.text ?? 'unknown';
+        active[owner] = (active[owner] ?? 0) + 1;
+        globalActive++;
+        maxActive[owner] = active[owner]! > (maxActive[owner] ?? 0) ? active[owner]! : maxActive[owner] ?? 0;
+        globalMaxActive = globalActive > globalMaxActive ? globalActive : globalMaxActive;
+        await Future<void>.delayed(const Duration(milliseconds: 15));
+        active[owner] = active[owner]! - 1;
+        globalActive--;
+        return ModelResponse(message: ChatMessage.model('done'), finishReason: FinishReason.stop);
+      },
+    );
 
     eventBus = BasicEventBus();
     manager = AdvancedAgentManager(
@@ -60,16 +58,16 @@ void main() {
   tearDown(() => eventBus.close());
 
   Future<void> spawn(String id) => manager.createAgent(
-        descriptor: AgentDescriptor(
-          agentId: id,
-          name: id,
-          role: 'worker',
-          systemInstruction: 'instruction-of-$id',
-        ),
-        model: model,
-        contextManager: BasicContextManager(),
-        toolManager: BasicToolManager(),
-      );
+    descriptor: AgentDescriptor(
+      agentId: id,
+      name: id,
+      role: 'worker',
+      systemInstruction: 'instruction-of-$id',
+    ),
+    model: model,
+    contextManager: BasicContextManager(),
+    toolManager: BasicToolManager(),
+  );
 
   AgentTask task(String id) => AgentTask(taskId: id, inputPrompt: 'work $id');
 
@@ -83,8 +81,11 @@ void main() {
       ]);
 
       expect(results.every((o) => o.isSuccess), isTrue);
-      expect(maxActive['instruction-of-solo'], equals(1),
-          reason: 'the mailbox must serialize same-agent tasks');
+      expect(
+        maxActive['instruction-of-solo'],
+        equals(1),
+        reason: 'the mailbox must serialize same-agent tasks',
+      );
     });
 
     test('tasks to DIFFERENT agents still overlap', () async {
@@ -96,12 +97,10 @@ void main() {
         manager.dispatchTask(agentId: 'b', task: task('tb')),
       ]);
 
-      expect(globalMaxActive, greaterThan(1),
-          reason: 'serialization is per-agent, not global');
+      expect(globalMaxActive, greaterThan(1), reason: 'serialization is per-agent, not global');
     });
 
-    test('the running lifecycle carries the active taskId and queue depth',
-        () async {
+    test('the running lifecycle carries the active taskId and queue depth', () async {
       await spawn('busy');
 
       final first = manager.dispatchTask(agentId: 'busy', task: task('front'));
@@ -131,8 +130,7 @@ void main() {
       manager.pauseAgent('gated');
 
       // Submitted after the pause: refused immediately.
-      final refused =
-          await manager.dispatchTask(agentId: 'gated', task: task('t3'));
+      final refused = await manager.dispatchTask(agentId: 'gated', task: task('t3'));
       expect(refused.isSuccess, isFalse);
       expect(refused.errorDetails, contains('paused'));
 
@@ -148,30 +146,25 @@ void main() {
 
       manager.resumeAgent('gated');
       expect(manager.lifecycleOf('gated'), isA<AgentIdle>());
-      final afterResume =
-          await manager.dispatchTask(agentId: 'gated', task: task('t4'));
+      final afterResume = await manager.dispatchTask(agentId: 'gated', task: task('t4'));
       expect(afterResume.isSuccess, isTrue);
     });
 
-    test('a failing task does not poison the mailbox for the next one',
-        () async {
+    test('a failing task does not poison the mailbox for the next one', () async {
       await spawn('resilient');
       // An unregistered-tool crash path: dispatch to a missing agent id is a
       // refusal, but a genuine throw inside run() must reject only its own
       // future. Simulate by pausing mid-queue instead (dequeue refusal),
       // then verifying the agent still works.
       manager.pauseAgent('resilient');
-      final refused =
-          await manager.dispatchTask(agentId: 'resilient', task: task('tx'));
+      final refused = await manager.dispatchTask(agentId: 'resilient', task: task('tx'));
       expect(refused.isSuccess, isFalse);
       manager.resumeAgent('resilient');
-      final ok =
-          await manager.dispatchTask(agentId: 'resilient', task: task('ty'));
+      final ok = await manager.dispatchTask(agentId: 'resilient', task: task('ty'));
       expect(ok.isSuccess, isTrue);
     });
 
-    test('unregister removes the entry entirely — terminated, not leaked',
-        () async {
+    test('unregister removes the entry entirely — terminated, not leaked', () async {
       await spawn('gone');
       expect(manager.unregisterAgent('gone'), isTrue);
       expect(manager.lifecycleOf('gone'), isA<AgentTerminated>());

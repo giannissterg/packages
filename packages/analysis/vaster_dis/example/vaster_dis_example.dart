@@ -14,10 +14,7 @@ void main() {
     programName: 'demo_pipeline_program',
     instructions: [
       MountFsOp(mountPrefix: '/workspace'),
-      WriteFileOp(
-        vfsPath: '/workspace/brief.md',
-        content: '# Project Brief\nBuild API Gateway.',
-      ),
+      WriteFileOp(vfsPath: '/workspace/brief.md', content: '# Project Brief\nBuild API Gateway.'),
       CreateAgentOp(
         descriptor: AgentDescriptor(
           agentId: 'architect',
@@ -33,10 +30,7 @@ void main() {
       ),
       JumpIfOp(targetPc: 6, conditionVar: 'arch_doc'),
       HaltOp(),
-      WriteFileOp(
-        vfsPath: '/workspace/docs/arch.md',
-        content: r'${arch_doc}',
-      ),
+      WriteFileOp(vfsPath: '/workspace/docs/arch.md', content: r'${arch_doc}'),
       HaltOp(),
     ],
   );

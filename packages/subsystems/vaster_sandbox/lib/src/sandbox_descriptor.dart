@@ -22,25 +22,23 @@ class SandboxDescriptor {
   });
 
   Map<String, dynamic> toJson() => {
-        'sandboxId': sandboxId,
-        'type': type,
-        'description': description,
-        'supportedLanguages': supportedLanguages.map((l) => l.name).toList(),
-      };
+    'sandboxId': sandboxId,
+    'type': type,
+    'description': description,
+    'supportedLanguages': supportedLanguages.map((l) => l.name).toList(),
+  };
 
   factory SandboxDescriptor.fromJson(Map<String, dynamic> json) {
     return SandboxDescriptor(
       sandboxId: json['sandboxId'] as String? ?? '',
       type: json['type'] as String? ?? 'isolate',
       description: json['description'] as String? ?? '',
-      supportedLanguages: (json['supportedLanguages'] as List?)
-              ?.map((e) => SandboxLanguage.parse(e.toString()))
-              .toList() ??
+      supportedLanguages:
+          (json['supportedLanguages'] as List?)?.map((e) => SandboxLanguage.parse(e.toString())).toList() ??
           [SandboxLanguage.dart],
     );
   }
 
   @override
-  String toString() =>
-      'SandboxDescriptor(id: "$sandboxId", type: $type, languages: $supportedLanguages)';
+  String toString() => 'SandboxDescriptor(id: "$sandboxId", type: $type, languages: $supportedLanguages)';
 }

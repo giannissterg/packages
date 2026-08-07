@@ -20,6 +20,5 @@ void main() {
       expect(child.dirtyPaths, isEmpty);
       expect(child.deletedPaths, isEmpty);
     });
-
   });
 }

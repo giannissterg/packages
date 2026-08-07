@@ -45,8 +45,7 @@ final class SummarizingCompressor implements ContextCompressor {
   ContextCompressibility get level => ContextCompressibility.summarize;
 
   @override
-  Future<CompressionResult> compress(ContextRegion region,
-      {required int targetTokens}) async {
+  Future<CompressionResult> compress(ContextRegion region, {required int targetTokens}) async {
     final before = region.estimatedTokens;
     final content = regionContentOf(region);
     final prompt = promptTemplate
@@ -55,27 +54,29 @@ final class SummarizingCompressor implements ContextCompressor {
         .replaceAll('{content}', content);
 
     try {
-      final response = await model.generate(ModelRequest(
-        messages: [ChatMessage.user(prompt)],
-        generationConfig: GenerationConfig(
-          // Rough chars-per-token headroom for the summary itself.
-          maxOutputTokens: (targetTokens * 2).clamp(64, 8192),
+      final response = await model.generate(
+        ModelRequest(
+          messages: [ChatMessage.user(prompt)],
+          generationConfig: GenerationConfig(
+            // Rough chars-per-token headroom for the summary itself.
+            maxOutputTokens: (targetTokens * 2).clamp(64, 8192),
+          ),
         ),
-      ));
-      onUsage?.call(response.usage.totalTokenCount > 0
-          ? response.usage
-          : TokenEstimate.forExchange(prompt: prompt, output: response.text));
+      );
+      onUsage?.call(
+        response.usage.totalTokenCount > 0
+            ? response.usage
+            : TokenEstimate.forExchange(prompt: prompt, output: response.text),
+      );
       final summary = response.text.trim();
       if (summary.isEmpty) {
         return await fallback.compress(region, targetTokens: targetTokens);
       }
 
-      final message =
-          ChatMessage.user('[summary of "${region.label}"]: $summary');
+      final message = ChatMessage.user('[summary of "${region.label}"]: $summary');
       // Same value as ever, sourced from the one sanctioned home — no
       // inline ratio heuristics (Rule 6.12).
-      final after =
-          TokenEstimate.forText(message.text) + TokenEstimate.perMessageOverhead;
+      final after = TokenEstimate.forText(message.text) + TokenEstimate.perMessageOverhead;
       final compressed = region.copyWith(
         messages: [message],
         estimatedTokens: after,
@@ -84,8 +85,7 @@ final class SummarizingCompressor implements ContextCompressor {
           tokensBefore: before,
           sourceFingerprint: regionFingerprintOf(region),
           lossy: !preserveOriginal,
-          originalMessages:
-              preserveOriginal ? List<ChatMessage>.of(region.messages) : null,
+          originalMessages: preserveOriginal ? List<ChatMessage>.of(region.messages) : null,
         ),
       );
       return CompressionResult(

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'kv_cache_controller.dart';
 import 'kv_cache_handle.dart';
+
 import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// In-process simulation of a state-addressed KV cache — LRU-evicting slot
@@ -22,11 +23,11 @@ class InMemoryKvCacheController implements KvCacheController {
 
   @override
   KvCacheCapabilities get capabilities => KvCacheCapabilities(
-        isStateAddressed: true,
-        supportsPersistence: false,
-        supportsEviction: true,
-        maxSlots: maxSlots,
-      );
+    isStateAddressed: true,
+    supportsPersistence: false,
+    supportsEviction: true,
+    maxSlots: maxSlots,
+  );
 
   @override
   String get backendId => 'in_memory';
@@ -86,6 +87,5 @@ class InMemoryKvCacheController implements KvCacheController {
   }
 
   @override
-  Future<List<KvCacheHandle>> list() async =>
-      _slots.values.map((s) => s.$1).toList();
+  Future<List<KvCacheHandle>> list() async => _slots.values.map((s) => s.$1).toList();
 }

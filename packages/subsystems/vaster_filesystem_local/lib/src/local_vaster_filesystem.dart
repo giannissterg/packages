@@ -8,8 +8,7 @@ class LocalVasterFileSystem implements VasterFileSystem {
   final Directory rootDirectory;
   final String? mountPrefix;
 
-  LocalVasterFileSystem(String rootPath, {this.mountPrefix})
-      : rootDirectory = Directory(rootPath).absolute;
+  LocalVasterFileSystem(String rootPath, {this.mountPrefix}) : rootDirectory = Directory(rootPath).absolute;
 
   String _cleanRelPath(String virtualPath) {
     var rel = virtualPath.replaceAll('\\', '/');
@@ -67,11 +66,7 @@ class LocalVasterFileSystem implements VasterFileSystem {
 
     final stat = await file.stat();
     final normPath = path.startsWith('/') ? path : '/$path';
-    return FileDescriptor(
-      path: normPath,
-      sizeBytes: stat.size,
-      modifiedTimestamp: stat.modified,
-    );
+    return FileDescriptor(path: normPath, sizeBytes: stat.size, modifiedTimestamp: stat.modified);
   }
 
   @override
@@ -109,21 +104,20 @@ class LocalVasterFileSystem implements VasterFileSystem {
 
       if (entity is File) {
         final stat = await entity.stat();
-        nodes.add(VirtualFile(
-          path: virtPath,
-          name: name,
-          descriptor: FileDescriptor(
+        nodes.add(
+          VirtualFile(
             path: virtPath,
-            sizeBytes: stat.size,
-            modifiedTimestamp: stat.modified,
+            name: name,
+            descriptor: FileDescriptor(
+              path: virtPath,
+              sizeBytes: stat.size,
+              modifiedTimestamp: stat.modified,
+            ),
+            bytes: await entity.readAsBytes(),
           ),
-          bytes: await entity.readAsBytes(),
-        ));
+        );
       } else if (entity is Directory) {
-        nodes.add(VirtualDirectory(
-          path: virtPath,
-          name: name,
-        ));
+        nodes.add(VirtualDirectory(path: virtPath, name: name));
       }
     }
 

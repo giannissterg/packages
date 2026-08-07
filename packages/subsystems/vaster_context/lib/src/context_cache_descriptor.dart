@@ -1,4 +1,5 @@
 import 'package:crypto/crypto.dart';
+
 import 'dart:convert';
 
 /// Content-addressable cache descriptor for JIT Context Caching.
@@ -27,22 +28,18 @@ class ContextCacheDescriptor {
   }) {
     final bytes = utf8.encode(rawContent);
     final digest = sha256.convert(bytes);
-    return ContextCacheDescriptor(
-      regionId: regionId,
-      contentFingerprint: digest.toString(),
-      ttl: ttl,
-    );
+    return ContextCacheDescriptor(regionId: regionId, contentFingerprint: digest.toString(), ttl: ttl);
   }
 
   /// Whether this cache descriptor has exceeded its Time-To-Live.
   bool get isExpired => DateTime.now().difference(createdAt) > ttl;
 
   Map<String, dynamic> toJson() => {
-        'regionId': regionId,
-        'contentFingerprint': contentFingerprint,
-        'ttlMs': ttl.inMilliseconds,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'regionId': regionId,
+    'contentFingerprint': contentFingerprint,
+    'ttlMs': ttl.inMilliseconds,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory ContextCacheDescriptor.fromJson(Map<String, dynamic> json) {
     return ContextCacheDescriptor(
@@ -54,6 +51,5 @@ class ContextCacheDescriptor {
   }
 
   @override
-  String toString() =>
-      'ContextCacheDescriptor("$regionId" sha256:${contentFingerprint.substring(0, 8)})';
+  String toString() => 'ContextCacheDescriptor("$regionId" sha256:${contentFingerprint.substring(0, 8)})';
 }

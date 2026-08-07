@@ -2,6 +2,7 @@
 library;
 
 export 'package:vaster_agent_descriptor/vaster_agent_descriptor.dart';
+
 export 'src/agent_output.dart';
 export 'src/agent_task.dart';
 export 'src/task_outcome.dart';

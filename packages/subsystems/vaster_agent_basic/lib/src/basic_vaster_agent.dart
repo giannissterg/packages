@@ -35,10 +35,8 @@ class BasicVasterAgent implements VasterAgent {
   final ToolManager toolManager;
 
   /// Subagent launcher callback to construct child sessions.
-  final Future<VasterAgent> Function(
-    AgentDescriptor subagentDescriptor,
-    ModelSession parentSession,
-  )? subagentLauncher;
+  final Future<VasterAgent> Function(AgentDescriptor subagentDescriptor, ModelSession parentSession)?
+  subagentLauncher;
 
   /// Reports each model turn's usage (measured or a labeled estimate) to the
   /// owner that wired this agent, making tool-loop turns visible to metering
@@ -74,10 +72,7 @@ class BasicVasterAgent implements VasterAgent {
   String get agentId => descriptor.agentId;
 
   @override
-  Future<AgentOutput> run(
-    AgentTask task, {
-    CancellationToken? cancelToken,
-  }) async {
+  Future<AgentOutput> run(AgentTask task, {CancellationToken? cancelToken}) async {
     cancelToken?.throwIfCancelled();
     final watch = Stopwatch()..start();
     final subagentOutputs = <AgentOutput>[];
@@ -128,8 +123,7 @@ class BasicVasterAgent implements VasterAgent {
         final cacheHints = [
           if (hintsMeta is List)
             for (final h in hintsMeta)
-              if (h is Map)
-                ContextCacheHint.fromJson(Map<String, dynamic>.from(h)),
+              if (h is Map) ContextCacheHint.fromJson(Map<String, dynamic>.from(h)),
         ];
         final request = ModelRequest(
           systemInstruction: systemInstruction,
@@ -138,8 +132,7 @@ class BasicVasterAgent implements VasterAgent {
           cancelToken: cancelToken,
           cacheHints: cacheHints,
           generationConfig: responseSchema is Map
-              ? GenerationConfig(
-                  responseSchema: Map<String, dynamic>.from(responseSchema))
+              ? GenerationConfig(responseSchema: Map<String, dynamic>.from(responseSchema))
               : const GenerationConfig(),
         );
 
@@ -159,8 +152,7 @@ class BasicVasterAgent implements VasterAgent {
             taskId: task.taskId,
             agentId: agentId,
             outputText: '',
-            outcome: TaskModelFailure(
-                message: '$e', transient: defaultIsTransient(e)),
+            outcome: TaskModelFailure(message: '$e', transient: defaultIsTransient(e)),
             subagentOutputs: subagentOutputs,
             usage: taskUsage,
             executionDuration: watch.elapsed,
@@ -176,8 +168,7 @@ class BasicVasterAgent implements VasterAgent {
         // A fallback-chain member that served the turn stamps servedBy —
         // attribution (and pricing) follows the model that really ran,
         // not the chain's head.
-        onTurnUsage?.call(
-            turnUsage, response.servedBy ?? session.model.modelName);
+        onTurnUsage?.call(turnUsage, response.servedBy ?? session.model.modelName);
         resourceTracker.consumeTokens(turnUsage.totalTokenCount);
 
         // d. Record the model turn in session history
@@ -198,8 +189,7 @@ class BasicVasterAgent implements VasterAgent {
           dispatch: toolManager.executeCall,
           concurrency: ToolTurnConcurrency.parallel,
         );
-        final outcome = await runner.run(ToolTurn(calls),
-            region: EffectRegion.fromMetadata(task.metadata));
+        final outcome = await runner.run(ToolTurn(calls), region: EffectRegion.fromMetadata(task.metadata));
 
         // h. Record quota for calls that really EXECUTED — replays
         //    perform no work and never count against the ceiling.
@@ -216,8 +206,7 @@ class BasicVasterAgent implements VasterAgent {
       }
 
       // Task (step) boundary: expire ephemeral + step-scoped context.
-      session.contextManager
-          .pruneLifetimes({ContextLifetime.ephemeral, ContextLifetime.step});
+      session.contextManager.pruneLifetimes({ContextLifetime.ephemeral, ContextLifetime.step});
 
       watch.stop();
       return AgentOutput(
@@ -320,8 +309,8 @@ class BasicVasterAgent implements VasterAgent {
   /// An empty whitelist means all registered tools are exposed.
   /// Token reservation for the tool schemas attached to each request —
   /// estimated from the serialized definitions actually sent.
-  static int _estimateToolTokens(List<ToolDefinition> tools) => tools.fold(
-      0, (sum, t) => sum + TokenEstimate.forText(jsonEncode(t.toJson())));
+  static int _estimateToolTokens(List<ToolDefinition> tools) =>
+      tools.fold(0, (sum, t) => sum + TokenEstimate.forText(jsonEncode(t.toJson())));
 
   List<ToolDefinition> _resolveTools() {
     final all = toolManager.compiledDefinitions;

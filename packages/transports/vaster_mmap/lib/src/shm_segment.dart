@@ -47,11 +47,9 @@ final class ShmSegment {
     required File? fallbackFile,
   }) : _fallbackFile = fallbackFile;
 
-  static String _posixName(String name) =>
-      name.startsWith('/') ? name : '/$name';
+  static String _posixName(String name) => name.startsWith('/') ? name : '/$name';
 
-  static String _fallbackPath(String name) =>
-      '${Directory.systemTemp.path}/${name.replaceAll('/', '_')}.shm';
+  static String _fallbackPath(String name) => '${Directory.systemTemp.path}/${name.replaceAll('/', '_')}.shm';
 
   /// Opens the named segment, creating it when absent (create-or-attach).
   ///
@@ -81,8 +79,7 @@ final class ShmSegment {
       throw ArgumentError.value(size, 'size', 'must be positive');
     }
 
-    final (fd, isOwner, fallbackFile) =
-        _openBacking(name, allowCreate: allowCreate);
+    final (fd, isOwner, fallbackFile) = _openBacking(name, allowCreate: allowCreate);
     if (fd < 0) {
       throw StateError(allowCreate
           ? 'Cannot open shared memory segment "$name" (shm and file '
@@ -94,16 +91,14 @@ final class ShmSegment {
     // grows an undersized backing (stale short file from a crashed peer):
     // mapping past a file's last page and touching it is SIGBUS, and growing
     // is always safe (zero-fill), unlike shrinking, which is never done.
-    final mustSize = isOwner ||
-        (fallbackFile != null && fallbackFile.lengthSync() < size);
+    final mustSize = isOwner || (fallbackFile != null && fallbackFile.lengthSync() < size);
     if (mustSize && PosixShmBindings.ftruncate(fd, size) != 0) {
       PosixShmBindings.close(fd);
       if (isOwner) _unlinkBacking(name, fallbackFile);
       throw StateError('Cannot size shared memory segment "$name" to $size.');
     }
 
-    final rawPtr = PosixShmBindings.mmap(
-        nullptr, size, protRead | protWrite, mapShared, fd, 0);
+    final rawPtr = PosixShmBindings.mmap(nullptr, size, protRead | protWrite, mapShared, fd, 0);
     // The mapping outlives the descriptor — close it NOW so nothing leaks,
     // whether mmap succeeded or not.
     PosixShmBindings.close(fd);
@@ -123,16 +118,14 @@ final class ShmSegment {
 
   /// One open ladder for both factories. Returns `fd < 0` when the backing
   /// could not be opened under the given create policy.
-  static (int, bool, File?) _openBacking(String name,
-      {required bool allowCreate}) {
+  static (int, bool, File?) _openBacking(String name, {required bool allowCreate}) {
     var fd = -1;
     var isOwner = false;
 
     final cName = _posixName(name).toNativeUtf8();
     try {
       if (allowCreate) {
-        fd = PosixShmBindings.shmOpen(
-            cName, oRdcwr | oCreat | oExcl, mode0666);
+        fd = PosixShmBindings.shmOpen(cName, oRdcwr | oCreat | oExcl, mode0666);
         if (fd >= 0) isOwner = true;
       }
       if (fd < 0) {
@@ -167,8 +160,7 @@ final class ShmSegment {
   /// payload) address their slice of the segment.
   Uint8List view(int offset, int length) {
     RangeError.checkValueInInterval(offset + length, 0, size, 'offset+length');
-    return Pointer<Uint8>.fromAddress(base.address + offset)
-        .asTypedList(length);
+    return Pointer<Uint8>.fromAddress(base.address + offset).asTypedList(length);
   }
 
   /// Unmaps the segment. The backing object is unlinked when [unlink] is

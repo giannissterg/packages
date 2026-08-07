@@ -18,13 +18,20 @@ void main() {
       modelName: 'claude-sonnet-5',
     ).check(program);
 
-    expect(report.costBound.unbounded, isFalse,
-        reason: 'every compiler-emitted loop must carry its maxIterations '
-            'guard in recognizable form; unbounded findings: '
-            '${report.findings.whereType<UnboundedLoop>().map((f) => f.message)}');
+    expect(
+      report.costBound.unbounded,
+      isFalse,
+      reason:
+          'every compiler-emitted loop must carry its maxIterations '
+          'guard in recognizable form; unbounded findings: '
+          '${report.findings.whereType<UnboundedLoop>().map((f) => f.message)}',
+    );
     expect(report.costBound.maxModelCalls, greaterThan(0));
     expect(report.costBound.maxCostUsd, isNotNull);
-    expect(report.hasErrors, isFalse,
-        reason: 'errors: ${report.bySeverity(CheckSeverity.error).map((f) => f.message)}');
+    expect(
+      report.hasErrors,
+      isFalse,
+      reason: 'errors: ${report.bySeverity(CheckSeverity.error).map((f) => f.message)}',
+    );
   });
 }

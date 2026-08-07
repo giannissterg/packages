@@ -5,7 +5,8 @@ import 'package:vaster_model_claude_cli/vaster_model_claude_cli.dart';
 void main() {
   group('ClaudeCliVasterModel.parseCliJson', () {
     test('parses a successful result with usage', () {
-      const stdout = '{"type":"result","subtype":"success","is_error":false,'
+      const stdout =
+          '{"type":"result","subtype":"success","is_error":false,'
           '"result":"pong","session_id":"abc",'
           '"usage":{"input_tokens":11,"output_tokens":3}}';
 
@@ -20,7 +21,8 @@ void main() {
     test('cache tokens fold into prompt count and cost is captured', () {
       // Shape observed live: on a warm cache input_tokens is single digits
       // while the cached prefix carries the real prompt size.
-      const stdout = '{"type":"result","is_error":false,"result":"ok",'
+      const stdout =
+          '{"type":"result","is_error":false,"result":"ok",'
           '"total_cost_usd":0.0234,'
           '"usage":{"input_tokens":6,"output_tokens":700,'
           '"cache_read_input_tokens":4200,"cache_creation_input_tokens":800},'
@@ -41,31 +43,26 @@ void main() {
 
     test('throws StateError when the CLI reports is_error', () {
       // This is the real payload emitted by an unauthenticated CLI.
-      const stdout = '{"type":"result","subtype":"success","is_error":true,'
+      const stdout =
+          '{"type":"result","subtype":"success","is_error":true,'
           '"result":"Not logged in · Please run /login","usage":{}}';
 
       expect(
         () => ClaudeCliVasterModel.parseCliJson(stdout),
-        throwsA(isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('Not logged in'),
-        )),
+        throwsA(isA<StateError>().having((e) => e.message, 'message', contains('Not logged in'))),
       );
     });
 
     test('tolerates leading/trailing non-JSON noise', () {
-      const stdout = 'warning: something\n'
+      const stdout =
+          'warning: something\n'
           '{"is_error":false,"result":"ok","usage":{"input_tokens":1,"output_tokens":1}}\n';
 
       expect(ClaudeCliVasterModel.parseCliJson(stdout).text, equals('ok'));
     });
 
     test('throws FormatException when no JSON is present', () {
-      expect(
-        () => ClaudeCliVasterModel.parseCliJson('command not found'),
-        throwsA(isA<FormatException>()),
-      );
+      expect(() => ClaudeCliVasterModel.parseCliJson('command not found'), throwsA(isA<FormatException>()));
     });
   });
 
@@ -73,11 +70,7 @@ void main() {
     test('flattens conversation turns and omits the system instruction', () {
       final request = ModelRequest(
         systemInstruction: ChatMessage.system('be terse'),
-        messages: [
-          ChatMessage.user('hello'),
-          ChatMessage.model('hi'),
-          ChatMessage.user('who are you?'),
-        ],
+        messages: [ChatMessage.user('hello'), ChatMessage.model('hi'), ChatMessage.user('who are you?')],
       );
 
       final prompt = ClaudeCliVasterModel.composePrompt(request);

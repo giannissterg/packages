@@ -6,16 +6,14 @@ class FlutterDesignSystemComponent extends ComposableNode {
   final String primaryColorHex;
   final String accentColorHex;
 
-  const FlutterDesignSystemComponent({
-    this.primaryColorHex = '#6750A4',
-    this.accentColorHex = '#625B71',
-  });
+  const FlutterDesignSystemComponent({this.primaryColorHex = '#6750A4', this.accentColorHex = '#625B71'});
 
   @override
   VasterNode build(BuildContext context) {
     final primary = primaryColorHex.replaceFirst('#', '0xFF');
     final accent = accentColorHex.replaceFirst('#', '0xFF');
-    final colorsContent = '''
+    final colorsContent =
+        '''
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
@@ -56,16 +54,18 @@ abstract final class AppTheme {
 }
 ''';
 
-    return Transaction(children: [
-      WriteFile(
-        path: Template.text('/workspace/lib/core/theme/app_colors.dart'),
-        content: Template.text(colorsContent),
-      ),
-      WriteFile(
-        path: Template.text('/workspace/lib/core/theme/app_theme.dart'),
-        content: Template.text(themeContent),
-      ),
-    ]);
+    return Transaction(
+      children: [
+        WriteFile(
+          path: Template.text('/workspace/lib/core/theme/app_colors.dart'),
+          content: Template.text(colorsContent),
+        ),
+        WriteFile(
+          path: Template.text('/workspace/lib/core/theme/app_theme.dart'),
+          content: Template.text(themeContent),
+        ),
+      ],
+    );
   }
 }
 
@@ -76,11 +76,7 @@ class FlutterDomainModelNode extends ComposableNode {
   final String entityName;
   final Map<String, String> fields;
 
-  const FlutterDomainModelNode({
-    required this.featureName,
-    required this.entityName,
-    required this.fields,
-  });
+  const FlutterDomainModelNode({required this.featureName, required this.entityName, required this.fields});
 
   @override
   VasterNode build(BuildContext context) {
@@ -135,8 +131,8 @@ class FlutterDomainModelNode extends ComposableNode {
       final defaultVal = type == 'int'
           ? '0'
           : type == 'bool'
-              ? 'false'
-              : "''";
+          ? 'false'
+          : "''";
       buffer.writeln("      $key: json['$key'] as $type? ?? $defaultVal,");
     }
     buffer.writeln('    );');
@@ -144,12 +140,14 @@ class FlutterDomainModelNode extends ComposableNode {
 
     buffer.writeln('}');
 
-    return Transaction(children: [
-      WriteFile(
-        path: Template.text('/workspace/lib/features/$featureName/domain/${entityName.toLowerCase()}.dart'),
-        content: Template.text(buffer.toString()),
-      ),
-    ]);
+    return Transaction(
+      children: [
+        WriteFile(
+          path: Template.text('/workspace/lib/features/$featureName/domain/${entityName.toLowerCase()}.dart'),
+          content: Template.text(buffer.toString()),
+        ),
+      ],
+    );
   }
 }
 
@@ -180,7 +178,8 @@ class FlutterBlocStateManagementComponent extends ComposableNode {
     final pascalFeature = _toPascalCase(featureName);
     final entityLower = entityName.toLowerCase();
 
-    final stateContent = '''
+    final stateContent =
+        '''
 import '../../domain/$entityLower.dart';
 
 sealed class ${blocName}State {
@@ -206,7 +205,8 @@ final class ${blocName}Error extends ${blocName}State {
 }
 ''';
 
-    final eventContent = '''
+    final eventContent =
+        '''
 import '../../domain/$entityLower.dart';
 
 sealed class ${blocName}Event {
@@ -223,7 +223,8 @@ final class Add${entityName}Event extends ${blocName}Event {
 }
 ''';
 
-    final blocContent = '''
+    final blocContent =
+        '''
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '${featureName}_event.dart';
 import '${featureName}_state.dart';
@@ -256,20 +257,28 @@ class ${blocName}Bloc extends Bloc<${blocName}Event, ${blocName}State> {
 }
 ''';
 
-    return Transaction(children: [
-      WriteFile(
-        path: Template.text('/workspace/lib/features/$featureName/presentation/bloc/${featureName}_state.dart'),
-        content: Template.text(stateContent),
-      ),
-      WriteFile(
-        path: Template.text('/workspace/lib/features/$featureName/presentation/bloc/${featureName}_event.dart'),
-        content: Template.text(eventContent),
-      ),
-      WriteFile(
-        path: Template.text('/workspace/lib/features/$featureName/presentation/bloc/${featureName}_bloc.dart'),
-        content: Template.text(blocContent),
-      ),
-    ]);
+    return Transaction(
+      children: [
+        WriteFile(
+          path: Template.text(
+            '/workspace/lib/features/$featureName/presentation/bloc/${featureName}_state.dart',
+          ),
+          content: Template.text(stateContent),
+        ),
+        WriteFile(
+          path: Template.text(
+            '/workspace/lib/features/$featureName/presentation/bloc/${featureName}_event.dart',
+          ),
+          content: Template.text(eventContent),
+        ),
+        WriteFile(
+          path: Template.text(
+            '/workspace/lib/features/$featureName/presentation/bloc/${featureName}_bloc.dart',
+          ),
+          content: Template.text(blocContent),
+        ),
+      ],
+    );
   }
 }
 
@@ -292,7 +301,8 @@ class FlutterFeatureWidgetComponent extends ComposableNode {
   VasterNode build(BuildContext context) {
     final pascalFeature = _toPascalCase(featureName);
 
-    final pageContent = '''
+    final pageContent =
+        '''
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/${featureName}_bloc.dart';
@@ -350,12 +360,16 @@ class ${pascalFeature}Page extends StatelessWidget {
 }
 ''';
 
-    return Transaction(children: [
-      WriteFile(
-        path: Template.text('/workspace/lib/features/$featureName/presentation/pages/${featureName}_page.dart'),
-        content: Template.text(pageContent),
-      ),
-    ]);
+    return Transaction(
+      children: [
+        WriteFile(
+          path: Template.text(
+            '/workspace/lib/features/$featureName/presentation/pages/${featureName}_page.dart',
+          ),
+          content: Template.text(pageContent),
+        ),
+      ],
+    );
   }
 }
 
@@ -364,16 +378,14 @@ class FlutterWidgetTestComponent extends ComposableNode {
   final String featureName;
   final String pageTitle;
 
-  const FlutterWidgetTestComponent({
-    required this.featureName,
-    required this.pageTitle,
-  });
+  const FlutterWidgetTestComponent({required this.featureName, required this.pageTitle});
 
   @override
   VasterNode build(BuildContext context) {
     final pascalFeature = _toPascalCase(featureName);
 
-    final testContent = '''
+    final testContent =
+        '''
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_test_app/features/$featureName/presentation/pages/${featureName}_page.dart';
@@ -398,11 +410,13 @@ void main() {
 }
 ''';
 
-    return Transaction(children: [
-      WriteFile(
-        path: Template.text('/workspace/test/features/$featureName/${featureName}_page_test.dart'),
-        content: Template.text(testContent),
-      ),
-    ]);
+    return Transaction(
+      children: [
+        WriteFile(
+          path: Template.text('/workspace/test/features/$featureName/${featureName}_page_test.dart'),
+          content: Template.text(testContent),
+        ),
+      ],
+    );
   }
 }

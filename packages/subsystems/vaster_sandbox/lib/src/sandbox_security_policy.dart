@@ -20,11 +20,11 @@ class SandboxSecurityPolicy {
   });
 
   Map<String, dynamic> toJson() => {
-        'maxTimeoutMs': maxTimeout.inMilliseconds,
-        'allowNetwork': allowNetwork,
-        if (allowedCommands != null) 'allowedCommands': allowedCommands,
-        'environmentWhitelist': environmentWhitelist,
-      };
+    'maxTimeoutMs': maxTimeout.inMilliseconds,
+    'allowNetwork': allowNetwork,
+    if (allowedCommands != null) 'allowedCommands': allowedCommands,
+    'environmentWhitelist': environmentWhitelist,
+  };
 
   factory SandboxSecurityPolicy.fromJson(Map<String, dynamic> json) {
     return SandboxSecurityPolicy(
@@ -32,12 +32,10 @@ class SandboxSecurityPolicy {
       allowNetwork: json['allowNetwork'] as bool? ?? false,
       allowedCommands: (json['allowedCommands'] as List?)?.cast<String>(),
       environmentWhitelist:
-          (json['environmentWhitelist'] as List?)?.cast<String>() ??
-              ['PATH', 'USER', 'HOME', 'TMPDIR'],
+          (json['environmentWhitelist'] as List?)?.cast<String>() ?? ['PATH', 'USER', 'HOME', 'TMPDIR'],
     );
   }
 
   @override
-  String toString() =>
-      'SandboxSecurityPolicy(timeout: ${maxTimeout.inSeconds}s, network: $allowNetwork)';
+  String toString() => 'SandboxSecurityPolicy(timeout: ${maxTimeout.inSeconds}s, network: $allowNetwork)';
 }

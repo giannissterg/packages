@@ -37,8 +37,7 @@ final class RingFullException implements Exception {
   const RingFullException({required this.frameLength, required this.freeBytes});
 
   @override
-  String toString() =>
-      'RingFullException: frame of $frameLength bytes needs '
+  String toString() => 'RingFullException: frame of $frameLength bytes needs '
       '${frameLength + RingBuffer.framePrefixBytes} bytes but only '
       '$freeBytes are free (consumer not draining?)';
 }
@@ -88,8 +87,7 @@ final class RingBuffer {
       : _data = data,
         _indices = indices {
     if (data.length < minCapacity) {
-      throw ArgumentError.value(
-          data.length, 'data', 'ring capacity must be >= $minCapacity bytes');
+      throw ArgumentError.value(data.length, 'data', 'ring capacity must be >= $minCapacity bytes');
     }
   }
 
@@ -119,8 +117,7 @@ final class RingBuffer {
     if (total > freeBytes) return false;
 
     final head = _indices.head;
-    final prefix = ByteData(framePrefixBytes)
-      ..setUint32(0, frame.length, Endian.little);
+    final prefix = ByteData(framePrefixBytes)..setUint32(0, frame.length, Endian.little);
     _copyIn(head, prefix.buffer.asUint8List());
     _copyIn((head + framePrefixBytes) % capacity, frame);
     // Publish AFTER the payload bytes exist — the consumer never observes a
@@ -142,17 +139,14 @@ final class RingBuffer {
 
     final used = usedBytes;
     if (used < framePrefixBytes) {
-      throw const RingCorruptionException(
-          'ring holds fewer bytes than a frame prefix');
+      throw const RingCorruptionException('ring holds fewer bytes than a frame prefix');
     }
 
     final tail = _indices.tail;
     final prefix = _copyOut(tail, framePrefixBytes);
-    final length =
-        ByteData.sublistView(prefix).getUint32(0, Endian.little);
+    final length = ByteData.sublistView(prefix).getUint32(0, Endian.little);
     if (length > used - framePrefixBytes) {
-      throw RingCorruptionException(
-          'frame prefix claims $length bytes but only '
+      throw RingCorruptionException('frame prefix claims $length bytes but only '
           '${used - framePrefixBytes} are in the ring');
     }
 
@@ -185,8 +179,7 @@ final class RingBuffer {
 
   void _checkIndex(int value, String name) {
     if (value < 0 || value >= capacity) {
-      throw RingCorruptionException(
-          '$name index $value is outside ring capacity $capacity');
+      throw RingCorruptionException('$name index $value is outside ring capacity $capacity');
     }
   }
 }

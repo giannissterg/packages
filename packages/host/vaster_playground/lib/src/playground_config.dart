@@ -19,8 +19,7 @@ class ProjectConfig {
   bool hasFeature(String flag) => featureFlags.contains(flag);
 
   @override
-  String toString() =>
-      'ProjectConfig("$projectName" [$language] -> $targetDeploymentEnv)';
+  String toString() => 'ProjectConfig("$projectName" [$language] -> $targetDeploymentEnv)';
 }
 
 /// Security policy injected via ProviderNode for security-aware components.
@@ -53,6 +52,5 @@ class QualityGate {
   });
 
   @override
-  String toString() =>
-      'QualityGate(coverage=$minTestCoverage%, docCoverage=$enforceDocCoverage)';
+  String toString() => 'QualityGate(coverage=$minTestCoverage%, docCoverage=$enforceDocCoverage)';
 }

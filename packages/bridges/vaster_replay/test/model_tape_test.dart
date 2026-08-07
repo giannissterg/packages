@@ -11,10 +11,13 @@ void main() {
   // 0: prompt (tool-free) -> 1: decide {left->3, right->5} -> ...
   const program = VasterProgram(programName: 'taped', instructions: [
     PromptOp(promptText: 'summarize the incident', outputVar: 'summary'),
-    DecideOp(prompt: r'Escalate? Summary: ${summary}', branches: [
-      DecisionBranch(label: 'escalate', description: 'page a human', targetPc: 3),
-      DecisionBranch(label: 'resolve', description: 'auto-resolve', targetPc: 5),
-    ], outputVar: 'verdict'),
+    DecideOp(
+        prompt: r'Escalate? Summary: ${summary}',
+        branches: [
+          DecisionBranch(label: 'escalate', description: 'page a human', targetPc: 3),
+          DecisionBranch(label: 'resolve', description: 'auto-resolve', targetPc: 5),
+        ],
+        outputVar: 'verdict'),
     HaltOp(),
     SetRegisterOp(registerName: 'escalated', value: true),
     HaltOp(),
@@ -40,11 +43,9 @@ void main() {
       final text = request.messages.last.text;
       if (text.contains('Choose exactly one')) {
         return ModelResponse(
-            message: ChatMessage.model(jsonEncode(
-                {'choice': 'escalate', 'rationale': 'sev1 signature'})));
+            message: ChatMessage.model(jsonEncode({'choice': 'escalate', 'rationale': 'sev1 signature'})));
       }
-      return ModelResponse(
-          message: ChatMessage.model('DB failover storm in us-east.'));
+      return ModelResponse(message: ChatMessage.model('DB failover storm in us-east.'));
     });
     final tape = ModelTape();
     final recorder = RecordingVasterModel(inner: live, tape: tape);
@@ -56,20 +57,17 @@ void main() {
     await vm1.shutdown();
 
     // The tape survives serialization (this is what CI would load).
-    final rehydrated = ModelTape.fromJson(
-        jsonDecode(jsonEncode(tape.toJson())) as Map<String, dynamic>);
+    final rehydrated = ModelTape.fromJson(jsonDecode(jsonEncode(tape.toJson())) as Map<String, dynamic>);
 
     // Replay: no live model anywhere.
     final replayModel = ReplayVasterModel(tape: rehydrated);
     final (replayed, vm2) = await run(replayModel);
 
     expect(replayed.status, RuntimeStatus.halted);
-    expect(replayed.registers['escalated'], isTrue,
-        reason: 'the recorded decision path is reproduced');
+    expect(replayed.registers['escalated'], isTrue, reason: 'the recorded decision path is reproduced');
     expect(replayed.registers['summary'], equals('DB failover storm in us-east.'));
     expect(replayed.registers['verdict'], equals('escalate'));
-    expect(replayModel.remaining, equals(0),
-        reason: 'a faithful replay drains the tape');
+    expect(replayModel.remaining, equals(0), reason: 'a faithful replay drains the tape');
     await vm2.shutdown();
   });
 
@@ -89,13 +87,11 @@ void main() {
     });
     final tape = ModelTape();
     final recorder = RecordingVasterModel(inner: live, tape: tape);
-    await recorder
-        .generate(ModelRequest(messages: [ChatMessage.user('hi')]));
+    await recorder.generate(ModelRequest(messages: [ChatMessage.user('hi')]));
 
-    final rehydrated = ModelTape.fromJson(
-        jsonDecode(jsonEncode(tape.toJson())) as Map<String, dynamic>);
-    final replayed = await ReplayVasterModel(tape: rehydrated)
-        .generate(ModelRequest(messages: [ChatMessage.user('hi')]));
+    final rehydrated = ModelTape.fromJson(jsonDecode(jsonEncode(tape.toJson())) as Map<String, dynamic>);
+    final replayed =
+        await ReplayVasterModel(tape: rehydrated).generate(ModelRequest(messages: [ChatMessage.user('hi')]));
 
     expect(replayed.usage.promptTokenCount, equals(1234));
     expect(replayed.usage.cacheReadTokenCount, equals(1000));
@@ -104,8 +100,7 @@ void main() {
     expect((replayed.rawResponse as Map)['provider'], equals('test'));
   });
 
-  test('the tape carries the backend capabilities that shaped its requests',
-      () async {
+  test('the tape carries the backend capabilities that shaped its requests', () async {
     // Regression: a session sizes its context compilation from the model's
     // capabilities, so replaying under different limits compiles different
     // messages and diverges. Found by a real claude-cli run — the fake-model
@@ -128,21 +123,18 @@ void main() {
     expect(tape.recordedModelName, equals(live.modelName));
 
     // Survives serialization and is what replay presents.
-    final rehydrated = ModelTape.fromJson(
-        jsonDecode(jsonEncode(tape.toJson())) as Map<String, dynamic>);
+    final rehydrated = ModelTape.fromJson(jsonDecode(jsonEncode(tape.toJson())) as Map<String, dynamic>);
     final replay = ReplayVasterModel(tape: rehydrated);
     expect(replay.capabilities.maxContextTokens, equals(200000));
     expect(replay.capabilities.maxOutputTokens, equals(8192));
-    expect(replay.capabilities.maxContextTokens,
-        greaterThan(replay.capabilities.maxOutputTokens),
+    expect(replay.capabilities.maxContextTokens, greaterThan(replay.capabilities.maxOutputTokens),
         reason: 'output reservation must never consume the whole window — '
             'that starves context compilation to zero messages');
     expect(replay.modelName, contains(live.modelName));
   });
 
   test('fingerprints render as stable positive hex', () {
-    final fingerprint = ModelTape.fingerprintOf(
-        ModelRequest(messages: [ChatMessage.user('any request')]));
+    final fingerprint = ModelTape.fingerprintOf(ModelRequest(messages: [ChatMessage.user('any request')]));
     expect(fingerprint, matches(RegExp(r'^[0-9a-f]{16}$')));
   });
 
@@ -155,8 +147,7 @@ void main() {
         ModelTapeEntry(
           fingerprint: ModelTape.fingerprintOf(request),
           requestPreview: 'again',
-          responseJson:
-              ModelResponse(message: ChatMessage.model(text)).toJson(),
+          responseJson: ModelResponse(message: ChatMessage.model(text)).toJson(),
         ),
     ]);
     final replay = ReplayVasterModel(tape: tape);
@@ -165,29 +156,25 @@ void main() {
     expect((await replay.generate(request)).text, equals('second answer'));
   });
 
-  test('a diverged run fails fast — as typed data, not a message string',
-      () async {
+  test('a diverged run fails fast — as typed data, not a message string', () async {
     final live = FakeVasterModel(defaultResponseText: 'recorded output');
     final tape = ModelTape();
-    final (_, vm1) =
-        await run(RecordingVasterModel(inner: live, tape: tape));
+    final (_, vm1) = await run(RecordingVasterModel(inner: live, tape: tape));
     await vm1.shutdown();
 
     final replay = ReplayVasterModel(tape: tape);
     await expectLater(
-      replay.generate(ModelRequest(
-          messages: [ChatMessage.user('a request that never happened')])),
+      replay.generate(ModelRequest(messages: [ChatMessage.user('a request that never happened')])),
       throwsA(isA<TapeDivergenceException>()
           .having((e) => e.callIndex, 'callIndex', 0)
-          .having((e) => e.liveRequest.messages.single.text, 'live request',
-              'a request that never happened')
+          .having((e) => e.liveRequest.messages.single.text, 'live request', 'a request that never happened')
           .having((e) => e.unconsumed, 'unconsumed', isNotEmpty)
-          .having((e) => e.toString(), 'rendering',
-              contains('Replay diverged'))),
+          .having((e) => e.toString(), 'rendering', contains('Replay diverged'))),
     );
   });
 
-  test('v2 recording carries the full request; v1 entries read as '
+  test(
+      'v2 recording carries the full request; v1 entries read as '
       'preview-only', () async {
     final live = FakeVasterModel(defaultResponseText: 'recorded output');
     final tape = ModelTape();

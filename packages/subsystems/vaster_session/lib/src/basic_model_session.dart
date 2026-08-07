@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
+
 import 'model_session_interface.dart';
 import 'session_descriptor.dart';
 import 'session_history_source.dart';
@@ -31,18 +33,13 @@ class BasicModelSession implements ModelSession {
     required this.contextManager,
     List<ChatMessage> initialHistory = const [],
     Map<String, dynamic> metadata = const {},
-  }) : descriptor = SessionDescriptor(
-          sessionId: sessionId,
-          modelName: model.modelName,
-          metadata: metadata,
-        ) {
+  }) : descriptor = SessionDescriptor(sessionId: sessionId, modelName: model.modelName, metadata: metadata) {
     if (initialHistory.isNotEmpty) {
       _history.addAll(initialHistory);
     }
-    contextManager.registerSource(SessionHistorySource(
-      sessionId: sessionId,
-      historyProvider: () => _history,
-    ));
+    contextManager.registerSource(
+      SessionHistorySource(sessionId: sessionId, historyProvider: () => _history),
+    );
   }
 
   @override

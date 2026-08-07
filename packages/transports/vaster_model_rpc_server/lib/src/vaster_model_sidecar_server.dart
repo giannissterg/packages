@@ -56,11 +56,7 @@ class VasterModelSidecarServer {
   }
 
   void _handleConnection(Socket clientSocket) {
-    clientSocket
-        .cast<List<int>>()
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen(
+    clientSocket.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()).listen(
       (line) async {
         final trimmed = line.trim();
         if (trimmed.isEmpty) return;

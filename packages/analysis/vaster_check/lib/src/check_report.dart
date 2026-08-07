@@ -8,14 +8,12 @@ final class CheckReport {
 
   const CheckReport({required this.findings, required this.costBound});
 
-  bool get hasErrors =>
-      findings.any((f) => f.severity == CheckSeverity.error);
+  bool get hasErrors => findings.any((f) => f.severity == CheckSeverity.error);
 
-  Iterable<CheckFinding> bySeverity(CheckSeverity severity) =>
-      findings.where((f) => f.severity == severity);
+  Iterable<CheckFinding> bySeverity(CheckSeverity severity) => findings.where((f) => f.severity == severity);
 
   Map<String, dynamic> toJson() => {
-        'findings': [for (final f in findings) f.toJson()],
-        'costBound': costBound.toJson(),
-      };
+    'findings': [for (final f in findings) f.toJson()],
+    'costBound': costBound.toJson(),
+  };
 }

@@ -20,12 +20,8 @@ void main() {
     test('explicit denial overrides explicit allowance', () {
       final policy = ExecutionPolicy(
         policyId: 'conflict_policy',
-        allowedCapabilities: [
-          Capability.glob(PolicyAction.fileWrite, '/mem/**'),
-        ],
-        deniedCapabilities: [
-          Capability.exact(PolicyAction.fileWrite, '/mem/secrets.key'),
-        ],
+        allowedCapabilities: [Capability.glob(PolicyAction.fileWrite, '/mem/**')],
+        deniedCapabilities: [Capability.exact(PolicyAction.fileWrite, '/mem/secrets.key')],
       );
 
       final okDecision = engine.authorize(
@@ -49,11 +45,7 @@ void main() {
       final events = <RuntimeEvent>[];
       eventBus.stream.listen(events.add);
 
-      engine.authorize(
-        policy: policy,
-        action: PolicyAction.fileWrite,
-        resource: '/mem/test.txt',
-      );
+      engine.authorize(policy: policy, action: PolicyAction.fileWrite, resource: '/mem/test.txt');
 
       await Future.delayed(const Duration(milliseconds: 10));
 
@@ -71,9 +63,7 @@ void main() {
           Capability.glob(PolicyAction.fileRead, '/mem/workspace/**'),
           Capability.glob(PolicyAction.fileWrite, '/mem/workspace/build/**'),
         ],
-        deniedCapabilities: [
-          Capability.exact(PolicyAction.fileWrite, '/mem/workspace/build/locked.txt'),
-        ],
+        deniedCapabilities: [Capability.exact(PolicyAction.fileWrite, '/mem/workspace/build/locked.txt')],
         defaultAllow: false,
       );
 
@@ -83,9 +73,7 @@ void main() {
           Capability.glob(PolicyAction.fileWrite, '/mem/workspace/build/**'),
           Capability.glob(PolicyAction.fileWrite, '/etc/forbidden'), // Parent doesn't allow!
         ],
-        deniedCapabilities: [
-          Capability.exact(PolicyAction.fileWrite, '/mem/workspace/build/temp.txt'),
-        ],
+        deniedCapabilities: [Capability.exact(PolicyAction.fileWrite, '/mem/workspace/build/temp.txt')],
         defaultAllow: true, // Parent is defaultAllow: false, so child gets narrowed to false
       );
 
@@ -96,7 +84,10 @@ void main() {
 
       // 1. /etc/forbidden must be excluded from child allowed capabilities
       expect(derived.allowedCapabilities.length, equals(1));
-      expect(derived.allowedCapabilities.first.pattern, equals(const PathGlobResourcePattern('/mem/workspace/build/**')));
+      expect(
+        derived.allowedCapabilities.first.pattern,
+        equals(const PathGlobResourcePattern('/mem/workspace/build/**')),
+      );
 
       // 2. Denials must accumulate (parent's locked.txt + child's temp.txt)
       expect(derived.deniedCapabilities.length, equals(2));

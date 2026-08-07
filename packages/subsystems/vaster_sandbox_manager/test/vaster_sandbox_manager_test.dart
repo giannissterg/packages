@@ -8,11 +8,7 @@ void main() {
     test('registers sandbox backend and runs code', () async {
       final SandboxManager manager = BasicSandboxManager();
       final sandbox = IsolateCodeSandbox(
-        descriptor: const SandboxDescriptor(
-          sandboxId: 'sb_1',
-          type: 'isolate',
-          description: 'Isolate SB',
-        ),
+        descriptor: const SandboxDescriptor(sandboxId: 'sb_1', type: 'isolate', description: 'Isolate SB'),
         evaluator: (code, inputs) => 'eval_ok',
       );
 
@@ -20,24 +16,23 @@ void main() {
       expect(manager.activeDescriptors, hasLength(1));
       expect(manager.getSandbox('sb_1'), equals(sandbox));
 
-      final result = await manager.runCode(
-        sandboxId: 'sb_1',
-        codeOrCommand: 'testCode()',
-      );
+      final result = await manager.runCode(sandboxId: 'sb_1', codeOrCommand: 'testCode()');
       expect(result.isSuccess, isTrue);
       expect(result.resultValue, equals('eval_ok'));
     });
 
     test('creates ExecutableTool and executes code via tool call', () async {
       final manager = BasicSandboxManager();
-      manager.registerSandbox(IsolateCodeSandbox(
-        descriptor: const SandboxDescriptor(
-          sandboxId: 'dart_runner',
-          type: 'isolate',
-          description: 'Dart Runner',
+      manager.registerSandbox(
+        IsolateCodeSandbox(
+          descriptor: const SandboxDescriptor(
+            sandboxId: 'dart_runner',
+            type: 'isolate',
+            description: 'Dart Runner',
+          ),
+          evaluator: (code, inputs) => {'status': 'success'},
         ),
-        evaluator: (code, inputs) => {'status': 'success'},
-      ));
+      );
 
       final tool = manager.createSandboxTool(sandboxId: 'dart_runner');
       expect(tool.name, equals('execute_sandbox_code'));

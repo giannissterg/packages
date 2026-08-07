@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:vaster_model/vaster_model.dart';
+
 import 'context_lifetime.dart';
 import 'context_priority.dart';
 import 'context_region.dart';
@@ -9,10 +11,7 @@ sealed class ContextSource {
   final String id;
   final String name;
 
-  const ContextSource({
-    required this.id,
-    required this.name,
-  });
+  const ContextSource({required this.id, required this.name});
 
   /// Asynchronously fetches or resolves context regions from this source.
   FutureOr<List<ContextRegion>> getRegions();
@@ -22,11 +21,7 @@ sealed class ContextSource {
 class MemoryContextSource extends ContextSource {
   final List<ContextRegion> regions;
 
-  MemoryContextSource({
-    required super.id,
-    super.name = 'memory_source',
-    this.regions = const [],
-  });
+  MemoryContextSource({required super.id, super.name = 'memory_source', this.regions = const []});
 
   /// Factory to construct a MemoryContextSource from a key-value text map.
   factory MemoryContextSource.fromMap({
@@ -49,11 +44,7 @@ class MemoryContextSource extends ContextSource {
       );
     }).toList();
 
-    return MemoryContextSource(
-      id: id,
-      name: name,
-      regions: regionList,
-    );
+    return MemoryContextSource(id: id, name: name, regions: regionList);
   }
 
   @override
@@ -94,7 +85,7 @@ class FileContextSource extends ContextSource {
         label: 'File: $filePath',
         role: Role.user,
         text: '--- File: $filePath ---\n$content',
-      )
+      ),
     ];
   }
 }

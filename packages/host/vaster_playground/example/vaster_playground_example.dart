@@ -14,8 +14,5 @@ void main(List<String> args) async {
     }
   }
 
-  await runPlayground(
-    useGeminiCli: useGeminiCli,
-    modelName: modelName,
-  );
+  await runPlayground(useGeminiCli: useGeminiCli, modelName: modelName);
 }

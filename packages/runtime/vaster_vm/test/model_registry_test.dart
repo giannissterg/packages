@@ -31,9 +31,7 @@ void main() {
     });
 
     test('VasterVirtualMachine registers models via vm.registerModel()', () async {
-      final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: defaultModel),
-      );
+      final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: defaultModel));
 
       const descriptor = ModelDescriptor.geminiCli();
       vm.registerModel(descriptor, cliModel);

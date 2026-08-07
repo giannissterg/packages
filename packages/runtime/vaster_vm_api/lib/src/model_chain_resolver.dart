@@ -36,28 +36,25 @@ final class ModelChainResolver {
     if (primary == null) return null;
     final resolvedPrimary = registry.resolveModel(primary);
     if (resolvedPrimary == null || fallbacks.isEmpty) return resolvedPrimary;
-    final resolvedFallbacks = [
-      for (final f in fallbacks) registry.resolveModel(f),
-    ].whereType<VasterModel>().toList();
+    final resolvedFallbacks = [for (final f in fallbacks) registry.resolveModel(f)]
+        .whereType<VasterModel>()
+        .toList();
     if (resolvedFallbacks.isEmpty) return resolvedPrimary;
-    final chainNames = [
-      resolvedPrimary.modelName,
-      for (final f in resolvedFallbacks) f.modelName,
-    ];
+    final chainNames = [resolvedPrimary.modelName, for (final f in resolvedFallbacks) f.modelName];
     return ResilientVasterModel(
       primary: resolvedPrimary,
       fallbacks: resolvedFallbacks,
       retryPolicy: const RetryPolicy(maxAttempts: 1),
       onRetry: (event) {
         if (!event.switchingModel) return;
-        eventBus.publish(ModelFallbackEvent(
-          eventId: 'evt_fallback_${eventScope}_${event.modelIndex}',
-          fromModel: event.modelName,
-          toModel: event.modelIndex + 1 < chainNames.length
-              ? chainNames[event.modelIndex + 1]
-              : '',
-          reason: '${event.error}',
-        ));
+        eventBus.publish(
+          ModelFallbackEvent(
+            eventId: 'evt_fallback_${eventScope}_${event.modelIndex}',
+            fromModel: event.modelName,
+            toModel: event.modelIndex + 1 < chainNames.length ? chainNames[event.modelIndex + 1] : '',
+            reason: '${event.error}',
+          ),
+        );
       },
     );
   }

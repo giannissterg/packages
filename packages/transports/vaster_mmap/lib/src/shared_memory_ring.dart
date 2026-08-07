@@ -37,8 +37,7 @@ const int shmRingVersion = 2;
 
 /// The ring's segment identity, composed from the shared [SegmentTag]
 /// convention (magic + version as the first two header words).
-const SegmentTag ringTag =
-    SegmentTag(magic: shmMagic, version: shmRingVersion, protocol: 'ring');
+const SegmentTag ringTag = SegmentTag(magic: shmMagic, version: shmRingVersion, protocol: 'ring');
 
 const int defaultShmCapacity = 4 * 1024 * 1024; // 4MB payload region
 
@@ -116,12 +115,10 @@ class SharedMemoryRing {
     int capacity = defaultShmCapacity,
   }) {
     if (capacity < RingBuffer.minCapacity) {
-      throw ArgumentError.value(capacity, 'capacity',
-          'must be >= ${RingBuffer.minCapacity} bytes');
+      throw ArgumentError.value(capacity, 'capacity', 'must be >= ${RingBuffer.minCapacity} bytes');
     }
 
-    final segment =
-        ShmSegment.open(name: shmName, size: _headerSize + capacity);
+    final segment = ShmSegment.open(name: shmName, size: _headerSize + capacity);
     final header = segment.base.cast<ShmRingHeader>();
 
     if (segment.isOwner) {
@@ -135,8 +132,7 @@ class SharedMemoryRing {
       if (header.ref.capacity != capacity) {
         final found = header.ref.capacity;
         segment.close(unlink: false);
-        throw StateError(
-            'Segment "$shmName" was created with capacity $found, not '
+        throw StateError('Segment "$shmName" was created with capacity $found, not '
             "$capacity — attach with the creator's capacity.");
       }
     }
@@ -160,8 +156,7 @@ class SharedMemoryRing {
       probe.close(unlink: false);
     }
 
-    final segment =
-        ShmSegment.attach(name: shmName, size: _headerSize + capacity);
+    final segment = ShmSegment.attach(name: shmName, size: _headerSize + capacity);
     return SharedMemoryRing._(segment, _ringOver(segment, capacity), capacity);
   }
 

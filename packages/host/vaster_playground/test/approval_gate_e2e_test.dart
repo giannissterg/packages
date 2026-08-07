@@ -14,8 +14,7 @@ void main() {
     late VasterVirtualMachine vm;
 
     setUp(() async {
-      vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: FakeVasterModel()));
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     });
 
     tearDown(() async {

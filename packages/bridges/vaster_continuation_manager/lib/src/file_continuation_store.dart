@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:vaster_continuation/vaster_continuation.dart';
+
 import 'continuation_store_interface.dart';
 
 /// Durable disk-backed implementation of [ContinuationStore] persisting
@@ -24,9 +25,7 @@ class FileContinuationStore implements ContinuationStore {
   }
 
   File _fileForId(Directory dir, String continuationId) {
-    final filename = continuationId.endsWith('.json')
-        ? continuationId
-        : '$continuationId.json';
+    final filename = continuationId.endsWith('.json') ? continuationId : '$continuationId.json';
     return File('${dir.path}/$filename');
   }
 

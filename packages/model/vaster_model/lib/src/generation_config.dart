@@ -32,14 +32,14 @@ class GenerationConfig {
   });
 
   Map<String, dynamic> toJson() => {
-        if (temperature != null) 'temperature': temperature,
-        if (topP != null) 'topP': topP,
-        if (topK != null) 'topK': topK,
-        if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
-        if (stopSequences != null) 'stopSequences': stopSequences,
-        if (responseMimeType != null) 'responseMimeType': responseMimeType,
-        if (responseSchema != null) 'responseSchema': responseSchema,
-      };
+    if (temperature != null) 'temperature': temperature,
+    if (topP != null) 'topP': topP,
+    if (topK != null) 'topK': topK,
+    if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
+    if (stopSequences != null) 'stopSequences': stopSequences,
+    if (responseMimeType != null) 'responseMimeType': responseMimeType,
+    if (responseSchema != null) 'responseSchema': responseSchema,
+  };
 
   factory GenerationConfig.fromJson(Map<String, dynamic> json) {
     return GenerationConfig(

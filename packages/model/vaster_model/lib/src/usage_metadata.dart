@@ -79,8 +79,7 @@ class UsageMetadata {
     int? totalTokenCount,
     this.costUsd,
     this.source = UsageSource.estimated,
-  }) : totalTokenCount = totalTokenCount ??
-            (promptTokenCount + candidatesTokenCount + thoughtsTokenCount);
+  }) : totalTokenCount = totalTokenCount ?? (promptTokenCount + candidatesTokenCount + thoughtsTokenCount);
 
   /// Whether this is the additive identity: no tokens, no cost. A neutral
   /// operand (e.g. a zero accumulator seed) never affects the sum's [source].
@@ -92,37 +91,33 @@ class UsageMetadata {
   /// .measured] only when every non-[isZero] operand is measured — one
   /// estimated input taints the aggregate, but a zero seed does not.
   UsageMetadata operator +(UsageMetadata other) => UsageMetadata(
-        promptTokenCount: promptTokenCount + other.promptTokenCount,
-        candidatesTokenCount: candidatesTokenCount + other.candidatesTokenCount,
-        thoughtsTokenCount: thoughtsTokenCount + other.thoughtsTokenCount,
-        cacheReadTokenCount: cacheReadTokenCount + other.cacheReadTokenCount,
-        cacheCreationTokenCount:
-            cacheCreationTokenCount + other.cacheCreationTokenCount,
-        totalTokenCount: totalTokenCount + other.totalTokenCount,
-        costUsd: costUsd == null && other.costUsd == null
-            ? null
-            : (costUsd ?? 0) + (other.costUsd ?? 0),
-        source: (isZero || source == UsageSource.measured) &&
-                (other.isZero || other.source == UsageSource.measured) &&
-                !(isZero && other.isZero)
-            ? UsageSource.measured
-            : UsageSource.estimated,
-      );
+    promptTokenCount: promptTokenCount + other.promptTokenCount,
+    candidatesTokenCount: candidatesTokenCount + other.candidatesTokenCount,
+    thoughtsTokenCount: thoughtsTokenCount + other.thoughtsTokenCount,
+    cacheReadTokenCount: cacheReadTokenCount + other.cacheReadTokenCount,
+    cacheCreationTokenCount: cacheCreationTokenCount + other.cacheCreationTokenCount,
+    totalTokenCount: totalTokenCount + other.totalTokenCount,
+    costUsd: costUsd == null && other.costUsd == null ? null : (costUsd ?? 0) + (other.costUsd ?? 0),
+    source:
+        (isZero || source == UsageSource.measured) &&
+            (other.isZero || other.source == UsageSource.measured) &&
+            !(isZero && other.isZero)
+        ? UsageSource.measured
+        : UsageSource.estimated,
+  );
 
   /// New keys are emitted only when non-default so payloads produced before
   /// they existed stay byte-identical (tape/golden compatibility).
   Map<String, dynamic> toJson() => {
-        'promptTokenCount': promptTokenCount,
-        'candidatesTokenCount': candidatesTokenCount,
-        'totalTokenCount': totalTokenCount,
-        if (thoughtsTokenCount != 0) 'thoughtsTokenCount': thoughtsTokenCount,
-        if (cacheReadTokenCount != 0)
-          'cacheReadTokenCount': cacheReadTokenCount,
-        if (cacheCreationTokenCount != 0)
-          'cacheCreationTokenCount': cacheCreationTokenCount,
-        if (costUsd != null) 'costUsd': costUsd,
-        if (source != UsageSource.estimated) 'source': source.name,
-      };
+    'promptTokenCount': promptTokenCount,
+    'candidatesTokenCount': candidatesTokenCount,
+    'totalTokenCount': totalTokenCount,
+    if (thoughtsTokenCount != 0) 'thoughtsTokenCount': thoughtsTokenCount,
+    if (cacheReadTokenCount != 0) 'cacheReadTokenCount': cacheReadTokenCount,
+    if (cacheCreationTokenCount != 0) 'cacheCreationTokenCount': cacheCreationTokenCount,
+    if (costUsd != null) 'costUsd': costUsd,
+    if (source != UsageSource.estimated) 'source': source.name,
+  };
 
   factory UsageMetadata.fromJson(Map<String, dynamic> json) {
     final prompt = json['promptTokenCount'] as int? ?? 0;
@@ -134,12 +129,9 @@ class UsageMetadata {
       thoughtsTokenCount: thoughts,
       cacheReadTokenCount: json['cacheReadTokenCount'] as int? ?? 0,
       cacheCreationTokenCount: json['cacheCreationTokenCount'] as int? ?? 0,
-      totalTokenCount:
-          json['totalTokenCount'] as int? ?? (prompt + candidate + thoughts),
+      totalTokenCount: json['totalTokenCount'] as int? ?? (prompt + candidate + thoughts),
       costUsd: (json['costUsd'] as num?)?.toDouble(),
-      source: json['source'] == UsageSource.measured.name
-          ? UsageSource.measured
-          : UsageSource.estimated,
+      source: json['source'] == UsageSource.measured.name ? UsageSource.measured : UsageSource.estimated,
     );
   }
 

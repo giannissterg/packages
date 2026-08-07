@@ -24,8 +24,7 @@ class CompileCommand extends VasterCommand {
   List<String> get aliases => const ['build'];
 
   @override
-  String get description =>
-      'Analyzes a VasterProgram (.json/.vbc) and emits a .vbc binary '
+  String get description => 'Analyzes a VasterProgram (.json/.vbc) and emits a .vbc binary '
       '(or canonical JSON with --json).';
 
   @override
@@ -75,8 +74,7 @@ class CompileCommand extends VasterCommand {
       if (inputPath.endsWith('.vbc')) {
         program = VasterProgramBinary.fromBytes(file.readAsBytesSync());
       } else {
-        program = VasterProgram.fromJson(
-            jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+        program = VasterProgram.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
       }
     } on VbcDecodeException catch (e) {
       err.writeln('Error: $e');
@@ -93,8 +91,7 @@ class CompileCommand extends VasterCommand {
       final sink = d.severity == CompileSeverity.error ? err : out;
       sink.writeln('  [${d.severity.name}] ${d.code}$location: ${d.message}');
     }
-    final errorCount =
-        diagnostics.where((d) => d.severity == CompileSeverity.error).length;
+    final errorCount = diagnostics.where((d) => d.severity == CompileSeverity.error).length;
     if (errorCount > 0) {
       err.writeln('Compilation failed: $errorCount error diagnostic(s).');
       return 1;
@@ -121,8 +118,7 @@ class CompileCommand extends VasterCommand {
     final outputFile = File(outputPath);
     final int bytesWritten;
     if (asJson) {
-      final encoded =
-          const JsonEncoder.withIndent('  ').convert(program.toJson());
+      final encoded = const JsonEncoder.withIndent('  ').convert(program.toJson());
       outputFile.writeAsStringSync('$encoded\n');
       bytesWritten = outputFile.lengthSync();
     } else {

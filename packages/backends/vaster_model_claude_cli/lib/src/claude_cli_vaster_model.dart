@@ -71,18 +71,16 @@ class ClaudeCliVasterModel implements VasterModel {
     final systemText = request.systemInstruction?.text.trim() ?? '';
 
     final args = <String>[
-      '-p', prompt,
-      '--output-format', 'json',
+      '-p',
+      prompt,
+      '--output-format',
+      'json',
       if (selectedModel != null) ...['--model', selectedModel!],
       if (systemText.isNotEmpty) ...['--append-system-prompt', systemText],
       ...extraArgs,
     ];
 
-    final result = await Process.run(
-      executablePath,
-      args,
-      workingDirectory: workingDirectory,
-    );
+    final result = await Process.run(executablePath, args, workingDirectory: workingDirectory);
 
     if (result.exitCode != 0) {
       final stderr = result.stderr.toString().trim();
@@ -112,10 +110,7 @@ class ClaudeCliVasterModel implements VasterModel {
     if (text.isNotEmpty) {
       yield ModelResponseChunk(delta: TextPart(text), textDelta: text);
     }
-    yield ModelResponseChunk(
-      finishReason: response.finishReason,
-      usage: response.usage,
-    );
+    yield ModelResponseChunk(finishReason: response.finishReason, usage: response.usage);
   }
 
   /// Flattens a [ModelRequest]'s conversation into a single prompt string.
@@ -140,13 +135,10 @@ class ClaudeCliVasterModel implements VasterModel {
     final start = stdoutText.indexOf('{');
     final end = stdoutText.lastIndexOf('}');
     if (start == -1 || end == -1 || end < start) {
-      throw FormatException(
-        'Could not locate valid JSON in Claude CLI output:\n$stdoutText',
-      );
+      throw FormatException('Could not locate valid JSON in Claude CLI output:\n$stdoutText');
     }
 
-    final json =
-        jsonDecode(stdoutText.substring(start, end + 1)) as Map<String, dynamic>;
+    final json = jsonDecode(stdoutText.substring(start, end + 1)) as Map<String, dynamic>;
 
     final text = json['result'] as String? ?? '';
     final isError = json['is_error'] as bool? ?? false;

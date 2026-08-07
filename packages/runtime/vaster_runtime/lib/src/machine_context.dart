@@ -38,18 +38,13 @@ final class MachineContext implements MachineStateComponent {
 
   @override
   Map<String, dynamic> captureState() => {
-        if (activeSessionId != null) 'activeSessionId': activeSessionId,
-        if (activeModelDescriptor != null)
-          'activeModelDescriptor': activeModelDescriptor!.toJson(),
-        if (activeModelFallbacks.isNotEmpty)
-          'activeModelFallbacks': [
-            for (final f in activeModelFallbacks) f.toJson()
-          ],
-        if (programToolSet.isNotEmpty)
-          'programToolSet': [for (final t in programToolSet) t.toJson()],
-        if (errorHandlers.isNotEmpty)
-          'errorHandlers': [for (final h in errorHandlers) h.toJson()],
-      };
+    if (activeSessionId != null) 'activeSessionId': activeSessionId,
+    if (activeModelDescriptor != null) 'activeModelDescriptor': activeModelDescriptor!.toJson(),
+    if (activeModelFallbacks.isNotEmpty)
+      'activeModelFallbacks': [for (final f in activeModelFallbacks) f.toJson()],
+    if (programToolSet.isNotEmpty) 'programToolSet': [for (final t in programToolSet) t.toJson()],
+    if (errorHandlers.isNotEmpty) 'errorHandlers': [for (final h in errorHandlers) h.toJson()],
+  };
 
   @override
   void restoreState(Map<String, dynamic> snapshot) {
@@ -57,8 +52,7 @@ final class MachineContext implements MachineStateComponent {
     final descriptor = snapshot['activeModelDescriptor'];
     activeModelDescriptor = descriptor == null
         ? null
-        : ModelDescriptor.fromJson(
-            Map<String, dynamic>.from(descriptor as Map));
+        : ModelDescriptor.fromJson(Map<String, dynamic>.from(descriptor as Map));
     activeModelFallbacks = [
       for (final f in snapshot['activeModelFallbacks'] as List? ?? const [])
         ModelDescriptor.fromJson(Map<String, dynamic>.from(f as Map)),

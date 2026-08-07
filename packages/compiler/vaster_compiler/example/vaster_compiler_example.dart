@@ -15,9 +15,9 @@ class CodeReviewComponent extends ComposableNode {
         ReadFile(path: Template.text(filePath)),
         // Task automatically reads enclosing AgentRole from context!
         const Task(
-            prompt:
-                Template.text('Review the code for quality and security issues.'),
-            output: Binding('code_review')),
+          prompt: Template.text('Review the code for quality and security issues.'),
+          output: Binding('code_review'),
+        ),
       ],
     );
   }
@@ -70,7 +70,10 @@ void main() {
         child: Transaction(
           children: [
             const Task(prompt: Template.text('Implement the Auth Service based on the design.')),
-            const WriteFile(path: Template.text('/workspace/auth.dart'), content: Template.text('// Auth implementation')),
+            const WriteFile(
+              path: Template.text('/workspace/auth.dart'),
+              content: Template.text('// Auth implementation'),
+            ),
           ],
         ),
       ),

@@ -54,25 +54,27 @@ final class ContextInspectionReport {
   String toPrettyString() {
     final buffer = StringBuffer()
       ..writeln('── CONTEXT HEAP ────────────────────────────────────────────')
-      ..writeln('regions: $regionCount   total: ~$totalTokens tok   '
-          'pinned: ~$pinnedTokens tok');
+      ..writeln(
+        'regions: $regionCount   total: ~$totalTokens tok   '
+        'pinned: ~$pinnedTokens tok',
+      );
     for (final row in rows) {
-      final flags = [
-        if (row.isPinned) 'PIN',
-        if (row.isCompressed) 'ZIP',
-      ].join(',');
+      final flags = [if (row.isPinned) 'PIN', if (row.isCompressed) 'ZIP'].join(',');
       buffer.writeln(
-          '  ${row.id.padRight(28)} ${row.tokens.toString().padLeft(7)} tok '
-          '${row.sharePercent.toStringAsFixed(1).padLeft(5)}%  '
-          '${row.priority.name.padRight(9)} ${row.lifetime.name.padRight(10)} '
-          '${row.compressibility.name.padRight(9)} '
-          '${flags.isEmpty ? '-' : flags}');
+        '  ${row.id.padRight(28)} ${row.tokens.toString().padLeft(7)} tok '
+        '${row.sharePercent.toStringAsFixed(1).padLeft(5)}%  '
+        '${row.priority.name.padRight(9)} ${row.lifetime.name.padRight(10)} '
+        '${row.compressibility.name.padRight(9)} '
+        '${flags.isEmpty ? '-' : flags}',
+      );
     }
     if (lastEvictionRecords.isNotEmpty) {
       buffer.writeln('── last compile evictions ─────────────────────────────');
       for (final record in lastEvictionRecords) {
-        buffer.writeln('  ${record.regionId}: ${record.reason.name} '
-            '(${record.regionTokens} tok, ${record.tokensAvailableAtDecision} available)');
+        buffer.writeln(
+          '  ${record.regionId}: ${record.reason.name} '
+          '(${record.regionTokens} tok, ${record.tokensAvailableAtDecision} available)',
+        );
       }
     }
     return buffer.toString();
@@ -99,32 +101,32 @@ final class ContextWorkspace {
   ContextInspectionReport inspect() {
     final all = manager.regions;
     final total = all.fold(0, (s, r) => s + r.estimatedTokens);
-    final rows = all
-        .map((r) => ContextRegionInfo(
-              id: r.id,
-              label: r.label,
-              tokens: r.estimatedTokens,
-              sharePercent: total == 0 ? 0 : r.estimatedTokens * 100 / total,
-              priority: r.priorityOrDefault,
-              lifetime: r.lifetimeOrDefault,
-              compressibility: r.compressibilityOrDefault,
-              isPinned: r.isPinned,
-              isCompressed: r.isCompressed,
-              utility: r.utility,
-            ))
-        .toList()
-      ..sort((a, b) => b.tokens.compareTo(a.tokens));
+    final rows =
+        all
+            .map(
+              (r) => ContextRegionInfo(
+                id: r.id,
+                label: r.label,
+                tokens: r.estimatedTokens,
+                sharePercent: total == 0 ? 0 : r.estimatedTokens * 100 / total,
+                priority: r.priorityOrDefault,
+                lifetime: r.lifetimeOrDefault,
+                compressibility: r.compressibilityOrDefault,
+                isPinned: r.isPinned,
+                isCompressed: r.isCompressed,
+                utility: r.utility,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.tokens.compareTo(a.tokens));
 
     final last = manager.lastCompiled;
     return ContextInspectionReport(
       totalTokens: total,
       regionCount: all.length,
-      pinnedTokens: all
-          .where((r) => r.isPinned)
-          .fold(0, (s, r) => s + r.estimatedTokens),
+      pinnedTokens: all.where((r) => r.isPinned).fold(0, (s, r) => s + r.estimatedTokens),
       rows: rows,
-      lastIncludedIds:
-          last?.includedRegions.map((r) => r.id).toList() ?? const [],
+      lastIncludedIds: last?.includedRegions.map((r) => r.id).toList() ?? const [],
       lastEvictionRecords: last?.evictionRecords ?? const [],
     );
   }
@@ -144,20 +146,21 @@ final class ContextWorkspace {
     ContextCompressibility compressibility = ContextCompressibility.none,
     bool pinned = false,
   }) {
-    manager.addRegion(ContextRegion.text(
-      id: id,
-      label: label,
-      role: role,
-      text: text,
-      priority: priority,
-      lifetime: lifetime,
-      compressibility: compressibility,
-      isPinned: pinned,
-    ));
+    manager.addRegion(
+      ContextRegion.text(
+        id: id,
+        label: label,
+        role: role,
+        text: text,
+        priority: priority,
+        lifetime: lifetime,
+        compressibility: compressibility,
+        isPinned: pinned,
+      ),
+    );
   }
 
-  bool remove(String id, {bool force = false}) =>
-      manager.removeRegion(id, force: force);
+  bool remove(String id, {bool force = false}) => manager.removeRegion(id, force: force);
 
   bool update(String id, ContextRegion Function(ContextRegion) transform) =>
       manager.updateRegion(id, transform);
@@ -168,8 +171,7 @@ final class ContextWorkspace {
   bool setCompressibility(String id, ContextCompressibility compressibility) =>
       manager.updateRegion(id, (r) => r.copyWith(compressibility: compressibility));
 
-  bool setUtility(String id, double utility) =>
-      manager.updateRegion(id, (r) => r.copyWith(utility: utility));
+  bool setUtility(String id, double utility) => manager.updateRegion(id, (r) => r.copyWith(utility: utility));
 
   bool pin(String id) {
     if (manager.getRegion(id) == null) return false;
@@ -201,12 +203,6 @@ final class ContextWorkspace {
   }
 
   /// Compresses the heap toward the budget's input allowance.
-  Future<CompactionReport> compact({
-    required TokenBudget budget,
-    bool includePinned = false,
-  }) =>
-      manager.compact(
-        targetTokens: (budget.availableInputBudget * 0.9).floor(),
-        includePinned: includePinned,
-      );
+  Future<CompactionReport> compact({required TokenBudget budget, bool includePinned = false}) => manager
+      .compact(targetTokens: (budget.availableInputBudget * 0.9).floor(), includePinned: includePinned);
 }

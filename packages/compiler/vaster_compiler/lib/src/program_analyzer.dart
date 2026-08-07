@@ -28,25 +28,28 @@ class ProgramAnalyzer {
         ? ContextClassTable.fromJson(program.contextClasses!)
         : ContextClassTable.standard;
     for (final issue in classTable.validate()) {
-      diagnostics.add(CompileDiagnostic(
-        severity: CompileSeverity.error,
-        code: 'invalid_context_class_table',
-        message: issue,
-      ));
+      diagnostics.add(
+        CompileDiagnostic(
+          severity: CompileSeverity.error,
+          code: 'invalid_context_class_table',
+          message: issue,
+        ),
+      );
     }
     for (var pc = 0; pc < instructions.length; pc++) {
       final inst = instructions[pc];
-      if (inst is AddContextOp &&
-          inst.className != null &&
-          !classTable.contains(inst.className!)) {
-        diagnostics.add(CompileDiagnostic(
-          severity: CompileSeverity.error,
-          code: 'undefined_context_class',
-          message: 'AddContextOp at PC $pc references context class '
-              '"${inst.className}", which the program\'s class table does '
-              'not declare (declared: '
-              '${classTable.classes.keys.toList().join(', ')}).',
-        ));
+      if (inst is AddContextOp && inst.className != null && !classTable.contains(inst.className!)) {
+        diagnostics.add(
+          CompileDiagnostic(
+            severity: CompileSeverity.error,
+            code: 'undefined_context_class',
+            message:
+                'AddContextOp at PC $pc references context class '
+                '"${inst.className}", which the program\'s class table does '
+                'not declare (declared: '
+                '${classTable.classes.keys.toList().join(', ')}).',
+          ),
+        );
       }
     }
 
@@ -72,44 +75,54 @@ class ProgramAnalyzer {
           _checkJumpRange(diagnostics, pc, targetPc, instructions.length);
         case DecideOp(:final branches, :final defaultLabel):
           if (branches.isEmpty) {
-            diagnostics.add(CompileDiagnostic(
-              severity: CompileSeverity.error,
-              code: 'decide_no_branches',
-              message: 'DecideOp has no branches to choose from.',
-              pc: pc,
-            ));
+            diagnostics.add(
+              CompileDiagnostic(
+                severity: CompileSeverity.error,
+                code: 'decide_no_branches',
+                message: 'DecideOp has no branches to choose from.',
+                pc: pc,
+              ),
+            );
           }
           final labels = <String>{};
           for (final branch in branches) {
             jumpTargets.add(branch.targetPc);
             _checkJumpRange(diagnostics, pc, branch.targetPc, instructions.length);
             if (!labels.add(branch.label)) {
-              diagnostics.add(CompileDiagnostic(
-                severity: CompileSeverity.error,
-                code: 'decide_duplicate_label',
-                message: 'DecideOp declares branch label "${branch.label}" '
-                    'more than once.',
-                pc: pc,
-              ));
+              diagnostics.add(
+                CompileDiagnostic(
+                  severity: CompileSeverity.error,
+                  code: 'decide_duplicate_label',
+                  message:
+                      'DecideOp declares branch label "${branch.label}" '
+                      'more than once.',
+                  pc: pc,
+                ),
+              );
             }
           }
           if (defaultLabel != null && !labels.contains(defaultLabel)) {
-            diagnostics.add(CompileDiagnostic(
-              severity: CompileSeverity.error,
-              code: 'decide_unknown_default',
-              message: 'DecideOp defaultLabel "$defaultLabel" is not among '
-                  'its branch labels.',
-              pc: pc,
-            ));
+            diagnostics.add(
+              CompileDiagnostic(
+                severity: CompileSeverity.error,
+                code: 'decide_unknown_default',
+                message:
+                    'DecideOp defaultLabel "$defaultLabel" is not among '
+                    'its branch labels.',
+                pc: pc,
+              ),
+            );
           }
         case CreateAgentOp(:final descriptor):
           if (!createdAgents.add(descriptor.agentId)) {
-            diagnostics.add(CompileDiagnostic(
-              severity: CompileSeverity.warning,
-              code: 'duplicate_agent',
-              message: 'Agent "${descriptor.agentId}" is created more than once.',
-              pc: pc,
-            ));
+            diagnostics.add(
+              CompileDiagnostic(
+                severity: CompileSeverity.warning,
+                code: 'duplicate_agent',
+                message: 'Agent "${descriptor.agentId}" is created more than once.',
+                pc: pc,
+              ),
+            );
           }
         case CreateSessionOp(:final sessionId):
           createdSessions.add(sessionId);
@@ -137,8 +150,7 @@ class ProgramAnalyzer {
 
     // `${name}` interpolation references are register reads — check the
     // wiring at compile time (the runtime leaves unresolvable refs verbatim).
-    List<CompileDiagnostic> checkInterpolationReads(
-        int pc, VasterInstruction inst) {
+    List<CompileDiagnostic> checkInterpolationReads(int pc, VasterInstruction inst) {
       final added = <CompileDiagnostic>[];
       for (final field in _interpolatedFields(inst)) {
         for (final match in RegisterInterpolation.token.allMatches(field)) {
@@ -149,7 +161,8 @@ class ProgramAnalyzer {
             final diagnostic = CompileDiagnostic(
               severity: CompileSeverity.warning,
               code: 'unresolved_interpolation_ref',
-              message: 'Prompt/content interpolates "\${$name}" but no prior '
+              message:
+                  'Prompt/content interpolates "\${$name}" but no prior '
                   'instruction binds it — the reference will be left verbatim '
                   'at runtime unless seeded externally.',
               pc: pc,
@@ -203,33 +216,36 @@ class ProgramAnalyzer {
         case SetRegisterOp(:final registerName):
           written.add(registerName);
         case PromptOp(:final outputVar) ||
-              ReadFileOp(:final outputVar) ||
-              ExecSandboxOp(:final outputVar) ||
-              CallOp(:final outputVar) ||
-              PopMessageOp(:final outputVar):
+            ReadFileOp(:final outputVar) ||
+            ExecSandboxOp(:final outputVar) ||
+            CallOp(:final outputVar) ||
+            PopMessageOp(:final outputVar):
           if (outputVar != null) written.add(outputVar);
         case DispatchAgentTaskOp(:final outputVar, :final agentId):
           if (outputVar != null) written.add(outputVar);
           if (!createdAgents.contains(agentId)) {
-            diagnostics.add(CompileDiagnostic(
-              severity: CompileSeverity.warning,
-              code: 'unknown_agent',
-              message:
-                  'Task dispatched to agent "$agentId" which no CreateAgentOp defines.',
-              pc: pc,
-            ));
+            diagnostics.add(
+              CompileDiagnostic(
+                severity: CompileSeverity.warning,
+                code: 'unknown_agent',
+                message: 'Task dispatched to agent "$agentId" which no CreateAgentOp defines.',
+                pc: pc,
+              ),
+            );
           }
         case DispatchParallelTasksOp(:final dispatches):
           for (final dispatch in dispatches) {
             if (dispatch.outputVar != null) written.add(dispatch.outputVar!);
             if (!createdAgents.contains(dispatch.agentId)) {
-              diagnostics.add(CompileDiagnostic(
-                severity: CompileSeverity.warning,
-                code: 'unknown_agent',
-                message:
-                    'Parallel task targets agent "${dispatch.agentId}" which no CreateAgentOp defines.',
-                pc: pc,
-              ));
+              diagnostics.add(
+                CompileDiagnostic(
+                  severity: CompileSeverity.warning,
+                  code: 'unknown_agent',
+                  message:
+                      'Parallel task targets agent "${dispatch.agentId}" which no CreateAgentOp defines.',
+                  pc: pc,
+                ),
+              );
             }
           }
         case YieldHumanInteractionOp(:final request):
@@ -248,13 +264,14 @@ class ProgramAnalyzer {
           }
         case SetSessionOp(:final sessionId):
           if (!createdSessions.contains(sessionId)) {
-            diagnostics.add(CompileDiagnostic(
-              severity: CompileSeverity.warning,
-              code: 'unknown_session',
-              message:
-                  'SetSessionOp targets session "$sessionId" which no CreateSessionOp defines.',
-              pc: pc,
-            ));
+            diagnostics.add(
+              CompileDiagnostic(
+                severity: CompileSeverity.warning,
+                code: 'unknown_session',
+                message: 'SetSessionOp targets session "$sessionId" which no CreateSessionOp defines.',
+                pc: pc,
+              ),
+            );
           }
         default:
           break;
@@ -272,7 +289,8 @@ class ProgramAnalyzer {
       final diagnostic = CompileDiagnostic(
         severity: CompileSeverity.info,
         code: 'ctx_unknown_region',
-        message: '$opName references region "$regionId" with no preceding '
+        message:
+            '$opName references region "$regionId" with no preceding '
             'AddContextOp in this program (may be provisioned externally).',
         pc: pc,
       );
@@ -304,11 +322,13 @@ class ProgramAnalyzer {
           register.endsWith(decideRationaleSuffix)) {
         continue;
       }
-      diagnostics.add(CompileDiagnostic(
-        severity: CompileSeverity.info,
-        code: 'unused_register',
-        message: 'Register "$register" is written but never read.',
-      ));
+      diagnostics.add(
+        CompileDiagnostic(
+          severity: CompileSeverity.info,
+          code: 'unused_register',
+          message: 'Register "$register" is written but never read.',
+        ),
+      );
     }
 
     // ── Unreachable code (forward reachability propagation) ──────────────
@@ -319,14 +339,16 @@ class ProgramAnalyzer {
     for (var pc = 0; pc < instructions.length; pc++) {
       if (jumpTargets.contains(pc)) reachable = true;
       if (!reachable) {
-        diagnostics.add(CompileDiagnostic(
-          severity: CompileSeverity.warning,
-          code: 'unreachable_code',
-          message:
-              'Instruction ${instructions[pc].opcode.name} is unreachable '
-              '(no control path leads to it).',
-          pc: pc,
-        ));
+        diagnostics.add(
+          CompileDiagnostic(
+            severity: CompileSeverity.warning,
+            code: 'unreachable_code',
+            message:
+                'Instruction ${instructions[pc].opcode.name} is unreachable '
+                '(no control path leads to it).',
+            pc: pc,
+          ),
+        );
         continue;
       }
       final inst = instructions[pc];
@@ -341,27 +363,25 @@ class ProgramAnalyzer {
   /// The interpolated string fields of [inst], per the RegisterInterpolation
   /// spec in vaster_instruction.
   List<String> _interpolatedFields(VasterInstruction inst) => switch (inst) {
-        PromptOp(:final promptText) => [promptText],
-        DispatchAgentTaskOp(:final taskPrompt) => [taskPrompt],
-        DispatchParallelTasksOp(:final dispatches) => [
-            for (final d in dispatches) d.taskPrompt,
-          ],
-        WriteFileOp(:final vfsPath, :final content) => [vfsPath, content],
-        ReadFileOp(:final vfsPath) => [vfsPath],
-        ExecSandboxOp(:final code) => [code],
-        AddContextOp(:final text) => [text],
-        DecideOp(:final prompt) => [prompt],
-        YieldHumanInteractionOp(:final request) => [request.prompt],
-        SendMessageOp(:final payload) => _stringLeaves(payload),
-        _ => const [],
-      };
+    PromptOp(:final promptText) => [promptText],
+    DispatchAgentTaskOp(:final taskPrompt) => [taskPrompt],
+    DispatchParallelTasksOp(:final dispatches) => [for (final d in dispatches) d.taskPrompt],
+    WriteFileOp(:final vfsPath, :final content) => [vfsPath, content],
+    ReadFileOp(:final vfsPath) => [vfsPath],
+    ExecSandboxOp(:final code) => [code],
+    AddContextOp(:final text) => [text],
+    DecideOp(:final prompt) => [prompt],
+    YieldHumanInteractionOp(:final request) => [request.prompt],
+    SendMessageOp(:final payload) => _stringLeaves(payload),
+    _ => const [],
+  };
 
   List<String> _stringLeaves(Object? value) => switch (value) {
-        String s => [s],
-        Map m => [for (final v in m.values) ..._stringLeaves(v)],
-        List l => [for (final v in l) ..._stringLeaves(v)],
-        _ => const [],
-      };
+    String s => [s],
+    Map m => [for (final v in m.values) ..._stringLeaves(v)],
+    List l => [for (final v in l) ..._stringLeaves(v)],
+    _ => const [],
+  };
 
   CompileDiagnostic? _checkJumpRange(
     List<CompileDiagnostic> diagnostics,
@@ -374,8 +394,7 @@ class ProgramAnalyzer {
     final diagnostic = CompileDiagnostic(
       severity: CompileSeverity.error,
       code: 'jump_out_of_range',
-      message:
-          'Jump target PC $targetPc is outside the program (length $programLength).',
+      message: 'Jump target PC $targetPc is outside the program (length $programLength).',
       pc: pc,
     );
     diagnostics.add(diagnostic);

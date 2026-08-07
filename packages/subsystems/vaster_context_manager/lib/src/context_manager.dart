@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'prune_report.dart';
+
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_events/vaster_events.dart';
 
@@ -43,9 +45,8 @@ class BasicContextManager implements ContextManager {
     AllocationStrategy? allocationStrategy,
     this.compressors = const [],
     this.eventBus,
-  })  : _classTable = classTable,
-        allocationStrategy = allocationStrategy ??
-            ClassAwareAllocationStrategy(classTable: classTable) {
+  }) : _classTable = classTable,
+       allocationStrategy = allocationStrategy ?? ClassAwareAllocationStrategy(classTable: classTable) {
     if (sources != null) {
       _sources.addAll(sources);
     }
@@ -100,8 +101,7 @@ class BasicContextManager implements ContextManager {
 
   @override
   ContextSource? registerSource(ContextSource source) {
-    final displaced =
-        _sources.where((s) => s.id == source.id).firstOrNull;
+    final displaced = _sources.where((s) => s.id == source.id).firstOrNull;
     _sources.removeWhere((s) => s.id == source.id);
     _sources.add(source);
     return displaced;
@@ -141,9 +141,7 @@ class BasicContextManager implements ContextManager {
     // updates therefore invalidate automatically.
     final currentFingerprint = regionFingerprintOf(region);
     final existing = _cacheDescriptors[regionId];
-    if (existing != null &&
-        existing.contentFingerprint == currentFingerprint &&
-        !existing.isExpired) {
+    if (existing != null && existing.contentFingerprint == currentFingerprint && !existing.isExpired) {
       return existing;
     }
 
@@ -185,8 +183,7 @@ class BasicContextManager implements ContextManager {
     String? regionId,
     bool includePinned = false,
   }) async {
-    final compactor =
-        ContextCompactor(compressors: compressors, classTable: _classTable);
+    final compactor = ContextCompactor(compressors: compressors, classTable: _classTable);
     final report = await compactor.compact(
       regions: heap.regions,
       targetTokens: targetTokens,
@@ -199,10 +196,7 @@ class BasicContextManager implements ContextManager {
   }
 
   @override
-  Future<CompiledContext> compileContext({
-    required TokenBudget budget,
-    bool allowCompression = true,
-  }) async {
+  Future<CompiledContext> compileContext({required TokenBudget budget, bool allowCompression = true}) async {
     await syncSources();
 
     // Compression pre-pass: shrink compressible regions before allocation
@@ -211,9 +205,7 @@ class BasicContextManager implements ContextManager {
     if (allowCompression &&
         compressors.isNotEmpty &&
         heap.totalEstimatedTokens > budget.availableInputBudget) {
-      final report = await ContextCompactor(
-              compressors: compressors, classTable: _classTable)
-          .compact(
+      final report = await ContextCompactor(compressors: compressors, classTable: _classTable).compact(
         regions: heap.regions,
         targetTokens: (budget.availableInputBudget * 0.9).floor(),
         apply: (compressed) => heap.replaceRegion(compressed),
@@ -221,10 +213,7 @@ class BasicContextManager implements ContextManager {
       _emitCompressed(report);
     }
 
-    final compiled = allocationStrategy.allocate(
-      regions: heap.regions,
-      budget: budget,
-    );
+    final compiled = allocationStrategy.allocate(regions: heap.regions, budget: budget);
     _lastCompiled = compiled;
 
     if (compiled.evictedRegions.isNotEmpty) {
@@ -241,18 +230,14 @@ class BasicContextManager implements ContextManager {
   CompiledContext? get lastCompiled => _lastCompiled;
 
   @override
-  PruneReport pruneLifetimes(
-      Set<ContextLifetime> expiredLifetimes,
-      {bool force = false}) {
+  PruneReport pruneLifetimes(Set<ContextLifetime> expiredLifetimes, {bool force = false}) {
     final removedIds = <String>[];
     var tokensFreed = 0;
     for (final region in List<ContextRegion>.from(heap.regions)) {
-      final effectiveLifetime =
-          region.effectiveLifetime(_classTable.resolve(region.classId));
+      final effectiveLifetime = region.effectiveLifetime(_classTable.resolve(region.classId));
       if (!expiredLifetimes.contains(effectiveLifetime)) continue;
       // Sweeps respect pins and critical priority unless forced.
-      if (!force &&
-          (region.isPinned || region.priority == ContextPriority.critical)) {
+      if (!force && (region.isPinned || region.priority == ContextPriority.critical)) {
         continue;
       }
       if (heap.removeRegion(region.id, force: true)) {
@@ -278,29 +263,32 @@ class BasicContextManager implements ContextManager {
     // Resolve classes before publishing — the regions may already be gone
     // from the heap by the time a subscriber looks.
     final classes = <String, String>{
-      for (final id in regionIds)
-        id: _classTable.resolve(heap.getRegion(id)?.classId).name,
+      for (final id in regionIds) id: _classTable.resolve(heap.getRegion(id)?.classId).name,
     };
-    return eventBus?.publish(ContextEvictedEvent(
-      eventId: _nextEventId('evict'),
-      evictedRegionIds: regionIds,
-      tokensFreed: tokensFreed,
-      metadata: {'reason': reason, 'classes': classes},
-    ));
+    return eventBus?.publish(
+      ContextEvictedEvent(
+        eventId: _nextEventId('evict'),
+        evictedRegionIds: regionIds,
+        tokensFreed: tokensFreed,
+        metadata: {'reason': reason, 'classes': classes},
+      ),
+    );
   }
 
   void _emitCompressed(CompactionReport report) {
     final bus = eventBus;
     if (bus == null) return;
     for (final entry in report.entries) {
-      bus.publish(ContextCompressedEvent(
-        eventId: _nextEventId('compress'),
-        regionId: entry.regionId,
-        tokensBefore: entry.tokensBefore,
-        tokensAfter: entry.tokensAfter,
-        compressorId: entry.compressorId,
-        lossy: entry.lossy,
-      ));
+      bus.publish(
+        ContextCompressedEvent(
+          eventId: _nextEventId('compress'),
+          regionId: entry.regionId,
+          tokensBefore: entry.tokensBefore,
+          tokensAfter: entry.tokensAfter,
+          compressorId: entry.compressorId,
+          lossy: entry.lossy,
+        ),
+      );
     }
   }
 }

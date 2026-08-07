@@ -37,23 +37,23 @@ void main() {
       expect(readText, equals(message));
     });
 
-    test('MmapVasterModel round-trips a real sidecar answer (duplex rings)',
-        () async {
+    test('MmapVasterModel round-trips a real sidecar answer (duplex rings)', () async {
       // Duplex: request and response travel on separate rings. A single
       // shared ring lets the polling client consume its own request — the
       // race the old fake-success stub used to hide.
       final res = SharedMemoryRing(
-          shmName: '/vaster_res_${DateTime.now().microsecondsSinceEpoch}',
-          capacity: 64 * 1024);
+          shmName: '/vaster_res_${DateTime.now().microsecondsSinceEpoch}', capacity: 64 * 1024);
       addTearDown(res.close);
-      final model = MmapVasterModel(
-          ring: ring, responseRing: res, targetModelName: 'llama-3-8b');
+      final model = MmapVasterModel(ring: ring, responseRing: res, targetModelName: 'llama-3-8b');
       expect(model.modelName, equals('llama-3-8b'));
       expect(model.descriptor, equals('mmap:llama-3-8b'));
 
       final request = const ModelRequest(
-        systemInstruction: ChatMessage(role: Role.system, parts: [TextPart('You are a native C++ model sidecar.')]),
-        messages: [ChatMessage(role: Role.user, parts: [TextPart('Generate code')])],
+        systemInstruction:
+            ChatMessage(role: Role.system, parts: [TextPart('You are a native C++ model sidecar.')]),
+        messages: [
+          ChatMessage(role: Role.user, parts: [TextPart('Generate code')])
+        ],
       );
 
       // A minimal sidecar: answer the first request envelope.
@@ -78,11 +78,9 @@ void main() {
       expect(response.finishReason, equals(FinishReason.stop));
     });
 
-    test('no sidecar → typed SidecarUnavailableException, never fake success',
-        () async {
+    test('no sidecar → typed SidecarUnavailableException, never fake success', () async {
       final res = SharedMemoryRing(
-          shmName: '/vaster_res2_${DateTime.now().microsecondsSinceEpoch}',
-          capacity: 64 * 1024);
+          shmName: '/vaster_res2_${DateTime.now().microsecondsSinceEpoch}', capacity: 64 * 1024);
       addTearDown(res.close);
       final model = MmapVasterModel(
         ring: ring,
@@ -98,8 +96,7 @@ void main() {
 
     test('a sidecar error envelope → typed SidecarRemoteException', () async {
       final res = SharedMemoryRing(
-          shmName: '/vaster_res3_${DateTime.now().microsecondsSinceEpoch}',
-          capacity: 64 * 1024);
+          shmName: '/vaster_res3_${DateTime.now().microsecondsSinceEpoch}', capacity: 64 * 1024);
       addTearDown(res.close);
       final model = MmapVasterModel(ring: ring, responseRing: res);
       unawaited(Future(() async {
@@ -116,8 +113,7 @@ void main() {
 
     test('ring ops after close are typed errors, not native faults', () {
       final doomed = SharedMemoryRing(
-          shmName: '/vaster_closed_${DateTime.now().microsecondsSinceEpoch}',
-          capacity: 64 * 1024);
+          shmName: '/vaster_closed_${DateTime.now().microsecondsSinceEpoch}', capacity: 64 * 1024);
       doomed.close();
       expect(doomed.readPacket, throwsStateError);
       expect(() => doomed.writeString('x'), throwsStateError);

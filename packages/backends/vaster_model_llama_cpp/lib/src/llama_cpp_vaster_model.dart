@@ -58,8 +58,7 @@ class LlamaCppVasterModel implements VasterModel {
         body: jsonEncode(buildRequestBody(request, slotId: slotId)),
       );
       if (response.statusCode != 200) {
-        throw StateError(
-            'llama.cpp completion failed ${response.statusCode}: ${response.body}');
+        throw StateError('llama.cpp completion failed ${response.statusCode}: ${response.body}');
       }
       return parseResponse(jsonDecode(response.body) as Map<String, dynamic>);
     } finally {
@@ -75,17 +74,14 @@ class LlamaCppVasterModel implements VasterModel {
     try {
       final httpRequest = http.Request('POST', Uri.parse('$baseUrl/completion'))
         ..headers['content-type'] = 'application/json'
-        ..body = jsonEncode(
-            buildRequestBody(request, slotId: slotId, stream: true));
+        ..body = jsonEncode(buildRequestBody(request, slotId: slotId, stream: true));
       final streamed = await client.send(httpRequest);
       if (streamed.statusCode != 200) {
         final body = await streamed.stream.bytesToString();
         throw StateError('llama.cpp stream failed ${streamed.statusCode}: $body');
       }
 
-      await for (final line in streamed.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
+      await for (final line in streamed.stream.transform(utf8.decoder).transform(const LineSplitter())) {
         if (!line.startsWith('data:')) continue;
         final payload = line.substring(5).trim();
         if (payload.isEmpty) continue;
@@ -95,10 +91,7 @@ class LlamaCppVasterModel implements VasterModel {
           yield ModelResponseChunk(delta: TextPart(content), textDelta: content);
         }
         if (event['stop'] == true) {
-          yield ModelResponseChunk(
-            finishReason: _mapStop(event),
-            usage: _parseUsage(event),
-          );
+          yield ModelResponseChunk(finishReason: _mapStop(event), usage: _parseUsage(event));
         }
       }
     } finally {
@@ -134,8 +127,7 @@ class LlamaCppVasterModel implements VasterModel {
       if (config.temperature != null) 'temperature': config.temperature,
       if (config.topP != null) 'top_p': config.topP,
       if (config.topK != null) 'top_k': config.topK,
-      if (config.stopSequences != null && config.stopSequences!.isNotEmpty)
-        'stop': config.stopSequences,
+      if (config.stopSequences != null && config.stopSequences!.isNotEmpty) 'stop': config.stopSequences,
       // Structured outputs lower to llama.cpp's native json_schema constraint.
       if (config.responseSchema != null) 'json_schema': config.responseSchema,
     };

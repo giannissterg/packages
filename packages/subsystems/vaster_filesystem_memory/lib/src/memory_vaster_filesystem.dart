@@ -54,8 +54,8 @@ class MemoryVasterFileSystem implements VasterFileSystem {
   /// Exports every file as base64 (checkpoint capture) — binary-safe.
   @override
   Map<String, String> exportFilesBase64() => {
-        for (final entry in _storage.entries) entry.key: base64Encode(entry.value),
-      };
+    for (final entry in _storage.entries) entry.key: base64Encode(entry.value),
+  };
 
   /// Imports files previously exported with [exportFilesBase64], replacing
   /// same-path entries (checkpoint restore); returns how many files were
@@ -80,10 +80,10 @@ class MemoryVasterFileSystem implements VasterFileSystem {
     final mimeType = norm.endsWith('.json')
         ? 'application/json'
         : norm.endsWith('.md')
-            ? 'text/markdown'
-            : norm.endsWith('.dart')
-                ? 'application/dart'
-                : 'text/plain';
+        ? 'text/markdown'
+        : norm.endsWith('.dart')
+        ? 'application/dart'
+        : 'text/plain';
 
     return FileDescriptor(
       path: norm,
@@ -136,22 +136,16 @@ class MemoryVasterFileSystem implements VasterFileSystem {
         if (parts.length == 1 || recursive) {
           final desc = await getDescriptor(fileKey);
           if (desc != null) {
-            nodes.add(VirtualFile(
-              path: fileKey,
-              name: parts.last,
-              descriptor: desc,
-              bytes: _storage[fileKey]!,
-            ));
+            nodes.add(
+              VirtualFile(path: fileKey, name: parts.last, descriptor: desc, bytes: _storage[fileKey]!),
+            );
           }
         } else if (parts.length > 1) {
           final dirName = parts.first;
           final dirPath = '$prefix$dirName';
           if (!seenDirectories.contains(dirPath)) {
             seenDirectories.add(dirPath);
-            nodes.add(VirtualDirectory(
-              path: dirPath,
-              name: dirName,
-            ));
+            nodes.add(VirtualDirectory(path: dirPath, name: dirName));
           }
         }
       }

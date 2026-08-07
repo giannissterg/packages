@@ -41,19 +41,16 @@ void main(List<String> args) {
         child: Sequence([
           Prompt(
             Template.text(
-                'Triage this incident report. Reply with: one-line summary, '
-                'suspected cause, severity (low/medium/high).\n\n\${report}'),
+              'Triage this incident report. Reply with: one-line summary, '
+              'suspected cause, severity (low/medium/high).\n\n\${report}',
+            ),
             output: Binding('triage'),
           ),
           ApprovalGate(
             requestId: 'file_ticket',
-            prompt: Template.text(
-                'File this triage note?\n\n\${triage}'),
+            prompt: Template.text('File this triage note?\n\n\${triage}'),
             onApprove: [
-              WriteFile(
-                path: Template.text('/workspace/TRIAGE.md'),
-                content: Template.text('\${triage}'),
-              ),
+              WriteFile(path: Template.text('/workspace/TRIAGE.md'), content: Template.text('\${triage}')),
               Inputs({Binding('outcome'): 'filed'}),
             ],
             onReject: [
@@ -77,8 +74,12 @@ void main(List<String> args) {
     ..writeln('Next, let the CLI own it:')
     ..writeln('  vaster audit $path')
     ..writeln('  vaster check $path --max-cost 0.5')
-    ..writeln('  vaster run   $path --backend fake '
-        '--checkpoint-dir artifacts/examples/ckpts   # parks at the gate, exit 3')
-    ..writeln('  vaster resume artifacts/examples/ckpts/'
-        'triage_note_file_ticket.ckpt.json --backend fake --respond approve');
+    ..writeln(
+      '  vaster run   $path --backend fake '
+      '--checkpoint-dir artifacts/examples/ckpts   # parks at the gate, exit 3',
+    )
+    ..writeln(
+      '  vaster resume artifacts/examples/ckpts/'
+      'triage_note_file_ticket.ckpt.json --backend fake --respond approve',
+    );
 }

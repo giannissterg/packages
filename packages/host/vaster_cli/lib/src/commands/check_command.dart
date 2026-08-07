@@ -22,8 +22,7 @@ class CheckCommand extends VasterCommand {
   String get name => 'check';
 
   @override
-  String get description =>
-      'Statically verifies a compiled program: binding dominance, worst-case '
+  String get description => 'Statically verifies a compiled program: binding dominance, worst-case '
       'cost bound, and policy proofs.';
 
   @override
@@ -53,8 +52,7 @@ class CheckCommand extends VasterCommand {
           'this. Falls back to a profile for --model, then to the len/4 '
           'heuristic.',
     );
-    parser.addFlag('json',
-        negatable: false, help: 'Emit the report as machine-readable JSON.');
+    parser.addFlag('json', negatable: false, help: 'Emit the report as machine-readable JSON.');
     return parser;
   }
 
@@ -80,8 +78,7 @@ class CheckCommand extends VasterCommand {
     try {
       program = file.path.endsWith('.vbc')
           ? VasterProgramBinary.fromBytes(file.readAsBytesSync())
-          : VasterProgram.fromJson(
-              jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+          : VasterProgram.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
     } on Object catch (e) {
       err.writeln('Error: cannot load program: $e');
       return 1;
@@ -101,9 +98,8 @@ class CheckCommand extends VasterCommand {
             err.writeln('Error: policy file not found: $policyArg');
             return 1;
           }
-          policy = ExecutionPolicy.fromJson(
-              jsonDecode(policyFile.readAsStringSync())
-                  as Map<String, dynamic>);
+          policy =
+              ExecutionPolicy.fromJson(jsonDecode(policyFile.readAsStringSync()) as Map<String, dynamic>);
       }
     }
 
@@ -112,18 +108,15 @@ class CheckCommand extends VasterCommand {
     // overhead is a backend property), then a model-name profile, then
     // the canonical heuristic.
     const calibrations = CalibrationCatalog.builtin;
-    final calibration =
-        calibrations.forBackend(results['backend'] as String? ?? '') ??
-            calibrations.forBackend(results['model'] as String? ?? '');
+    final calibration = calibrations.forBackend(results['backend'] as String? ?? '') ??
+        calibrations.forBackend(results['model'] as String? ?? '');
     final checker = ProgramChecker(
       pricingCatalog: PricingCatalog.builtin,
       policy: policy,
       modelName: results['model'] as String?,
-      responseAllowanceTokens:
-          int.tryParse(results['response-allowance'] as String? ?? '') ?? 1024,
-      estimator: calibration == null
-          ? const HeuristicTokenEstimator()
-          : CalibratedTokenEstimator(calibration),
+      responseAllowanceTokens: int.tryParse(results['response-allowance'] as String? ?? '') ?? 1024,
+      estimator:
+          calibration == null ? const HeuristicTokenEstimator() : CalibratedTokenEstimator(calibration),
       callOverheadFactor: calibration?.callOverheadFactor ?? 1.0,
     );
     final report = checker.check(program);

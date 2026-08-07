@@ -27,10 +27,7 @@ void main() async {
     toolManager: BasicToolManager(),
   );
 
-  final output = await agent.run(const AgentTask(
-    taskId: 'task_001',
-    inputPrompt: 'Implement binary search',
-  ));
+  final output = await agent.run(const AgentTask(taskId: 'task_001', inputPrompt: 'Implement binary search'));
 
   print('Agent Output: ${output.outputText}');
 }

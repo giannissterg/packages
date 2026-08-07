@@ -19,18 +19,16 @@ final class LlamaTokenEstimator implements TokenEstimator {
   const LlamaTokenEstimator(this.engine);
 
   @override
-  int forText(String text) =>
-      text.isEmpty ? 0 : engine.tokenize(text, addBos: false).length;
+  int forText(String text) => text.isEmpty ? 0 : engine.tokenize(text, addBos: false).length;
 
   @override
-  int forMessages(Iterable<ChatMessage> messages) => messages.fold(
-      0, (sum, m) => sum + forText(m.text) + TokenEstimate.perMessageOverhead);
+  int forMessages(Iterable<ChatMessage> messages) =>
+      messages.fold(0, (sum, m) => sum + forText(m.text) + TokenEstimate.perMessageOverhead);
 
   @override
-  UsageMetadata forExchange({required String prompt, required String output}) =>
-      UsageMetadata(
-        promptTokenCount: forText(prompt),
-        candidatesTokenCount: forText(output),
-        source: UsageSource.measured,
-      );
+  UsageMetadata forExchange({required String prompt, required String output}) => UsageMetadata(
+    promptTokenCount: forText(prompt),
+    candidatesTokenCount: forText(output),
+    source: UsageSource.measured,
+  );
 }

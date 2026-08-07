@@ -10,6 +10,7 @@ import 'package:vaster_sandbox_manager/vaster_sandbox_manager.dart';
 import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
+
 import 'model_registry.dart';
 import 'sandbox_registration.dart';
 import 'prompt_funnel.dart';
@@ -24,8 +25,7 @@ import 'vm_shutdown_report.dart';
 /// runtime's tool loop needs). Collaborators with a bounded job depend on
 /// a facet, not on this master one — the type then documents what the
 /// component can actually do.
-abstract interface class VasterVirtualMachine
-    implements PromptFunnel, ToolLoopHost {
+abstract interface class VasterVirtualMachine implements PromptFunnel, ToolLoopHost {
   /// VM configuration settings.
   VMConfig get config;
 
@@ -79,10 +79,9 @@ abstract interface class VasterVirtualMachine
   /// Registers a concrete [VasterModel] for a given [ModelDescriptor];
   /// returns the model it displaced under the descriptor key, null when
   /// fresh.
-/// Registers a model and returns every binding it displaced, keyed by
+  /// Registers a model and returns every binding it displaced, keyed by
   /// the slot (descriptor key and/or provider — registration writes both).
-  Map<String, VasterModel> registerModel(
-      ModelDescriptor descriptor, VasterModel model);
+  Map<String, VasterModel> registerModel(ModelDescriptor descriptor, VasterModel model);
 
   /// Creates a new model session in [sessionManager].
   ///
@@ -91,10 +90,7 @@ abstract interface class VasterVirtualMachine
   /// one, so ambient pinned regions remain visible to session prompts
   /// exactly as they are to sessionless ones. Agents receive the same
   /// layering.
-  Future<ModelSession> createSession({
-    required String sessionId,
-    ModelDescriptor? modelDescriptor,
-  });
+  Future<ModelSession> createSession({required String sessionId, ModelDescriptor? modelDescriptor});
 
   /// Mounts a filesystem backend into [fileSystemManager] and bridges
   /// files to context; returns the normalized mount prefix.
@@ -115,15 +111,17 @@ abstract interface class VasterVirtualMachine
   /// need to depend on concrete sandbox implementations.
   /// Returns the sandbox it constructed and registered — previously
   /// unreachable by the caller (Rule 11's handle idiom).
-  CodeSandbox mountSandbox(String sandboxId, SandboxLanguage language,
-      {Duration? timeout});
+  CodeSandbox mountSandbox(String sandboxId, SandboxLanguage language, {Duration? timeout});
 
   /// Creates and registers an autonomous agent in [agentManager].
-  Future<VasterAgent> createAgent({
-    required AgentDescriptor descriptor,
-    VasterModel? model,
-    String? parentAgentId,
-  });
+  ///
+  /// The agent's model is DESCRIPTOR configuration (Rule 5 — behavioral
+  /// config belongs in descriptors): `AgentDescriptor.modelDescriptor`
+  /// (+ `modelFallbacks`) resolves through the registry; undeclared means
+  /// the VM default. The former `model:` override parameter is gone —
+  /// hosts that want a specific live model register it and name it in
+  /// the descriptor.
+  Future<VasterAgent> createAgent({required AgentDescriptor descriptor, String? parentAgentId});
 
   /// Agent provisioned on demand when [runAgentTask] is called with no
   /// [agentId] — the VM's general-purpose root agent. Named here so the
@@ -135,10 +133,7 @@ abstract interface class VasterVirtualMachine
   ///
   /// With no [agentId], the task goes to [defaultRootAgentId], which is
   /// created on first use.
-  Future<AgentOutput> runAgentTask(
-    AgentTask task, {
-    String? agentId,
-  });
+  Future<AgentOutput> runAgentTask(AgentTask task, {String? agentId});
 
   /// Shuts down VM resources cleanly; returns the teardown report —
   /// what was actually closed (Rule 11).

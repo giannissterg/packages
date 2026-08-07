@@ -41,9 +41,7 @@ void main() {
           Capability.glob(PolicyAction.fileRead, '/mem/public/**'),
           Capability.prefix(PolicyAction.toolCall, 'tool_read_'),
         ],
-        deniedCapabilities: [
-          Capability.exact(PolicyAction.fileWrite, '/mem/system.config'),
-        ],
+        deniedCapabilities: [Capability.exact(PolicyAction.fileWrite, '/mem/system.config')],
         defaultAllow: false,
       );
 

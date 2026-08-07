@@ -107,8 +107,7 @@ void main() {
       r.write(List.filled(20, 9)); // 24 of 31 used
       expect(
         () => r.write(List.filled(10, 9)),
-        throwsA(isA<RingFullException>()
-            .having((e) => e.frameLength, 'frameLength', 10)),
+        throwsA(isA<RingFullException>().having((e) => e.frameLength, 'frameLength', 10)),
       );
       // The refused write must not have clobbered the unread frame.
       expect(r.read(), equals(List.filled(20, 9)));

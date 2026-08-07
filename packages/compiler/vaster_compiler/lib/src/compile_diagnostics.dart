@@ -16,16 +16,10 @@ class CompileDiagnostic {
   /// Program counter the diagnostic anchors to, when applicable.
   final int? pc;
 
-  const CompileDiagnostic({
-    required this.severity,
-    required this.code,
-    required this.message,
-    this.pc,
-  });
+  const CompileDiagnostic({required this.severity, required this.code, required this.message, this.pc});
 
   @override
-  String toString() =>
-      '${severity.name}[$code]${pc != null ? ' @PC$pc' : ''}: $message';
+  String toString() => '${severity.name}[$code]${pc != null ? ' @PC$pc' : ''}: $message';
 }
 
 /// The result of compiling a pipeline: the program plus every diagnostic
@@ -36,14 +30,11 @@ class CompileResult {
 
   const CompileResult({required this.program, required this.diagnostics});
 
-  bool get hasErrors =>
-      diagnostics.any((d) => d.severity == CompileSeverity.error);
+  bool get hasErrors => diagnostics.any((d) => d.severity == CompileSeverity.error);
 
-  Iterable<CompileDiagnostic> get errors =>
-      diagnostics.where((d) => d.severity == CompileSeverity.error);
+  Iterable<CompileDiagnostic> get errors => diagnostics.where((d) => d.severity == CompileSeverity.error);
 
-  Iterable<CompileDiagnostic> get warnings =>
-      diagnostics.where((d) => d.severity == CompileSeverity.warning);
+  Iterable<CompileDiagnostic> get warnings => diagnostics.where((d) => d.severity == CompileSeverity.warning);
 }
 
 /// Options controlling the compiler's pass pipeline.

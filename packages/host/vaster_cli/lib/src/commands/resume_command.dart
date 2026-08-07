@@ -23,8 +23,7 @@ class ResumeCommand extends VasterCommand {
   String get name => 'resume';
 
   @override
-  String get description =>
-      'Resumes a pipeline from a durable checkpoint file '
+  String get description => 'Resumes a pipeline from a durable checkpoint file '
       '(see `vaster run --checkpoint-dir`).';
 
   @override
@@ -49,8 +48,7 @@ class ResumeCommand extends VasterCommand {
       'checkpoint-dir',
       help: 'Re-park durably at the NEXT human-interaction pause.',
     );
-    parser.addFlag('trace',
-        negatable: false, help: 'Live disassembly trace while resuming.');
+    parser.addFlag('trace', negatable: false, help: 'Live disassembly trace while resuming.');
     return parser;
   }
 
@@ -73,8 +71,7 @@ class ResumeCommand extends VasterCommand {
 
     final MachineCheckpoint checkpoint;
     try {
-      checkpoint = MachineCheckpoint.fromJson(
-          jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+      checkpoint = MachineCheckpoint.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
     } on FormatException catch (e) {
       err.writeln('Error: invalid checkpoint: ${e.message}');
       return 1;
@@ -82,8 +79,7 @@ class ResumeCommand extends VasterCommand {
 
     final pending = checkpoint.continuation.pendingRequest;
     final respondText = results['respond'] as String?;
-    final requestId =
-        results['request'] as String? ?? pending?.requestId;
+    final requestId = results['request'] as String? ?? pending?.requestId;
     HumanInteractionResponse? response;
     if (respondText != null) {
       if (requestId == null) {
@@ -92,17 +88,16 @@ class ResumeCommand extends VasterCommand {
         return 1;
       }
       response = switch (respondText.toLowerCase()) {
-        'approve' || 'yes' || 'y' =>
-          HumanInteractionResponse.approve(requestId: requestId),
-        'reject' || 'no' || 'n' => HumanInteractionResponse.reject(
-            requestId: requestId, reason: 'Rejected via vaster resume.'),
-        _ => HumanInteractionResponse.answer(
-            requestId: requestId, answerText: respondText),
+        'approve' || 'yes' || 'y' => HumanInteractionResponse.approve(requestId: requestId),
+        'reject' ||
+        'no' ||
+        'n' =>
+          HumanInteractionResponse.reject(requestId: requestId, reason: 'Rejected via vaster resume.'),
+        _ => HumanInteractionResponse.answer(requestId: requestId, answerText: respondText),
       };
     }
 
-    final resolved =
-        await resolveBackendModel(results: results, context: context, err: err);
+    final resolved = await resolveBackendModel(results: results, context: context, err: err);
     final model = resolved.model;
     final program = checkpoint.decodeProgram();
 
@@ -120,8 +115,7 @@ class ResumeCommand extends VasterCommand {
         '\$${checkpoint.budgetConsumedCost.toStringAsFixed(6)} already spent');
     out.writeln('======================================================================\n');
 
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: model));
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: model));
     final usageMeter = ResumeUsageMeter();
     final usageSub = vm.eventBus.on<ModelUsageEvent>().listen(usageMeter.add);
 
@@ -144,14 +138,12 @@ class ResumeCommand extends VasterCommand {
       final request = runtime.pendingHumanRequest;
       if (request == null) break;
       if (checkpointDir != null) {
-        final next = MachineCheckpoint.capture(
-            runtime: runtime, vm: vm, program: program);
+        final next = MachineCheckpoint.capture(runtime: runtime, vm: vm, program: program);
         final path = '$checkpointDir/${program.programName}'
             '_${request.requestId}.ckpt.json';
         File(path)
           ..parent.createSync(recursive: true)
-          ..writeAsStringSync(
-              const JsonEncoder.withIndent('  ').convert(next.toJson()));
+          ..writeAsStringSync(const JsonEncoder.withIndent('  ').convert(next.toJson()));
         out.writeln('\n── PARKED (durable) ────────────────────────────────────');
         out.writeln('  awaiting: ${request.prompt}');
         out.writeln('  checkpoint: $path');
@@ -160,8 +152,7 @@ class ResumeCommand extends VasterCommand {
         // since the last park get frames too.
         final prewarmer = resolved.kvPrewarmer;
         if (prewarmer != null) {
-          final stats =
-              await prewarmer.prewarmPinnedRegions(vm.contextManager);
+          final stats = await prewarmer.prewarmPinnedRegions(vm.contextManager);
           if (stats.faults + stats.hits > 0) {
             out.writeln('  kv-prewarm: ${stats.faults} region(s) '
                 'materialized (${stats.tokensMaterialized} tokens)'
@@ -192,12 +183,12 @@ class ResumeCommand extends VasterCommand {
         return 2;
       }
       final reply = switch (answer.toLowerCase()) {
-        'yes' || 'y' || 'approve' =>
-          HumanInteractionResponse.approve(requestId: request.requestId),
-        'no' || 'n' || 'reject' => HumanInteractionResponse.reject(
-            requestId: request.requestId, reason: 'Rejected by user.'),
-        _ => HumanInteractionResponse.answer(
-            requestId: request.requestId, answerText: answer),
+        'yes' || 'y' || 'approve' => HumanInteractionResponse.approve(requestId: request.requestId),
+        'no' ||
+        'n' ||
+        'reject' =>
+          HumanInteractionResponse.reject(requestId: request.requestId, reason: 'Rejected by user.'),
+        _ => HumanInteractionResponse.answer(requestId: request.requestId, answerText: answer),
       };
       state = await runtime.resumeWithHumanResponse(reply);
     }
@@ -212,8 +203,7 @@ class ResumeCommand extends VasterCommand {
         '(${runtime.budget.consumedTokens - checkpoint.budgetConsumedTokens} '
         'this resume)');
     if (runtime.budget.consumedCost > 0) {
-      out.writeln(
-          '  cost   : \$${runtime.budget.consumedCost.toStringAsFixed(6)}');
+      out.writeln('  cost   : \$${runtime.budget.consumedCost.toStringAsFixed(6)}');
     }
     if (usageMeter.cacheReadTokens > 0) {
       out.writeln('  cache  : ${usageMeter.cacheReadTokens} of '
@@ -221,8 +211,7 @@ class ResumeCommand extends VasterCommand {
           '— never re-decoded');
     }
     final resultRegister = program.resultBinding;
-    if (resultRegister != null &&
-        state.registers.containsKey(resultRegister)) {
+    if (resultRegister != null && state.registers.containsKey(resultRegister)) {
       out.writeln('  output :');
       out.writeln('${state.registers[resultRegister]}');
     }

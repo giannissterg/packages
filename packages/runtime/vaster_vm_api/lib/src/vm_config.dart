@@ -37,6 +37,5 @@ class VMConfig {
   });
 
   @override
-  String toString() =>
-      'VMConfig(model: "${defaultModel.modelName}", rootMount: "$rootMountPath")';
+  String toString() => 'VMConfig(model: "${defaultModel.modelName}", rootMount: "$rootMountPath")';
 }

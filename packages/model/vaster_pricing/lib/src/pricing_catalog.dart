@@ -12,8 +12,7 @@ import 'model_pricing.dart';
 class PricingCatalog {
   final Map<String, ModelPricing> _entries;
 
-  const PricingCatalog(Map<String, ModelPricing> entries)
-      : _entries = entries;
+  const PricingCatalog(Map<String, ModelPricing> entries) : _entries = entries;
 
   /// A catalog with no rates: computed cost is never available.
   static const PricingCatalog empty = PricingCatalog({});
@@ -32,10 +31,8 @@ class PricingCatalog {
     'claude-haiku-4': ModelPricing(inputUsdPerMTok: 1, outputUsdPerMTok: 5),
     // Google (rates as of 2026-08)
     'gemini-2.5-pro': ModelPricing(inputUsdPerMTok: 1.25, outputUsdPerMTok: 10),
-    'gemini-2.5-flash':
-        ModelPricing(inputUsdPerMTok: 0.30, outputUsdPerMTok: 2.50),
-    'gemini-2.0-flash':
-        ModelPricing(inputUsdPerMTok: 0.10, outputUsdPerMTok: 0.40),
+    'gemini-2.5-flash': ModelPricing(inputUsdPerMTok: 0.30, outputUsdPerMTok: 2.50),
+    'gemini-2.0-flash': ModelPricing(inputUsdPerMTok: 0.10, outputUsdPerMTok: 0.40),
     // Local inference — zero marginal cost.
     'llama-cpp': ModelPricing.free,
     'fake-vaster-model': ModelPricing.free,

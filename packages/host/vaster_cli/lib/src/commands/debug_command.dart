@@ -18,8 +18,7 @@ class DebugCommand extends VasterCommand {
   String get name => 'debug';
 
   @override
-  String get description =>
-      'Time-travel debugger over a recorded envelope: step forward/back '
+  String get description => 'Time-travel debugger over a recorded envelope: step forward/back '
       'through a run, inspecting registers, VFS, and context at any step.';
 
   @override
@@ -63,8 +62,7 @@ class DebugCommand extends VasterCommand {
       final file = File(programPath);
       programOverride = programPath.endsWith('.vbc')
           ? VasterProgramBinary.fromBytes(file.readAsBytesSync())
-          : VasterProgram.fromJson(
-              jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+          : VasterProgram.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
     }
 
     final DebugSession session;
@@ -112,8 +110,7 @@ class DebugCommand extends VasterCommand {
   }
 
   /// Executes one debugger command; returns false to quit.
-  Future<bool> _dispatch(String line, DebugSession session, StringSink out,
-      StringSink err) async {
+  Future<bool> _dispatch(String line, DebugSession session, StringSink out, StringSink err) async {
     final parts = line.split(RegExp(r'\s+'));
     final cmd = parts.first;
     final arg = parts.length > 1 ? parts.sublist(1).join(' ') : null;
@@ -136,8 +133,7 @@ class DebugCommand extends VasterCommand {
         case 'run-to':
           final pc = int.tryParse(arg ?? '') ?? -1;
           final steps = session.stepsAtPc(pc);
-          final next = steps.where((s) => s > session.cursor).firstOrNull ??
-              steps.firstOrNull;
+          final next = steps.where((s) => s > session.cursor).firstOrNull ?? steps.firstOrNull;
           if (next == null) {
             err.writeln('PC $pc never executed in this recording.');
           } else {
@@ -162,8 +158,7 @@ class DebugCommand extends VasterCommand {
           final stack = session.currentFrame.callStack;
           if (stack.isEmpty) out.writeln('  (top level)');
           for (final frame in stack.reversed) {
-            out.writeln(
-                '  ${frame.functionName} → returns to PC:${frame.returnPc}');
+            out.writeln('  ${frame.functionName} → returns to PC:${frame.returnPc}');
           }
         case 'frames':
           final pc = int.tryParse(arg ?? '') ?? session.currentFrame.pc;
@@ -193,8 +188,7 @@ class DebugCommand extends VasterCommand {
           final listing = await session.listVfs(arg ?? '/');
           if (listing.isEmpty) out.writeln('  (empty)');
           for (final descriptor in listing) {
-            out.writeln(
-                '  ${descriptor.path}  (${descriptor.sizeBytes} bytes)');
+            out.writeln('  ${descriptor.path}  (${descriptor.sizeBytes} bytes)');
           }
         case 'cat':
           if (arg == null) {

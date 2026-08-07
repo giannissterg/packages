@@ -20,10 +20,7 @@ final class LedgerToolEffectRecorder implements ToolEffectRecorder {
   final EffectLedger ledger;
   final RuntimeEventBus eventBus;
 
-  const LedgerToolEffectRecorder({
-    required this.ledger,
-    required this.eventBus,
-  });
+  const LedgerToolEffectRecorder({required this.ledger, required this.eventBus});
 
   @override
   ToolEffectClaim claim({
@@ -36,24 +33,22 @@ final class LedgerToolEffectRecorder implements ToolEffectRecorder {
     if (name == VfsSyscalls.writeFileName || name == VfsSyscalls.readFileName) {
       return const ToolEffectInert();
     }
-    final slot = ledger.claim(
-      name: '${region.key}#$name',
-      arguments: arguments,
-    );
+    final slot = ledger.claim(name: '${region.key}#$name', arguments: arguments);
     final recorded = slot.recorded;
     if (recorded != null) {
-      eventBus.publish(ToolCallReplayedEvent(
-        eventId: 'evt_tool_replay_${callId ?? name}',
-        callId: callId ?? '',
-        toolName: name,
-      ));
+      eventBus.publish(
+        ToolCallReplayedEvent(
+          eventId: 'evt_tool_replay_${callId ?? name}',
+          callId: callId ?? '',
+          toolName: name,
+        ),
+      );
       return ToolEffectReplay(recorded);
     }
     return ToolEffectSlot(slot);
   }
 
   @override
-  Map<String, dynamic> commit(
-          ToolEffectSlot slot, Map<String, dynamic> result) =>
+  Map<String, dynamic> commit(ToolEffectSlot slot, Map<String, dynamic> result) =>
       ledger.commit(slot.token as EffectClaim, result);
 }

@@ -13,8 +13,7 @@ void main() {
         compressibility: 'summarize',
         pinned: true,
       );
-      final restored =
-          VasterInstruction.fromJson(op.toJson()) as AddContextOp;
+      final restored = VasterInstruction.fromJson(op.toJson()) as AddContextOp;
       expect(restored.regionId, equals('notes'));
       expect(restored.text, equals('the content'));
       expect(restored.priority, equals('high'));
@@ -26,30 +25,24 @@ void main() {
 
     test('AddContextOp with sourceVar', () {
       const op = AddContextOp(regionId: 'r', label: 'l', sourceVar: 'reg0');
-      final restored =
-          VasterInstruction.fromJson(op.toJson()) as AddContextOp;
+      final restored = VasterInstruction.fromJson(op.toJson()) as AddContextOp;
       expect(restored.sourceVar, equals('reg0'));
     });
 
     test('EvictContextOp / UnpinContextOp round-trip', () {
       const evict = EvictContextOp(regionId: 'x', force: true);
-      final restoredEvict =
-          VasterInstruction.fromJson(evict.toJson()) as EvictContextOp;
+      final restoredEvict = VasterInstruction.fromJson(evict.toJson()) as EvictContextOp;
       expect(restoredEvict.force, isTrue);
 
       const unpin = UnpinContextOp(regionId: 'y');
-      expect(
-          (VasterInstruction.fromJson(unpin.toJson()) as UnpinContextOp)
-              .regionId,
-          equals('y'));
+      expect((VasterInstruction.fromJson(unpin.toJson()) as UnpinContextOp).regionId, equals('y'));
     });
 
     test('SetContextPolicyOp only carries provided fields', () {
       const op = SetContextPolicyOp(regionId: 'z', pinned: false, utility: 0.5);
       final json = op.toJson();
       expect(json.containsKey('priority'), isFalse);
-      final restored =
-          VasterInstruction.fromJson(json) as SetContextPolicyOp;
+      final restored = VasterInstruction.fromJson(json) as SetContextPolicyOp;
       expect(restored.pinned, isFalse);
       expect(restored.utility, equals(0.5));
       expect(restored.priority, isNull);
@@ -57,14 +50,12 @@ void main() {
 
     test('CompressContextOp round-trips nullable fields', () {
       const whole = CompressContextOp(outputVar: 'freed');
-      final restoredWhole =
-          VasterInstruction.fromJson(whole.toJson()) as CompressContextOp;
+      final restoredWhole = VasterInstruction.fromJson(whole.toJson()) as CompressContextOp;
       expect(restoredWhole.regionId, isNull);
       expect(restoredWhole.outputVar, equals('freed'));
 
       const targeted = CompressContextOp(regionId: 'doc', targetTokens: 128);
-      final restoredTargeted =
-          VasterInstruction.fromJson(targeted.toJson()) as CompressContextOp;
+      final restoredTargeted = VasterInstruction.fromJson(targeted.toJson()) as CompressContextOp;
       expect(restoredTargeted.regionId, equals('doc'));
       expect(restoredTargeted.targetTokens, equals(128));
     });

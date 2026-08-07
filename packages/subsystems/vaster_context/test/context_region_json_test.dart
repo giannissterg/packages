@@ -12,10 +12,7 @@ void main() {
       final region = ContextRegion(
         id: 'brief',
         label: 'project brief',
-        messages: [
-          ChatMessage.user('build a notes app'),
-          ChatMessage.model('understood'),
-        ],
+        messages: [ChatMessage.user('build a notes app'), ChatMessage.model('understood')],
         estimatedTokens: 42,
         classId: 'knowledge',
         priority: ContextPriority.high,
@@ -35,12 +32,12 @@ void main() {
       );
 
       final restored = ContextRegion.fromJson(
-          jsonDecode(jsonEncode(region.toJson())) as Map<String, dynamic>);
+        jsonDecode(jsonEncode(region.toJson())) as Map<String, dynamic>,
+      );
 
       expect(restored.id, region.id);
       expect(restored.label, region.label);
-      expect(restored.messages.map((m) => m.text),
-          equals(region.messages.map((m) => m.text)));
+      expect(restored.messages.map((m) => m.text), equals(region.messages.map((m) => m.text)));
       expect(restored.estimatedTokens, region.estimatedTokens);
       expect(restored.classId, region.classId);
       expect(restored.priority, region.priority);
@@ -58,17 +55,12 @@ void main() {
     });
 
     test('null policy overrides stay null — inherit-from-class survives', () {
-      const region = ContextRegion(
-        id: 'minimal',
-        label: 'minimal',
-        messages: [],
-        estimatedTokens: 0,
-      );
+      const region = ContextRegion(id: 'minimal', label: 'minimal', messages: [], estimatedTokens: 0);
       final restored = ContextRegion.fromJson(
-          jsonDecode(jsonEncode(region.toJson())) as Map<String, dynamic>);
+        jsonDecode(jsonEncode(region.toJson())) as Map<String, dynamic>,
+      );
 
-      expect(restored.priority, isNull,
-          reason: 'explicit-vs-inherit is what makes class policy work');
+      expect(restored.priority, isNull, reason: 'explicit-vs-inherit is what makes class policy work');
       expect(restored.lifetime, isNull);
       expect(restored.compressibility, isNull);
       expect(restored.classId, isNull);

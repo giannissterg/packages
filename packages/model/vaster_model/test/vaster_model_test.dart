@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:test/test.dart';
 import 'package:vaster_model/vaster_model.dart';
 
@@ -27,11 +28,7 @@ void main() {
     });
 
     test('FunctionCallPart & FunctionResponsePart matching', () {
-      const callPart = FunctionCallPart(
-        callId: 'call_1',
-        name: 'read_file',
-        arguments: {'path': 'ideas.md'},
-      );
+      const callPart = FunctionCallPart(callId: 'call_1', name: 'read_file', arguments: {'path': 'ideas.md'});
 
       expect(callPart.callId, equals('call_1'));
       expect(callPart.name, equals('read_file'));
@@ -72,11 +69,7 @@ void main() {
         role: Role.model,
         parts: [
           const ThoughtPart('Analyzing architecture'),
-          const FunctionCallPart(
-            callId: 'c1',
-            name: 'get_context',
-            arguments: {},
-          ),
+          const FunctionCallPart(callId: 'c1', name: 'get_context', arguments: {}),
         ],
       );
 
@@ -88,12 +81,7 @@ void main() {
       final req = ModelRequest(
         systemInstruction: ChatMessage.system('You are an execution VM assistant.'),
         messages: [ChatMessage.user('Hello')],
-        tools: [
-          const ToolDefinition(
-            name: 'run_code',
-            description: 'Executes dart code',
-          )
-        ],
+        tools: [const ToolDefinition(name: 'run_code', description: 'Executes dart code')],
         generationConfig: const GenerationConfig(temperature: 0.7),
       );
 

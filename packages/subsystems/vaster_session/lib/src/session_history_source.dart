@@ -33,8 +33,7 @@ final class SessionHistorySource extends ConversationContextSource {
     this.closedChunkPriority = ContextPriority.medium,
   }) : super(id: 'session:$sessionId:history', name: 'session_history');
 
-  static int _estimate(Iterable<ChatMessage> messages) =>
-      TokenEstimate.forMessages(messages);
+  static int _estimate(Iterable<ChatMessage> messages) => TokenEstimate.forMessages(messages);
 
   @override
   List<ContextRegion> getRegions() {
@@ -45,37 +44,40 @@ final class SessionHistorySource extends ConversationContextSource {
     final fullChunks = history.length ~/ messagesPerChunk;
 
     for (var chunk = 0; chunk < fullChunks; chunk++) {
-      final messages = history.sublist(
-          chunk * messagesPerChunk, (chunk + 1) * messagesPerChunk);
+      final messages = history.sublist(chunk * messagesPerChunk, (chunk + 1) * messagesPerChunk);
       final ageInChunks = fullChunks - chunk; // 1 = newest closed chunk
-      regions.add(ContextRegion(
-        id: 'session:$sessionId:history:$chunk',
-        label: 'history[$chunk] (${messages.length} turns)',
-        messages: List<ChatMessage>.of(messages),
-        estimatedTokens: _estimate(messages),
-        classId: ContextClassTable.historyClassName,
-        priority: closedChunkPriority,
-        lifetime: ContextLifetime.session,
-        compressibility: ContextCompressibility.summarize,
-        utility: math.max(0.3, 1.0 - 0.1 * ageInChunks),
-        order: 1000000 + chunk,
-      ));
+      regions.add(
+        ContextRegion(
+          id: 'session:$sessionId:history:$chunk',
+          label: 'history[$chunk] (${messages.length} turns)',
+          messages: List<ChatMessage>.of(messages),
+          estimatedTokens: _estimate(messages),
+          classId: ContextClassTable.historyClassName,
+          priority: closedChunkPriority,
+          lifetime: ContextLifetime.session,
+          compressibility: ContextCompressibility.summarize,
+          utility: math.max(0.3, 1.0 - 0.1 * ageInChunks),
+          order: 1000000 + chunk,
+        ),
+      );
     }
 
     // The tail is ALWAYS emitted (even empty) so that when history crosses a
     // chunk boundary the stale tail content is replaced rather than lingering.
     final tail = history.sublist(fullChunks * messagesPerChunk);
-    regions.add(ContextRegion(
-      id: 'session:$sessionId:history:tail',
-      label: 'history tail (${tail.length} recent turns)',
-      messages: List<ChatMessage>.of(tail),
-      estimatedTokens: _estimate(tail),
-      classId: ContextClassTable.historyClassName,
-      priority: ContextPriority.high,
-      lifetime: ContextLifetime.session,
-      compressibility: ContextCompressibility.none,
-      order: 2000000,
-    ));
+    regions.add(
+      ContextRegion(
+        id: 'session:$sessionId:history:tail',
+        label: 'history tail (${tail.length} recent turns)',
+        messages: List<ChatMessage>.of(tail),
+        estimatedTokens: _estimate(tail),
+        classId: ContextClassTable.historyClassName,
+        priority: ContextPriority.high,
+        lifetime: ContextLifetime.session,
+        compressibility: ContextCompressibility.none,
+        order: 2000000,
+      ),
+    );
 
     return regions;
   }

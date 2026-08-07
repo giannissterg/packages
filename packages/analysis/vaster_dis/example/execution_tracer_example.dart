@@ -18,16 +18,19 @@ Future<void> main() async {
 
   final tracer = ExecutionTracer(runtime, sink: print)..attach();
 
-  const program = VasterProgram(programName: 'trace_showcase', instructions: [
-    SetRegisterOp(registerName: 'goal', value: 'ship the feature'),
-    WriteFileOp(vfsPath: '/mem/plan.md', content: '# Plan\n1. build\n2. test'),
-    ReadFileOp(vfsPath: '/mem/plan.md', outputVar: 'plan'),
-    PromptOp(promptText: 'Summarize the plan', outputVar: 'summary'),
-    JumpIfOp(conditionVar: 'summary', targetPc: 6),
-    SetRegisterOp(registerName: 'fallback', value: 'no summary'),
-    ConcatRegisterOp(targetVar: '__output__', sourceVars: ['summary']),
-    HaltOp(),
-  ]);
+  const program = VasterProgram(
+    programName: 'trace_showcase',
+    instructions: [
+      SetRegisterOp(registerName: 'goal', value: 'ship the feature'),
+      WriteFileOp(vfsPath: '/mem/plan.md', content: '# Plan\n1. build\n2. test'),
+      ReadFileOp(vfsPath: '/mem/plan.md', outputVar: 'plan'),
+      PromptOp(promptText: 'Summarize the plan', outputVar: 'summary'),
+      JumpIfOp(conditionVar: 'summary', targetPc: 6),
+      SetRegisterOp(registerName: 'fallback', value: 'no summary'),
+      ConcatRegisterOp(targetVar: '__output__', sourceVars: ['summary']),
+      HaltOp(),
+    ],
+  );
 
   final state = await runtime.executeProgram(program);
   tracer.detach();

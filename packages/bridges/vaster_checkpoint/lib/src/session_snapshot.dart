@@ -43,8 +43,7 @@ final class SessionSnapshot {
         'history': [for (final m in history) m.toJson()],
       };
 
-  factory SessionSnapshot.fromJson(Map<String, dynamic> json) =>
-      SessionSnapshot(
+  factory SessionSnapshot.fromJson(Map<String, dynamic> json) => SessionSnapshot(
         sessionId: json['sessionId'] as String,
         modelName: json['modelName'] as String? ?? 'unknown',
         history: [

@@ -14,8 +14,8 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// injected models a live backend cannot produce on demand) and are
 /// skipped here with a note.
 void main() {
-  final outDir = Directory('../../../artifacts/benchmarks').existsSync() ||
-          Directory('../../../artifacts').existsSync()
+  final outDir =
+      Directory('../../../artifacts/benchmarks').existsSync() || Directory('../../../artifacts').existsSync()
       ? Directory('../../../artifacts/benchmarks')
       : Directory('artifacts/benchmarks');
   outDir.createSync(recursive: true);

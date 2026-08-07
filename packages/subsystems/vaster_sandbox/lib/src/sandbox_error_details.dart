@@ -33,17 +33,13 @@ class SandboxErrorDetails {
   /// Strongly-typed security rule that was violated (if securityViolation == true).
   final SecurityViolationRule? violatedRule;
 
-  const SandboxErrorDetails({
-    required this.exceptionType,
-    this.stackTrace,
-    this.violatedRule,
-  });
+  const SandboxErrorDetails({required this.exceptionType, this.stackTrace, this.violatedRule});
 
   Map<String, dynamic> toJson() => {
-        'exceptionType': exceptionType,
-        if (stackTrace != null) 'stackTrace': stackTrace,
-        if (violatedRule != null) 'violatedRule': violatedRule!.name,
-      };
+    'exceptionType': exceptionType,
+    if (stackTrace != null) 'stackTrace': stackTrace,
+    if (violatedRule != null) 'violatedRule': violatedRule!.name,
+  };
 
   factory SandboxErrorDetails.fromJson(Map<String, dynamic> json) {
     final ruleName = json['violatedRule'] as String?;

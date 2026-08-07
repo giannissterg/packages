@@ -4,11 +4,8 @@ import 'package:vaster_compiler/vaster_compiler.dart';
 import 'package:vaster_domain/vaster_domain.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
 
-Pipeline _pipeline(List<VasterNode> children) => Pipeline(
-      name: 'test_pipeline',
-      roles: const [],
-      children: children,
-    );
+Pipeline _pipeline(List<VasterNode> children) =>
+    Pipeline(name: 'test_pipeline', roles: const [], children: children);
 
 void main() {
   test('IrModule hands back stream handles: emit → index, bind → label '
@@ -17,27 +14,26 @@ void main() {
     expect(ir.emit(const HaltOp()), 0);
     // Allocate-bind-capture in one expression — the echo idiom.
     final head = ir.bind(ir.newLabel('head'));
-    expect(ir.jump(head), 2,
-        reason: 'the bind occupies a stream slot; the jump is item 2');
+    expect(ir.jump(head), 2, reason: 'the bind occupies a stream slot; the jump is item 2');
     expect(ir.items, hasLength(3));
 
     final program = ir.assemble();
     expect(program, hasLength(2), reason: 'label binds assemble to nothing');
-    expect((program[1] as JumpOp).targetPc, 1,
-        reason: 'the echoed label resolves to the pc after the halt');
+    expect((program[1] as JumpOp).targetPc, 1, reason: 'the echoed label resolves to the pc after the halt');
   });
-
 
   group('Label IR & control-flow assembly', () {
     test('When compiles to the canonical layout (jumpIf/else/jump/then)', () {
-      final program = const BasicWorkflowCompiler().compile(_pipeline([
-        const Prompt(Template.text('cond producer')), // writes __auto_reg_0
-        const When(
-          condition: Cond.isTrue(Binding('__auto_reg_0')),
-          then: [WriteFile(path: Template.text('/mem/t.txt'), content: Template.text('then'))],
-          otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('else'))],
-        ),
-      ]));
+      final program = const BasicWorkflowCompiler().compile(
+        _pipeline([
+          const Prompt(Template.text('cond producer')), // writes __auto_reg_0
+          const When(
+            condition: Cond.isTrue(Binding('__auto_reg_0')),
+            then: [WriteFile(path: Template.text('/mem/t.txt'), content: Template.text('then'))],
+            otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('else'))],
+          ),
+        ]),
+      );
 
       final ops = program.instructions;
       // prompt, jumpIf, else-write, jump, then-write, halt
@@ -53,21 +49,25 @@ void main() {
     });
 
     test('nested When produces correct jump targets (old emitter miscompiled this)', () {
-      final program = const BasicWorkflowCompiler().compile(_pipeline([
-        const Prompt(Template.text('outer cond')), // __auto_reg_0
-        const Prompt(Template.text('inner cond')), // __auto_reg_1
-        const When(
-          condition: Cond.isTrue(Binding('__auto_reg_0')),
-          then: [
-            When(
-              condition: Cond.isTrue(Binding('__auto_reg_1')),
-              then: [WriteFile(path: Template.text('/mem/tt.txt'), content: Template.text('then-then'))],
-              otherwise: [WriteFile(path: Template.text('/mem/te.txt'), content: Template.text('then-else'))],
-            ),
-          ],
-          otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('else'))],
-        ),
-      ]));
+      final program = const BasicWorkflowCompiler().compile(
+        _pipeline([
+          const Prompt(Template.text('outer cond')), // __auto_reg_0
+          const Prompt(Template.text('inner cond')), // __auto_reg_1
+          const When(
+            condition: Cond.isTrue(Binding('__auto_reg_0')),
+            then: [
+              When(
+                condition: Cond.isTrue(Binding('__auto_reg_1')),
+                then: [WriteFile(path: Template.text('/mem/tt.txt'), content: Template.text('then-then'))],
+                otherwise: [
+                  WriteFile(path: Template.text('/mem/te.txt'), content: Template.text('then-else')),
+                ],
+              ),
+            ],
+            otherwise: [WriteFile(path: Template.text('/mem/e.txt'), content: Template.text('else'))],
+          ),
+        ]),
+      );
 
       final ops = program.instructions;
       // Every jump target must land inside the program and, critically, the
@@ -79,35 +79,40 @@ void main() {
           _ => null,
         };
         if (target != null) {
-          expect(target, inInclusiveRange(0, ops.length),
-              reason: 'target of ${op.opcode.name} in range');
+          expect(target, inInclusiveRange(0, ops.length), reason: 'target of ${op.opcode.name} in range');
         }
       }
 
       // Walk the then-path: outer jumpIf -> inner jumpIf -> inner then block.
-      final outerJumpIf =
-          ops.whereType<JumpIfOp>().firstWhere((j) => j.conditionVar == '__auto_reg_0');
-      final innerJumpIf =
-          ops.whereType<JumpIfOp>().firstWhere((j) => j.conditionVar == '__auto_reg_1');
-      expect(ops[outerJumpIf.targetPc], equals(innerJumpIf),
-          reason: 'outer then-branch starts at the inner When');
+      final outerJumpIf = ops.whereType<JumpIfOp>().firstWhere((j) => j.conditionVar == '__auto_reg_0');
+      final innerJumpIf = ops.whereType<JumpIfOp>().firstWhere((j) => j.conditionVar == '__auto_reg_1');
+      expect(
+        ops[outerJumpIf.targetPc],
+        equals(innerJumpIf),
+        reason: 'outer then-branch starts at the inner When',
+      );
       final innerThen = ops[innerJumpIf.targetPc];
-      expect((innerThen as WriteFileOp).vfsPath, equals('/mem/tt.txt'),
-          reason: 'inner then-branch must be absolute, not buffer-relative');
+      expect(
+        (innerThen as WriteFileOp).vfsPath,
+        equals('/mem/tt.txt'),
+        reason: 'inner then-branch must be absolute, not buffer-relative',
+      );
     });
   });
 
   group('Semantic analysis diagnostics', () {
     test('read-before-write and unknown agent produce warnings', () {
       const compiler = BasicWorkflowCompiler();
-      final result = compiler.compileWithDiagnostics(_pipeline([
-        const When(
-          condition: Cond.isTrue(Binding('never_written')),
-          then: [WriteFile(path: Template.text('/mem/a.txt'), content: Template.text('x'))],
-          otherwise: [],
-        ),
-        const Task(agentId: 'ghost', prompt: Template.text('do something')),
-      ]));
+      final result = compiler.compileWithDiagnostics(
+        _pipeline([
+          const When(
+            condition: Cond.isTrue(Binding('never_written')),
+            then: [WriteFile(path: Template.text('/mem/a.txt'), content: Template.text('x'))],
+            otherwise: [],
+          ),
+          const Task(agentId: 'ghost', prompt: Template.text('do something')),
+        ]),
+      );
 
       expect(result.hasErrors, isFalse);
       final codes = result.diagnostics.map((d) => d.code).toSet();
@@ -128,7 +133,10 @@ void main() {
           name: 'clean',
           roles: const [architect],
           children: const [
-            Agent(role: architect, child: Task(prompt: Template.text('design the app'))),
+            Agent(
+              role: architect,
+              child: Task(prompt: Template.text('design the app')),
+            ),
           ],
         ),
       );
@@ -139,25 +147,24 @@ void main() {
     });
 
     test('ProgramAnalyzer flags out-of-range jumps as errors on raw programs', () {
-      const program = VasterProgram(programName: 'bad', instructions: [
-        JumpOp(targetPc: 99),
-        HaltOp(),
-      ]);
+      const program = VasterProgram(programName: 'bad', instructions: [JumpOp(targetPc: 99), HaltOp()]);
       final diagnostics = const ProgramAnalyzer().analyze(program);
       expect(
-        diagnostics.any(
-            (d) => d.code == 'jump_out_of_range' && d.severity == CompileSeverity.error),
+        diagnostics.any((d) => d.code == 'jump_out_of_range' && d.severity == CompileSeverity.error),
         isTrue,
       );
     });
 
     test('unreachable code after unconditional jump is flagged', () {
-      const program = VasterProgram(programName: 'dead', instructions: [
-        JumpOp(targetPc: 3),
-        SetRegisterOp(registerName: 'x', value: 1), // unreachable
-        SetRegisterOp(registerName: 'y', value: 2), // unreachable
-        HaltOp(),
-      ]);
+      const program = VasterProgram(
+        programName: 'dead',
+        instructions: [
+          JumpOp(targetPc: 3),
+          SetRegisterOp(registerName: 'x', value: 1), // unreachable
+          SetRegisterOp(registerName: 'y', value: 2), // unreachable
+          HaltOp(),
+        ],
+      );
       final diagnostics = const ProgramAnalyzer().analyze(program);
       expect(diagnostics.where((d) => d.code == 'unreachable_code'), hasLength(2));
     });
@@ -185,8 +192,9 @@ void main() {
           roles: const [architect],
           children: [
             Agent(
-                role: architect,
-                child: Task(prompt: Template.text('design it'), outputSchema: schema)),
+              role: architect,
+              child: Task(prompt: Template.text('design it'), outputSchema: schema),
+            ),
           ],
         ),
       );
@@ -202,20 +210,20 @@ void main() {
 
     test('schema inference: JsonExtract consumers type the producing prompt', () {
       // Hand-built program exercising the instruction-level inference pass.
-      const program = VasterProgram(programName: 'infer', instructions: [
-        PromptOp(promptText: 'produce JSON', outputVar: 'r0'),
-        JsonExtractOp(sourceVar: 'r0', jsonKey: 'title', targetVar: 't'),
-        JsonExtractOp(sourceVar: 'r0', jsonKey: 'body', targetVar: 'b'),
-        HaltOp(),
-      ]);
+      const program = VasterProgram(
+        programName: 'infer',
+        instructions: [
+          PromptOp(promptText: 'produce JSON', outputVar: 'r0'),
+          JsonExtractOp(sourceVar: 'r0', jsonKey: 'title', targetVar: 't'),
+          JsonExtractOp(sourceVar: 'r0', jsonKey: 'body', targetVar: 'b'),
+          HaltOp(),
+        ],
+      );
 
       final inferred = const SchemaInferencePass().run(program.instructions);
       final prompt = inferred.whereType<PromptOp>().single;
       expect(prompt.responseSchema, isNotNull);
-      expect(
-        (prompt.responseSchema!['properties'] as Map).keys.toSet(),
-        equals({'title', 'body'}),
-      );
+      expect((prompt.responseSchema!['properties'] as Map).keys.toSet(), equals({'title', 'body'}));
       expect(prompt.responseSchema!['required'], equals(['body', 'title']));
       expect(prompt.responseSchema!['additionalProperties'], isFalse);
     });
@@ -255,14 +263,12 @@ void main() {
       ]);
 
       final unoptimized = const BasicWorkflowCompiler().compile(pipeline);
-      final optimized = const BasicWorkflowCompiler(
-        options: CompilerOptions(optimize: true),
-      ).compile(pipeline);
+      final optimized = const BasicWorkflowCompiler(options: CompilerOptions(optimize: true))
+          .compile(pipeline);
 
       expect(unoptimized.instructions.whereType<JumpOp>(), hasLength(1));
       expect(optimized.instructions.whereType<JumpOp>(), isEmpty);
-      expect(optimized.instructions.length,
-          lessThan(unoptimized.instructions.length));
+      expect(optimized.instructions.length, lessThan(unoptimized.instructions.length));
       // Behavior preserved: else-write still present; jumpIf skips it when
       // the condition is truthy (target = halt).
       expect(optimized.instructions.whereType<WriteFileOp>(), hasLength(1));

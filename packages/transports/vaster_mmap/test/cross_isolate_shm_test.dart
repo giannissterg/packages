@@ -15,8 +15,7 @@ import 'package:vaster_mmap/vaster_mmap.dart';
 /// transcript in docs/ZERO_COPY.md, the same standing PROVE_IT.md has for
 /// durability.
 void main() {
-  test('an isolate attaches a segment by name and its writes are visible',
-      () async {
+  test('an isolate attaches a segment by name and its writes are visible', () async {
     final name = 'vaster_xiso_seg_${DateTime.now().microsecondsSinceEpoch}';
     final owner = ShmSegment.open(name: name, size: 4096);
     addTearDown(() => owner.close());
@@ -30,14 +29,11 @@ void main() {
       return seen;
     });
 
-    expect(result, [1, 2, 3, 4],
-        reason: 'the isolate read through its own independent mapping');
-    expect(owner.view(4, 1)[0], 0x5A,
-        reason: 'the isolate\'s write landed on the shared pages');
+    expect(result, [1, 2, 3, 4], reason: 'the isolate read through its own independent mapping');
+    expect(owner.view(4, 1)[0], 0x5A, reason: 'the isolate\'s write landed on the shared pages');
   });
 
-  test('frame round-trip: allocate + native-path fill here, attach there',
-      () async {
+  test('frame round-trip: allocate + native-path fill here, attach there', () async {
     final name = 'vaster_xiso_frame_${DateTime.now().microsecondsSinceEpoch}';
     final frame = SharedMemoryFrame.allocate(name, payloadLength: 8, meta: 42);
     addTearDown(() => frame.close(unlink: true));
@@ -60,8 +56,7 @@ void main() {
     expect(seenBytes, [for (var i = 0; i < 8; i++) i * 11]);
   });
 
-  test('allocate on an existing name attaches instead of rewriting',
-      () async {
+  test('allocate on an existing name attaches instead of rewriting', () async {
     final name = 'vaster_xiso_alloc_${DateTime.now().microsecondsSinceEpoch}';
     final first = SharedMemoryFrame.allocate(name, payloadLength: 4, meta: 7);
     addTearDown(() => first.close(unlink: true));
@@ -73,8 +68,7 @@ void main() {
     expect(second.bytes, [9, 9, 9, 9]);
     second.close();
 
-    expect(() => SharedMemoryFrame.allocate(name, payloadLength: 5),
-        throwsStateError);
+    expect(() => SharedMemoryFrame.allocate(name, payloadLength: 5), throwsStateError);
   });
 
   test('SPSC ring survives a genuinely parallel producer', () async {
@@ -110,8 +104,7 @@ void main() {
         continue;
       }
       final expectedLen = 2 + (received * 7) % 600;
-      expect(packet.length, expectedLen,
-          reason: 'packet $received length must match — no tearing');
+      expect(packet.length, expectedLen, reason: 'packet $received length must match — no tearing');
       expect(packet[0] | (packet[1] << 8), received & 0xFFFF,
           reason: 'strict FIFO order under real parallelism');
       for (var j = 2; j < packet.length; j++) {

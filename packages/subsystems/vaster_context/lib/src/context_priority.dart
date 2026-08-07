@@ -17,6 +17,6 @@ enum ContextPriority {
   critical;
 
   /// Parses a name, defaulting to [medium] for unknown values.
-  static ContextPriority parse(String? value) => ContextPriority.values
-      .firstWhere((p) => p.name == value, orElse: () => ContextPriority.medium);
+  static ContextPriority parse(String? value) =>
+      ContextPriority.values.firstWhere((p) => p.name == value, orElse: () => ContextPriority.medium);
 }

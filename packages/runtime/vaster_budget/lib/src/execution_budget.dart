@@ -18,9 +18,9 @@ class ExecutionBudget {
     Duration initialConsumedDuration = Duration.zero,
     int initialConsumedTokens = 0,
     double initialConsumedCost = 0.0,
-  })  : _consumedDuration = initialConsumedDuration,
-        _consumedTokens = initialConsumedTokens,
-        _consumedCost = initialConsumedCost;
+  }) : _consumedDuration = initialConsumedDuration,
+       _consumedTokens = initialConsumedTokens,
+       _consumedCost = initialConsumedCost;
 
   /// Creates an unconstrained / unlimited budget.
   factory ExecutionBudget.unlimited() => ExecutionBudget();

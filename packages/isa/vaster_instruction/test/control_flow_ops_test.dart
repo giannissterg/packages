@@ -5,27 +5,19 @@ void main() {
   group('Control-flow op JSON round-trips', () {
     test('IncrementRegisterOp', () {
       const op = IncrementRegisterOp(registerName: 'counter', delta: 2.5);
-      final decoded =
-          VasterInstruction.fromJson(op.toJson()) as IncrementRegisterOp;
+      final decoded = VasterInstruction.fromJson(op.toJson()) as IncrementRegisterOp;
       expect(decoded.registerName, 'counter');
       expect(decoded.delta, 2.5);
 
       // Default delta survives the round-trip.
       const unit = IncrementRegisterOp(registerName: 'i');
-      final decodedUnit =
-          VasterInstruction.fromJson(unit.toJson()) as IncrementRegisterOp;
+      final decodedUnit = VasterInstruction.fromJson(unit.toJson()) as IncrementRegisterOp;
       expect(decodedUnit.delta, 1);
     });
 
     test('CompareRegisterOp with immediate value', () {
-      const op = CompareRegisterOp(
-        leftVar: 'i',
-        operator: 'lt',
-        rightValue: 10,
-        targetVar: 'c',
-      );
-      final decoded =
-          VasterInstruction.fromJson(op.toJson()) as CompareRegisterOp;
+      const op = CompareRegisterOp(leftVar: 'i', operator: 'lt', rightValue: 10, targetVar: 'c');
+      final decoded = VasterInstruction.fromJson(op.toJson()) as CompareRegisterOp;
       expect(decoded.leftVar, 'i');
       expect(decoded.operator, 'lt');
       expect(decoded.rightVar, isNull);
@@ -34,14 +26,8 @@ void main() {
     });
 
     test('CompareRegisterOp with register operand', () {
-      const op = CompareRegisterOp(
-        leftVar: 'a',
-        operator: 'eq',
-        rightVar: 'b',
-        targetVar: 'same',
-      );
-      final decoded =
-          VasterInstruction.fromJson(op.toJson()) as CompareRegisterOp;
+      const op = CompareRegisterOp(leftVar: 'a', operator: 'eq', rightVar: 'b', targetVar: 'same');
+      final decoded = VasterInstruction.fromJson(op.toJson()) as CompareRegisterOp;
       expect(decoded.rightVar, 'b');
       expect(decoded.rightValue, isNull);
     });
@@ -68,9 +54,10 @@ void main() {
       expect(InstructionOpcode.parse('decide'), InstructionOpcode.decide);
 
       // Nullable fields survive as nulls.
-      const bare = DecideOp(prompt: 'p', branches: [
-        DecisionBranch(label: 'a', description: 'd', targetPc: 1),
-      ]);
+      const bare = DecideOp(
+        prompt: 'p',
+        branches: [DecisionBranch(label: 'a', description: 'd', targetPc: 1)],
+      );
       final decodedBare = VasterInstruction.fromJson(bare.toJson()) as DecideOp;
       expect(decodedBare.outputVar, isNull);
       expect(decodedBare.defaultLabel, isNull);
@@ -78,14 +65,12 @@ void main() {
 
     test('PushErrorHandlerOp', () {
       const op = PushErrorHandlerOp(targetPc: 42, errorVar: 'my_err');
-      final decoded =
-          VasterInstruction.fromJson(op.toJson()) as PushErrorHandlerOp;
+      final decoded = VasterInstruction.fromJson(op.toJson()) as PushErrorHandlerOp;
       expect(decoded.targetPc, 42);
       expect(decoded.errorVar, 'my_err');
 
       const defaulted = PushErrorHandlerOp(targetPc: 7);
-      final decodedDefault =
-          VasterInstruction.fromJson(defaulted.toJson()) as PushErrorHandlerOp;
+      final decodedDefault = VasterInstruction.fromJson(defaulted.toJson()) as PushErrorHandlerOp;
       expect(decodedDefault.errorVar, '__error__');
     });
 
@@ -99,8 +84,7 @@ void main() {
         programName: 'vbc_control_flow',
         instructions: [
           IncrementRegisterOp(registerName: 'i', delta: 3),
-          CompareRegisterOp(
-              leftVar: 'i', operator: 'ge', rightValue: 3, targetVar: 'done'),
+          CompareRegisterOp(leftVar: 'i', operator: 'ge', rightValue: 3, targetVar: 'done'),
           PushErrorHandlerOp(targetPc: 4, errorVar: 'e'),
           PopErrorHandlerOp(),
           HaltOp(),

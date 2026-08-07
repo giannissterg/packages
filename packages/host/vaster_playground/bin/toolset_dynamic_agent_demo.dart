@@ -56,9 +56,11 @@ void main() async {
         child: const Agent(
           role: engineerRole,
           child: Task(
-              prompt: Template.text(
-                  'Create a deployment configuration file at /workspace/deploy.json and verify its content.'),
-              output: Binding('deploy_result')),
+            prompt: Template.text(
+              'Create a deployment configuration file at /workspace/deploy.json and verify its content.',
+            ),
+            output: Binding('deploy_result'),
+          ),
         ),
       ),
     ],
@@ -77,9 +79,7 @@ void main() async {
   // Model configured to request tool call write_file on first turn
   final fakeModel = FakeVasterModel(
     handler: (request) {
-      final hasToolResponse = request.messages.any(
-        (m) => m.parts.any((p) => p is FunctionResponsePart),
-      );
+      final hasToolResponse = request.messages.any((m) => m.parts.any((p) => p is FunctionResponsePart));
       if (!hasToolResponse) {
         return ModelResponse(
           message: ChatMessage(
@@ -99,7 +99,9 @@ void main() async {
         );
       }
       return ModelResponse(
-        message: ChatMessage.model('Deployment configuration file /workspace/deploy.json created successfully and verified!'),
+        message: ChatMessage.model(
+          'Deployment configuration file /workspace/deploy.json created successfully and verified!',
+        ),
       );
     },
   );

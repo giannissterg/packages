@@ -8,28 +8,28 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// and nothing trapped.
 void main() {
   ExecutionPolicy denySendAlert() => ExecutionPolicy(
-        policyId: 'no_alerts',
-        deniedCapabilities: [
-          Capability.exact(PolicyAction.toolCall, 'send_alert'),
-        ],
-        defaultAllow: true,
-      );
+    policyId: 'no_alerts',
+    deniedCapabilities: [Capability.exact(PolicyAction.toolCall, 'send_alert')],
+    defaultAllow: true,
+  );
 
-  Future<(VasterVMEngine, VasterRuntime)> boot(
-      FakeVasterModel model, ExecutionPolicy policy) async {
+  Future<(VasterVMEngine, VasterRuntime)> boot(FakeVasterModel model, ExecutionPolicy policy) async {
     final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: model, rootMountPath: '/mem'));
-    vm.registerTool(FunctionTool.define(
-      name: 'send_alert',
-      description: 'Send an alert',
-      parametersSchema: const {
-        'type': 'object',
-        'properties': {
-          'msg': {'type': 'string'},
+      config: VMConfig(defaultModel: model, rootMountPath: '/mem'),
+    );
+    vm.registerTool(
+      FunctionTool.define(
+        name: 'send_alert',
+        description: 'Send an alert',
+        parametersSchema: const {
+          'type': 'object',
+          'properties': {
+            'msg': {'type': 'string'},
+          },
         },
-      },
-      handler: (args) => {'status': 'sent'},
-    ));
+        handler: (args) => {'status': 'sent'},
+      ),
+    );
     final runtime = VasterRuntime(
       vm: vm,
       policy: policy,
@@ -41,20 +41,24 @@ void main() {
 
   FakeVasterModel toolCallingModel() {
     var calls = 0;
-    return FakeVasterModel(handler: (request) {
-      calls++;
-      if (calls == 1) {
-        return ModelResponse(
-          message: const ChatMessage(role: Role.model, parts: [
-            TextPart('Alerting.'),
-            FunctionCallPart(
-                callId: 'c1', name: 'send_alert', arguments: {'msg': 'x'}),
-          ]),
-          finishReason: FinishReason.toolCalls,
-        );
-      }
-      return ModelResponse(message: ChatMessage.model('done'));
-    });
+    return FakeVasterModel(
+      handler: (request) {
+        calls++;
+        if (calls == 1) {
+          return ModelResponse(
+            message: const ChatMessage(
+              role: Role.model,
+              parts: [
+                TextPart('Alerting.'),
+                FunctionCallPart(callId: 'c1', name: 'send_alert', arguments: {'msg': 'x'}),
+              ],
+            ),
+            finishReason: FinishReason.toolCalls,
+          );
+        }
+        return ModelResponse(message: ChatMessage.model('done'));
+      },
+    );
   }
 
   test('an AGENT tool call forbidden by the program policy traps — '
@@ -66,11 +70,8 @@ void main() {
       programName: 'agent_gate',
       instructions: [
         CreateAgentOp(
-            descriptor: AgentDescriptor(
-                agentId: 'a',
-                name: 'A',
-                role: 'r',
-                systemInstruction: 's')), // 0
+          descriptor: AgentDescriptor(agentId: 'a', name: 'A', role: 'r', systemInstruction: 's'),
+        ), // 0
         // Even a handler must not catch the violation.
         PushErrorHandlerOp(targetPc: 4, errorVar: 'err'), // 1
         DispatchAgentTaskOp(agentId: 'a', taskPrompt: 'alert someone'), // 2
@@ -80,14 +81,17 @@ void main() {
     );
 
     final state = await runtime.executeProgram(program);
-    expect(state.status, RuntimeStatus.error,
-        reason: 'a policy violation inside an AGENT tool loop is a '
-            'security trap, not a recoverable program error');
+    expect(
+      state.status,
+      RuntimeStatus.error,
+      reason:
+          'a policy violation inside an AGENT tool loop is a '
+          'security trap, not a recoverable program error',
+    );
     expect(state.errorDetails, contains('send_alert'));
   });
 
-  test('the ISA tool loop traps identically — one gate, two loops',
-      () async {
+  test('the ISA tool loop traps identically — one gate, two loops', () async {
     final (vm, runtime) = await boot(toolCallingModel(), denySendAlert());
     addTearDown(vm.shutdown);
 
@@ -104,32 +108,34 @@ void main() {
   });
 
   test('a descriptor-declared agent policy composes ON TOP of the program '
-      'policy (the dormant AgentDescriptor.policy field is law now)',
-      () async {
-    final (vm, runtime) =
-        await boot(toolCallingModel(), ExecutionPolicy.unlimited);
+      'policy (the dormant AgentDescriptor.policy field is law now)', () async {
+    final (vm, runtime) = await boot(toolCallingModel(), ExecutionPolicy.unlimited);
     addTearDown(vm.shutdown);
 
     final program = VasterProgram(
       programName: 'descriptor_gate',
       instructions: [
         CreateAgentOp(
-            descriptor: AgentDescriptor(
-          agentId: 'restricted',
-          name: 'R',
-          role: 'r',
-          systemInstruction: 's',
-          policy: denySendAlert(),
-        )), // 0
-        const DispatchAgentTaskOp(
-            agentId: 'restricted', taskPrompt: 'alert someone'), // 1
+          descriptor: AgentDescriptor(
+            agentId: 'restricted',
+            name: 'R',
+            role: 'r',
+            systemInstruction: 's',
+            policy: denySendAlert(),
+          ),
+        ), // 0
+        const DispatchAgentTaskOp(agentId: 'restricted', taskPrompt: 'alert someone'), // 1
         const HaltOp(), // 2
       ],
     );
     final state = await runtime.executeProgram(program);
-    expect(state.status, RuntimeStatus.error,
-        reason: 'the agent\'s own declared policy gates its tool calls '
-            'even when the program policy allows everything');
+    expect(
+      state.status,
+      RuntimeStatus.error,
+      reason:
+          'the agent\'s own declared policy gates its tool calls '
+          'even when the program policy allows everything',
+    );
     expect(state.errorDetails, contains('send_alert'));
   });
 }

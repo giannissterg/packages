@@ -11,20 +11,21 @@ import 'package:vaster_model/vaster_model.dart';
 
 void main() {
   group('MmapVasterModel frame-passing protocol (v2)', () {
-    test(
-        'end-to-end: MMU materializes pinned context, sidecar prefills from the '
+    test('end-to-end: MMU materializes pinned context, sidecar prefills from the '
         'named frame, and context bytes never cross the ring', () async {
       final runId = DateTime.now().microsecondsSinceEpoch;
       final pinnedContent = 'PINNED-CONTEXT-$runId: the architect designs Vaster.';
 
       // ── VM side: pin a region and page it into shared memory ────────────
       final manager = BasicContextManager();
-      manager.heap.addRegion(ContextRegion(
-        id: 'sys',
-        label: 'system context',
-        messages: [ChatMessage.system(pinnedContent)],
-        estimatedTokens: 24,
-      ));
+      manager.heap.addRegion(
+        ContextRegion(
+          id: 'sys',
+          label: 'system context',
+          messages: [ChatMessage.system(pinnedContent)],
+          estimatedTokens: 24,
+        ),
+      );
       manager.pinRegion('sys');
 
       final controller = MmapKvCacheController();
@@ -62,8 +63,9 @@ void main() {
 
           // Attach the advertised frame and read its physical pages —
           // the sidecar's zero-copy prefill source.
-          final frameRef = KvFrameRef.fromJson(Map<String, dynamic>.from(
-              (envelope['kvFrames'] as List).single as Map));
+          final frameRef = KvFrameRef.fromJson(
+            Map<String, dynamic>.from((envelope['kvFrames'] as List).single as Map),
+          );
           final frame = SharedMemoryFrame.attach(frameRef.frameName);
           final prefill = utf8.decode(frame.bytes);
           frame.close();
@@ -71,8 +73,9 @@ void main() {
           // Answer with proof of what was prefilled.
           final response = ModelResponse(
             message: ChatMessage.model(
-                'prefilled ${frameRef.tokenCount} tokens from ${frameRef.frameName}: '
-                '${prefill.substring(0, 20)}'),
+              'prefilled ${frameRef.tokenCount} tokens from ${frameRef.frameName}: '
+              '${prefill.substring(0, 20)}',
+            ),
           );
           responseRing.writeString(jsonEncode(response.toJson()));
           return;
@@ -80,10 +83,9 @@ void main() {
       }();
 
       // ── Generate with cache hints — the frame ref rides the envelope ────
-      final response = await model.generate(ModelRequest(
-        messages: [ChatMessage.user('continue the design')],
-        cacheHints: hints,
-      ));
+      final response = await model.generate(
+        ModelRequest(messages: [ChatMessage.user('continue the design')], cacheHints: hints),
+      );
       await sidecar;
 
       // The sidecar genuinely prefilled from the shared frame.
@@ -95,14 +97,16 @@ void main() {
       expect(envelopeSeenBySidecar, isNotNull);
       expect(envelopeSeenBySidecar, isNot(contains(pinnedContent)));
       expect(envelopeSeenBySidecar, contains('vaster_kv_'));
-      expect(envelopeSeenBySidecar, contains('continue the design'),
-          reason: 'the live turn itself still rides the ring');
+      expect(
+        envelopeSeenBySidecar,
+        contains('continue the design'),
+        reason: 'the live turn itself still rides the ring',
+      );
 
       await mmu.flush();
     });
 
-    test('without a resolver the envelope carries no kvFrames (protocol compat)',
-        () async {
+    test('without a resolver the envelope carries no kvFrames (protocol compat)', () async {
       final runId = DateTime.now().microsecondsSinceEpoch;
       final requestRing = SharedMemoryRing(shmName: '/vreq2_$runId', capacity: 64 * 1024);
       final responseRing = SharedMemoryRing(shmName: '/vres2_$runId', capacity: 64 * 1024);
@@ -120,17 +124,16 @@ void main() {
       // No sidecar is listening: the envelope still lands on the ring, and
       // the transport reports absence honestly instead of faking success.
       await expectLater(
-        model.generate(ModelRequest(
-          messages: [ChatMessage.user('hello')],
-          cacheHints: const [
-            ContextCacheHint(regionId: 'r', contentFingerprint: 'deadbeef'),
-          ],
-        )),
+        model.generate(
+          ModelRequest(
+            messages: [ChatMessage.user('hello')],
+            cacheHints: const [ContextCacheHint(regionId: 'r', contentFingerprint: 'deadbeef')],
+          ),
+        ),
         throwsA(isA<SidecarUnavailableException>()),
       );
 
-      final envelope =
-          jsonDecode(requestRing.readString()!) as Map<String, dynamic>;
+      final envelope = jsonDecode(requestRing.readString()!) as Map<String, dynamic>;
       expect(envelope.containsKey('kvFrames'), isFalse);
     });
   });

@@ -33,11 +33,7 @@ void main() {
             message: ChatMessage(
               role: Role.model,
               parts: [
-                const FunctionCallPart(
-                  callId: 'call_99',
-                  name: 'list_files',
-                  arguments: {'dir': '/'},
-                ),
+                const FunctionCallPart(callId: 'call_99', name: 'list_files', arguments: {'dir': '/'}),
               ],
             ),
             finishReason: FinishReason.toolCalls,

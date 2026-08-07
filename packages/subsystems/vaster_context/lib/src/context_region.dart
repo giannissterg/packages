@@ -2,20 +2,20 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:vaster_model/vaster_model.dart';
+
 import 'compression_info.dart';
 import 'context_class.dart';
 import 'context_compressibility.dart';
 import 'context_lifetime.dart';
 import 'context_priority.dart';
+
 import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 
 /// Canonical textual content of a region — the single source of truth for
 /// content fingerprints (newline-joined text parts). Used by cache
 /// descriptors, the KV MMU, and source-sync shadowing; all three MUST agree.
-String regionContentOf(ContextRegion region) => region.messages
-    .expand((m) => m.parts)
-    .map((p) => p is TextPart ? p.text : p.toString())
-    .join('\n');
+String regionContentOf(ContextRegion region) =>
+    region.messages.expand((m) => m.parts).map((p) => p is TextPart ? p.text : p.toString()).join('\n');
 
 /// Canonical SHA-256 hex fingerprint of a region's content.
 String regionFingerprintOf(ContextRegion region) =>
@@ -92,51 +92,43 @@ class ContextRegion {
   /// Serializes the full region (checkpoint fidelity: every policy override,
   /// the null-vs-explicit distinction included via key omission).
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'label': label,
-        'messages': [for (final m in messages) m.toJson()],
-        'estimatedTokens': estimatedTokens,
-        if (classId != null) 'classId': classId,
-        if (priority != null) 'priority': priority!.name,
-        if (lifetime != null) 'lifetime': lifetime!.name,
-        'isPinned': isPinned,
-        'utility': utility,
-        if (metadata.isNotEmpty) 'metadata': metadata,
-        if (compressibility != null) 'compressibility': compressibility!.name,
-        'order': order,
-        if (compression != null) 'compression': compression!.toJson(),
-      };
+    'id': id,
+    'label': label,
+    'messages': [for (final m in messages) m.toJson()],
+    'estimatedTokens': estimatedTokens,
+    if (classId != null) 'classId': classId,
+    if (priority != null) 'priority': priority!.name,
+    if (lifetime != null) 'lifetime': lifetime!.name,
+    'isPinned': isPinned,
+    'utility': utility,
+    if (metadata.isNotEmpty) 'metadata': metadata,
+    if (compressibility != null) 'compressibility': compressibility!.name,
+    'order': order,
+    if (compression != null) 'compression': compression!.toJson(),
+  };
 
   factory ContextRegion.fromJson(Map<String, dynamic> json) => ContextRegion(
-        id: json['id'] as String,
-        label: json['label'] as String,
-        messages: [
-          for (final m in json['messages'] as List? ?? const [])
-            ChatMessage.fromJson(Map<String, dynamic>.from(m as Map)),
-        ],
-        estimatedTokens: (json['estimatedTokens'] as num?)?.toInt() ?? 0,
-        classId: json['classId'] as String?,
-        priority: json['priority'] == null
-            ? null
-            : ContextPriority.values.byName(json['priority'] as String),
-        lifetime: json['lifetime'] == null
-            ? null
-            : ContextLifetime.values.byName(json['lifetime'] as String),
-        isPinned: json['isPinned'] as bool? ?? false,
-        utility: (json['utility'] as num?)?.toDouble() ?? 1.0,
-        metadata: json['metadata'] == null
-            ? const {}
-            : Map<String, dynamic>.from(json['metadata'] as Map),
-        compressibility: json['compressibility'] == null
-            ? null
-            : ContextCompressibility.values
-                .byName(json['compressibility'] as String),
-        order: (json['order'] as num?)?.toInt() ?? 0,
-        compression: json['compression'] == null
-            ? null
-            : CompressionInfo.fromJson(
-                Map<String, dynamic>.from(json['compression'] as Map)),
-      );
+    id: json['id'] as String,
+    label: json['label'] as String,
+    messages: [
+      for (final m in json['messages'] as List? ?? const [])
+        ChatMessage.fromJson(Map<String, dynamic>.from(m as Map)),
+    ],
+    estimatedTokens: (json['estimatedTokens'] as num?)?.toInt() ?? 0,
+    classId: json['classId'] as String?,
+    priority: json['priority'] == null ? null : ContextPriority.values.byName(json['priority'] as String),
+    lifetime: json['lifetime'] == null ? null : ContextLifetime.values.byName(json['lifetime'] as String),
+    isPinned: json['isPinned'] as bool? ?? false,
+    utility: (json['utility'] as num?)?.toDouble() ?? 1.0,
+    metadata: json['metadata'] == null ? const {} : Map<String, dynamic>.from(json['metadata'] as Map),
+    compressibility: json['compressibility'] == null
+        ? null
+        : ContextCompressibility.values.byName(json['compressibility'] as String),
+    order: (json['order'] as num?)?.toInt() ?? 0,
+    compression: json['compression'] == null
+        ? null
+        : CompressionInfo.fromJson(Map<String, dynamic>.from(json['compression'] as Map)),
+  );
 
   // ── Policy resolution ────────────────────────────────────────────────────
   // Class-aware call sites resolve against the region's ContextClass; legacy
@@ -144,16 +136,13 @@ class ContextRegion {
   // pre-class defaults.
 
   /// Effective priority under [cls].
-  ContextPriority effectivePriority(ContextClass cls) =>
-      priority ?? cls.priority;
+  ContextPriority effectivePriority(ContextClass cls) => priority ?? cls.priority;
 
   /// Effective lifetime under [cls].
-  ContextLifetime effectiveLifetime(ContextClass cls) =>
-      lifetime ?? cls.lifetime;
+  ContextLifetime effectiveLifetime(ContextClass cls) => lifetime ?? cls.lifetime;
 
   /// Effective compressibility under [cls].
-  ContextCompressibility effectiveCompressibility(ContextClass cls) =>
-      compressibility ?? cls.compressibility;
+  ContextCompressibility effectiveCompressibility(ContextClass cls) => compressibility ?? cls.compressibility;
 
   /// Effective pinning under [cls]: explicit pin wins, else the class default.
   bool effectivePinned(ContextClass cls) => isPinned || cls.pinnedByDefault;
@@ -161,8 +150,7 @@ class ContextRegion {
   /// Legacy default views for class-unaware call sites.
   ContextPriority get priorityOrDefault => priority ?? ContextPriority.medium;
   ContextLifetime get lifetimeOrDefault => lifetime ?? ContextLifetime.session;
-  ContextCompressibility get compressibilityOrDefault =>
-      compressibility ?? ContextCompressibility.none;
+  ContextCompressibility get compressibilityOrDefault => compressibility ?? ContextCompressibility.none;
 
   /// Factory to construct a region from text content.
   factory ContextRegion.text({

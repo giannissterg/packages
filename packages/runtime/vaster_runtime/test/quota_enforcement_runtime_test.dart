@@ -10,8 +10,7 @@ void main() {
     late VasterRuntime runtime;
 
     setUp(() async {
-      vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: FakeVasterModel()));
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
       runtime = VasterRuntime(
         vm: vm,
         policy: ExecutionPolicy.unlimited,
@@ -25,9 +24,7 @@ void main() {
         programName: 'quota_tokens',
         instructions: [
           SetQuotaOp(quota: ResourceQuota(maxTokenBudget: 1)),
-          PromptOp(
-              promptText: 'Write a long essay about resource governance.',
-              outputVar: 'essay'),
+          PromptOp(promptText: 'Write a long essay about resource governance.', outputVar: 'essay'),
           HaltOp(),
         ],
       );
@@ -73,18 +70,14 @@ void main() {
 
       expect(state.status, equals(RuntimeStatus.halted));
       expect(state.registers['recovered'], equals('yes'));
-      expect('${state.registers['quota_error']}',
-          contains('QuotaExceededException'));
+      expect('${state.registers['quota_error']}', contains('QuotaExceededException'));
     });
 
     test('a generous quota does not interfere with execution', () async {
       final program = const VasterProgram(
         programName: 'quota_generous',
         instructions: [
-          SetQuotaOp(
-              quota: ResourceQuota(
-                  maxTokenBudget: 1000000,
-                  timeDeadline: Duration(minutes: 5))),
+          SetQuotaOp(quota: ResourceQuota(maxTokenBudget: 1000000, timeDeadline: Duration(minutes: 5))),
           PromptOp(promptText: 'Say hello.', outputVar: 'greeting'),
           HaltOp(),
         ],
@@ -117,13 +110,12 @@ void main() {
       expect(state.registers['b'], isNotNull);
     });
 
-    test(
-        'a cost ceiling on an unpriced backend publishes an unenforced-cost '
+    test('a cost ceiling on an unpriced backend publishes an unenforced-cost '
         'warning', () async {
       // A model the pricing catalog cannot rate and that reports no cost.
       final unpricedVm = await VasterVMEngine.bootstrap(
-          config: VMConfig(
-              defaultModel: FakeVasterModel(modelName: 'mystery-backend')));
+        config: VMConfig(defaultModel: FakeVasterModel(modelName: 'mystery-backend')),
+      );
       final unpricedRuntime = VasterRuntime(
         vm: unpricedVm,
         policy: ExecutionPolicy.unlimited,

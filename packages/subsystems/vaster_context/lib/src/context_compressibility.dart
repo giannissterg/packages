@@ -12,9 +12,8 @@ enum ContextCompressibility {
   summarize;
 
   /// Parses a name, defaulting to [none] for unknown values.
-  static ContextCompressibility parse(String? value) =>
-      ContextCompressibility.values.firstWhere(
-        (c) => c.name == value,
-        orElse: () => ContextCompressibility.none,
-      );
+  static ContextCompressibility parse(String? value) => ContextCompressibility.values.firstWhere(
+    (c) => c.name == value,
+    orElse: () => ContextCompressibility.none,
+  );
 }

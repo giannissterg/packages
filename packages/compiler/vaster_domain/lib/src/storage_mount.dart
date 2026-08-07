@@ -18,17 +18,13 @@ class StorageMount {
   /// Optional host disk path (required when [type] is [StorageMountType.disk]).
   final String? diskPath;
 
-  const StorageMount({
-    required this.mountPrefix,
-    this.type = StorageMountType.memory,
-    this.diskPath,
-  });
+  const StorageMount({required this.mountPrefix, this.type = StorageMountType.memory, this.diskPath});
 
   Map<String, dynamic> toJson() => {
-        'mountPrefix': mountPrefix,
-        'type': type.name,
-        if (diskPath != null) 'diskPath': diskPath,
-      };
+    'mountPrefix': mountPrefix,
+    'type': type.name,
+    if (diskPath != null) 'diskPath': diskPath,
+  };
 
   factory StorageMount.fromJson(Map<String, dynamic> json) {
     return StorageMount(

@@ -68,18 +68,11 @@ class ResourceTracker {
   /// the next real consumption enforces as usual.
   /// Returns the restored [ConsumptionSnapshot] (echo — the caller can
   /// assert what the tracker now believes).
-  ConsumptionSnapshot restoreConsumed({
-    required int tokens,
-    required double cost,
-    required int toolCalls,
-  }) {
+  ConsumptionSnapshot restoreConsumed({required int tokens, required double cost, required int toolCalls}) {
     _consumedTokens = tokens;
     _consumedCost = cost;
     _toolCallCount = toolCalls;
-    return ConsumptionSnapshot(
-        tokens: _consumedTokens,
-        cost: _consumedCost,
-        toolCalls: _toolCallCount);
+    return ConsumptionSnapshot(tokens: _consumedTokens, cost: _consumedCost, toolCalls: _toolCallCount);
   }
 
   /// Returns the new tool-call total; throws when the quota trips.

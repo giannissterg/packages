@@ -16,10 +16,7 @@ void main() {
 
   setUp(() async {
     vm = await VasterVMEngine.bootstrap(
-      config: VMConfig(
-        defaultModel:
-            FakeVasterModel(usageBuilder: (request, text) => pinnedUsage),
-      ),
+      config: VMConfig(defaultModel: FakeVasterModel(usageBuilder: (request, text) => pinnedUsage)),
     );
     events = [];
     vm.eventBus.on<ModelUsageEvent>().listen(events.add);
@@ -28,7 +25,7 @@ void main() {
   Future<void> flush() => Future<void>.delayed(Duration.zero);
 
   test('vm.prompt emits exactly one measured usage event', () async {
-    await vm.prompt('Hello.');
+    await vm.prompt('Hello.', model: vm.config.defaultModel);
     await flush();
 
     expect(events, hasLength(1));
@@ -42,7 +39,7 @@ void main() {
   });
 
   test('promptStream emits exactly one usage event at stream end', () async {
-    await vm.promptStream('Stream it.').drain<void>();
+    await vm.promptStream('Stream it.', model: vm.config.defaultModel).drain<void>();
     await flush();
 
     expect(events, hasLength(1));
@@ -50,15 +47,15 @@ void main() {
     expect(events.single.totalTokenCount, equals(350));
   });
 
-  test('agent dispatch emits one agent_turn usage event per model turn',
-      () async {
+  test('agent dispatch emits one agent_turn usage event per model turn', () async {
     await vm.createAgent(
-        descriptor: const AgentDescriptor(
-      agentId: 'worker',
-      name: 'Worker',
-      role: 'test',
-      systemInstruction: 'Work.',
-    ));
+      descriptor: const AgentDescriptor(
+        agentId: 'worker',
+        name: 'Worker',
+        role: 'test',
+        systemInstruction: 'Work.',
+      ),
+    );
     await vm.runAgentTask(
       AgentTask(taskId: 't1', inputPrompt: 'Do it.'),
       agentId: 'worker',
@@ -68,11 +65,13 @@ void main() {
     // The VM wires a per-turn listener, so the manager's task-level rollup is
     // suppressed and every model turn inside the tool loop is its own event.
     final turnEvents = events.where((e) => e.callSite == 'agent_turn');
-    expect(turnEvents, hasLength(1),
-        reason: 'one turn: the fake answers without tool calls');
+    expect(turnEvents, hasLength(1), reason: 'one turn: the fake answers without tool calls');
     expect(turnEvents.single.totalTokenCount, equals(350));
     expect(turnEvents.single.estimated, isFalse);
-    expect(events.where((e) => e.callSite == 'agent_task'), isEmpty,
-        reason: 'rollup + per-turn events would double-count the task');
+    expect(
+      events.where((e) => e.callSite == 'agent_task'),
+      isEmpty,
+      reason: 'rollup + per-turn events would double-count the task',
+    );
   });
 }

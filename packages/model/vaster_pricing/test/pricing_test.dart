@@ -4,8 +4,7 @@ import 'package:vaster_pricing/vaster_pricing.dart';
 
 void main() {
   group('ModelPricing.costOf', () {
-    test('bills uncached input, cache read/write, and output at their rates',
-        () {
+    test('bills uncached input, cache read/write, and output at their rates', () {
       const pricing = ModelPricing(
         inputUsdPerMTok: 10,
         outputUsdPerMTok: 50,
@@ -21,10 +20,7 @@ void main() {
       );
 
       // 700k*10 + 200k*1 + 100k*12.5 + 120k*50 all per MTok
-      expect(
-        pricing.costOf(usage),
-        closeTo(7.0 + 0.2 + 1.25 + 6.0, 1e-9),
-      );
+      expect(pricing.costOf(usage), closeTo(7.0 + 0.2 + 1.25 + 6.0, 1e-9));
     });
 
     test('cache rates default to 0.1x / 1.25x of input', () {
@@ -40,8 +36,7 @@ void main() {
         'claude': ModelPricing(inputUsdPerMTok: 1, outputUsdPerMTok: 1),
         'claude-opus-5': ModelPricing(inputUsdPerMTok: 5, outputUsdPerMTok: 25),
       });
-      expect(catalog.lookup('claude-opus-5-20260115')!.inputUsdPerMTok,
-          equals(5));
+      expect(catalog.lookup('claude-opus-5-20260115')!.inputUsdPerMTok, equals(5));
       expect(catalog.lookup('claude-sonnet-x')!.inputUsdPerMTok, equals(1));
       expect(catalog.lookup('gpt-x'), isNull);
     });
@@ -50,20 +45,14 @@ void main() {
       expect(PricingCatalog.builtin.prices('claude-opus-5'), isTrue);
       expect(PricingCatalog.builtin.prices('gemini-2.0-flash'), isTrue);
       expect(
-        PricingCatalog.builtin
-            .lookup('llama-cpp')!
-            .costOf(const UsageMetadata(promptTokenCount: 1000000)),
+        PricingCatalog.builtin.lookup('llama-cpp')!.costOf(const UsageMetadata(promptTokenCount: 1000000)),
         equals(0),
       );
       expect(PricingCatalog.builtin.prices('unknown-model'), isFalse);
     });
 
     test('resolveCostUsd: wire-reported cost wins over computed', () {
-      const usage = UsageMetadata(
-        promptTokenCount: 1000000,
-        candidatesTokenCount: 0,
-        costUsd: 42.0,
-      );
+      const usage = UsageMetadata(promptTokenCount: 1000000, candidatesTokenCount: 0, costUsd: 42.0);
       const noWire = UsageMetadata(promptTokenCount: 1000000);
 
       final catalog = PricingCatalog.empty.withOverrides({

@@ -35,22 +35,22 @@ class KvCacheHandle {
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-        'handleId': handleId,
-        'contentFingerprint': contentFingerprint,
-        'tokenCount': tokenCount,
-        if (sizeBytes != null) 'sizeBytes': sizeBytes,
-        'backend': backend,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'handleId': handleId,
+    'contentFingerprint': contentFingerprint,
+    'tokenCount': tokenCount,
+    if (sizeBytes != null) 'sizeBytes': sizeBytes,
+    'backend': backend,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory KvCacheHandle.fromJson(Map<String, dynamic> json) => KvCacheHandle(
-        handleId: json['handleId'] as String? ?? '',
-        contentFingerprint: json['contentFingerprint'] as String? ?? '',
-        tokenCount: json['tokenCount'] as int? ?? 0,
-        sizeBytes: json['sizeBytes'] as int?,
-        backend: json['backend'] as String? ?? 'unknown',
-        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
-      );
+    handleId: json['handleId'] as String? ?? '',
+    contentFingerprint: json['contentFingerprint'] as String? ?? '',
+    tokenCount: json['tokenCount'] as int? ?? 0,
+    sizeBytes: json['sizeBytes'] as int?,
+    backend: json['backend'] as String? ?? 'unknown',
+    createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+  );
 
   @override
   String toString() =>

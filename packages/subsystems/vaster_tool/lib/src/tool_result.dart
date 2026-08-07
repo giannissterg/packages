@@ -36,23 +36,18 @@ class ToolResult {
 
   /// Converts this result into a [FunctionResponsePart].
   FunctionResponsePart toResponsePart() {
-    return FunctionResponsePart(
-      callId: callId,
-      name: name,
-      response: response,
-    );
+    return FunctionResponsePart(callId: callId, name: name, response: response);
   }
 
   Map<String, dynamic> toJson() => {
-        'callId': callId,
-        'name': name,
-        'response': response,
-        'isError': isError,
-        if (errorDetails != null) 'errorDetails': errorDetails,
-        'executionDurationMs': executionDuration.inMilliseconds,
-      };
+    'callId': callId,
+    'name': name,
+    'response': response,
+    'isError': isError,
+    if (errorDetails != null) 'errorDetails': errorDetails,
+    'executionDurationMs': executionDuration.inMilliseconds,
+  };
 
   @override
-  String toString() =>
-      'ToolResult(callId: "$callId", name: "$name", isError: $isError, response: $response)';
+  String toString() => 'ToolResult(callId: "$callId", name: "$name", isError: $isError, response: $response)';
 }

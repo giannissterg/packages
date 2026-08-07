@@ -20,8 +20,7 @@ void main() {
     });
 
     test('forExchange is labeled estimated', () {
-      final usage =
-          TokenEstimate.forExchange(prompt: 'x' * 40, output: 'y' * 20);
+      final usage = TokenEstimate.forExchange(prompt: 'x' * 40, output: 'y' * 20);
       expect(usage.promptTokenCount, equals(10));
       expect(usage.candidatesTokenCount, equals(5));
       expect(usage.totalTokenCount, equals(15));

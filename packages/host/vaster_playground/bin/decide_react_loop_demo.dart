@@ -12,22 +12,24 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// [DecisionPolicy] flows in Flutter-Theme-style via `Provider`.
 Future<void> main() async {
   var passes = 0;
-  final model = FakeVasterModel(handler: (request) {
-    final text = request.messages.last.text;
-    if (text.contains('Choose exactly one')) {
-      passes++;
-      final done = passes >= 3;
-      return ModelResponse(
-        message: ChatMessage.model(jsonEncode({
-          'choice': done ? 'done' : 'continue',
-          'rationale': done
-              ? 'All findings are addressed.'
-              : 'Open findings remain after pass $passes.',
-        })),
-      );
-    }
-    return ModelResponse(message: ChatMessage.model('pass output'));
-  });
+  final model = FakeVasterModel(
+    handler: (request) {
+      final text = request.messages.last.text;
+      if (text.contains('Choose exactly one')) {
+        passes++;
+        final done = passes >= 3;
+        return ModelResponse(
+          message: ChatMessage.model(
+            jsonEncode({
+              'choice': done ? 'done' : 'continue',
+              'rationale': done ? 'All findings are addressed.' : 'Open findings remain after pass $passes.',
+            }),
+          ),
+        );
+      }
+      return ModelResponse(message: ChatMessage.model('pass output'));
+    },
+  );
 
   final pipeline = Pipeline(
     name: 'iterative_refactor',
@@ -54,8 +56,9 @@ Future<void> main() async {
 
   final program = const BasicWorkflowCompiler().compile(pipeline);
   final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: model));
-  vm.eventBus.on<DecisionMadeEvent>().listen((event) => stdout.writeln(
-      '[decision] ${event.chosenLabel} — ${event.rationale ?? '(no rationale)'}'));
+  vm.eventBus.on<DecisionMadeEvent>().listen(
+    (event) => stdout.writeln('[decision] ${event.chosenLabel} — ${event.rationale ?? '(no rationale)'}'),
+  );
   final runtime = VasterRuntime(
     vm: vm,
     policy: ExecutionPolicy.unlimited,
@@ -67,7 +70,9 @@ Future<void> main() async {
   await Future<void>.delayed(Duration.zero);
 
   stdout.writeln('\nstatus : ${state.status.name}');
-  stdout.writeln('passes : $passes model decisions, loop exited via '
-      '"${state.registers.values.contains('done') ? 'done' : 'guard'}"');
+  stdout.writeln(
+    'passes : $passes model decisions, loop exited via '
+    '"${state.registers.values.contains('done') ? 'done' : 'guard'}"',
+  );
   await vm.shutdown();
 }

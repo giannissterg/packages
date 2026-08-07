@@ -1,4 +1,5 @@
 import 'package:vaster_context/vaster_context.dart';
+
 import 'prune_report.dart';
 
 import 'compression/context_compactor.dart';
@@ -74,20 +75,13 @@ abstract interface class ContextManager {
   /// Compresses regions toward [targetTokens] total using the registered
   /// compressors. [regionId] targets a single region; [includePinned] allows
   /// compressing pinned regions (their cache fingerprints will change).
-  Future<CompactionReport> compact({
-    required int targetTokens,
-    String? regionId,
-    bool includePinned = false,
-  });
+  Future<CompactionReport> compact({required int targetTokens, String? regionId, bool includePinned = false});
 
   /// Compiles active context regions into a model-ready [CompiledContext]
   /// within [budget]. When over budget and [allowCompression] is set, an
   /// async compression pre-pass shrinks compressible regions before the
   /// allocation strategy runs.
-  Future<CompiledContext> compileContext({
-    required TokenBudget budget,
-    bool allowCompression = true,
-  });
+  Future<CompiledContext> compileContext({required TokenBudget budget, bool allowCompression = true});
 
   /// The most recent [compileContext] result, for inspection.
   CompiledContext? get lastCompiled;
@@ -96,7 +90,5 @@ abstract interface class ContextManager {
   /// boundaries. Pinned and critical regions are kept unless [force].
   /// Returns what the sweep freed — ids and tokens; an empty report is
   /// an observable "pruned nothing".
-  PruneReport pruneLifetimes(
-      Set<ContextLifetime> expiredLifetimes,
-      {bool force = false});
+  PruneReport pruneLifetimes(Set<ContextLifetime> expiredLifetimes, {bool force = false});
 }

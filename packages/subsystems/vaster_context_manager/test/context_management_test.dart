@@ -5,17 +5,18 @@ import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 
-ContextRegion _bigRegion(String id,
-    {ContextPriority priority = ContextPriority.medium,
-    ContextCompressibility compressibility = ContextCompressibility.truncate,
-    bool pinned = false,
-    int messages = 20}) {
+ContextRegion _bigRegion(
+  String id, {
+  ContextPriority priority = ContextPriority.medium,
+  ContextCompressibility compressibility = ContextCompressibility.truncate,
+  bool pinned = false,
+  int messages = 20,
+}) {
   return ContextRegion(
     id: id,
     label: id,
     messages: [
-      for (var i = 0; i < messages; i++)
-        ChatMessage.user('message $i of region $id — ${'x' * 100}'),
+      for (var i = 0; i < messages; i++) ChatMessage.user('message $i of region $id — ${'x' * 100}'),
     ],
     estimatedTokens: messages * 30,
     priority: priority,
@@ -33,8 +34,11 @@ void main() {
       manager.addRegion(_bigRegion('c'));
 
       manager.pinRegion('a');
-      expect(manager.regions.map((r) => r.id), equals(['a', 'b', 'c']),
-          reason: 'pin must not move the region');
+      expect(
+        manager.regions.map((r) => r.id),
+        equals(['a', 'b', 'c']),
+        reason: 'pin must not move the region',
+      );
       expect(manager.getRegion('a')!.isPinned, isTrue);
     });
   });
@@ -49,31 +53,28 @@ void main() {
       final second = manager.getCacheDescriptor('doc')!;
       expect(identical(first, second), isTrue, reason: 'stable while unchanged');
 
-      manager.updateRegion(
-          'doc', (r) => r.copyWith(messages: [ChatMessage.user('rewritten')]));
+      manager.updateRegion('doc', (r) => r.copyWith(messages: [ChatMessage.user('rewritten')]));
       final third = manager.getCacheDescriptor('doc')!;
-      expect(third.contentFingerprint, isNot(equals(first.contentFingerprint)),
-          reason: 'content change must mint a fresh fingerprint');
+      expect(
+        third.contentFingerprint,
+        isNot(equals(first.contentFingerprint)),
+        reason: 'content change must mint a fresh fingerprint',
+      );
     });
   });
 
   group('Compression pre-pass', () {
-    test('compresses least-important regions first, only when over budget',
-        () async {
+    test('compresses least-important regions first, only when over budget', () async {
       final events = <RuntimeEvent>[];
       final bus = BasicEventBus();
       bus.stream.listen(events.add);
 
-      final manager = BasicContextManager(
-        compressors: [const TruncatingCompressor()],
-        eventBus: bus,
-      );
+      final manager = BasicContextManager(compressors: [const TruncatingCompressor()], eventBus: bus);
       manager.addRegion(_bigRegion('low', priority: ContextPriority.low));
-      manager.addRegion(_bigRegion('high',
-          priority: ContextPriority.high,
-          compressibility: ContextCompressibility.none));
-      manager.addRegion(_bigRegion('sacred',
-          priority: ContextPriority.ephemeral, pinned: true));
+      manager.addRegion(
+        _bigRegion('high', priority: ContextPriority.high, compressibility: ContextCompressibility.none),
+      );
+      manager.addRegion(_bigRegion('sacred', priority: ContextPriority.ephemeral, pinned: true));
 
       // Budget comfortably above total: no compression.
       const bigBudget = TokenBudget(maxContextTokens: 100000);
@@ -81,19 +82,17 @@ void main() {
       expect(manager.getRegion('low')!.isCompressed, isFalse);
 
       // Tight budget: only 'low' is a candidate (high=none, sacred=pinned).
-      const tightBudget = TokenBudget(
-          maxContextTokens: 1400, reservedOutputTokens: 0, reservedToolTokens: 0);
+      const tightBudget = TokenBudget(maxContextTokens: 1400, reservedOutputTokens: 0, reservedToolTokens: 0);
       final compiled = await manager.compileContext(budget: tightBudget);
 
       expect(manager.getRegion('low')!.isCompressed, isTrue);
-      expect(manager.getRegion('high')!.isCompressed, isFalse,
-          reason: 'compressibility none is inviolable');
-      expect(manager.getRegion('sacred')!.isCompressed, isFalse,
-          reason: 'pinned regions skipped by automatic pre-pass');
+      expect(manager.getRegion('high')!.isCompressed, isFalse, reason: 'compressibility none is inviolable');
       expect(
-          manager.getRegion('low')!.estimatedTokens,
-          lessThan(600),
-          reason: 'low actually shrank');
+        manager.getRegion('sacred')!.isCompressed,
+        isFalse,
+        reason: 'pinned regions skipped by automatic pre-pass',
+      );
+      expect(manager.getRegion('low')!.estimatedTokens, lessThan(600), reason: 'low actually shrank');
 
       // Events emitted.
       await Future<void>.delayed(Duration.zero);
@@ -107,8 +106,7 @@ void main() {
       manager.addRegion(_bigRegion('a', priority: ContextPriority.low));
       manager.addRegion(_bigRegion('b', priority: ContextPriority.high));
 
-      const budget = TokenBudget(
-          maxContextTokens: 700, reservedOutputTokens: 0, reservedToolTokens: 0);
+      const budget = TokenBudget(maxContextTokens: 700, reservedOutputTokens: 0, reservedToolTokens: 0);
       final compiled = await manager.compileContext(budget: budget);
 
       expect(compiled.evictionRecords, hasLength(1));
@@ -120,13 +118,14 @@ void main() {
 
   group('SummarizingCompressor', () {
     test('summarizes via model and preserves originals for expand()', () async {
-      final model = FakeVasterModel(handler: (request) {
-        expect(request.messages.single.text, contains('Summarize'));
-        return ModelResponse(message: ChatMessage.model('the gist of it'));
-      });
+      final model = FakeVasterModel(
+        handler: (request) {
+          expect(request.messages.single.text, contains('Summarize'));
+          return ModelResponse(message: ChatMessage.model('the gist of it'));
+        },
+      );
       final compressor = SummarizingCompressor(model: model);
-      final region = _bigRegion('doc',
-          compressibility: ContextCompressibility.summarize);
+      final region = _bigRegion('doc', compressibility: ContextCompressibility.summarize);
 
       final result = await compressor.compress(region, targetTokens: 50);
       expect(result.region.isCompressed, isTrue);
@@ -137,12 +136,13 @@ void main() {
     });
 
     test('falls back to truncation when the model errors', () async {
-      final model = FakeVasterModel(handler: (_) {
-        throw StateError('model down');
-      });
+      final model = FakeVasterModel(
+        handler: (_) {
+          throw StateError('model down');
+        },
+      );
       final compressor = SummarizingCompressor(model: model);
-      final region = _bigRegion('doc',
-          compressibility: ContextCompressibility.summarize);
+      final region = _bigRegion('doc', compressibility: ContextCompressibility.summarize);
 
       final result = await compressor.compress(region, targetTokens: 100);
       expect(result.region.isCompressed, isTrue);
@@ -157,8 +157,7 @@ void main() {
 
       final one = await compressor.compress(region, targetTokens: 200);
       final two = await compressor.compress(region, targetTokens: 200);
-      expect(regionContentOf(one.region), equals(regionContentOf(two.region)),
-          reason: 'deterministic');
+      expect(regionContentOf(one.region), equals(regionContentOf(two.region)), reason: 'deterministic');
 
       final texts = one.region.messages.map((m) => m.text).toList();
       expect(texts.first, contains('message 0'), reason: 'head kept');
@@ -171,21 +170,19 @@ void main() {
   group('ContextWorkspace facade', () {
     for (final variant in ['basic', 'composite']) {
       test('full management surface over $variant manager', () async {
-        final basic = BasicContextManager(
-            compressors: [const TruncatingCompressor()]);
+        final basic = BasicContextManager(compressors: [const TruncatingCompressor()]);
         final ContextManager manager = variant == 'basic'
             ? basic
-            : CompositeContextManager(
-                children: [basic],
-                compressors: [const TruncatingCompressor()]);
+            : CompositeContextManager(children: [basic], compressors: [const TruncatingCompressor()]);
         final workspace = ContextWorkspace(manager);
 
         workspace.addText(
-            id: 'sys',
-            label: 'system prompt',
-            text: 'You are the architect. ' * 40,
-            priority: ContextPriority.critical,
-            pinned: true);
+          id: 'sys',
+          label: 'system prompt',
+          text: 'You are the architect. ' * 40,
+          priority: ContextPriority.critical,
+          pinned: true,
+        );
         workspace.add(_bigRegion('notes'));
 
         // Inspect.
@@ -201,8 +198,7 @@ void main() {
         expect(workspace.setCompressibility('notes', ContextCompressibility.summarize), isTrue);
         expect(workspace.setUtility('notes', 0.4), isTrue);
         expect(manager.getRegion('notes')!.priority, equals(ContextPriority.high));
-        expect(workspace.setPriority('ghost', ContextPriority.low), isFalse,
-            reason: 'no silent no-ops');
+        expect(workspace.setPriority('ghost', ContextPriority.low), isFalse, reason: 'no silent no-ops');
 
         // Pin round-trip.
         expect(workspace.pin('notes'), isTrue);
@@ -217,23 +213,20 @@ void main() {
 
         // Compaction through the facade.
         final compacted = await workspace.compact(
-            budget: const TokenBudget(
-                maxContextTokens: 220,
-                reservedOutputTokens: 0,
-                reservedToolTokens: 0));
+          budget: const TokenBudget(maxContextTokens: 220, reservedOutputTokens: 0, reservedToolTokens: 0),
+        );
         expect(compacted.tokensFreed, greaterThan(0));
         expect(manager.getRegion('notes')!.isCompressed, isTrue);
       });
     }
 
     test('expand restores summarized originals', () async {
-      final model = FakeVasterModel(handler: (_) =>
-          ModelResponse(message: ChatMessage.model('short summary')));
-      final manager = BasicContextManager(
-          compressors: [SummarizingCompressor(model: model)]);
+      final model = FakeVasterModel(
+        handler: (_) => ModelResponse(message: ChatMessage.model('short summary')),
+      );
+      final manager = BasicContextManager(compressors: [SummarizingCompressor(model: model)]);
       final workspace = ContextWorkspace(manager);
-      manager.addRegion(_bigRegion('doc',
-          compressibility: ContextCompressibility.summarize));
+      manager.addRegion(_bigRegion('doc', compressibility: ContextCompressibility.summarize));
 
       await manager.compact(targetTokens: 50, regionId: 'doc');
       expect(manager.getRegion('doc')!.isCompressed, isTrue);
@@ -254,8 +247,9 @@ void main() {
       childA.addRegion(_bigRegion('inA'));
       childB.addRegion(_bigRegion('inB'));
       final composite = CompositeContextManager(
-          children: [childA, childB],
-          compressors: [const TruncatingCompressor()]);
+        children: [childA, childB],
+        compressors: [const TruncatingCompressor()],
+      );
 
       // Update routes to childB.
       composite.updateRegion('inB', (r) => r.copyWith(utility: 0.1));
@@ -268,24 +262,28 @@ void main() {
 
       // Compaction write-back reaches the owning child's real heap.
       await composite.compact(targetTokens: 100);
-      final compressedInChild = [childA, childB]
-          .expand((c) => c.regions)
-          .where((r) => r.isCompressed);
-      expect(compressedInChild, isNotEmpty,
-          reason: 'compressed regions persisted in child heaps, not a snapshot');
+      final compressedInChild = [childA, childB].expand((c) => c.regions).where((r) => r.isCompressed);
+      expect(
+        compressedInChild,
+        isNotEmpty,
+        reason: 'compressed regions persisted in child heaps, not a snapshot',
+      );
     });
   });
 
   group('pruneLifetimes (bugs e/f)', () {
     test('respects pinned and critical unless forced', () {
       final manager = BasicContextManager();
-      manager.addRegion(_bigRegion('scratch')
-          .copyWith(lifetime: ContextLifetime.ephemeral));
-      manager.addRegion(_bigRegion('pinned-scratch', pinned: true)
-          .copyWith(lifetime: ContextLifetime.ephemeral));
-      manager.addRegion(_bigRegion('critical-scratch',
-              priority: ContextPriority.critical)
-          .copyWith(lifetime: ContextLifetime.ephemeral));
+      manager.addRegion(_bigRegion('scratch').copyWith(lifetime: ContextLifetime.ephemeral));
+      manager.addRegion(
+        _bigRegion('pinned-scratch', pinned: true).copyWith(lifetime: ContextLifetime.ephemeral),
+      );
+      manager.addRegion(
+        _bigRegion(
+          'critical-scratch',
+          priority: ContextPriority.critical,
+        ).copyWith(lifetime: ContextLifetime.ephemeral),
+      );
 
       manager.pruneLifetimes({ContextLifetime.ephemeral});
       expect(manager.getRegion('scratch'), isNull);

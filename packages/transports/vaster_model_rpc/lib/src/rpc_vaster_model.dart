@@ -48,11 +48,8 @@ class RpcVasterModel implements VasterModel {
       socket.write('${jsonEncode(reqMap)}\n');
       await socket.flush();
 
-      final responseLine = await socket
-          .cast<List<int>>()
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .first;
+      final responseLine =
+          await socket.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()).first;
 
       final json = jsonDecode(responseLine) as Map<String, dynamic>;
       if (json['status'] == 'error') {
@@ -74,10 +71,7 @@ class RpcVasterModel implements VasterModel {
       socket.write('${jsonEncode(reqMap)}\n');
       await socket.flush();
 
-      final lines = socket
-          .cast<List<int>>()
-          .transform(utf8.decoder)
-          .transform(const LineSplitter());
+      final lines = socket.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter());
 
       await for (final line in lines) {
         final trimmed = line.trim();

@@ -9,11 +9,7 @@ class DisassemblerOptions {
   final bool showAddresses;
   final bool verbose;
 
-  const DisassemblerOptions({
-    this.showStats = true,
-    this.showAddresses = true,
-    this.verbose = false,
-  });
+  const DisassemblerOptions({this.showStats = true, this.showAddresses = true, this.verbose = false});
 }
 
 /// Disassembler engine for `.vaster` bytecode programs.
@@ -21,10 +17,7 @@ class VasterDisassembler {
   const VasterDisassembler();
 
   /// Disassembles a [VasterProgram] into a formatted disassembly string.
-  String disassemble(
-    VasterProgram program, {
-    DisassemblerOptions options = const DisassemblerOptions(),
-  }) {
+  String disassemble(VasterProgram program, {DisassemblerOptions options = const DisassemblerOptions()}) {
     final buffer = StringBuffer();
 
     _writeHeader(buffer, program);
@@ -63,10 +56,7 @@ class VasterDisassembler {
   }
 
   /// Disassembles a `.vaster` program from a JSON string payload.
-  String disassembleJson(
-    String jsonString, {
-    DisassemblerOptions options = const DisassemblerOptions(),
-  }) {
+  String disassembleJson(String jsonString, {DisassemblerOptions options = const DisassemblerOptions()}) {
     final json = jsonDecode(jsonString) as Map<String, dynamic>;
     final program = VasterProgram.fromJson(json);
     return disassemble(program, options: options);
@@ -74,10 +64,7 @@ class VasterDisassembler {
 
   /// Disassembles a `.vbc` binary program payload (magic-, version-, and
   /// checksum-validated by the codec).
-  String disassembleBytes(
-    Uint8List bytes, {
-    DisassemblerOptions options = const DisassemblerOptions(),
-  }) {
+  String disassembleBytes(Uint8List bytes, {DisassemblerOptions options = const DisassemblerOptions()}) {
     final program = VasterProgramBinary.fromBytes(bytes);
     return disassemble(program, options: options);
   }
@@ -263,9 +250,7 @@ class VasterDisassembler {
       case SelectModelOp op:
         return op.fallbacks.isEmpty
             ? op.descriptor.descriptorKey
-            : [op.descriptor, ...op.fallbacks]
-                .map((d) => d.descriptorKey)
-                .join(' → ');
+            : [op.descriptor, ...op.fallbacks].map((d) => d.descriptorKey).join(' → ');
 
       case CreateSessionOp op:
         final modelStr = op.modelDescriptor != null ? ' model=${op.modelDescriptor!.descriptorKey}' : '';
@@ -303,14 +288,15 @@ class VasterDisassembler {
       opcodeCounts[name] = (opcodeCounts[name] ?? 0) + 1;
     }
 
-    final sorted = opcodeCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = opcodeCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
     buffer.writeln('\n┌─ INSTRUCTION STATISTICS ──────────────────────────────────────┐');
     for (final entry in sorted) {
       final pct = ((entry.value / program.instructions.length) * 100).toStringAsFixed(1);
       final bar = '█' * entry.value;
-      buffer.writeln('  ${entry.key.padRight(24)} ${entry.value.toString().padLeft(3)} (${pct.padLeft(5)}%) $bar');
+      buffer.writeln(
+        '  ${entry.key.padRight(24)} ${entry.value.toString().padLeft(3)} (${pct.padLeft(5)}%) $bar',
+      );
     }
     buffer.writeln('└───────────────────────────────────────────────────────────────┘');
   }

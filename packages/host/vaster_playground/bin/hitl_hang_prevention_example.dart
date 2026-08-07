@@ -45,10 +45,16 @@ void main() async {
         requestId: 'prod_deploy_gate',
         prompt: Template.text('Approve execution of production cluster deployment?'),
         onApprove: [
-          WriteFile(path: Template.text('/workspace/deploy.log'), content: Template.text('Deployed to production cluster successfully.')),
+          WriteFile(
+            path: Template.text('/workspace/deploy.log'),
+            content: Template.text('Deployed to production cluster successfully.'),
+          ),
         ],
         onReject: [
-          WriteFile(path: Template.text('/workspace/deploy.log'), content: Template.text('Deployment rejected by operator.')),
+          WriteFile(
+            path: Template.text('/workspace/deploy.log'),
+            content: Template.text('Deployment rejected by operator.'),
+          ),
         ],
       ),
     ],

@@ -129,8 +129,7 @@ final class LlamaBatch extends Struct {
 }
 
 /// `ggml_log_callback` — `void (*)(int level, const char* text, void* ud)`.
-typedef GgmlLogCallbackNative = Void Function(
-    Int32, Pointer<Uint8>, Pointer<Void>);
+typedef GgmlLogCallbackNative = Void Function(Int32, Pointer<Uint8>, Pointer<Void>);
 
 /// The libllama function surface the engine uses. All lookups happen
 /// eagerly in [open] — a missing symbol fails loudly at construction, not
@@ -139,23 +138,17 @@ final class LlamaBindings {
   final DynamicLibrary library;
 
   final void Function() backendInit;
-  final void Function(Pointer<NativeFunction<GgmlLogCallbackNative>>,
-      Pointer<Void>) logSet;
+  final void Function(Pointer<NativeFunction<GgmlLogCallbackNative>>, Pointer<Void>) logSet;
   final LlamaModelParams Function() modelDefaultParams;
   final LlamaContextParams Function() contextDefaultParams;
-  final Pointer<Void> Function(Pointer<Uint8>, LlamaModelParams)
-      modelLoadFromFile;
+  final Pointer<Void> Function(Pointer<Uint8>, LlamaModelParams) modelLoadFromFile;
   final void Function(Pointer<Void>) modelFree;
-  final Pointer<Void> Function(Pointer<Void>, LlamaContextParams)
-      initFromModel;
+  final Pointer<Void> Function(Pointer<Void>, LlamaContextParams) initFromModel;
   final void Function(Pointer<Void>) contextFree;
   final int Function(Pointer<Void>) nCtx;
   final Pointer<Void> Function(Pointer<Void>) modelGetVocab;
-  final int Function(
-          Pointer<Void>, Pointer<Uint8>, int, Pointer<Int32>, int, bool, bool)
-      tokenize;
-  final int Function(Pointer<Void>, int, Pointer<Uint8>, int, int, bool)
-      tokenToPiece;
+  final int Function(Pointer<Void>, Pointer<Uint8>, int, Pointer<Int32>, int, bool, bool) tokenize;
+  final int Function(Pointer<Void>, int, Pointer<Uint8>, int, int, bool) tokenToPiece;
   final bool Function(Pointer<Void>, int) vocabIsEog;
   final LlamaBatch Function(Pointer<Int32>, int) batchGetOne;
   final int Function(Pointer<Void>, LlamaBatch) decode;
@@ -212,8 +205,7 @@ final class LlamaBindings {
   /// registers the callee never reads, and the unread bool return is
   /// harmless — a permanently-valid native no-op.
   void silenceLogs() {
-    final noop = library
-        .lookup<NativeFunction<GgmlLogCallbackNative>>('llama_supports_mmap');
+    final noop = library.lookup<NativeFunction<GgmlLogCallbackNative>>('llama_supports_mmap');
     logSet(noop, nullptr);
   }
 
@@ -225,78 +217,99 @@ final class LlamaBindings {
     final lib = DynamicLibrary.open(libraryPath);
     return LlamaBindings._(
       library: lib,
-      backendInit: lib
-          .lookupFunction<Void Function(), void Function()>(
-              'llama_backend_init'),
-      logSet: lib.lookupFunction<
-          Void Function(
-              Pointer<NativeFunction<GgmlLogCallbackNative>>, Pointer<Void>),
-          void Function(Pointer<NativeFunction<GgmlLogCallbackNative>>,
-              Pointer<Void>)>('llama_log_set'),
-      modelDefaultParams: lib.lookupFunction<LlamaModelParams Function(),
-          LlamaModelParams Function()>('llama_model_default_params'),
-      contextDefaultParams: lib.lookupFunction<LlamaContextParams Function(),
-          LlamaContextParams Function()>('llama_context_default_params'),
-      modelLoadFromFile: lib.lookupFunction<
-          Pointer<Void> Function(Pointer<Uint8>, LlamaModelParams),
-          Pointer<Void> Function(Pointer<Uint8>,
-              LlamaModelParams)>('llama_model_load_from_file'),
-      modelFree: lib.lookupFunction<Void Function(Pointer<Void>),
-          void Function(Pointer<Void>)>('llama_model_free'),
-      initFromModel: lib.lookupFunction<
-          Pointer<Void> Function(Pointer<Void>, LlamaContextParams),
-          Pointer<Void> Function(
-              Pointer<Void>, LlamaContextParams)>('llama_init_from_model'),
-      contextFree: lib.lookupFunction<Void Function(Pointer<Void>),
-          void Function(Pointer<Void>)>('llama_free'),
-      nCtx: lib.lookupFunction<Uint32 Function(Pointer<Void>),
-          int Function(Pointer<Void>)>('llama_n_ctx'),
-      modelGetVocab: lib.lookupFunction<Pointer<Void> Function(Pointer<Void>),
-          Pointer<Void> Function(Pointer<Void>)>('llama_model_get_vocab'),
-      tokenize: lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Pointer<Uint8>, Int32, Pointer<Int32>,
-              Int32, Bool, Bool),
-          int Function(Pointer<Void>, Pointer<Uint8>, int, Pointer<Int32>,
-              int, bool, bool)>('llama_tokenize'),
-      tokenToPiece: lib.lookupFunction<
-          Int32 Function(
-              Pointer<Void>, Int32, Pointer<Uint8>, Int32, Int32, Bool),
-          int Function(Pointer<Void>, int, Pointer<Uint8>, int, int,
-              bool)>('llama_token_to_piece'),
-      vocabIsEog: lib.lookupFunction<Bool Function(Pointer<Void>, Int32),
-          bool Function(Pointer<Void>, int)>('llama_vocab_is_eog'),
-      batchGetOne: lib.lookupFunction<
-          LlamaBatch Function(Pointer<Int32>, Int32),
-          LlamaBatch Function(Pointer<Int32>, int)>('llama_batch_get_one'),
-      decode: lib.lookupFunction<Int32 Function(Pointer<Void>, LlamaBatch),
-          int Function(Pointer<Void>, LlamaBatch)>('llama_decode'),
-      samplerInitGreedy: lib.lookupFunction<Pointer<Void> Function(),
-          Pointer<Void> Function()>('llama_sampler_init_greedy'),
-      samplerFree: lib.lookupFunction<Void Function(Pointer<Void>),
-          void Function(Pointer<Void>)>('llama_sampler_free'),
-      samplerSample: lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Pointer<Void>, Int32),
-          int Function(
-              Pointer<Void>, Pointer<Void>, int)>('llama_sampler_sample'),
-      stateSeqGetSize: lib.lookupFunction<Size Function(Pointer<Void>, Int32),
-          int Function(Pointer<Void>, int)>('llama_state_seq_get_size'),
-      stateSeqGetData: lib.lookupFunction<
-          Size Function(Pointer<Void>, Pointer<Uint8>, Size, Int32),
-          int Function(Pointer<Void>, Pointer<Uint8>, int,
-              int)>('llama_state_seq_get_data'),
-      stateSeqSetData: lib.lookupFunction<
-          Size Function(Pointer<Void>, Pointer<Uint8>, Size, Int32),
-          int Function(Pointer<Void>, Pointer<Uint8>, int,
-              int)>('llama_state_seq_set_data'),
-      getMemory: lib.lookupFunction<Pointer<Void> Function(Pointer<Void>),
-          Pointer<Void> Function(Pointer<Void>)>('llama_get_memory'),
-      memorySeqRm: lib.lookupFunction<
-          Bool Function(Pointer<Void>, Int32, Int32, Int32),
-          bool Function(
-              Pointer<Void>, int, int, int)>('llama_memory_seq_rm'),
-      memorySeqPosMax: lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Int32),
-          int Function(Pointer<Void>, int)>('llama_memory_seq_pos_max'),
+      backendInit: lib.lookupFunction<Void Function(), void Function()>('llama_backend_init'),
+      logSet: lib
+          .lookupFunction<
+            Void Function(Pointer<NativeFunction<GgmlLogCallbackNative>>, Pointer<Void>),
+            void Function(Pointer<NativeFunction<GgmlLogCallbackNative>>, Pointer<Void>)
+          >('llama_log_set'),
+      modelDefaultParams: lib.lookupFunction<LlamaModelParams Function(), LlamaModelParams Function()>(
+        'llama_model_default_params',
+      ),
+      contextDefaultParams: lib.lookupFunction<LlamaContextParams Function(), LlamaContextParams Function()>(
+        'llama_context_default_params',
+      ),
+      modelLoadFromFile: lib
+          .lookupFunction<
+            Pointer<Void> Function(Pointer<Uint8>, LlamaModelParams),
+            Pointer<Void> Function(Pointer<Uint8>, LlamaModelParams)
+          >('llama_model_load_from_file'),
+      modelFree: lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>(
+        'llama_model_free',
+      ),
+      initFromModel: lib
+          .lookupFunction<
+            Pointer<Void> Function(Pointer<Void>, LlamaContextParams),
+            Pointer<Void> Function(Pointer<Void>, LlamaContextParams)
+          >('llama_init_from_model'),
+      contextFree: lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>(
+        'llama_free',
+      ),
+      nCtx: lib.lookupFunction<Uint32 Function(Pointer<Void>), int Function(Pointer<Void>)>('llama_n_ctx'),
+      modelGetVocab: lib
+          .lookupFunction<Pointer<Void> Function(Pointer<Void>), Pointer<Void> Function(Pointer<Void>)>(
+            'llama_model_get_vocab',
+          ),
+      tokenize: lib
+          .lookupFunction<
+            Int32 Function(Pointer<Void>, Pointer<Uint8>, Int32, Pointer<Int32>, Int32, Bool, Bool),
+            int Function(Pointer<Void>, Pointer<Uint8>, int, Pointer<Int32>, int, bool, bool)
+          >('llama_tokenize'),
+      tokenToPiece: lib
+          .lookupFunction<
+            Int32 Function(Pointer<Void>, Int32, Pointer<Uint8>, Int32, Int32, Bool),
+            int Function(Pointer<Void>, int, Pointer<Uint8>, int, int, bool)
+          >('llama_token_to_piece'),
+      vocabIsEog: lib.lookupFunction<Bool Function(Pointer<Void>, Int32), bool Function(Pointer<Void>, int)>(
+        'llama_vocab_is_eog',
+      ),
+      batchGetOne: lib
+          .lookupFunction<
+            LlamaBatch Function(Pointer<Int32>, Int32),
+            LlamaBatch Function(Pointer<Int32>, int)
+          >('llama_batch_get_one'),
+      decode: lib
+          .lookupFunction<Int32 Function(Pointer<Void>, LlamaBatch), int Function(Pointer<Void>, LlamaBatch)>(
+            'llama_decode',
+          ),
+      samplerInitGreedy: lib.lookupFunction<Pointer<Void> Function(), Pointer<Void> Function()>(
+        'llama_sampler_init_greedy',
+      ),
+      samplerFree: lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>(
+        'llama_sampler_free',
+      ),
+      samplerSample: lib
+          .lookupFunction<
+            Int32 Function(Pointer<Void>, Pointer<Void>, Int32),
+            int Function(Pointer<Void>, Pointer<Void>, int)
+          >('llama_sampler_sample'),
+      stateSeqGetSize: lib
+          .lookupFunction<Size Function(Pointer<Void>, Int32), int Function(Pointer<Void>, int)>(
+            'llama_state_seq_get_size',
+          ),
+      stateSeqGetData: lib
+          .lookupFunction<
+            Size Function(Pointer<Void>, Pointer<Uint8>, Size, Int32),
+            int Function(Pointer<Void>, Pointer<Uint8>, int, int)
+          >('llama_state_seq_get_data'),
+      stateSeqSetData: lib
+          .lookupFunction<
+            Size Function(Pointer<Void>, Pointer<Uint8>, Size, Int32),
+            int Function(Pointer<Void>, Pointer<Uint8>, int, int)
+          >('llama_state_seq_set_data'),
+      getMemory: lib
+          .lookupFunction<Pointer<Void> Function(Pointer<Void>), Pointer<Void> Function(Pointer<Void>)>(
+            'llama_get_memory',
+          ),
+      memorySeqRm: lib
+          .lookupFunction<
+            Bool Function(Pointer<Void>, Int32, Int32, Int32),
+            bool Function(Pointer<Void>, int, int, int)
+          >('llama_memory_seq_rm'),
+      memorySeqPosMax: lib
+          .lookupFunction<Int32 Function(Pointer<Void>, Int32), int Function(Pointer<Void>, int)>(
+            'llama_memory_seq_pos_max',
+          ),
     );
   }
 }

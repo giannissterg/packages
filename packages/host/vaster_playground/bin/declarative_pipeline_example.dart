@@ -32,9 +32,7 @@ class SecurityAuditComponent extends ComposableNode {
         ? 'Audit ${app.appName} (${app.environment}) with strict encryption verification.'
         : 'Audit ${app.appName} (${app.environment}) standard checks.';
 
-    return Transaction(children: [
-      Prompt(Template.text(promptClause)),
-    ]);
+    return Transaction(children: [Prompt(Template.text(promptClause))]);
   }
 }
 
@@ -62,7 +60,10 @@ void main() async {
     mounts: const [StorageMount(mountPrefix: '/workspace')],
     roles: const [secAuditorRole],
     children: [
-      const WriteFile(path: Template.text('/workspace/app_spec.txt'), content: Template.text('Nexus App Specification')),
+      const WriteFile(
+        path: Template.text('/workspace/app_spec.txt'),
+        content: Template.text('Nexus App Specification'),
+      ),
       const ReadFile(path: Template.text('/workspace/app_spec.txt')),
 
       // Inject typed configuration into context tree using Provider<T>
@@ -77,20 +78,17 @@ void main() async {
                 role: secAuditorRole,
                 // ToolSet Scope Provider
                 child: ToolSet(
-                    tools: const [
-                      ToolDefinition(
-                        name: 'static_analyzer',
-                        description: 'Analyzes code for vulnerabilities',
-                      ),
-                    ],
-                    child: const Sequence([
-                      // Declarative Functional Component (ComposableNode)
-                      SecurityAuditComponent(),
+                  tools: const [
+                    ToolDefinition(name: 'static_analyzer', description: 'Analyzes code for vulnerabilities'),
+                  ],
+                  child: const Sequence([
+                    // Declarative Functional Component (ComposableNode)
+                    SecurityAuditComponent(),
 
-                      // Task automatically inherits secAuditorRole from context!
-                      Task(prompt: Template.text('Produce final compliance report.')),
-                    ]),
-                  ),
+                    // Task automatically inherits secAuditorRole from context!
+                    Task(prompt: Template.text('Produce final compliance report.')),
+                  ]),
+                ),
               ),
 
               // Inline Functional Component Builder
@@ -111,7 +109,10 @@ void main() async {
         requestId: 'deploy_gate',
         prompt: Template.text('Approve deployment of NexusCloud to production?'),
         onApprove: [
-          WriteFile(path: Template.text('/workspace/deploy.log'), content: Template.text('Deployed successfully.')),
+          WriteFile(
+            path: Template.text('/workspace/deploy.log'),
+            content: Template.text('Deployed successfully.'),
+          ),
         ],
       ),
     ],
@@ -125,11 +126,7 @@ void main() async {
   print('  Total Instructions: ${program.instructions.length}\n');
 
   // 4. Setup Execution Budget & Instruction Scheduler
-  final budget = ExecutionBudget(
-    maxDuration: const Duration(minutes: 5),
-    maxTokens: 50000,
-    maxCost: 10.0,
-  );
+  final budget = ExecutionBudget(maxDuration: const Duration(minutes: 5), maxTokens: 50000, maxCost: 10.0);
   final scheduler = BasicVasterScheduler(taskQueue: PriorityTaskQueue());
 
   // 5. Bootstrap VM

@@ -26,10 +26,7 @@ void main() {
         ],
       );
 
-      final body = ClaudeApiVasterModel.buildRequestBody(
-        request,
-        model: 'claude-opus-5',
-      );
+      final body = ClaudeApiVasterModel.buildRequestBody(request, model: 'claude-opus-5');
 
       expect(body['model'], equals('claude-opus-5'));
       expect(body['max_tokens'], equals(16000));
@@ -45,14 +42,13 @@ void main() {
     test('tool round-trip: model tool_use turn and tool_result turn', () {
       final messages = [
         ChatMessage.user('read main.dart'),
-        const ChatMessage(role: Role.model, parts: [
-          TextPart('Reading the file.'),
-          FunctionCallPart(
-            callId: 'toolu_01',
-            name: 'read_file',
-            arguments: {'path': '/mem/main.dart'},
-          ),
-        ]),
+        const ChatMessage(
+          role: Role.model,
+          parts: [
+            TextPart('Reading the file.'),
+            FunctionCallPart(callId: 'toolu_01', name: 'read_file', arguments: {'path': '/mem/main.dart'}),
+          ],
+        ),
         ChatMessage.toolResponse('toolu_01', 'read_file', {'content': 'void main() {}'}),
       ];
 
@@ -89,8 +85,7 @@ void main() {
         ),
       );
 
-      final body =
-          ClaudeApiVasterModel.buildRequestBody(request, model: 'claude-opus-5');
+      final body = ClaudeApiVasterModel.buildRequestBody(request, model: 'claude-opus-5');
 
       final format = (body['output_config'] as Map)['format'] as Map;
       expect(format['type'], equals('json_schema'));
@@ -100,22 +95,13 @@ void main() {
     test('cache hints lower to cache_control breakpoints', () {
       final request = ModelRequest(
         systemInstruction: ChatMessage.system('Big stable prompt'),
-        messages: [
-          ChatMessage.user('turn 1'),
-          ChatMessage.model('answer 1'),
-          ChatMessage.user('turn 2'),
-        ],
+        messages: [ChatMessage.user('turn 1'), ChatMessage.model('answer 1'), ChatMessage.user('turn 2')],
         cacheHints: const [
-          ContextCacheHint(
-            regionId: 'sys',
-            contentFingerprint: 'abc123',
-            ttl: Duration(hours: 2),
-          ),
+          ContextCacheHint(regionId: 'sys', contentFingerprint: 'abc123', ttl: Duration(hours: 2)),
         ],
       );
 
-      final body =
-          ClaudeApiVasterModel.buildRequestBody(request, model: 'claude-opus-5');
+      final body = ClaudeApiVasterModel.buildRequestBody(request, model: 'claude-opus-5');
 
       // Breakpoint on the system block (stable prefix; long TTL honored).
       final system = (body['system'] as List).single as Map;
@@ -136,8 +122,7 @@ void main() {
         systemInstruction: ChatMessage.system('prompt'),
         messages: [ChatMessage.user('q')],
       );
-      final body =
-          ClaudeApiVasterModel.buildRequestBody(request, model: 'claude-opus-5');
+      final body = ClaudeApiVasterModel.buildRequestBody(request, model: 'claude-opus-5');
       expect(jsonEncode(body).contains('cache_control'), isFalse);
     });
 
@@ -279,14 +264,9 @@ void main() {
       ];
       final sse = events.map((e) => 'data: ${jsonEncode(e)}\n\n').join();
 
-      final model = ClaudeApiVasterModel(
-        apiKey: 'test-key',
-        clientFactory: () => _FakeSseClient(sse),
-      );
+      final model = ClaudeApiVasterModel(apiKey: 'test-key', clientFactory: () => _FakeSseClient(sse));
 
-      final chunks = await model
-          .generateStream(ModelRequest(messages: [ChatMessage.user('hi')]))
-          .toList();
+      final chunks = await model.generateStream(ModelRequest(messages: [ChatMessage.user('hi')])).toList();
 
       final terminal = chunks.last;
       expect(terminal.finishReason, equals(FinishReason.stop));
@@ -307,9 +287,6 @@ class _FakeSseClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    return http.StreamedResponse(
-      Stream.value(utf8.encode(body)),
-      200,
-    );
+    return http.StreamedResponse(Stream.value(utf8.encode(body)), 200);
   }
 }

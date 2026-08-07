@@ -7,9 +7,7 @@ void main() async {
   final memFs = MemoryVasterFileSystem();
   await memFs.writeText('/mem/notes.txt', 'Memory note text');
 
-  final manager = BasicFileSystemManager(mounts: {
-    '/mem': memFs,
-  });
+  final manager = BasicFileSystemManager(mounts: {'/mem': memFs});
 
   print('Mounted paths: ${manager.mounts.keys.toList()}');
 

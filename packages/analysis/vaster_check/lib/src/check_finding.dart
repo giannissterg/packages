@@ -16,11 +16,11 @@ sealed class CheckFinding {
   String get message;
 
   Map<String, dynamic> toJson() => {
-        'severity': severity.name,
-        'code': code,
-        if (pc != null) 'pc': pc,
-        'message': message,
-      };
+    'severity': severity.name,
+    'code': code,
+    if (pc != null) 'pc': pc,
+    'message': message,
+  };
 }
 
 /// A register is read but NO instruction in the program ever writes it.
@@ -66,8 +66,7 @@ final class PolicyViolationProven extends CheckFinding {
   @override
   final int pc;
 
-  const PolicyViolationProven(
-      {required this.action, required this.resource, required this.pc});
+  const PolicyViolationProven({required this.action, required this.resource, required this.pc});
 
   @override
   CheckSeverity get severity => CheckSeverity.error;
@@ -87,8 +86,7 @@ final class PolicyUnprovable extends CheckFinding {
   @override
   final int pc;
 
-  const PolicyUnprovable(
-      {required this.action, required this.resourceTemplate, required this.pc});
+  const PolicyUnprovable({required this.action, required this.resourceTemplate, required this.pc});
 
   @override
   CheckSeverity get severity => CheckSeverity.warning;

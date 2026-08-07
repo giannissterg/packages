@@ -20,18 +20,16 @@ abstract final class TokenEstimate {
 
   /// Estimated token count for a message transcript, including per-message
   /// structural overhead.
-  static int forMessages(Iterable<ChatMessage> messages) => messages.fold(
-      0, (sum, m) => sum + forText(m.text) + perMessageOverhead);
+  static int forMessages(Iterable<ChatMessage> messages) =>
+      messages.fold(0, (sum, m) => sum + forText(m.text) + perMessageOverhead);
 
   /// Estimated usage for one prompt/output exchange, explicitly labeled
   /// [UsageSource.estimated].
-  static UsageMetadata forExchange(
-          {required String prompt, required String output}) =>
-      UsageMetadata(
-        promptTokenCount: forText(prompt),
-        candidatesTokenCount: forText(output),
-        source: UsageSource.estimated,
-      );
+  static UsageMetadata forExchange({required String prompt, required String output}) => UsageMetadata(
+    promptTokenCount: forText(prompt),
+    candidatesTokenCount: forText(output),
+    source: UsageSource.estimated,
+  );
 }
 
 /// The instance seam for token estimation — the composition point where
@@ -67,8 +65,7 @@ final class HeuristicTokenEstimator implements TokenEstimator {
   int forText(String text) => TokenEstimate.forText(text);
 
   @override
-  int forMessages(Iterable<ChatMessage> messages) =>
-      TokenEstimate.forMessages(messages);
+  int forMessages(Iterable<ChatMessage> messages) => TokenEstimate.forMessages(messages);
 
   @override
   UsageMetadata forExchange({required String prompt, required String output}) =>

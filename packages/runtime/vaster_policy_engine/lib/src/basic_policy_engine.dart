@@ -1,5 +1,6 @@
 import 'package:vaster_events/vaster_events.dart';
 import 'package:vaster_policy/vaster_policy.dart';
+
 import 'policy_engine_interface.dart';
 
 /// Concrete implementation of [PolicyEngine] providing policy evaluation,
@@ -41,9 +42,7 @@ class BasicPolicyEngine implements PolicyEngine {
     // 3. Default fallback decision
     final decision = policy.defaultAllow
         ? const PolicyDecision.allow('Authorized by default-allow policy fallback.')
-        : PolicyDecision.deny(
-            'Denied by default-deny policy fallback for action "$action" on "$resource".',
-          );
+        : PolicyDecision.deny('Denied by default-deny policy fallback for action "$action" on "$resource".');
 
     _publishTelemetry(policy, action, resource, decision);
     return decision;
@@ -66,8 +65,7 @@ class BasicPolicyEngine implements PolicyEngine {
     }.toList();
 
     // 3. Default allow is narrowed (true only if both parent and child allow)
-    final childDefaultAllow =
-        parentPolicy.defaultAllow && requestedChildPolicy.defaultAllow;
+    final childDefaultAllow = parentPolicy.defaultAllow && requestedChildPolicy.defaultAllow;
 
     return ExecutionPolicy(
       policyId: '${parentPolicy.policyId}_child_${requestedChildPolicy.policyId}',
@@ -101,13 +99,15 @@ class BasicPolicyEngine implements PolicyEngine {
     String resource,
     PolicyDecision decision,
   ) {
-    return eventBus?.publish(PolicyEvaluatedEvent(
-      eventId: 'evt_policy_eval_${DateTime.now().microsecondsSinceEpoch}',
-      policyId: policy.policyId,
-      action: action.name,
-      resource: resource,
-      decision: decision.kind.name,
-      reason: decision.reason,
-    ));
+    return eventBus?.publish(
+      PolicyEvaluatedEvent(
+        eventId: 'evt_policy_eval_${DateTime.now().microsecondsSinceEpoch}',
+        policyId: policy.policyId,
+        action: action.name,
+        resource: resource,
+        decision: decision.kind.name,
+        reason: decision.reason,
+      ),
+    );
   }
 }

@@ -1,12 +1,12 @@
 import 'dart:async';
+
 import 'agent_message.dart';
 import 'messaging_hub_interface.dart';
 
 /// Standard implementation of [AgentMessagingHub].
 class BasicAgentMessagingHub implements AgentMessagingHub {
   final Map<String, List<AgentMessage>> _inboxes = {};
-  final StreamController<AgentMessage> _controller =
-      StreamController<AgentMessage>.broadcast();
+  final StreamController<AgentMessage> _controller = StreamController<AgentMessage>.broadcast();
 
   @override
   String sendMessage(AgentMessage message) {
@@ -49,9 +49,8 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
   /// suspension and popped after resume must survive the process boundary.
   @override
   Map<String, List<Map<String, dynamic>>> exportInboxes() => {
-        for (final entry in _inboxes.entries)
-          entry.key: [for (final m in entry.value) m.toJson()],
-      };
+    for (final entry in _inboxes.entries) entry.key: [for (final m in entry.value) m.toJson()],
+  };
 
   /// Imports inboxes previously exported with [exportInboxes], replacing
   /// same-agent inboxes (checkpoint restore).
@@ -62,8 +61,7 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
     var hydrated = 0;
     for (final entry in inboxes.entries) {
       _inboxes[entry.key] = [
-        for (final m in entry.value)
-          AgentMessage.fromJson(Map<String, dynamic>.from(m)),
+        for (final m in entry.value) AgentMessage.fromJson(Map<String, dynamic>.from(m)),
       ];
       hydrated += entry.value.length;
     }

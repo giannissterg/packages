@@ -6,17 +6,13 @@ class ParallelTaskEntry {
   /// Binding name for this task's result; auto-allocated when omitted.
   final String? output;
 
-  const ParallelTaskEntry({
-    required this.agentId,
-    required this.prompt,
-    this.output,
-  });
+  const ParallelTaskEntry({required this.agentId, required this.prompt, this.output});
 
   Map<String, dynamic> toJson() => {
-        'agentId': agentId,
-        'prompt': prompt,
-        if (output != null) 'output': output,
-      };
+    'agentId': agentId,
+    'prompt': prompt,
+    if (output != null) 'output': output,
+  };
 
   factory ParallelTaskEntry.fromJson(Map<String, dynamic> json) {
     return ParallelTaskEntry(

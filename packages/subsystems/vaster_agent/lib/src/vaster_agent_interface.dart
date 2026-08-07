@@ -1,6 +1,7 @@
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_session/vaster_session.dart';
 import 'package:vaster_agent_descriptor/vaster_agent_descriptor.dart';
+
 import 'agent_output.dart';
 import 'agent_task.dart';
 
@@ -16,10 +17,7 @@ abstract interface class VasterAgent {
   ModelSession get session;
 
   /// Executes an [AgentTask] turn loop (model generation + tool execution).
-  Future<AgentOutput> run(
-    AgentTask task, {
-    CancellationToken? cancelToken,
-  });
+  Future<AgentOutput> run(AgentTask task, {CancellationToken? cancelToken});
 
   /// Spawns a child subagent in an isolated session thread.
   Future<VasterAgent> spawnSubagent({

@@ -10,7 +10,7 @@ import 'register_file.dart';
 /// See [RegisterInterpolation] in `vaster_instruction` for the normative
 /// spec: string register values insert verbatim, non-string values as
 /// canonical JSON, present-but-null as the empty string; an unresolvable
-/// reference is left verbatim and reported through `onMissing`.
+/// reference is left verbatim and returned in the result's `missing` list.
 ///
 /// Single-responsibility collaborator composed by the runtime engine, in the
 /// same pattern as `ToolCallOrchestrator` and `DecisionArbiter`.
@@ -19,16 +19,21 @@ final class RegisterInterpolator {
 
   const RegisterInterpolator({required this.registers});
 
-  /// Resolves [template]; every unresolvable reference is left verbatim and
-  /// its name reported through [onMissing] (once per occurrence).
-  String resolve(String template, {void Function(String name)? onMissing}) {
-    if (!RegisterInterpolation.mentions(template)) return template;
+  /// Resolves [template] and returns the resolved text together with the
+  /// names left UNRESOLVED (verbatim references) — the outcome is data,
+  /// not an out-parameter callback (Rule 5/11). Missing names appear in
+  /// order, once per occurrence.
+  InterpolationResult resolve(String template) {
+    if (!RegisterInterpolation.mentions(template)) {
+      return InterpolationResult(text: template, missing: const []);
+    }
     final snapshot = registers.snapshot();
-    return template.replaceAllMapped(RegisterInterpolation.token, (match) {
+    final missing = <String>[];
+    final text = template.replaceAllMapped(RegisterInterpolation.token, (match) {
       final name = match.group(1);
       if (name == null) return r'$'; // the `$$` escape
       if (!snapshot.containsKey(name)) {
-        onMissing?.call(name);
+        missing.add(name);
         return match.group(0)!; // leave the reference verbatim
       }
       final value = snapshot[name];
@@ -38,20 +43,33 @@ final class RegisterInterpolator {
         _ => jsonEncode(value),
       };
     });
+    return InterpolationResult(text: text, missing: missing);
   }
 
   /// Deep-resolves the string leaf values of a JSON-shaped map (used for
-  /// `SendMessageOp` payloads). Keys are never interpolated.
-  Map<String, dynamic> resolveMap(Map<String, dynamic> payload,
-      {void Function(String name)? onMissing}) {
+  /// `SendMessageOp` payloads). Keys are never interpolated. Returns the
+  /// resolved payload with every unresolved name gathered across the tree.
+  ({Map<String, dynamic> payload, List<String> missing}) resolveMap(Map<String, dynamic> payload) {
+    final missing = <String>[];
     Object? walk(Object? value) => switch (value) {
-          String s => resolve(s, onMissing: onMissing),
-          Map m => <String, dynamic>{
-              for (final entry in m.entries) entry.key.toString(): walk(entry.value),
-            },
-          List l => [for (final item in l) walk(item)],
-          _ => value,
-        };
-    return walk(payload) as Map<String, dynamic>;
+      String s => () {
+        final r = resolve(s);
+        missing.addAll(r.missing);
+        return r.text;
+      }(),
+      Map m => <String, dynamic>{for (final entry in m.entries) entry.key.toString(): walk(entry.value)},
+      List l => [for (final item in l) walk(item)],
+      _ => value,
+    };
+    final resolved = walk(payload) as Map<String, dynamic>;
+    return (payload: resolved, missing: missing);
   }
+}
+
+/// The result of interpolating one template: the resolved [text] and the
+/// register names that had no binding (left verbatim).
+final class InterpolationResult {
+  final String text;
+  final List<String> missing;
+  const InterpolationResult({required this.text, required this.missing});
 }

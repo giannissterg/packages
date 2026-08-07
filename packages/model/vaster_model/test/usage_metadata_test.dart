@@ -44,11 +44,7 @@ void main() {
       const usage = UsageMetadata(promptTokenCount: 5, candidatesTokenCount: 7);
       expect(
         usage.toJson(),
-        equals({
-          'promptTokenCount': 5,
-          'candidatesTokenCount': 7,
-          'totalTokenCount': 12,
-        }),
+        equals({'promptTokenCount': 5, 'candidatesTokenCount': 7, 'totalTokenCount': 12}),
       );
     });
 
@@ -60,10 +56,7 @@ void main() {
         costUsd: 0.01,
         source: UsageSource.measured,
       );
-      const estimated = UsageMetadata(
-        promptTokenCount: 40,
-        candidatesTokenCount: 4,
-      );
+      const estimated = UsageMetadata(promptTokenCount: 40, candidatesTokenCount: 4);
 
       final both = measured + measured;
       expect(both.promptTokenCount, equals(200));

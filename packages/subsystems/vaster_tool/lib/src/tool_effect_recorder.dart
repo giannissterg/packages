@@ -26,8 +26,7 @@ final class EffectRegion {
   bool get isActive => key.isNotEmpty;
 
   @override
-  bool operator ==(Object other) =>
-      other is EffectRegion && other.key == key;
+  bool operator ==(Object other) => other is EffectRegion && other.key == key;
 
   @override
   int get hashCode => key.hashCode;
@@ -98,13 +97,10 @@ final class NoopToolEffectRecorder implements ToolEffectRecorder {
     required String name,
     required Map<String, dynamic> arguments,
     String? callId,
-  }) =>
-      const ToolEffectInert();
+  }) => const ToolEffectInert();
 
   @override
-  Map<String, dynamic> commit(
-          ToolEffectSlot slot, Map<String, dynamic> result) =>
-      result;
+  Map<String, dynamic> commit(ToolEffectSlot slot, Map<String, dynamic> result) => result;
 }
 
 /// A stable indirection for wiring-order freedom: agents are often
@@ -132,12 +128,9 @@ final class ToolEffectRecorderBinding implements ToolEffectRecorder {
     required String name,
     required Map<String, dynamic> arguments,
     String? callId,
-  }) =>
-      _bound.claim(
-          region: region, name: name, arguments: arguments, callId: callId);
+  }) => _bound.claim(region: region, name: name, arguments: arguments, callId: callId);
 
   @override
-  Map<String, dynamic> commit(
-          ToolEffectSlot slot, Map<String, dynamic> result) =>
+  Map<String, dynamic> commit(ToolEffectSlot slot, Map<String, dynamic> result) =>
       _bound.commit(slot, result);
 }

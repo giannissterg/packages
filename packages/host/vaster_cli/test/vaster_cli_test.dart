@@ -37,15 +37,12 @@ void main() {
   });
 
   test('vaster debug drives a scripted time-travel session', () async {
-    final fixture = File(
-        '../vaster_playground/test/fixtures/sdd_fidelity.replay.json');
+    final fixture = File('../vaster_playground/test/fixtures/sdd_fidelity.replay.json');
     // (cli and playground are siblings under host/ — this resolves when
     // tests run from the package dir; the fallback covers root runs.)
     if (!fixture.existsSync()) {
       // Workspace-root invocation.
-      expect(
-          File('packages/host/vaster_playground/test/fixtures/sdd_fidelity.replay.json')
-              .existsSync(),
+      expect(File('packages/host/vaster_playground/test/fixtures/sdd_fidelity.replay.json').existsSync(),
           isTrue);
     }
     final envelopePath = fixture.existsSync()
@@ -96,9 +93,7 @@ void main() {
 
     // 1. Record a fake-backend run.
     final runOut = StringBuffer();
-    final runExit = await runner.run(
-        ['run', programPath, '--record', envelopePath],
-        stdoutSink: runOut);
+    final runExit = await runner.run(['run', programPath, '--record', envelopePath], stdoutSink: runOut);
     expect(runExit, equals(0));
     expect(File(envelopePath).existsSync(), isTrue);
 
@@ -140,8 +135,7 @@ void main() {
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('vaster_cli_compile_');
-      File('${tempDir.path}/prog.json')
-          .writeAsStringSync(jsonEncode(program.toJson()));
+      File('${tempDir.path}/prog.json').writeAsStringSync(jsonEncode(program.toJson()));
     });
 
     tearDown(() async {
@@ -195,18 +189,20 @@ void main() {
     const program = VasterProgram(programName: 'audit_target', instructions: [
       MountFsOp(mountPrefix: '/mem'),
       WriteFileOp(vfsPath: '/mem/report.md', content: 'x'),
-      DecideOp(prompt: 'Which way?', branches: [
-        DecisionBranch(label: 'left', description: 'go left', targetPc: 4),
-        DecisionBranch(label: 'right', description: 'go right', targetPc: 4),
-      ], defaultLabel: 'left'),
+      DecideOp(
+          prompt: 'Which way?',
+          branches: [
+            DecisionBranch(label: 'left', description: 'go left', targetPc: 4),
+            DecisionBranch(label: 'right', description: 'go right', targetPc: 4),
+          ],
+          defaultLabel: 'left'),
       HaltOp(),
       HaltOp(),
     ]);
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('vaster_cli_audit_');
-      File('${tempDir.path}/prog.json')
-          .writeAsStringSync(jsonEncode(program.toJson()));
+      File('${tempDir.path}/prog.json').writeAsStringSync(jsonEncode(program.toJson()));
     });
 
     tearDown(() async {
@@ -240,8 +236,7 @@ void main() {
       final decoded = jsonDecode(out.toString()) as Map<String, dynamic>;
       expect(decoded['programName'], equals('audit_target'));
       expect((decoded['decisions'] as List), hasLength(1));
-      expect((decoded['files'] as Map)['staticWrites'],
-          contains('/mem/report.md'));
+      expect((decoded['files'] as Map)['staticWrites'], contains('/mem/report.md'));
     });
   });
 
@@ -256,8 +251,7 @@ void main() {
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('vaster_cli_run_');
-      File('${tempDir.path}/prog.json')
-          .writeAsStringSync(jsonEncode(program.toJson()));
+      File('${tempDir.path}/prog.json').writeAsStringSync(jsonEncode(program.toJson()));
     });
 
     tearDown(() async {
@@ -275,26 +269,21 @@ void main() {
       expect(exitCode, equals(0));
       expect(out.toString(), contains('[record] 3 steps'));
 
-      final envelope = jsonDecode(File(envelopePath).readAsStringSync())
-          as Map<String, dynamic>;
-      final journal = VasterExecutionJournal.fromJson(
-          Map<String, dynamic>.from(envelope['journal'] as Map));
+      final envelope = jsonDecode(File(envelopePath).readAsStringSync()) as Map<String, dynamic>;
+      final journal = VasterExecutionJournal.fromJson(Map<String, dynamic>.from(envelope['journal'] as Map));
       expect(journal.length, equals(3));
       expect(journal.frames.map((f) => f.pc), equals([0, 1, 2]));
       expect(envelope['modelTape'], isNotNull);
     });
 
-    test('--replay reproduces a recorded run with zero live model calls',
-        () async {
+    test('--replay reproduces a recorded run with zero live model calls', () async {
       // A program whose outcome depends on a model response.
-      const modelProgram =
-          VasterProgram(programName: 'taped_run', instructions: [
+      const modelProgram = VasterProgram(programName: 'taped_run', instructions: [
         PromptOp(promptText: 'name the flagship product', outputVar: 'answer'),
         ConcatRegisterOp(targetVar: '__output__', sourceVars: ['answer']),
         HaltOp(),
       ]);
-      File('${tempDir.path}/model_prog.json')
-          .writeAsStringSync(jsonEncode(modelProgram.toJson()));
+      File('${tempDir.path}/model_prog.json').writeAsStringSync(jsonEncode(modelProgram.toJson()));
       final envelopePath = '${tempDir.path}/envelope.json';
 
       // Record against the fake backend.
@@ -307,9 +296,7 @@ void main() {
         equals(0),
       );
       expect(recordOut.toString(), contains('1 model calls'));
-      final recordedOutput = RegExp(r'output :\n(.*)')
-          .firstMatch(recordOut.toString())!
-          .group(1)!;
+      final recordedOutput = RegExp(r'output :\n(.*)').firstMatch(recordOut.toString())!.group(1)!;
 
       // Replay from the envelope — --backend is irrelevant now.
       final replayOut = StringBuffer();
@@ -338,8 +325,7 @@ void main() {
       );
 
       expect(exitCode, equals(0));
-      expect(out.toString(), contains('[evt] '),
-          reason: 'event lines are printed');
+      expect(out.toString(), contains('[evt] '), reason: 'event lines are printed');
       expect(out.toString(), contains('session_created'),
           reason: 'CreateSessionOp telemetry reaches the sink');
     });
@@ -347,17 +333,14 @@ void main() {
 
   group('vaster replay', () {
     String fixturePath() {
-      const local =
-          '../vaster_playground/test/fixtures/story_lines_v2.replay.json';
-      const fromRoot =
-          'packages/host/vaster_playground/test/fixtures/story_lines_v2.replay.json';
+      const local = '../vaster_playground/test/fixtures/story_lines_v2.replay.json';
+      const fromRoot = 'packages/host/vaster_playground/test/fixtures/story_lines_v2.replay.json';
       return File(local).existsSync() ? local : fromRoot;
     }
 
     test('a faithful replay consumes every recording and exits 0', () async {
       final out = StringBuffer();
-      final code =
-          await runner.run(['replay', fixturePath()], stdoutSink: out);
+      final code = await runner.run(['replay', fixturePath()], stdoutSink: out);
       expect(code, 0);
       expect(out.toString(), contains('v2 · 4 recordings'));
       expect(out.toString(), contains('replay faithful'));
@@ -366,12 +349,9 @@ void main() {
     test('a tampered recording diverges with a char-located diff', () async {
       // Copy the fixture and edit one recorded request mid-prompt: the
       // embedded program now disagrees with the tape.
-      final envelope = const ReplayEnvelopeCodec()
-          .decodeString(File(fixturePath()).readAsStringSync());
-      final raw = jsonDecode(File(fixturePath()).readAsStringSync())
-          as Map<String, dynamic>;
-      final entry0 =
-          ((raw['modelTape'] as Map)['entries'] as List).first as Map;
+      final envelope = const ReplayEnvelopeCodec().decodeString(File(fixturePath()).readAsStringSync());
+      final raw = jsonDecode(File(fixturePath()).readAsStringSync()) as Map<String, dynamic>;
+      final entry0 = ((raw['modelTape'] as Map)['entries'] as List).first as Map;
       final request0 = Map<String, dynamic>.from(entry0['request'] as Map);
       final messages = (request0['messages'] as List);
       final lastMessage = Map<String, dynamic>.from(messages.last as Map);
@@ -379,25 +359,21 @@ void main() {
       // mismatch is a content divergence, not a stale-fingerprint one.
       final parts = (lastMessage['parts'] as List);
       final part = Map<String, dynamic>.from(parts.first as Map);
-      part['text'] =
-          (part['text'] as String).replaceFirst('opening line', 'OPENING l1ne');
+      part['text'] = (part['text'] as String).replaceFirst('opening line', 'OPENING l1ne');
       parts[0] = part;
       lastMessage['parts'] = parts;
       messages[messages.length - 1] = lastMessage;
       entry0['request'] = request0;
-      entry0['fingerprint'] = ModelTape.fingerprintOf(
-          ModelRequest.fromJson(request0));
+      entry0['fingerprint'] = ModelTape.fingerprintOf(ModelRequest.fromJson(request0));
       expect(envelope.tape.entries, hasLength(4));
 
-      final tampered = File(
-          '${Directory.systemTemp.path}/vaster_replay_diff_test.json')
+      final tampered = File('${Directory.systemTemp.path}/vaster_replay_diff_test.json')
         ..writeAsStringSync(jsonEncode(raw));
       addTearDown(() => tampered.deleteSync());
 
       final out = StringBuffer();
       final err = StringBuffer();
-      final code = await runner.run(['replay', tampered.path, '--diff'],
-          stdoutSink: out, stderrSink: err);
+      final code = await runner.run(['replay', tampered.path, '--diff'], stdoutSink: out, stderrSink: err);
       expect(code, 1);
       expect(err.toString(), contains('diverged'));
       expect(err.toString(), contains('diverges at char'),

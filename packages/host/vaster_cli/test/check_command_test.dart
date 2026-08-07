@@ -75,9 +75,12 @@ void main() {
     final out = StringBuffer();
     final code = await runner.run(
       [
-        'check', path,
-        '--model', 'claude-opus-5',
-        '--max-cost', '0.000001',
+        'check',
+        path,
+        '--model',
+        'claude-opus-5',
+        '--max-cost',
+        '0.000001',
       ],
       stdoutSink: out,
       stderrSink: out,

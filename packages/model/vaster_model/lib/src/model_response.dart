@@ -41,17 +41,16 @@ class ModelResponse {
   Iterable<ThoughtPart> get thoughts => message.thoughts;
 
   Map<String, dynamic> toJson() => {
-        'message': message.toJson(),
-        'finishReason': finishReason.name,
-        'usage': usage.toJson(),
-        // JSON-safe provider payloads survive serialization (and therefore
-        // replay tapes); host-object rawResponses are dropped as before.
-        if (rawResponse is Map || rawResponse is List)
-          'rawResponse': rawResponse,
-        // Emitted only when set: payloads from before this key existed stay
-        // byte-identical (tape/golden compatibility).
-        if (servedBy != null) 'servedBy': servedBy,
-      };
+    'message': message.toJson(),
+    'finishReason': finishReason.name,
+    'usage': usage.toJson(),
+    // JSON-safe provider payloads survive serialization (and therefore
+    // replay tapes); host-object rawResponses are dropped as before.
+    if (rawResponse is Map || rawResponse is List) 'rawResponse': rawResponse,
+    // Emitted only when set: payloads from before this key existed stay
+    // byte-identical (tape/golden compatibility).
+    if (servedBy != null) 'servedBy': servedBy,
+  };
 
   factory ModelResponse.fromJson(Map<String, dynamic> json) {
     final msgRaw = json['message'] as Map<String, dynamic>? ?? {};
@@ -65,9 +64,7 @@ class ModelResponse {
     return ModelResponse(
       message: ChatMessage.fromJson(msgRaw),
       finishReason: finishReason,
-      usage: usageRaw != null
-          ? UsageMetadata.fromJson(usageRaw)
-          : const UsageMetadata(),
+      usage: usageRaw != null ? UsageMetadata.fromJson(usageRaw) : const UsageMetadata(),
       rawResponse: json['rawResponse'],
       servedBy: json['servedBy'] as String?,
     );
@@ -99,14 +96,8 @@ class ModelResponseChunk {
   /// merge them internally before emitting.
   final UsageMetadata? usage;
 
-  const ModelResponseChunk({
-    this.delta,
-    this.textDelta,
-    this.finishReason,
-    this.usage,
-  });
+  const ModelResponseChunk({this.delta, this.textDelta, this.finishReason, this.usage});
 
   @override
-  String toString() =>
-      'ModelResponseChunk(textDelta: "$textDelta", delta: $delta, finish: $finishReason)';
+  String toString() => 'ModelResponseChunk(textDelta: "$textDelta", delta: $delta, finish: $finishReason)';
 }

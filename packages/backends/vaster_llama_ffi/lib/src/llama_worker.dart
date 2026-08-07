@@ -52,8 +52,7 @@ final class LlamaWorker {
       final envelope = message as Map<Object?, Object?>;
       if (!ready.isCompleted) {
         // Engine construction failed before the command port existed.
-        ready.completeError(
-            StateError(envelope['error']! as String), StackTrace.current);
+        ready.completeError(StateError(envelope['error']! as String), StackTrace.current);
         return;
       }
       final completer = pending.remove(envelope['id'] as int)!;
@@ -101,23 +100,20 @@ final class LlamaWorker {
 
   /// Prefills [prompt] and greedily generates up to [maxTokens] tokens.
   Future<String> generate(String prompt, {int maxTokens = 64}) async =>
-      await _request('generate',
-          {'prompt': prompt, 'maxTokens': maxTokens}) as String;
+      await _request('generate', {'prompt': prompt, 'maxTokens': maxTokens}) as String;
 
   Future<List<int>> tokenize(String text) async =>
       ((await _request('tokenize', {'text': text})) as List).cast<int>();
 
   /// Tokenizes and decodes [text] into the sequence as-is (no reuse
   /// logic). Returns the token count decoded.
-  Future<int> decodeText(String text) async =>
-      await _request('decodeText', {'text': text}) as int;
+  Future<int> decodeText(String text) async => await _request('decodeText', {'text': text}) as int;
 
   /// Greedily generates from the current logits. Returns
   /// `(text, generatedTokens, hitLimit)` — [hitLimit] when [maxTokens] or
   /// the context window stopped generation rather than end-of-generation.
   Future<(String, int, bool)> generateSteps({int maxTokens = 64}) async {
-    final r =
-        (await _request('generateSteps', {'maxTokens': maxTokens}))! as List;
+    final r = (await _request('generateSteps', {'maxTokens': maxTokens}))! as List;
     return (r[0] as String, r[1] as int, r[2] as bool);
   }
 
@@ -127,15 +123,18 @@ final class LlamaWorker {
   /// named [frameName], as ONE mailbox operation — no other request can
   /// interleave and poison the published frame. Returns
   /// `(imageBytes, tokenCount)`.
-  Future<(int, int)> materializeToFrame(
-      {required String content,
-      required String contentFingerprint,
-      required String frameName}) async {
-    final r = (await _request('materialize', {
-      'text': content,
-      'fingerprint': contentFingerprint,
-      'frame': frameName,
-    }))! as List;
+  Future<(int, int)> materializeToFrame({
+    required String content,
+    required String contentFingerprint,
+    required String frameName,
+  }) async {
+    final r =
+        (await _request('materialize', {
+              'text': content,
+              'fingerprint': contentFingerprint,
+              'frame': frameName,
+            }))!
+            as List;
     return (r[0] as int, r[1] as int);
   }
 
@@ -150,17 +149,15 @@ final class LlamaWorker {
     required int maxTokens,
     String? restoreFrame,
   }) async {
-    final r = (await _request('runGenerate', {
-      'text': text,
-      'maxTokens': maxTokens,
-      'restoreFrame': restoreFrame,
-    }))! as List;
+    final r =
+        (await _request('runGenerate', {'text': text, 'maxTokens': maxTokens, 'restoreFrame': restoreFrame}))!
+            as List;
     return (
       r[0] as int,
       KvReuse.fromJson(r[1] as Map<Object?, Object?>),
       r[2] as String,
       r[3] as int,
-      r[4] as bool
+      r[4] as bool,
     );
   }
 
@@ -171,15 +168,13 @@ final class LlamaWorker {
       await _request('importState', {'frame': frameName}) as int;
 
   /// The engine's KV-state producer identity (spec §engineTag).
-  Future<int> engineTag() async =>
-      await _request('engineTag', const {}) as int;
+  Future<int> engineTag() async => await _request('engineTag', const {}) as int;
 
   /// Clears the sequence.
   Future<void> reset() => _request('reset', const {});
 
   /// Tokens currently decoded into the sequence.
-  Future<int> tokensDecoded() async =>
-      await _request('tokensDecoded', const {}) as int;
+  Future<int> tokensDecoded() async => await _request('tokensDecoded', const {}) as int;
 
   /// Disposes the engine and tears the isolate down; returns true when
   /// THIS call performed the teardown (idempotence observable — the
@@ -259,8 +254,7 @@ void _workerMain(_WorkerConfig config) {
       config.replyTo.send({'id': id, 'result': result});
       if (request['op'] == 'dispose') commands.close();
     } on LlamaStateIncompatibleException catch (e) {
-      config.replyTo
-          .send({'id': id, 'error': e.message, 'stateIncompatible': true});
+      config.replyTo.send({'id': id, 'error': e.message, 'stateIncompatible': true});
     } on Object catch (e) {
       config.replyTo.send({'id': id, 'error': e.toString()});
     }
@@ -270,8 +264,7 @@ void _workerMain(_WorkerConfig config) {
 Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
   switch (request['op']) {
     case 'generate':
-      return engine.generateText(request['prompt']! as String,
-          maxTokens: request['maxTokens']! as int);
+      return engine.generateText(request['prompt']! as String, maxTokens: request['maxTokens']! as int);
     case 'tokenize':
       return engine.tokenize(request['text']! as String);
     case 'decodeText':
@@ -279,8 +272,7 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       engine.prefill(tokens);
       return tokens.length;
     case 'generateSteps':
-      final (text, generated, hitLimit) =
-          engine.generateSteps(maxTokens: request['maxTokens']! as int);
+      final (text, generated, hitLimit) = engine.generateSteps(maxTokens: request['maxTokens']! as int);
       return [text, generated, hitLimit];
     case 'materialize':
       // Atomic at the mailbox: nothing interleaves between reset, decode
@@ -295,22 +287,28 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       final fingerprint = request['fingerprint']! as String;
       final stateSize = engine.stateSize;
       final imageBytes = _imageCodec.layoutSize(
-          contentFingerprint: fingerprint,
-          tokenCount: tokens.length,
-          stateSize: stateSize);
-      final frame = SharedMemoryFrame.allocate(request['frame']! as String,
-          payloadLength: imageBytes, meta: tokens.length);
+        contentFingerprint: fingerprint,
+        tokenCount: tokens.length,
+        stateSize: stateSize,
+      );
+      final frame = SharedMemoryFrame.allocate(
+        request['frame']! as String,
+        payloadLength: imageBytes,
+        meta: tokens.length,
+      );
       try {
         if (frame.isOwner) {
-          final image = _imageCodec.initialize(frame.bytes,
-              tokenIds: tokens,
-              contentFingerprint: fingerprint,
-              engineTag: engine.engineTag,
-              stateSize: stateSize);
+          final image = _imageCodec.initialize(
+            frame.bytes,
+            tokenIds: tokens,
+            contentFingerprint: fingerprint,
+            engineTag: engine.engineTag,
+            stateSize: stateSize,
+          );
           engine.exportStateInto(
-              Pointer<Uint8>.fromAddress(
-                  frame.payloadPointer.address + image.stateOffset),
-              stateSize);
+            Pointer<Uint8>.fromAddress(frame.payloadPointer.address + image.stateOffset),
+            stateSize,
+          );
         }
         return [imageBytes, tokens.length];
       } finally {
@@ -323,8 +321,7 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
       // the CONTAINER (attach, parse, pointer math); the reuse policy —
       // tag check, token-exact prefix validation, restore, remainder —
       // is the engine's continueFromImage (Rule 10.3/10.4).
-      final promptTokens =
-          engine.tokenize(request['text']! as String);
+      final promptTokens = engine.tokenize(request['text']! as String);
       var reuse = const KvReuseNone() as KvReuse;
       final restoreFrame = request['restoreFrame'] as String?;
       var restored = false;
@@ -335,8 +332,7 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
             final image = _imageCodec.parse(attached.bytes);
             reuse = engine.continueFromImage(
               image: image,
-              statePointer: Pointer<Uint8>.fromAddress(
-                  attached.payloadPointer.address + image.stateOffset),
+              statePointer: Pointer<Uint8>.fromAddress(attached.payloadPointer.address + image.stateOffset),
               promptTokens: promptTokens,
             );
           } on KvStateImageFormatException {
@@ -355,8 +351,7 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
         engine.reset();
         engine.prefill(promptTokens);
       }
-      final (text, generated, hitLimit) =
-          engine.generateSteps(maxTokens: request['maxTokens']! as int);
+      final (text, generated, hitLimit) = engine.generateSteps(maxTokens: request['maxTokens']! as int);
       return [promptTokens.length, reuse.toJson(), text, generated, hitLimit];
     case 'importState':
       // Restores from a frame's KvStateImage; the caller (controller
@@ -367,13 +362,14 @@ Object? _dispatch(LlamaEngine engine, Map<Object?, Object?> request) {
         final image = _imageCodec.parse(frame.bytes);
         if (image.engineTag != engine.engineTag) {
           throw LlamaStateIncompatibleException(
-              'image engineTag 0x${image.engineTag.toRadixString(16)} does '
-              'not match this engine — different build or model.');
+            'image engineTag 0x${image.engineTag.toRadixString(16)} does '
+            'not match this engine — different build or model.',
+          );
         }
         engine.importStateFrom(
-            Pointer<Uint8>.fromAddress(
-                frame.payloadPointer.address + image.stateOffset),
-            image.stateSize);
+          Pointer<Uint8>.fromAddress(frame.payloadPointer.address + image.stateOffset),
+          image.stateSize,
+        );
         return engine.tokensDecoded;
       } finally {
         frame.close(unlink: false);

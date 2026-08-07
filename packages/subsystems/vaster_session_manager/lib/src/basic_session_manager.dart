@@ -1,6 +1,7 @@
 import 'package:vaster_context_manager/vaster_context_manager.dart';
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_session/vaster_session.dart';
+
 import 'session_manager_interface.dart';
 
 /// Standard implementation of [SessionManager] managing multi-session state.
@@ -8,8 +9,7 @@ class BasicSessionManager implements SessionManager {
   final Map<String, ModelSession> _sessions = {};
 
   @override
-  List<ModelSession> get activeSessions =>
-      List.unmodifiable(_sessions.values);
+  List<ModelSession> get activeSessions => List.unmodifiable(_sessions.values);
 
   @override
   List<SessionDescriptor> get activeSessionDescriptors =>

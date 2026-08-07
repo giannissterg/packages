@@ -21,21 +21,17 @@ final class SidecarEnvelopeCodec {
   const SidecarEnvelopeCodec();
 
   /// The envelope's action, or null when the payload is not an envelope.
-  String? actionOf(Map<String, dynamic> envelope) =>
-      envelope['action'] as String?;
+  String? actionOf(Map<String, dynamic> envelope) => envelope['action'] as String?;
 
   /// Lowers a [ModelRequest] plus resolved frame refs onto the wire.
   /// Bulk context never rides here — pinned content travels as the named
   /// frames behind [frameRefs].
-  Map<String, dynamic> encodeGenerate(
-          ModelRequest request, List<KvFrameRef> frameRefs) =>
-      {
+  Map<String, dynamic> encodeGenerate(ModelRequest request, List<KvFrameRef> frameRefs) => {
         'action': 'generate',
         'protocol': sidecarProtocolVersion,
         'systemInstruction': request.systemInstruction?.text,
         'messages': request.messages.map((m) => m.toJson()).toList(),
-        if (frameRefs.isNotEmpty)
-          'kvFrames': frameRefs.map((r) => r.toJson()).toList(),
+        if (frameRefs.isNotEmpty) 'kvFrames': frameRefs.map((r) => r.toJson()).toList(),
       };
 
   /// Rebuilds the [ModelRequest] a sidecar executes. `kvFrames` refs
@@ -48,17 +44,14 @@ final class SidecarEnvelopeCodec {
         .map(KvFrameRef.fromJson)
         .toList();
     return ModelRequest(
-      systemInstruction:
-          system == null || system.isEmpty ? null : ChatMessage.system(system),
+      systemInstruction: system == null || system.isEmpty ? null : ChatMessage.system(system),
       messages: (envelope['messages'] as List? ?? const [])
           .cast<Map<String, dynamic>>()
           .map(ChatMessage.fromJson)
           .toList(),
       cacheHints: [
         for (final ref in frames)
-          ContextCacheHint(
-              regionId: ref.frameName,
-              contentFingerprint: ref.contentFingerprint),
+          ContextCacheHint(regionId: ref.frameName, contentFingerprint: ref.contentFingerprint),
       ],
     );
   }

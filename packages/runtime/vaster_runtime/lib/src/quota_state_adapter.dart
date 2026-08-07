@@ -18,16 +18,17 @@ final class QuotaStateAdapter implements MachineStateComponent {
 
   @override
   Map<String, dynamic> captureState() => {
-        'quota': tracker.quota.toJson(),
-        'consumedTokens': tracker.consumedTokens,
-        'consumedCost': tracker.consumedCost,
-        'toolCalls': tracker.toolCallCount,
-      };
+    'quota': tracker.quota.toJson(),
+    'consumedTokens': tracker.consumedTokens,
+    'consumedCost': tracker.consumedCost,
+    'toolCalls': tracker.toolCallCount,
+  };
 
   @override
   void restoreState(Map<String, dynamic> snapshot) {
-    tracker.applyQuota(ResourceQuota.fromJson(
-        Map<String, dynamic>.from(snapshot['quota'] as Map? ?? const {})));
+    tracker.applyQuota(
+      ResourceQuota.fromJson(Map<String, dynamic>.from(snapshot['quota'] as Map? ?? const {})),
+    );
     tracker.restoreConsumed(
       tokens: (snapshot['consumedTokens'] as num?)?.toInt() ?? 0,
       cost: (snapshot['consumedCost'] as num?)?.toDouble() ?? 0.0,

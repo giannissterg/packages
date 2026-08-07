@@ -19,8 +19,7 @@ class RunCommand extends VasterCommand {
   List<String> get aliases => const [];
 
   @override
-  String get description =>
-      'Executes a compiled Vaster program (.vbc/.json) on the VM, '
+  String get description => 'Executes a compiled Vaster program (.vbc/.json) on the VM, '
       'or compiles and runs an AST pipeline script (.dart).';
 
   @override
@@ -150,8 +149,7 @@ class RunCommand extends VasterCommand {
       if (file.path.endsWith('.vbc')) {
         program = VasterProgramBinary.fromBytes(file.readAsBytesSync());
       } else {
-        program = VasterProgram.fromJson(
-            jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+        program = VasterProgram.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
       }
     } on VbcDecodeException catch (e) {
       err.writeln('Error: $e');
@@ -162,15 +160,13 @@ class RunCommand extends VasterCommand {
     }
 
     // 2. Resolve the model backend (shared with `vaster resume`).
-    final resolved =
-        await resolveBackendModel(results: results, context: context, err: err);
+    final resolved = await resolveBackendModel(results: results, context: context, err: err);
     VasterModel model = resolved.model;
 
     // Deterministic replay: answer every model call from a recorded tape.
     final replayPath = results['replay'] as String?;
     if (replayPath != null) {
-      final envelope = const ReplayEnvelopeCodec()
-          .decodeString(File(replayPath).readAsStringSync());
+      final envelope = const ReplayEnvelopeCodec().decodeString(File(replayPath).readAsStringSync());
       model = ReplayVasterModel(tape: envelope.tape);
     }
 
@@ -185,7 +181,8 @@ class RunCommand extends VasterCommand {
     out.writeln('======================================================================');
     out.writeln('  VASTER VM — COMPILED PROGRAM EXECUTION                               ');
     out.writeln('  Program : ${program.programName} (${program.instructions.length} instructions)');
-    out.writeln('  Backend : ${replayPath != null ? 'replay tape ($replayPath)' : '$backend (${model.modelName})'}');
+    out.writeln(
+        '  Backend : ${replayPath != null ? 'replay tape ($replayPath)' : '$backend (${model.modelName})'}');
     out.writeln('======================================================================\n');
 
     // 3. Bootstrap and execute.
@@ -218,8 +215,7 @@ class RunCommand extends VasterCommand {
     // Runtime event stream as JSON lines — the telemetry bus made visible.
     StreamSubscription<RuntimeEvent>? eventSub;
     if (results['events'] as bool? ?? false) {
-      eventSub = vm.eventBus.stream
-          .listen((event) => out.writeln('[evt] ${jsonEncode(event.toJson())}'));
+      eventSub = vm.eventBus.stream.listen((event) => out.writeln('[evt] ${jsonEncode(event.toJson())}'));
     }
 
     var state = await runtime.executeProgram(program);
@@ -228,17 +224,14 @@ class RunCommand extends VasterCommand {
     //    checkpoint file and the process exits — the pipeline no longer
     //    holds a process hostage while a human thinks.
     final checkpointDir = results['checkpoint-dir'] as String?;
-    if (checkpointDir != null &&
-        state.status == RuntimeStatus.pausedForHuman) {
+    if (checkpointDir != null && state.status == RuntimeStatus.pausedForHuman) {
       final request = runtime.pendingHumanRequest;
-      final checkpoint = MachineCheckpoint.capture(
-          runtime: runtime, vm: vm, program: program);
+      final checkpoint = MachineCheckpoint.capture(runtime: runtime, vm: vm, program: program);
       final path = '$checkpointDir/${program.programName}'
           '_${request?.requestId ?? 'paused'}.ckpt.json';
       File(path)
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync(
-            const JsonEncoder.withIndent('  ').convert(checkpoint.toJson()));
+        ..writeAsStringSync(const JsonEncoder.withIndent('  ').convert(checkpoint.toJson()));
       out.writeln('\n── PARKED (durable) ────────────────────────────────────');
       if (request != null) {
         out.writeln('  awaiting: ${request.prompt}');
@@ -288,12 +281,12 @@ class RunCommand extends VasterCommand {
         return 2;
       }
       final response = switch (answer.toLowerCase()) {
-        'yes' || 'y' || 'approve' =>
-          HumanInteractionResponse.approve(requestId: request.requestId),
-        'no' || 'n' || 'reject' => HumanInteractionResponse.reject(
-            requestId: request.requestId, reason: 'Rejected by user.'),
-        _ => HumanInteractionResponse.answer(
-            requestId: request.requestId, answerText: answer),
+        'yes' || 'y' || 'approve' => HumanInteractionResponse.approve(requestId: request.requestId),
+        'no' ||
+        'n' ||
+        'reject' =>
+          HumanInteractionResponse.reject(requestId: request.requestId, reason: 'Rejected by user.'),
+        _ => HumanInteractionResponse.answer(requestId: request.requestId, answerText: answer),
       };
       state = await runtime.resumeWithHumanResponse(response);
     }
@@ -304,9 +297,8 @@ class RunCommand extends VasterCommand {
       recorder.detach();
       // The replay envelope: step journal + model I/O tape together are a
       // complete, deterministic re-execution recipe (`--replay <file>`).
-      File(recordPath).writeAsStringSync(
-          const JsonEncoder.withIndent('  ')
-              .convert(const ReplayEnvelopeCodec().encode(
+      File(recordPath)
+          .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(const ReplayEnvelopeCodec().encode(
         // The program makes the envelope self-contained for `vaster debug`.
         programJson: program.toJson(),
         journalJson: recorder.journal.toJson(),
@@ -341,8 +333,8 @@ class RunCommand extends VasterCommand {
     }
     // Program-declared result (header metadata); legacy programs used the
     // __output__ register convention.
-    final resultRegister = program.resultBinding ??
-        (state.registers.containsKey('__output__') ? '__output__' : null);
+    final resultRegister =
+        program.resultBinding ?? (state.registers.containsKey('__output__') ? '__output__' : null);
     if (resultRegister != null && state.registers.containsKey(resultRegister)) {
       out.writeln('  output :');
       out.writeln('${state.registers[resultRegister]}');

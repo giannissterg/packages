@@ -17,7 +17,7 @@ isa/vaster_instruction 3
 model/vaster_kv 1
 model/vaster_model 4
 runtime/vaster_machine_state 2
-runtime/vaster_runtime 18
+runtime/vaster_runtime 19
 runtime/vaster_scheduler 5
 runtime/vaster_vm 2
 subsystems/vaster_context_manager 4

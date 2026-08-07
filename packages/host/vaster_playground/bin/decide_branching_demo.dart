@@ -11,18 +11,22 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// [DecideOp] whose destinations are statically known — the model holds the
 /// wheel, but only within compiler-emitted paths.
 Future<void> main() async {
-  final model = FakeVasterModel(handler: (request) {
-    final text = request.messages.last.text;
-    if (text.contains('Choose exactly one')) {
-      return ModelResponse(
-        message: ChatMessage.model(jsonEncode({
-          'choice': 'escalate',
-          'rationale': 'Payment data may be affected — a human must review.',
-        })),
-      );
-    }
-    return ModelResponse(message: ChatMessage.model('done: $text'));
-  });
+  final model = FakeVasterModel(
+    handler: (request) {
+      final text = request.messages.last.text;
+      if (text.contains('Choose exactly one')) {
+        return ModelResponse(
+          message: ChatMessage.model(
+            jsonEncode({
+              'choice': 'escalate',
+              'rationale': 'Payment data may be affected — a human must review.',
+            }),
+          ),
+        );
+      }
+      return ModelResponse(message: ChatMessage.model('done: $text'));
+    },
+  );
 
   final pipeline = Pipeline(
     result: const Binding('incident_path'),
@@ -30,8 +34,10 @@ Future<void> main() async {
     children: const [
       Decide(
         output: Binding('incident_path'),
-        prompt: Template.text('An alert fired for elevated error rates on the payments '
-            'service. How should this incident be handled?'),
+        prompt: Template.text(
+          'An alert fired for elevated error rates on the payments '
+          'service. How should this incident be handled?',
+        ),
         paths: [
           DecisionPath(
             label: 'auto_fix',
@@ -55,8 +61,9 @@ Future<void> main() async {
   stdout.writeln(const VasterDisassembler().disassemble(program));
 
   final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: model));
-  vm.eventBus.on<DecisionMadeEvent>().listen((event) =>
-      stdout.writeln('[decision] ${jsonEncode(event.toJson())}'));
+  vm.eventBus.on<DecisionMadeEvent>().listen(
+    (event) => stdout.writeln('[decision] ${jsonEncode(event.toJson())}'),
+  );
   final runtime = VasterRuntime(
     vm: vm,
     policy: ExecutionPolicy.unlimited,

@@ -32,10 +32,13 @@ void main() {
         'required': ['answer'],
         'additionalProperties': false,
       };
-      final program = VasterProgram(programName: 'typed_prompt', instructions: [
-        PromptOp(promptText: 'answer me', outputVar: 'r0', responseSchema: schema),
-        const HaltOp(),
-      ]);
+      final program = VasterProgram(
+        programName: 'typed_prompt',
+        instructions: [
+          PromptOp(promptText: 'answer me', outputVar: 'r0', responseSchema: schema),
+          const HaltOp(),
+        ],
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, equals(RuntimeStatus.halted));
@@ -45,12 +48,15 @@ void main() {
     });
 
     test('runtime error produces a structured VM trap report', () async {
-      const program = VasterProgram(programName: 'trap_demo', instructions: [
-        SetRegisterOp(registerName: 'x', value: 1),
-        // Reading an unmounted VFS path throws inside the VM.
-        ReadFileOp(vfsPath: '/nowhere/missing.txt', outputVar: 'r0'),
-        HaltOp(),
-      ]);
+      const program = VasterProgram(
+        programName: 'trap_demo',
+        instructions: [
+          SetRegisterOp(registerName: 'x', value: 1),
+          // Reading an unmounted VFS path throws inside the VM.
+          ReadFileOp(vfsPath: '/nowhere/missing.txt', outputVar: 'r0'),
+          HaltOp(),
+        ],
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, equals(RuntimeStatus.error));

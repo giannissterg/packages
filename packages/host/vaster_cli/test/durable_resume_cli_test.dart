@@ -42,8 +42,7 @@ void main() {
         ],
       );
 
-  test('run parks durably (exit 3 + checkpoint file); resume completes',
-      () async {
+  test('run parks durably (exit 3 + checkpoint file); resume completes', () async {
     final programPath = '${tmp.path}/parkme.vbc';
     File(programPath).writeAsBytesSync(gatedProgram().toBytes());
     final ckptDir = '${tmp.path}/ckpts';
@@ -76,13 +75,11 @@ void main() {
     final output = resumeOut.toString();
     expect(output, contains('DURABLE RESUME'));
     expect(output, contains('status : halted'));
-    expect(output, contains('shipped'),
-        reason: 'the declared result register is reported after resume');
+    expect(output, contains('shipped'), reason: 'the declared result register is reported after resume');
   });
 
   test('resume rejects a corrupt checkpoint with a clear error', () async {
-    final bad = File('${tmp.path}/bad.ckpt.json')
-      ..writeAsStringSync('{"formatVersion": 99}');
+    final bad = File('${tmp.path}/bad.ckpt.json')..writeAsStringSync('{"formatVersion": 99}');
     final out = StringBuffer();
     final code = await runner.run(
       ['resume', bad.path, '--backend', 'fake'],

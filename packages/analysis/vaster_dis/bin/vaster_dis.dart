@@ -6,16 +6,8 @@ import 'package:vaster_dis/vaster_dis.dart';
 
 void main(List<String> arguments) async {
   final parser = ArgParser()
-    ..addOption(
-      'input',
-      abbr: 'i',
-      help: 'Path to .vaster JSON bytecode file to disassemble.',
-    )
-    ..addOption(
-      'output',
-      abbr: 'o',
-      help: 'Optional output file path to write disassembly text.',
-    )
+    ..addOption('input', abbr: 'i', help: 'Path to .vaster JSON bytecode file to disassemble.')
+    ..addOption('output', abbr: 'o', help: 'Optional output file path to write disassembly text.')
     ..addFlag(
       'stats',
       abbr: 's',
@@ -33,12 +25,7 @@ void main(List<String> arguments) async {
       defaultsTo: false,
       help: 'Hide Program Counter (PC) addresses in disassembly output.',
     )
-    ..addFlag(
-      'help',
-      abbr: 'h',
-      negatable: false,
-      help: 'Print usage information.',
-    );
+    ..addFlag('help', abbr: 'h', negatable: false, help: 'Print usage information.');
 
   try {
     final results = parser.parse(arguments);
@@ -82,10 +69,7 @@ void main(List<String> arguments) async {
       showAddresses: !(results['no-addresses'] as bool),
     );
 
-    final disassemblyText = disassembler.disassembleJson(
-      jsonContent,
-      options: options,
-    );
+    final disassemblyText = disassembler.disassembleJson(jsonContent, options: options);
 
     final outputPath = results['output'] as String?;
     if (outputPath != null && outputPath.isNotEmpty) {

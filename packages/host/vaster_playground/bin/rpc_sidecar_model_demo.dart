@@ -30,18 +30,12 @@ void main() async {
     },
   );
 
-  final sidecarServer = VasterModelSidecarServer(
-    underlyingModel: backendModel,
-    socketPath: socketPath,
-  );
+  final sidecarServer = VasterModelSidecarServer(underlyingModel: backendModel, socketPath: socketPath);
   await sidecarServer.start();
   print('  ✓ Model Sidecar Server online listening on: $socketPath');
 
   // 2. Connect client RpcVasterModel to the Unix Domain Socket
-  final rpcClientModel = RpcVasterModel(
-    socketPath: socketPath,
-    modelName: 'unix-socket-sidecar-model',
-  );
+  final rpcClientModel = RpcVasterModel(socketPath: socketPath, modelName: 'unix-socket-sidecar-model');
 
   // 3. Define pipeline & compile AST -> ISA bytecode
   const devRole = AgentRole(
@@ -78,10 +72,7 @@ void main() async {
   // 4. Bootstrap Vaster VM Engine with RpcVasterModel
   print('┌─ VM BOOTSTRAP & RPC EXECUTION ─────────────────────────────────┐');
   final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(
-      defaultModel: rpcClientModel,
-      rootMountPath: '/workspace',
-    ),
+    config: VMConfig(defaultModel: rpcClientModel, rootMountPath: '/workspace'),
     rootFileSystem: LocalVasterFileSystem(tempDir.path, mountPrefix: '/workspace'),
   );
 

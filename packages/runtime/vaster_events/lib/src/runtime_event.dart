@@ -11,11 +11,8 @@ sealed class RuntimeEvent {
   /// Arbitrary event metadata.
   final Map<String, dynamic> metadata;
 
-  RuntimeEvent({
-    required this.eventId,
-    DateTime? timestamp,
-    this.metadata = const {},
-  }) : timestamp = timestamp ?? DateTime.now();
+  RuntimeEvent({required this.eventId, DateTime? timestamp, this.metadata = const {}})
+    : timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson();
 }
@@ -37,13 +34,13 @@ final class ModelStartedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'model_started',
-        'eventId': eventId,
-        'sessionId': sessionId,
-        'modelName': modelName,
-        'promptTokenCount': promptTokenCount,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'model_started',
+    'eventId': eventId,
+    'sessionId': sessionId,
+    'modelName': modelName,
+    'promptTokenCount': promptTokenCount,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when model execution completes.
@@ -65,14 +62,14 @@ final class ModelFinishedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'model_finished',
-        'eventId': eventId,
-        'sessionId': sessionId,
-        'finishReason': finishReason,
-        'totalTokens': totalTokens,
-        'executionDurationMs': executionDuration.inMilliseconds,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'model_finished',
+    'eventId': eventId,
+    'sessionId': sessionId,
+    'finishReason': finishReason,
+    'totalTokens': totalTokens,
+    'executionDurationMs': executionDuration.inMilliseconds,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Per-call token/cost usage, emitted by the component that OWNS the model
@@ -117,18 +114,18 @@ final class ModelUsageEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'model_usage',
-        'eventId': eventId,
-        'modelName': modelName,
-        'callSite': callSite,
-        'promptTokenCount': promptTokenCount,
-        'candidatesTokenCount': candidatesTokenCount,
-        'totalTokenCount': totalTokenCount,
-        if (costUsd != null) 'costUsd': costUsd,
-        'estimated': estimated,
-        'usage': usage,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'model_usage',
+    'eventId': eventId,
+    'modelName': modelName,
+    'callSite': callSite,
+    'promptTokenCount': promptTokenCount,
+    'candidatesTokenCount': candidatesTokenCount,
+    'totalTokenCount': totalTokenCount,
+    if (costUsd != null) 'costUsd': costUsd,
+    'estimated': estimated,
+    'usage': usage,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when the idempotency ledger REPLAYS a recorded tool result
@@ -149,12 +146,12 @@ final class ToolCallReplayedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'tool_call_replayed',
-        'eventId': eventId,
-        'callId': callId,
-        'toolName': toolName,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'tool_call_replayed',
+    'eventId': eventId,
+    'callId': callId,
+    'toolName': toolName,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when the idempotency ledger replays a recorded AGENT TASK
@@ -175,12 +172,12 @@ final class AgentTaskReplayedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'agent_task_replayed',
-        'eventId': eventId,
-        'agentId': agentId,
-        'taskId': taskId,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'agent_task_replayed',
+    'eventId': eventId,
+    'agentId': agentId,
+    'taskId': taskId,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when a declared model fallback chain advances: [fromModel]
@@ -205,13 +202,13 @@ final class ModelFallbackEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'model_fallback',
-        'eventId': eventId,
-        'fromModel': fromModel,
-        'toModel': toModel,
-        'reason': reason,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'model_fallback',
+    'eventId': eventId,
+    'fromModel': fromModel,
+    'toModel': toModel,
+    'reason': reason,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when a tool invocation is called by a model.
@@ -231,13 +228,13 @@ final class ToolCalledEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'tool_called',
-        'eventId': eventId,
-        'callId': callId,
-        'toolName': toolName,
-        'arguments': arguments,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'tool_called',
+    'eventId': eventId,
+    'callId': callId,
+    'toolName': toolName,
+    'arguments': arguments,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when a tool execution completes.
@@ -259,14 +256,14 @@ final class ToolFinishedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'tool_finished',
-        'eventId': eventId,
-        'callId': callId,
-        'toolName': toolName,
-        'isError': isError,
-        'executionDurationMs': executionDuration.inMilliseconds,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'tool_finished',
+    'eventId': eventId,
+    'callId': callId,
+    'toolName': toolName,
+    'isError': isError,
+    'executionDurationMs': executionDuration.inMilliseconds,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted on virtual filesystem operations.
@@ -286,13 +283,13 @@ final class FileOperationEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'file_operation',
-        'eventId': eventId,
-        'operation': operation.name,
-        'path': path,
-        'sizeBytes': sizeBytes,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'file_operation',
+    'eventId': eventId,
+    'operation': operation.name,
+    'path': path,
+    'sizeBytes': sizeBytes,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when context regions are evicted from the heap.
@@ -310,12 +307,12 @@ final class ContextEvictedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'context_evicted',
-        'eventId': eventId,
-        'evictedRegionIds': evictedRegionIds,
-        'tokensFreed': tokensFreed,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'context_evicted',
+    'eventId': eventId,
+    'evictedRegionIds': evictedRegionIds,
+    'tokensFreed': tokensFreed,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when a context region is compressed under budget pressure or by
@@ -340,15 +337,15 @@ final class ContextCompressedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'context_compressed',
-        'eventId': eventId,
-        'regionId': regionId,
-        'tokensBefore': tokensBefore,
-        'tokensAfter': tokensAfter,
-        'compressorId': compressorId,
-        'lossy': lossy,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'context_compressed',
+    'eventId': eventId,
+    'regionId': regionId,
+    'tokensBefore': tokensBefore,
+    'tokensAfter': tokensAfter,
+    'compressorId': compressorId,
+    'lossy': lossy,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when an isolated code sandbox completes execution.
@@ -370,14 +367,14 @@ final class SandboxExecutedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'sandbox_executed',
-        'eventId': eventId,
-        'sandboxId': sandboxId,
-        'language': language,
-        'exitCode': exitCode,
-        'executionDurationMs': executionDuration.inMilliseconds,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'sandbox_executed',
+    'eventId': eventId,
+    'sandboxId': sandboxId,
+    'language': language,
+    'exitCode': exitCode,
+    'executionDurationMs': executionDuration.inMilliseconds,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted for non-fatal runtime conditions worth surfacing (e.g. an
@@ -399,13 +396,13 @@ final class RuntimeWarningEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'runtime_warning',
-        'eventId': eventId,
-        'code': code,
-        'message': message,
-        'pc': pc,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'runtime_warning',
+    'eventId': eventId,
+    'code': code,
+    'message': message,
+    'pc': pc,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when the model resolves a DecideOp — the audit trail of every
@@ -433,15 +430,15 @@ final class DecisionMadeEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'decision_made',
-        'eventId': eventId,
-        'chosenLabel': chosenLabel,
-        if (rationale != null) 'rationale': rationale,
-        'branchCount': branchCount,
-        'targetPc': targetPc,
-        'usedDefault': usedDefault,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'decision_made',
+    'eventId': eventId,
+    'chosenLabel': chosenLabel,
+    if (rationale != null) 'rationale': rationale,
+    'branchCount': branchCount,
+    'targetPc': targetPc,
+    'usedDefault': usedDefault,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when runtime execution yields and pauses waiting for human interaction.
@@ -460,11 +457,11 @@ final class HumanInteractionRequiredEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'human_interaction_required',
-        'eventId': eventId,
-        'request': request,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'human_interaction_required',
+    'eventId': eventId,
+    'request': request,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when a new model session is created in the VM.
@@ -482,12 +479,12 @@ final class SessionCreatedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'session_created',
-        'eventId': eventId,
-        'sessionId': sessionId,
-        'modelName': modelName,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'session_created',
+    'eventId': eventId,
+    'sessionId': sessionId,
+    'modelName': modelName,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Emitted when a security policy evaluation is performed by the PolicyEngine.
@@ -511,13 +508,13 @@ final class PolicyEvaluatedEvent extends RuntimeEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'policy_evaluated',
-        'eventId': eventId,
-        'policyId': policyId,
-        'action': action,
-        'resource': resource,
-        'decision': decision,
-        'reason': reason,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'type': 'policy_evaluated',
+    'eventId': eventId,
+    'policyId': policyId,
+    'action': action,
+    'resource': resource,
+    'decision': decision,
+    'reason': reason,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }

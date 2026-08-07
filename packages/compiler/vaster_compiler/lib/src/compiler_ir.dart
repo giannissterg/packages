@@ -53,8 +53,7 @@ final class IrCall extends IrItem {
   final IrLabel target;
   final Map<String, String> arguments;
   final String? outputVar;
-  const IrCall(this.functionName, this.target,
-      {this.arguments = const {}, this.outputVar});
+  const IrCall(this.functionName, this.target, {this.arguments = const {}, this.outputVar});
 }
 
 /// Error-handler installation targeting a symbolic label (assembles to
@@ -102,13 +101,14 @@ class IrModule {
 
   int jump(IrLabel target) => _append(IrJump(target));
 
-  int jumpIf(String conditionVar, IrLabel target) =>
-      _append(IrJumpIf(conditionVar, target));
+  int jumpIf(String conditionVar, IrLabel target) => _append(IrJumpIf(conditionVar, target));
 
-  int call(String functionName, IrLabel target,
-          {Map<String, String> arguments = const {}, String? outputVar}) =>
-      _append(IrCall(functionName, target,
-          arguments: arguments, outputVar: outputVar));
+  int call(
+    String functionName,
+    IrLabel target, {
+    Map<String, String> arguments = const {},
+    String? outputVar,
+  }) => _append(IrCall(functionName, target, arguments: arguments, outputVar: outputVar));
 
   int pushErrorHandler(IrLabel target, {String errorVar = '__error__'}) =>
       _append(IrPushErrorHandler(target, errorVar: errorVar));
@@ -121,10 +121,8 @@ class IrModule {
     return label;
   }
 
-  int decide(String prompt, List<IrDecideBranch> branches,
-          {String? outputVar, String? defaultLabel}) =>
-      _append(IrDecide(prompt, branches,
-          outputVar: outputVar, defaultLabel: defaultLabel));
+  int decide(String prompt, List<IrDecideBranch> branches, {String? outputVar, String? defaultLabel}) =>
+      _append(IrDecide(prompt, branches, outputVar: outputVar, defaultLabel: defaultLabel));
 
   /// Assembles the IR into a flat instruction list (classic two-pass layout):
   /// pass 1 assigns each label its PC, pass 2 materializes symbolic jumps.
@@ -138,12 +136,7 @@ class IrModule {
       switch (item) {
         case IrBindLabel(:final label):
           labelPcs[label.id] = pc;
-        case IrInstruction() ||
-              IrJump() ||
-              IrJumpIf() ||
-              IrCall() ||
-              IrPushErrorHandler() ||
-              IrDecide():
+        case IrInstruction() || IrJump() || IrJumpIf() || IrCall() || IrPushErrorHandler() || IrDecide():
           pc++;
       }
     }
@@ -167,28 +160,28 @@ class IrModule {
         case IrJumpIf(:final conditionVar, :final target):
           out.add(JumpIfOp(conditionVar: conditionVar, targetPc: resolve(target)));
         case IrCall(:final functionName, :final target, :final arguments, :final outputVar):
-          out.add(CallOp(
-            functionName: functionName,
-            targetPc: resolve(target),
-            arguments: arguments,
-            outputVar: outputVar,
-          ));
+          out.add(
+            CallOp(
+              functionName: functionName,
+              targetPc: resolve(target),
+              arguments: arguments,
+              outputVar: outputVar,
+            ),
+          );
         case IrPushErrorHandler(:final target, :final errorVar):
           out.add(PushErrorHandlerOp(targetPc: resolve(target), errorVar: errorVar));
         case IrDecide(:final prompt, :final branches, :final outputVar, :final defaultLabel):
-          out.add(DecideOp(
-            prompt: prompt,
-            branches: [
-              for (final b in branches)
-                DecisionBranch(
-                  label: b.label,
-                  description: b.description,
-                  targetPc: resolve(b.target),
-                ),
-            ],
-            outputVar: outputVar,
-            defaultLabel: defaultLabel,
-          ));
+          out.add(
+            DecideOp(
+              prompt: prompt,
+              branches: [
+                for (final b in branches)
+                  DecisionBranch(label: b.label, description: b.description, targetPc: resolve(b.target)),
+              ],
+              outputVar: outputVar,
+              defaultLabel: defaultLabel,
+            ),
+          );
         case IrBindLabel():
           break;
       }

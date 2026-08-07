@@ -15,12 +15,12 @@ class PipelineSpec {
   });
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'version': version,
-        if (defaultModelId != null) 'defaultModelId': defaultModelId,
-        'rootStoragePath': rootStoragePath,
-        'metadata': metadata,
-      };
+    'name': name,
+    'version': version,
+    if (defaultModelId != null) 'defaultModelId': defaultModelId,
+    'rootStoragePath': rootStoragePath,
+    'metadata': metadata,
+  };
 
   factory PipelineSpec.fromJson(Map<String, dynamic> json) {
     return PipelineSpec(

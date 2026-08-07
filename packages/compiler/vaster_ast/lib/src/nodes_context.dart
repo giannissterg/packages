@@ -59,8 +59,7 @@ class Knowledge extends ComposableNode {
     this.id,
   });
 
-  String get _regionId =>
-      id ?? 'knowledge_${label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}';
+  String get _regionId => id ?? 'knowledge_${label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}';
 
   @override
   VasterNode build(BuildContext context) {
@@ -103,10 +102,7 @@ class ContextBudget extends ComposableNode {
 
   @override
   VasterNode build(BuildContext context) {
-    return Sequence([
-      CompressContext(targetTokens: maxTokens),
-      child,
-    ]);
+    return Sequence([CompressContext(targetTokens: maxTokens), child]);
   }
 }
 

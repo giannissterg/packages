@@ -19,8 +19,7 @@ String hitlStatusRegister(String outputVar) => '$outputVar$hitlStatusSuffix';
 const String decideRationaleSuffix = '_rationale';
 
 /// The rationale register for a [DecideOp] [outputVar].
-String decideRationaleRegister(String outputVar) =>
-    '$outputVar$decideRationaleSuffix';
+String decideRationaleRegister(String outputVar) => '$outputVar$decideRationaleSuffix';
 
 /// Suffix of the task-outcome register written alongside a
 /// [DispatchAgentTaskOp]/[DispatchParallelTasksOp] output register: the

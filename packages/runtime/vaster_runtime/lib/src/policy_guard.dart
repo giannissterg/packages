@@ -32,17 +32,9 @@ final class PolicyGuard implements ToolCallGate {
   /// Authorizes [action] on [resource] and echoes the resource (Rule 11);
   /// throws [PolicyViolationException] on denial.
   String check(PolicyAction action, String resource) {
-    final decision = engine.authorize(
-      policy: policy,
-      action: action,
-      resource: resource,
-    );
+    final decision = engine.authorize(policy: policy, action: action, resource: resource);
     if (decision.isDenied) {
-      throw PolicyViolationException(
-        action: action,
-        resource: resource,
-        reason: decision.reason,
-      );
+      throw PolicyViolationException(action: action, resource: resource, reason: decision.reason);
     }
     return resource;
   }

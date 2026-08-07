@@ -80,13 +80,13 @@ class BuildContext {
 
   /// Returns a new [BuildContext] with [value] of type [T] injected.
   BuildContext provide<T>(T value) => BuildContext(
-        pipelineSpec: pipelineSpec,
-        roles: roles,
-        mounts: mounts,
-        environments: environments,
-        properties: properties,
-        typedValues: {...typedValues, T: value},
-      );
+    pipelineSpec: pipelineSpec,
+    roles: roles,
+    mounts: mounts,
+    environments: environments,
+    properties: properties,
+    typedValues: {...typedValues, T: value},
+  );
 
   // ──────────────────────────────────────────────
   // Structural Context Helpers
@@ -94,23 +94,23 @@ class BuildContext {
 
   /// Returns a copy with a string-keyed property added.
   BuildContext withProperty(String key, dynamic value) => BuildContext(
-        pipelineSpec: pipelineSpec,
-        roles: roles,
-        mounts: mounts,
-        environments: environments,
-        properties: {...properties, key: value},
-        typedValues: typedValues,
-      );
+    pipelineSpec: pipelineSpec,
+    roles: roles,
+    mounts: mounts,
+    environments: environments,
+    properties: {...properties, key: value},
+    typedValues: typedValues,
+  );
 
   /// Returns a copy with an additional registered [AgentRole].
   BuildContext withRole(AgentRole role) => BuildContext(
-        pipelineSpec: pipelineSpec,
-        roles: {...roles, role.roleId: role},
-        mounts: mounts,
-        environments: environments,
-        properties: properties,
-        typedValues: typedValues,
-      );
+    pipelineSpec: pipelineSpec,
+    roles: {...roles, role.roleId: role},
+    mounts: mounts,
+    environments: environments,
+    properties: properties,
+    typedValues: typedValues,
+  );
 
   bool hasRole(String roleId) => roles.containsKey(roleId);
   bool hasMount(String prefix) => mounts.containsKey(prefix);

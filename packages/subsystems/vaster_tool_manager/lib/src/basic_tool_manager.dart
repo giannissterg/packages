@@ -1,5 +1,6 @@
 import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_tool/vaster_tool.dart';
+
 import 'tool_manager_interface.dart';
 
 /// Standard implementation of [ToolManager].
@@ -13,16 +14,13 @@ class BasicToolManager implements ToolManager {
   }
 
   @override
-  List<ExecutableTool> get registeredTools =>
-      List.unmodifiable(_tools.values);
+  List<ExecutableTool> get registeredTools => List.unmodifiable(_tools.values);
 
   @override
-  List<ToolDescriptor> get activeDescriptors =>
-      List.unmodifiable(_tools.values.map((t) => t.descriptor));
+  List<ToolDescriptor> get activeDescriptors => List.unmodifiable(_tools.values.map((t) => t.descriptor));
 
   @override
-  List<ToolDefinition> get compiledDefinitions =>
-      List.unmodifiable(_tools.values.map((t) => t.definition));
+  List<ToolDefinition> get compiledDefinitions => List.unmodifiable(_tools.values.map((t) => t.definition));
 
   @override
   ExecutableTool? registerTool(ExecutableTool tool) {
@@ -58,9 +56,7 @@ class BasicToolManager implements ToolManager {
   }
 
   @override
-  Future<List<ChatMessage>> processFunctionCalls(
-    Iterable<FunctionCallPart> calls,
-  ) async {
+  Future<List<ChatMessage>> processFunctionCalls(Iterable<FunctionCallPart> calls) async {
     final responses = <ChatMessage>[];
     for (final call in calls) {
       final result = await executeCall(call);

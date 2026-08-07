@@ -24,9 +24,9 @@ final class ControlFlowGraph {
     ];
 
     List<int> inRange(Iterable<int> targets) => [
-          for (final t in targets)
-            if (t >= 0 && t < instructions.length) t,
-        ];
+      for (final t in targets)
+        if (t >= 0 && t < instructions.length) t,
+    ];
 
     final successors = <int, List<int>>{};
     for (var pc = 0; pc < instructions.length; pc++) {
@@ -58,9 +58,7 @@ final class ControlFlowGraph {
 
   /// Predecessor map (computed from [successors]).
   Map<int, List<int>> predecessors() {
-    final preds = <int, List<int>>{
-      for (var pc = 0; pc < program.instructions.length; pc++) pc: [],
-    };
+    final preds = <int, List<int>>{for (var pc = 0; pc < program.instructions.length; pc++) pc: []};
     for (final entry in successors.entries) {
       for (final succ in entry.value) {
         preds[succ]!.add(entry.key);
@@ -78,10 +76,10 @@ final class ControlFlowGraph {
   /// continuation). Recursion is out of scope for the static bound — the
   /// runtime's supervisor-tree depth limit guards it.
   List<(int from, int head)> backEdges() => [
-        for (final entry in successors.entries)
-          if (program.instructions[entry.key] is! CallOp &&
-              program.instructions[entry.key] is! ReturnSubroutineOp)
-            for (final succ in entry.value)
-              if (succ <= entry.key) (entry.key, succ),
-      ];
+    for (final entry in successors.entries)
+      if (program.instructions[entry.key] is! CallOp &&
+          program.instructions[entry.key] is! ReturnSubroutineOp)
+        for (final succ in entry.value)
+          if (succ <= entry.key) (entry.key, succ),
+  ];
 }

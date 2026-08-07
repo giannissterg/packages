@@ -18,16 +18,9 @@ class TokenBudget {
   });
 
   /// The available token budget remaining for input context messages.
-  int get availableInputBudget => max(
-        0,
-        maxContextTokens - reservedOutputTokens - reservedToolTokens,
-      );
+  int get availableInputBudget => max(0, maxContextTokens - reservedOutputTokens - reservedToolTokens);
 
-  TokenBudget copyWith({
-    int? maxContextTokens,
-    int? reservedOutputTokens,
-    int? reservedToolTokens,
-  }) {
+  TokenBudget copyWith({int? maxContextTokens, int? reservedOutputTokens, int? reservedToolTokens}) {
     return TokenBudget(
       maxContextTokens: maxContextTokens ?? this.maxContextTokens,
       reservedOutputTokens: reservedOutputTokens ?? this.reservedOutputTokens,

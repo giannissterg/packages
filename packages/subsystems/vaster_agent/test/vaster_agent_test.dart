@@ -22,10 +22,7 @@ void main() {
     });
 
     test('AgentTask & AgentOutput serialization', () {
-      const task = AgentTask(
-        taskId: 't_100',
-        inputPrompt: 'Write a summary of quantum computing.',
-      );
+      const task = AgentTask(taskId: 't_100', inputPrompt: 'Write a summary of quantum computing.');
       expect(task.priority, equals(10));
 
       const output = AgentOutput(
@@ -59,11 +56,7 @@ void main() {
       expect(restored.usage.source, equals(UsageSource.measured));
 
       // Payload written before the usage field existed.
-      final legacy = AgentOutput.fromJson({
-        'taskId': 't_old',
-        'agentId': 'ag_old',
-        'outputText': 'old',
-      });
+      final legacy = AgentOutput.fromJson({'taskId': 't_old', 'agentId': 'ag_old', 'outputText': 'old'});
       expect(legacy.usage.totalTokenCount, equals(0));
       expect(legacy.usage.source, equals(UsageSource.estimated));
     });
@@ -73,29 +66,20 @@ void main() {
         taskId: 'leaf',
         agentId: 'l',
         outputText: '',
-        usage: UsageMetadata(
-            promptTokenCount: 10,
-            candidatesTokenCount: 1,
-            source: UsageSource.measured),
+        usage: UsageMetadata(promptTokenCount: 10, candidatesTokenCount: 1, source: UsageSource.measured),
       );
       const mid = AgentOutput(
         taskId: 'mid',
         agentId: 'm',
         outputText: '',
-        usage: UsageMetadata(
-            promptTokenCount: 20,
-            candidatesTokenCount: 2,
-            source: UsageSource.measured),
+        usage: UsageMetadata(promptTokenCount: 20, candidatesTokenCount: 2, source: UsageSource.measured),
         subagentOutputs: [leaf, leaf],
       );
       const root = AgentOutput(
         taskId: 'root',
         agentId: 'r',
         outputText: '',
-        usage: UsageMetadata(
-            promptTokenCount: 40,
-            candidatesTokenCount: 4,
-            source: UsageSource.measured),
+        usage: UsageMetadata(promptTokenCount: 40, candidatesTokenCount: 4, source: UsageSource.measured),
         subagentOutputs: [mid],
       );
 
@@ -111,11 +95,7 @@ void main() {
       const outcomes = <TaskOutcome>[
         TaskCompleted(),
         TaskModelFailure(message: 'HTTP 500', transient: true),
-        TaskQuotaExceeded(
-            resourceType: 'tokens',
-            currentUsage: 900,
-            quotaLimit: 1000,
-            message: 'over'),
+        TaskQuotaExceeded(resourceType: 'tokens', currentUsage: 900, quotaLimit: 1000, message: 'over'),
         TaskCancelled(message: 'caller cancelled'),
         TaskRefused(reason: 'agent paused'),
         TaskFailure(error: 'boom', stackTrace: 'st'),
@@ -139,8 +119,11 @@ void main() {
       expect(failed.errorDetails, 'HTTP 429');
       final restored = AgentOutput.fromJson(failed.toJson());
       expect(restored.outcome, isA<TaskModelFailure>());
-      expect((restored.outcome as TaskModelFailure).transient, isTrue,
-          reason: 'the retry classification survives the wire');
+      expect(
+        (restored.outcome as TaskModelFailure).transient,
+        isTrue,
+        reason: 'the retry classification survives the wire',
+      );
     });
 
     test('legacy payloads without an outcome derive one honestly', () {
@@ -153,8 +136,7 @@ void main() {
       });
       expect(legacyFailure.outcome, isA<TaskFailure>());
       expect(legacyFailure.errorDetails, 'old-style error');
-      final legacySuccess = AgentOutput.fromJson(
-          {'taskId': 't', 'agentId': 'a', 'outputText': 'ok'});
+      final legacySuccess = AgentOutput.fromJson({'taskId': 't', 'agentId': 'a', 'outputText': 'ok'});
       expect(legacySuccess.outcome, isA<TaskCompleted>());
     });
   });

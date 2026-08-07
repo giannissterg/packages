@@ -12,17 +12,14 @@ final class SandboxRegistration {
   /// The tool previously registered under the bridged `exec_<id>` name.
   final ExecutableTool? displacedBridgedTool;
 
-  const SandboxRegistration({
-    required this.displacedSandbox,
-    required this.displacedBridgedTool,
-  });
+  const SandboxRegistration({required this.displacedSandbox, required this.displacedBridgedTool});
 
   /// Nothing displaced — both registrations were fresh.
-  static const fresh =
-      SandboxRegistration(displacedSandbox: null, displacedBridgedTool: null);
+  static const fresh = SandboxRegistration(displacedSandbox: null, displacedBridgedTool: null);
 
   @override
-  String toString() => 'SandboxRegistration('
+  String toString() =>
+      'SandboxRegistration('
       'sandbox ${displacedSandbox == null ? 'fresh' : 'displaced'}, '
       'bridged tool ${displacedBridgedTool == null ? 'fresh' : 'displaced'})';
 }

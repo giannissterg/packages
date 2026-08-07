@@ -39,26 +39,24 @@ class ModelCapabilities {
   });
 
   Map<String, dynamic> toJson() => {
-        'maxContextTokens': maxContextTokens,
-        'maxOutputTokens': maxOutputTokens,
-        'supportsStreaming': supportsStreaming,
-        'supportsFunctionCalling': supportsFunctionCalling,
-        'supportsVision': supportsVision,
-        'supportsSystemInstruction': supportsSystemInstruction,
-        'supportsReasoning': supportsReasoning,
-        if (reportsCostUsd) 'reportsCostUsd': reportsCostUsd,
-      };
+    'maxContextTokens': maxContextTokens,
+    'maxOutputTokens': maxOutputTokens,
+    'supportsStreaming': supportsStreaming,
+    'supportsFunctionCalling': supportsFunctionCalling,
+    'supportsVision': supportsVision,
+    'supportsSystemInstruction': supportsSystemInstruction,
+    'supportsReasoning': supportsReasoning,
+    if (reportsCostUsd) 'reportsCostUsd': reportsCostUsd,
+  };
 
   factory ModelCapabilities.fromJson(Map<String, dynamic> json) {
     return ModelCapabilities(
       maxContextTokens: json['maxContextTokens'] as int? ?? 128000,
       maxOutputTokens: json['maxOutputTokens'] as int? ?? 8192,
       supportsStreaming: json['supportsStreaming'] as bool? ?? true,
-      supportsFunctionCalling:
-          json['supportsFunctionCalling'] as bool? ?? true,
+      supportsFunctionCalling: json['supportsFunctionCalling'] as bool? ?? true,
       supportsVision: json['supportsVision'] as bool? ?? true,
-      supportsSystemInstruction:
-          json['supportsSystemInstruction'] as bool? ?? true,
+      supportsSystemInstruction: json['supportsSystemInstruction'] as bool? ?? true,
       supportsReasoning: json['supportsReasoning'] as bool? ?? false,
       reportsCostUsd: json['reportsCostUsd'] as bool? ?? false,
     );

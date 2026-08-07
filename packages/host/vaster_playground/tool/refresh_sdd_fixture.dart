@@ -21,26 +21,30 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// verbatim, so the fidelity test's assertions keep locking them.
 Future<void> main() async {
   final fixture = File('test/fixtures/sdd_fidelity.replay.json');
-  final old = const ReplayEnvelopeCodec()
-      .decode(jsonDecode(fixture.readAsStringSync()) as Map<String, dynamic>);
+  final old = const ReplayEnvelopeCodec().decode(
+    jsonDecode(fixture.readAsStringSync()) as Map<String, dynamic>,
+  );
 
   // The in-repo SDD pipeline — must stay in lockstep with
   // test/sdd_fidelity_replay_test.dart and test/debug_session_test.dart.
   const architect = AgentRole(
-      roleId: 'architect',
-      name: 'Architect',
-      title: 'Principal Architect',
-      instruction: 'You write precise, reviewable specifications.');
+    roleId: 'architect',
+    name: 'Architect',
+    title: 'Principal Architect',
+    instruction: 'You write precise, reviewable specifications.',
+  );
   const lead = AgentRole(
-      roleId: 'lead',
-      name: 'Lead',
-      title: 'Tech Lead',
-      instruction: 'You turn specs into concrete implementation plans.');
+    roleId: 'lead',
+    name: 'Lead',
+    title: 'Tech Lead',
+    instruction: 'You turn specs into concrete implementation plans.',
+  );
   const reviewer = AgentRole(
-      roleId: 'reviewer',
-      name: 'Reviewer',
-      title: 'Staff Reviewer',
-      instruction: 'You review artifacts rigorously.');
+    roleId: 'reviewer',
+    name: 'Reviewer',
+    title: 'Staff Reviewer',
+    instruction: 'You review artifacts rigorously.',
+  );
   const pipeline = Pipeline(
     name: 'sdd_prompt_calibration',
     result: Binding('review'),
@@ -48,7 +52,8 @@ Future<void> main() async {
     mounts: [StorageMount(mountPrefix: '/workspace')],
     children: [
       Specify(
-        goal: 'Add a --version flag to a small command-line tool: it '
+        goal:
+            'Add a --version flag to a small command-line tool: it '
             'prints the tool version and exits 0. Keep the spec under 300 '
             'words.',
         agent: architect,
@@ -63,8 +68,7 @@ Future<void> main() async {
   final newTape = ModelTape();
   final recording = RecordingVasterModel(inner: sequential, tape: newTape);
 
-  final vm = await VasterVMEngine.bootstrap(
-      config: VMConfig(defaultModel: recording));
+  final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: recording));
   final runtime = VasterRuntime(
     vm: vm,
     policy: ExecutionPolicy.unlimited,
@@ -81,23 +85,30 @@ Future<void> main() async {
     return;
   }
   if (sequential.served != old.tape.entries.length) {
-    stderr.writeln('refresh consumed ${sequential.served} of '
-        '${old.tape.entries.length} recorded responses — call structure '
-        'drifted, a plain re-record is required.');
+    stderr.writeln(
+      'refresh consumed ${sequential.served} of '
+      '${old.tape.entries.length} recorded responses — call structure '
+      'drifted, a plain re-record is required.',
+    );
     exitCode = 1;
     return;
   }
 
-  fixture.writeAsStringSync(const JsonEncoder.withIndent('  ')
-      .convert(const ReplayEnvelopeCodec().encode(
-    programJson: program.toJson(),
-    journalJson: recorder.journal.toJson(),
-    tape: newTape,
-  )));
-  stdout.writeln('refreshed: ${fixture.path} '
-      '(${program.instructions.length} instructions, '
-      '${recorder.journal.frames.length} frames, '
-      '${newTape.entries.length} tape entries)');
+  fixture.writeAsStringSync(
+    const JsonEncoder.withIndent('  ').convert(
+      const ReplayEnvelopeCodec().encode(
+        programJson: program.toJson(),
+        journalJson: recorder.journal.toJson(),
+        tape: newTape,
+      ),
+    ),
+  );
+  stdout.writeln(
+    'refreshed: ${fixture.path} '
+    '(${program.instructions.length} instructions, '
+    '${recorder.journal.frames.length} frames, '
+    '${newTape.entries.length} tape entries)',
+  );
   await vm.shutdown();
 }
 
@@ -130,8 +141,10 @@ final class _SequentialTapeModel implements VasterModel {
   @override
   Future<ModelResponse> generate(ModelRequest request) async {
     if (served >= tape.entries.length) {
-      throw StateError('sequential refresh ran past the recorded tape '
-          '(${tape.entries.length} entries) — call structure drifted.');
+      throw StateError(
+        'sequential refresh ran past the recorded tape '
+        '(${tape.entries.length} entries) — call structure drifted.',
+      );
     }
     return ModelResponse.fromJson(tape.entries[served++].responseJson);
   }

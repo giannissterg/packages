@@ -29,8 +29,7 @@ final class MachineSnapshot {
       MachineSnapshot(
         pc: pc,
         components: {
-          for (final component in componentList)
-            component.stateKey: component.captureState(),
+          for (final component in componentList) component.stateKey: component.captureState(),
         },
       );
 
@@ -43,8 +42,7 @@ final class MachineSnapshot {
     for (final entry in components.entries) {
       final component = byKey[entry.key];
       if (component == null) {
-        throw StateError(
-            'Snapshot carries state for unknown component "${entry.key}" — '
+        throw StateError('Snapshot carries state for unknown component "${entry.key}" — '
             'refusing to drop it silently.');
       }
       component.restoreState(entry.value);
@@ -60,8 +58,7 @@ final class MachineSnapshot {
   factory MachineSnapshot.fromJson(Map<String, dynamic> json) {
     final version = (json['formatVersion'] as num?)?.toInt() ?? 0;
     if (version != currentFormatVersion) {
-      throw FormatException(
-          'MachineSnapshot format v$version is not supported by this build '
+      throw FormatException('MachineSnapshot format v$version is not supported by this build '
           '(speaks v$currentFormatVersion).');
     }
     return MachineSnapshot(
@@ -69,8 +66,7 @@ final class MachineSnapshot {
       pc: (json['pc'] as num).toInt(),
       components: {
         for (final entry in (json['components'] as Map? ?? const {}).entries)
-          entry.key.toString():
-              Map<String, dynamic>.from(entry.value as Map),
+          entry.key.toString(): Map<String, dynamic>.from(entry.value as Map),
       },
     );
   }

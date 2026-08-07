@@ -6,19 +6,18 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// slot is fed from the heap's system class, and cache hints survive the
 /// session path.
 void main() {
-  test('agent systemInstruction reaches ModelRequest via the system class',
-      () async {
+  test('agent systemInstruction reaches ModelRequest via the system class', () async {
     final fake = FakeVasterModel();
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: fake));
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: fake));
 
     await vm.createAgent(
-        descriptor: const AgentDescriptor(
-      agentId: 'writer',
-      name: 'Writer',
-      role: 'writes',
-      systemInstruction: 'You write precise, reviewable specifications.',
-    ));
+      descriptor: const AgentDescriptor(
+        agentId: 'writer',
+        name: 'Writer',
+        role: 'writes',
+        systemInstruction: 'You write precise, reviewable specifications.',
+      ),
+    );
     await vm.runAgentTask(
       AgentTask(taskId: 't1', inputPrompt: 'Write a spec.'),
       agentId: 'writer',
@@ -28,20 +27,17 @@ void main() {
     // and every agent request shipped with a null system slot.
     final request = fake.recordedRequests.last;
     expect(request.systemInstruction, isNotNull);
-    expect(request.systemInstruction!.text,
-        contains('precise, reviewable specifications'));
+    expect(request.systemInstruction!.text, contains('precise, reviewable specifications'));
   });
 
   test('promptInSession forwards cache hints to the ModelRequest', () async {
     final fake = FakeVasterModel();
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: fake));
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: fake));
 
     final hints = [
-      const ContextCacheHint(
-          regionId: 'r1', contentFingerprint: 'abc123', ttl: Duration(hours: 1)),
+      const ContextCacheHint(regionId: 'r1', contentFingerprint: 'abc123', ttl: Duration(hours: 1)),
     ];
-    await vm.promptInSession('sess_hints', 'hello', cacheHints: hints);
+    await vm.promptInSession('sess_hints', 'hello', cacheHints: hints, model: vm.config.defaultModel);
 
     // Before the forwarding fix this path silently dropped every hint.
     final request = fake.recordedRequests.last;

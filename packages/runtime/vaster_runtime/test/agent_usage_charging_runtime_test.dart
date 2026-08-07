@@ -15,11 +15,11 @@ void main() {
   );
 
   VasterRuntime runtimeFor(VasterVirtualMachine vm) => VasterRuntime(
-        vm: vm,
-        policy: ExecutionPolicy.unlimited,
-        budget: ExecutionBudget.unlimited(),
-        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
-      );
+    vm: vm,
+    policy: ExecutionPolicy.unlimited,
+    budget: ExecutionBudget.unlimited(),
+    scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+  );
 
   test('DispatchAgentTaskOp charges the model-reported usage', () async {
     // Pin exact usage so the assertion is about plumbing, not estimation.
@@ -40,8 +40,7 @@ void main() {
       programName: 'single_dispatch_usage',
       instructions: [
         CreateAgentOp(descriptor: descriptor),
-        const DispatchAgentTaskOp(
-            agentId: 'worker', taskPrompt: 'Do the thing.', outputVar: 'out'),
+        const DispatchAgentTaskOp(agentId: 'worker', taskPrompt: 'Do the thing.', outputVar: 'out'),
         const HaltOp(),
       ],
     );
@@ -52,8 +51,7 @@ void main() {
     expect(runtime.budget.consumedTokens, equals(133));
   });
 
-  test('DispatchParallelTasksOp charges the summed usage of all task trees',
-      () async {
+  test('DispatchParallelTasksOp charges the summed usage of all task trees', () async {
     final vm = await VasterVMEngine.bootstrap(
       config: VMConfig(
         defaultModel: FakeVasterModel(
@@ -71,12 +69,12 @@ void main() {
       programName: 'parallel_dispatch_usage',
       instructions: [
         CreateAgentOp(descriptor: descriptor),
-        const DispatchParallelTasksOp(dispatches: [
-          ParallelTaskDispatch(
-              agentId: 'worker', taskPrompt: 'Task A', outputVar: 'a'),
-          ParallelTaskDispatch(
-              agentId: 'worker', taskPrompt: 'Task B', outputVar: 'b'),
-        ]),
+        const DispatchParallelTasksOp(
+          dispatches: [
+            ParallelTaskDispatch(agentId: 'worker', taskPrompt: 'Task A', outputVar: 'a'),
+            ParallelTaskDispatch(agentId: 'worker', taskPrompt: 'Task B', outputVar: 'b'),
+          ],
+        ),
         const HaltOp(),
       ],
     );

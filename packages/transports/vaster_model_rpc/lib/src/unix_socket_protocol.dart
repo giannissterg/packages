@@ -42,9 +42,7 @@ abstract final class UnixSocketProtocol {
     }).toList();
 
     final toolsRaw = json['tools'] as List? ?? [];
-    final tools = toolsRaw
-        .map((t) => ToolDefinition.fromJson(Map<String, dynamic>.from(t as Map)))
-        .toList();
+    final tools = toolsRaw.map((t) => ToolDefinition.fromJson(Map<String, dynamic>.from(t as Map))).toList();
 
     final cfgMap = json['config'] as Map<String, dynamic>? ?? {};
     final config = GenerationConfig(

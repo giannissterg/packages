@@ -30,8 +30,10 @@ void main() async {
           output: Binding('design'),
         ),
       ),
-      Prompt(Template(['Summarize this design in one paragraph:\n', Binding('design')]),
-          output: Binding('summary')),
+      Prompt(
+        Template(['Summarize this design in one paragraph:\n', Binding('design')]),
+        output: Binding('summary'),
+      ),
     ],
   );
 
@@ -40,9 +42,7 @@ void main() async {
   final program = compiler.compile(pipeline);
 
   // 4. Bootstrap the VM with a model backend
-  final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(defaultModel: FakeVasterModel()),
-  );
+  final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
 
   // 5. Execute and read the declared result
   final runtime = VasterRuntime(

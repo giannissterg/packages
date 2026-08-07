@@ -57,7 +57,6 @@ void main() {
     );
     expect(code, 1);
     expect(out.toString(), contains('success : 0/2 (0%)'));
-    expect(out.toString(), contains('IMPOSSIBLE_TOKEN'),
-        reason: 'failures carry their diagnostic');
+    expect(out.toString(), contains('IMPOSSIBLE_TOKEN'), reason: 'failures carry their diagnostic');
   });
 }

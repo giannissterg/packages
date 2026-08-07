@@ -41,35 +41,33 @@ class VasterContinuation {
     final pending = machineState.components['hitl']?['pendingRequest'];
     return pending == null
         ? null
-        : HumanInteractionRequest.fromJson(
-            Map<String, dynamic>.from(pending as Map));
+        : HumanInteractionRequest.fromJson(Map<String, dynamic>.from(pending as Map));
   }
 
   Map<String, dynamic> toJson() => {
-        'formatVersion': formatVersion,
-        'continuationId': continuationId,
-        'programName': programName,
-        'machineState': machineState.toJson(),
-        'suspendedAt': suspendedAt.toIso8601String(),
-      };
+    'formatVersion': formatVersion,
+    'continuationId': continuationId,
+    'programName': programName,
+    'machineState': machineState.toJson(),
+    'suspendedAt': suspendedAt.toIso8601String(),
+  };
 
   factory VasterContinuation.fromJson(Map<String, dynamic> json) {
     final version = (json['formatVersion'] as num?)?.toInt() ?? 1;
     if (version != currentFormatVersion) {
       throw FormatException(
-          'Continuation format v$version is not supported by this build '
-          '(speaks v$currentFormatVersion). v1 continuations predate the '
-          'machine-snapshot era and cannot be resumed safely — they are '
-          'missing machine state by construction.');
+        'Continuation format v$version is not supported by this build '
+        '(speaks v$currentFormatVersion). v1 continuations predate the '
+        'machine-snapshot era and cannot be resumed safely — they are '
+        'missing machine state by construction.',
+      );
     }
     return VasterContinuation(
       formatVersion: version,
       continuationId: json['continuationId'] as String? ?? '',
       programName: json['programName'] as String? ?? '',
-      machineState: MachineSnapshot.fromJson(
-          Map<String, dynamic>.from(json['machineState'] as Map)),
-      suspendedAt: DateTime.tryParse(json['suspendedAt'] as String? ?? '') ??
-          DateTime.now(),
+      machineState: MachineSnapshot.fromJson(Map<String, dynamic>.from(json['machineState'] as Map)),
+      suspendedAt: DateTime.tryParse(json['suspendedAt'] as String? ?? '') ?? DateTime.now(),
     );
   }
 }

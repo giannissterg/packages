@@ -20,7 +20,8 @@ class MmuStats {
   int tokensMaterialized = 0;
 
   @override
-  String toString() => 'MmuStats(hits: $hits, faults: $faults, '
+  String toString() =>
+      'MmuStats(hits: $hits, faults: $faults, '
       'invalidations: $invalidations, '
       'tokensMaterialized: $tokensMaterialized)';
 }
@@ -68,23 +69,17 @@ class ContextMmu {
   /// Walks the pinned regions of [contextManager], reconciles the page table
   /// against their current fingerprints, and returns cache hints bound to
   /// live physical state. [stats] (optional) accumulates hit/fault counts.
-  Future<List<ContextCacheHint>> bindPinnedRegions(
-    ContextManager contextManager, {
-    MmuStats? stats,
-  }) async {
+  Future<List<ContextCacheHint>> bindPinnedRegions(ContextManager contextManager, {MmuStats? stats}) async {
     final hints = <ContextCacheHint>[];
 
     for (final descriptor in contextManager.getPinnedCacheDescriptors()) {
-      final region = contextManager.heap.regions
-          .where((r) => r.id == descriptor.regionId)
-          .firstOrNull;
+      final region = contextManager.heap.regions.where((r) => r.id == descriptor.regionId).firstOrNull;
       if (region == null) continue;
 
       final mapped = _pageTable[descriptor.regionId];
 
       // Invalidation: same region id, different content.
-      if (mapped != null &&
-          mapped.contentFingerprint != descriptor.contentFingerprint) {
+      if (mapped != null && mapped.contentFingerprint != descriptor.contentFingerprint) {
         await controller.evict(mapped);
         _pageTable.remove(descriptor.regionId);
         stats?.invalidations++;
@@ -105,11 +100,13 @@ class ContextMmu {
       }
       _pageTable[descriptor.regionId] = handle;
 
-      hints.add(ContextCacheHint(
-        regionId: descriptor.regionId,
-        contentFingerprint: descriptor.contentFingerprint,
-        ttl: descriptor.ttl,
-      ));
+      hints.add(
+        ContextCacheHint(
+          regionId: descriptor.regionId,
+          contentFingerprint: descriptor.contentFingerprint,
+          ttl: descriptor.ttl,
+        ),
+      );
     }
 
     return hints;
@@ -139,8 +136,6 @@ class ContextMmu {
   /// Canonical region content — must match the fingerprint derivation used by
   /// the context manager ([ContextCacheDescriptor.fromContent] over newline-
   /// joined text parts).
-  static String regionContent(ContextRegion region) => region.messages
-      .expand((m) => m.parts)
-      .map((p) => p is TextPart ? p.text : p.toString())
-      .join('\n');
+  static String regionContent(ContextRegion region) =>
+      region.messages.expand((m) => m.parts).map((p) => p is TextPart ? p.text : p.toString()).join('\n');
 }

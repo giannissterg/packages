@@ -9,74 +9,79 @@ void main() {
 
   test('audit enumerates every capability category of a compiled pipeline', () {
     const triager = AgentRole(
-        roleId: 'triager', name: 'Triager', title: 'Incident Triager',
-        instruction: 'Route.');
-    const sre = AgentRole(
-        roleId: 'sre', name: 'SRE', title: 'Reliability Engineer',
-        instruction: 'Fix.');
+      roleId: 'triager',
+      name: 'Triager',
+      title: 'Incident Triager',
+      instruction: 'Route.',
+    );
+    const sre = AgentRole(roleId: 'sre', name: 'SRE', title: 'Reliability Engineer', instruction: 'Fix.');
 
-    final program = compiler.compile(Pipeline(
-      name: 'audited',
-      roles: const [triager, sre],
-      mounts: const [
-        StorageMount(mountPrefix: '/workspace'),
-        StorageMount(
-            mountPrefix: '/data',
-            type: StorageMountType.disk,
-            diskPath: '/tmp/audited'),
-      ],
-      tools: const [
-        ToolDefinition(name: 'query_metrics', description: 'Query metrics'),
-      ],
-      model: const ModelDescriptor.fake(),
-      children: const [
-        BudgetScope(
-          maxTokens: 50000,
-          maxCost: 2.5,
-          child: Sequence([
-            WriteFile(path: Template.text('/workspace/brief.md'), content: Template.text('the brief')),
-            ReadFile(path: Template.text('/workspace/brief.md'), output: Binding('brief')),
-            WriteFile(path: Template([r'/workspace/', Binding('brief'), r'.md']), content: Template.text('dynamic')),
-            Sandbox(
-              env: CodeEnvironment(envId: 'ci', timeoutMs: 5000),
-              child: Execute(code: Template.text('run checks'), output: Binding('checks')),
-            ),
-            Router(
-              prompt: Template.text('Who owns this incident?'),
-              routes: [
-                RouteCase(
+    final program = compiler.compile(
+      Pipeline(
+        name: 'audited',
+        roles: const [triager, sre],
+        mounts: const [
+          StorageMount(mountPrefix: '/workspace'),
+          StorageMount(mountPrefix: '/data', type: StorageMountType.disk, diskPath: '/tmp/audited'),
+        ],
+        tools: const [ToolDefinition(name: 'query_metrics', description: 'Query metrics')],
+        model: const ModelDescriptor.fake(),
+        children: const [
+          BudgetScope(
+            maxTokens: 50000,
+            maxCost: 2.5,
+            child: Sequence([
+              WriteFile(path: Template.text('/workspace/brief.md'), content: Template.text('the brief')),
+              ReadFile(path: Template.text('/workspace/brief.md'), output: Binding('brief')),
+              WriteFile(
+                path: Template([r'/workspace/', Binding('brief'), r'.md']),
+                content: Template.text('dynamic'),
+              ),
+              Sandbox(
+                env: CodeEnvironment(envId: 'ci', timeoutMs: 5000),
+                child: Execute(code: Template.text('run checks'), output: Binding('checks')),
+              ),
+              Router(
+                prompt: Template.text('Who owns this incident?'),
+                routes: [
+                  RouteCase(
                     label: 'infra',
                     description: 'infrastructure',
                     agentId: 'sre',
-                    prompt: Template.text('Investigate.')),
-                RouteCase(
+                    prompt: Template.text('Investigate.'),
+                  ),
+                  RouteCase(
                     label: 'triage',
                     description: 'needs routing',
                     agentId: 'triager',
-                    prompt: Template.text('Route it.')),
-              ],
-              defaultRoute: 'triage',
-            ),
-            ApprovalGate(
-              requestId: 'ship_gate',
-              prompt: Template.text('Ship it?'),
-              onApprove: [
-                SendMessage(fromId: 'triager', toId: 'sre', payload: {'go': true}),
-              ],
-            ),
-          ]),
-        ),
-      ],
-    ));
+                    prompt: Template.text('Route it.'),
+                  ),
+                ],
+                defaultRoute: 'triage',
+              ),
+              ApprovalGate(
+                requestId: 'ship_gate',
+                prompt: Template.text('Ship it?'),
+                onApprove: [
+                  SendMessage(fromId: 'triager', toId: 'sre', payload: {'go': true}),
+                ],
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
 
     final audit = CapabilityAudit.of(program);
 
     expect(audit.programName, equals('audited'));
-    expect(audit.mounts,
-        equals({'/workspace': 'memory', '/data': '/tmp/audited'}));
+    expect(audit.mounts, equals({'/workspace': 'memory', '/data': '/tmp/audited'}));
     expect(audit.staticWrites, contains('/workspace/brief.md'));
-    expect(audit.dynamicWrites, contains(r'/workspace/${brief}.md'),
-        reason: 'interpolated paths are reported as dynamic, not static');
+    expect(
+      audit.dynamicWrites,
+      contains(r'/workspace/${brief}.md'),
+      reason: 'interpolated paths are reported as dynamic, not static',
+    );
     expect(audit.staticReads, contains('/workspace/brief.md'));
     expect(audit.tools, contains('query_metrics'));
     expect(audit.agents.keys, containsAll(['triager', 'sre']));
@@ -105,77 +110,69 @@ void main() {
     expect(pretty, contains('ship_gate'));
   });
 
-  test('audit lists a declared fallback chain, members and order (REL-P3)',
-      () {
-    final program = compiler.compile(Pipeline(
-      name: 'chained',
-      children: const [
-        SelectModel(
-          model: ModelDescriptor.geminiCli(modelId: 'gemini-2.5-pro'),
-          fallbacks: [
-            ModelDescriptor.geminiCli(modelId: 'gemini-2.5-flash'),
-            ModelDescriptor.fake(modelId: 'local'),
-          ],
-          child: Prompt(Template.text('go')),
-        ),
-      ],
-    ));
+  test('audit lists a declared fallback chain, members and order (REL-P3)', () {
+    final program = compiler.compile(
+      Pipeline(
+        name: 'chained',
+        children: const [
+          SelectModel(
+            model: ModelDescriptor.geminiCli(modelId: 'gemini-2.5-pro'),
+            fallbacks: [
+              ModelDescriptor.geminiCli(modelId: 'gemini-2.5-flash'),
+              ModelDescriptor.fake(modelId: 'local'),
+            ],
+            child: Prompt(Template.text('go')),
+          ),
+        ],
+      ),
+    );
 
     final audit = CapabilityAudit.of(program);
 
     // Every member is a model the program can run on…
     expect(
-        audit.models,
-        containsAll([
-          'gemini_cli:gemini-2.5-pro',
-          'gemini_cli:gemini-2.5-flash',
-          'fake:local',
-        ]));
+      audit.models,
+      containsAll(['gemini_cli:gemini-2.5-pro', 'gemini_cli:gemini-2.5-flash', 'fake:local']),
+    );
     // …and the chain itself is listed in declaration order.
     expect(
-        audit.modelChains,
-        equals([
-          'gemini_cli:gemini-2.5-pro → gemini_cli:gemini-2.5-flash → fake:local'
-        ]));
+      audit.modelChains,
+      equals(['gemini_cli:gemini-2.5-pro → gemini_cli:gemini-2.5-flash → fake:local']),
+    );
     expect(audit.toJson()['modelChains'], equals(audit.modelChains));
     expect(audit.toPrettyString(), contains('(fallback chain)'));
   });
 
   test('audit lists an agent-declared model chain (GAP-3b)', () {
-    final program = compiler.compile(Pipeline(
-      name: 'agent_chained',
-      roles: const [
-        AgentRole(
-          roleId: 'worker',
-          name: 'Worker',
-          title: 'Worker',
-          instruction: 'Work.',
-          model: ModelDescriptor(provider: 'gemini_cli', modelId: 'gemini-2.5-pro'),
-          modelFallbacks: [
-            ModelDescriptor(provider: 'fake', modelId: 'local'),
-          ],
-        ),
-      ],
-      children: const [
-        Task(agentId: 'worker', prompt: Template.text('go')),
-      ],
-    ));
+    final program = compiler.compile(
+      Pipeline(
+        name: 'agent_chained',
+        roles: const [
+          AgentRole(
+            roleId: 'worker',
+            name: 'Worker',
+            title: 'Worker',
+            instruction: 'Work.',
+            model: ModelDescriptor(provider: 'gemini_cli', modelId: 'gemini-2.5-pro'),
+            modelFallbacks: [ModelDescriptor(provider: 'fake', modelId: 'local')],
+          ),
+        ],
+        children: const [Task(agentId: 'worker', prompt: Template.text('go'))],
+      ),
+    );
 
     final audit = CapabilityAudit.of(program);
-    expect(audit.models,
-        containsAll(['gemini_cli:gemini-2.5-pro', 'fake:local']));
-    expect(audit.modelChains,
-        contains('agent worker: gemini_cli:gemini-2.5-pro → fake:local'));
+    expect(audit.models, containsAll(['gemini_cli:gemini-2.5-pro', 'fake:local']));
+    expect(audit.modelChains, contains('agent worker: gemini_cli:gemini-2.5-pro → fake:local'));
   });
 
   test('a fully static program reports an empty decision surface', () {
-    final program = compiler.compile(Pipeline(name: 'static', children: const [
-      Prompt(Template.text('just one turn')),
-    ]));
+    final program = compiler.compile(
+      Pipeline(name: 'static', children: const [Prompt(Template.text('just one turn'))]),
+    );
     final audit = CapabilityAudit.of(program);
     expect(audit.decisions, isEmpty);
-    expect(audit.toPrettyString(),
-        contains('(none — control flow is fully static)'));
+    expect(audit.toPrettyString(), contains('(none — control flow is fully static)'));
     expect(audit.sandboxes, isEmpty);
     expect(audit.humanGates, isEmpty);
   });

@@ -22,23 +22,18 @@ final class CalibratedTokenEstimator implements TokenEstimator {
   /// per-call intercept — the exact form the fit's error bounds hold for.
   @override
   int forText(String text) =>
-      (text.length / calibration.charsPerToken +
-              calibration.perCallOverheadTokens)
-          .ceil();
+      (text.length / calibration.charsPerToken + calibration.perCallOverheadTokens).ceil();
 
   @override
   int forMessages(Iterable<ChatMessage> messages) => messages.fold(
-      0,
-      (sum, m) =>
-          sum +
-          (m.text.length / calibration.charsPerToken).ceil() +
-          TokenEstimate.perMessageOverhead);
+    0,
+    (sum, m) => sum + (m.text.length / calibration.charsPerToken).ceil() + TokenEstimate.perMessageOverhead,
+  );
 
   @override
-  UsageMetadata forExchange({required String prompt, required String output}) =>
-      UsageMetadata(
-        promptTokenCount: forText(prompt),
-        candidatesTokenCount: forText(output),
-        source: UsageSource.estimated,
-      );
+  UsageMetadata forExchange({required String prompt, required String output}) => UsageMetadata(
+    promptTokenCount: forText(prompt),
+    candidatesTokenCount: forText(output),
+    source: UsageSource.estimated,
+  );
 }

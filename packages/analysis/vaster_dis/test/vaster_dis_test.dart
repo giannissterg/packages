@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:test/test.dart';
 import 'package:vaster_dis/vaster_dis.dart';
 import 'package:vaster_instruction/vaster_instruction.dart';
@@ -48,8 +49,7 @@ void main() {
           HaltOp(),
         ],
       );
-      expect(disassembler.disassemble(program),
-          contains('google_ai:pro → google_ai:flash → fake:local'));
+      expect(disassembler.disassemble(program), contains('google_ai:pro → google_ai:flash → fake:local'));
     });
 
     test('annotates jump target labels correctly', () {

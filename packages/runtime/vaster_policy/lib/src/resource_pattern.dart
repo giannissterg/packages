@@ -31,15 +31,11 @@ final class ExactResourcePattern extends ResourcePattern {
   bool matches(String resource) => resource == value;
 
   @override
-  Map<String, dynamic> toJson() => {
-        'type': 'exact',
-        'value': value,
-      };
+  Map<String, dynamic> toJson() => {'type': 'exact', 'value': value};
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ExactResourcePattern && other.value == value;
+      identical(this, other) || other is ExactResourcePattern && other.value == value;
 
   @override
   int get hashCode => value.hashCode;
@@ -91,15 +87,11 @@ final class PathGlobResourcePattern extends ResourcePattern {
   }
 
   @override
-  Map<String, dynamic> toJson() => {
-        'type': 'glob',
-        'globPattern': globPattern,
-      };
+  Map<String, dynamic> toJson() => {'type': 'glob', 'globPattern': globPattern};
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PathGlobResourcePattern && other.globPattern == globPattern;
+      identical(this, other) || other is PathGlobResourcePattern && other.globPattern == globPattern;
 
   @override
   int get hashCode => globPattern.hashCode;
@@ -118,15 +110,11 @@ final class PrefixResourcePattern extends ResourcePattern {
   bool matches(String resource) => resource.startsWith(prefix);
 
   @override
-  Map<String, dynamic> toJson() => {
-        'type': 'prefix',
-        'prefix': prefix,
-      };
+  Map<String, dynamic> toJson() => {'type': 'prefix', 'prefix': prefix};
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PrefixResourcePattern && other.prefix == prefix;
+      identical(this, other) || other is PrefixResourcePattern && other.prefix == prefix;
 
   @override
   int get hashCode => prefix.hashCode;

@@ -5,12 +5,8 @@ import 'package:vaster_context_mmu/vaster_context_mmu.dart';
 import 'package:vaster_kv/vaster_kv.dart';
 import 'package:vaster_model/vaster_model.dart';
 
-ContextRegion _region(String id, String text) => ContextRegion(
-      id: id,
-      label: id,
-      messages: [ChatMessage.system(text)],
-      estimatedTokens: text.length ~/ 4,
-    );
+ContextRegion _region(String id, String text) =>
+    ContextRegion(id: id, label: id, messages: [ChatMessage.system(text)], estimatedTokens: text.length ~/ 4);
 
 void main() {
   group('ContextMmu — virtual to physical lowering', () {
@@ -39,10 +35,8 @@ void main() {
       final hints2 = await mmu.bindPinnedRegions(manager, stats: stats2);
       expect(stats2.faults, equals(0));
       expect(stats2.hits, equals(1));
-      expect(controller.materializations, equals(1),
-          reason: 'physical prefill paid exactly once');
-      expect(hints2.single.contentFingerprint,
-          equals(hints1.single.contentFingerprint));
+      expect(controller.materializations, equals(1), reason: 'physical prefill paid exactly once');
+      expect(hints2.single.contentFingerprint, equals(hints1.single.contentFingerprint));
     });
 
     test('hint fingerprints match the context manager descriptors', () async {
@@ -51,14 +45,11 @@ void main() {
 
       final hints = await mmu.bindPinnedRegions(manager);
       final descriptor = manager.getCacheDescriptor('sys')!;
-      expect(hints.single.contentFingerprint,
-          equals(descriptor.contentFingerprint));
-      expect(mmu.pageTable['sys']!.contentFingerprint,
-          equals(descriptor.contentFingerprint));
+      expect(hints.single.contentFingerprint, equals(descriptor.contentFingerprint));
+      expect(mmu.pageTable['sys']!.contentFingerprint, equals(descriptor.contentFingerprint));
     });
 
-    test('content change under the same region id invalidates and re-faults',
-        () async {
+    test('content change under the same region id invalidates and re-faults', () async {
       manager.heap.addRegion(_region('doc', 'version one of the document'));
       manager.pinRegion('doc');
       await mmu.bindPinnedRegions(manager);
@@ -74,8 +65,7 @@ void main() {
       await mmu.bindPinnedRegions(manager, stats: stats);
       expect(stats.invalidations, equals(1));
       expect(stats.faults, equals(1));
-      expect(mmu.pageTable['doc']!.contentFingerprint,
-          isNot(equals(firstHandle.contentFingerprint)));
+      expect(mmu.pageTable['doc']!.contentFingerprint, isNot(equals(firstHandle.contentFingerprint)));
       expect(controller.evictions, equals(1), reason: 'stale frame freed');
     });
 
@@ -100,8 +90,7 @@ void main() {
       await mmu.bindPinnedRegions(manager, stats: stats);
       expect(stats.faults, equals(3));
       expect(stats.hits, equals(0));
-      expect(await controller.list(), hasLength(2),
-          reason: 'physical slot count stays bounded');
+      expect(await controller.list(), hasLength(2), reason: 'physical slot count stays bounded');
     });
 
     test('flush frees all physical frames', () async {
@@ -115,8 +104,7 @@ void main() {
       expect(await controller.list(), isEmpty);
     });
 
-    test('restoreAll loads mapped state; evicted frames re-fault on next bind',
-        () async {
+    test('restoreAll loads mapped state; evicted frames re-fault on next bind', () async {
       manager.heap.addRegion(_region('sys', 'prompt'));
       manager.pinRegion('sys');
       await mmu.bindPinnedRegions(manager);
@@ -136,11 +124,11 @@ void main() {
 
   group('contentRenderer (the alignment contract hook)', () {
     ContextRegion region() => ContextRegion(
-          id: 'r1',
-          label: 'facts',
-          messages: [ChatMessage.user('Bo is a small brown dog.')],
-          estimatedTokens: 8,
-        );
+      id: 'r1',
+      label: 'facts',
+      messages: [ChatMessage.user('Bo is a small brown dog.')],
+      estimatedTokens: 8,
+    );
 
     test('default renderer materializes the canonical content', () async {
       final manager = BasicContextManager();
@@ -150,8 +138,11 @@ void main() {
       final captured = <String>[];
       final mmu = ContextMmu(controller: _CapturingController(captured));
       await mmu.bindPinnedRegions(manager);
-      expect(captured.single, ContextMmu.regionContent(region()),
-          reason: 'fingerprint-derivation form by default');
+      expect(
+        captured.single,
+        ContextMmu.regionContent(region()),
+        reason: 'fingerprint-derivation form by default',
+      );
     });
 
     test('an injected renderer shapes the payload, never the key', () async {
@@ -163,16 +154,21 @@ void main() {
       final stats = MmuStats();
       final mmu = ContextMmu(
         controller: _CapturingController(captured),
-        contentRenderer: (r) =>
-            r.messages.map((m) => 'user: ${m.text}\n').join(),
+        contentRenderer: (r) => r.messages.map((m) => 'user: ${m.text}\n').join(),
       );
       final hints = await mmu.bindPinnedRegions(manager, stats: stats);
-      expect(captured.single, 'user: Bo is a small brown dog.\n',
-          reason: 'the backend-rendered form is what gets materialized');
-      expect(hints.single.contentFingerprint,
-          manager.getCacheDescriptor('r1')!.contentFingerprint,
-          reason: 'the page-table key stays the canonical fingerprint — '
-              'provenance addressing');
+      expect(
+        captured.single,
+        'user: Bo is a small brown dog.\n',
+        reason: 'the backend-rendered form is what gets materialized',
+      );
+      expect(
+        hints.single.contentFingerprint,
+        manager.getCacheDescriptor('r1')!.contentFingerprint,
+        reason:
+            'the page-table key stays the canonical fingerprint — '
+            'provenance addressing',
+      );
       expect(stats.tokensMaterialized, greaterThan(0));
     });
   });
@@ -188,20 +184,18 @@ final class _CapturingController implements KvCacheController {
   String get backendId => 'capturing';
 
   @override
-  KvCacheCapabilities get capabilities => const KvCacheCapabilities(
-      isStateAddressed: true,
-      supportsPersistence: false,
-      supportsEviction: true);
+  KvCacheCapabilities get capabilities =>
+      const KvCacheCapabilities(isStateAddressed: true, supportsPersistence: false, supportsEviction: true);
 
   @override
-  Future<KvCacheHandle?> lookup(String contentFingerprint) async =>
-      _store[contentFingerprint];
+  Future<KvCacheHandle?> lookup(String contentFingerprint) async => _store[contentFingerprint];
 
   @override
-  Future<KvCacheHandle> materialize(
-      {required String contentFingerprint,
-      required String content,
-      int? tokenEstimate}) async {
+  Future<KvCacheHandle> materialize({
+    required String contentFingerprint,
+    required String content,
+    int? tokenEstimate,
+  }) async {
     captured.add(content);
     return _store[contentFingerprint] = KvCacheHandle(
       handleId: 'h_$contentFingerprint',
@@ -215,8 +209,7 @@ final class _CapturingController implements KvCacheController {
   Future<bool> restore(KvCacheHandle handle) async => true;
 
   @override
-  Future<bool> evict(KvCacheHandle handle) async =>
-      _store.remove(handle.contentFingerprint) != null;
+  Future<bool> evict(KvCacheHandle handle) async => _store.remove(handle.contentFingerprint) != null;
 
   @override
   Future<List<KvCacheHandle>> list() async => _store.values.toList();

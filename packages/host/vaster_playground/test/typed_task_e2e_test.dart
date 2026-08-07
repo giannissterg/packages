@@ -46,24 +46,27 @@ void main() {
         'additionalProperties': false,
       };
 
-      final program = const BasicWorkflowCompiler().compile(Pipeline(
-        name: 'typed_task',
-        roles: const [architect],
-        children: [
-          Agent(
+      final program = const BasicWorkflowCompiler().compile(
+        Pipeline(
+          name: 'typed_task',
+          roles: const [architect],
+          children: [
+            Agent(
               role: architect,
-              child: Task(prompt: Template.text('design the notes app'), outputSchema: schema)),
-        ],
-      ));
+              child: Task(prompt: Template.text('design the notes app'), outputSchema: schema),
+            ),
+          ],
+        ),
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, equals(RuntimeStatus.halted));
 
       // The agent's ModelRequest must carry the schema end to end.
-      final typedRequests = fakeModel.recordedRequests
-          .where((r) => r.generationConfig.responseSchema != null);
-      expect(typedRequests, isNotEmpty,
-          reason: 'agent request should carry the task outputSchema');
+      final typedRequests = fakeModel.recordedRequests.where(
+        (r) => r.generationConfig.responseSchema != null,
+      );
+      expect(typedRequests, isNotEmpty, reason: 'agent request should carry the task outputSchema');
       expect(typedRequests.first.generationConfig.responseSchema, equals(schema));
     });
   });

@@ -18,8 +18,7 @@ class AuditCommand extends VasterCommand {
   List<String> get aliases => const [];
 
   @override
-  String get description =>
-      'Enumerates a compiled program\'s capabilities (files, tools, models, '
+  String get description => 'Enumerates a compiled program\'s capabilities (files, tools, models, '
       'sandboxes, decision surface, human gates, budgets) without running it.';
 
   @override
@@ -61,8 +60,7 @@ class AuditCommand extends VasterCommand {
     try {
       program = rest.first.endsWith('.vbc')
           ? VasterProgramBinary.fromBytes(file.readAsBytesSync())
-          : VasterProgram.fromJson(
-              jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+          : VasterProgram.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
     } on VbcDecodeException catch (e) {
       err.writeln('Error: $e');
       return 1;

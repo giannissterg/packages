@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_filesystem/vaster_filesystem.dart';
+
 import 'filesystem_manager_interface.dart';
 
 /// Standard implementation of [FileSystemManager].
@@ -78,11 +79,7 @@ class BasicFileSystemManager implements FileSystemManager {
   Future<FileContextSource> toContextSource(String path) async {
     final fs = resolveFileSystem(path);
     final text = await fs.readText(path);
-    return FileContextSource(
-      id: 'vfs_$path',
-      filePath: path,
-      content: text,
-    );
+    return FileContextSource(id: 'vfs_$path', filePath: path, content: text);
   }
 
   @override
@@ -119,15 +116,12 @@ class BasicFileSystemManager implements FileSystemManager {
 
   @override
   List<Map<String, Map<String, String>>> exportTransactions() => [
-        for (final frame in _transactionFrames)
-          {
-            for (final entry in frame.entries)
-              entry.key: {
-                for (final file in entry.value.files.entries)
-                  file.key: base64Encode(file.value),
-              },
-          },
-      ];
+    for (final frame in _transactionFrames)
+      {
+        for (final entry in frame.entries)
+          entry.key: {for (final file in entry.value.files.entries) file.key: base64Encode(file.value)},
+      },
+  ];
 
   @override
   int importTransactions(List<Map<String, Map<String, String>>> frames) {
@@ -137,10 +131,9 @@ class BasicFileSystemManager implements FileSystemManager {
         for (final frame in frames)
           {
             for (final entry in frame.entries)
-              entry.key: FileSystemSnapshot(files: {
-                for (final file in entry.value.entries)
-                  file.key: base64Decode(file.value),
-              }),
+              entry.key: FileSystemSnapshot(
+                files: {for (final file in entry.value.entries) file.key: base64Decode(file.value)},
+              ),
           },
       ]);
     return _transactionFrames.length;

@@ -28,8 +28,7 @@ class VasterProgram {
 
   /// The program header as one JSON map (what VBC v2 carries); null when
   /// every header field is absent.
-  Map<String, dynamic>? get headerJson => contextClasses == null &&
-          resultBinding == null
+  Map<String, dynamic>? get headerJson => contextClasses == null && resultBinding == null
       ? null
       : {
           if (contextClasses != null) 'contextClasses': contextClasses,
@@ -37,11 +36,11 @@ class VasterProgram {
         };
 
   Map<String, dynamic> toJson() => {
-        'programName': programName,
-        if (contextClasses != null) 'contextClasses': contextClasses,
-        if (resultBinding != null) 'resultBinding': resultBinding,
-        'instructions': instructions.map((i) => i.toJson()).toList(),
-      };
+    'programName': programName,
+    if (contextClasses != null) 'contextClasses': contextClasses,
+    if (resultBinding != null) 'resultBinding': resultBinding,
+    'instructions': instructions.map((i) => i.toJson()).toList(),
+  };
 
   factory VasterProgram.fromJson(Map<String, dynamic> json) {
     final name = json['programName'] as String? ?? 'vaster_program';
@@ -61,6 +60,5 @@ class VasterProgram {
   }
 
   @override
-  String toString() =>
-      'VasterProgram("$programName", instructions: ${instructions.length})';
+  String toString() => 'VasterProgram("$programName", instructions: ${instructions.length})';
 }

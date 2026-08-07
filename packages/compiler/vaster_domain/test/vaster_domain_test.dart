@@ -55,11 +55,7 @@ void main() {
     });
 
     test('CodeEnvironment JSON roundtrip', () {
-      final env = CodeEnvironment(
-        envId: 'dart_sandbox',
-        language: SandboxLanguage.dart,
-        timeoutMs: 5000,
-      );
+      final env = CodeEnvironment(envId: 'dart_sandbox', language: SandboxLanguage.dart, timeoutMs: 5000);
       final json = env.toJson();
       final restored = CodeEnvironment.fromJson(json);
       expect(restored.envId, equals('dart_sandbox'));

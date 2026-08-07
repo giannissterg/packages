@@ -17,70 +17,72 @@ class ProvisionAgentTeamComponent extends ComposableNode {
   @override
   VasterNode build(BuildContext context) {
     final project = context.read<ProjectConfig>();
-    return AgentTeam(roles: [
-      AgentRole(
-        roleId: 'architect',
-        name: 'Lead Architect',
-        title: 'Principal Software Architect',
-        instruction:
-            'You design scalable, production-ready system architectures for ${project.projectName}. '
-            'You enforce clean boundaries, SOLID principles, and ${project.language} idioms. '
-            'Always output structured Markdown design documents.',
-      ),
-      AgentRole(
-        roleId: 'tech_lead',
-        name: 'Tech Lead',
-        title: 'Technical Lead Engineer',
-        instruction:
-            'You review implementation plans, enforce code standards, and ensure the team '
-            'stays aligned with the architectural decisions for ${project.projectName}. '
-            'You provide concrete, actionable feedback.',
-      ),
-      AgentRole(
-        roleId: 'backend_dev',
-        name: 'Backend Developer',
-        title: 'Senior ${project.language} Backend Engineer',
-        instruction:
-            'You implement production-quality backend services using ${project.language}. '
-            'You follow the architect\'s design documents and write clean, well-documented code. '
-            'You target the ${project.targetDeploymentEnv} environment.',
-      ),
-      AgentRole(
-        roleId: 'frontend_dev',
-        name: 'Frontend Developer',
-        title: 'Senior Frontend Engineer',
-        instruction:
-            'You build responsive, accessible frontend interfaces that consume the backend APIs '
-            'for ${project.projectName}. You write clean component-based code.',
-      ),
-      AgentRole(
-        roleId: 'security_auditor',
-        name: 'Security Auditor',
-        title: 'Application Security Engineer',
-        instruction:
-            'You perform thorough security audits of code and architecture for ${project.projectName}. '
-            'You identify vulnerabilities (OWASP Top 10, injection attacks, auth flaws, etc.) '
-            'and provide remediation guidance with severity scores.',
-      ),
-      AgentRole(
-        roleId: 'qa_engineer',
-        name: 'QA Engineer',
-        title: 'Senior Quality Assurance Engineer',
-        instruction:
-            'You write comprehensive unit, integration, and E2E tests for ${project.projectName}. '
-            'You use ${project.language}-idiomatic testing frameworks and ensure test coverage '
-            'meets the quality gate.',
-      ),
-      AgentRole(
-        roleId: 'tech_writer',
-        name: 'Technical Writer',
-        title: 'Senior Technical Documentation Engineer',
-        instruction:
-            'You produce clear, comprehensive API documentation, developer guides, and '
-            'operational runbooks for ${project.projectName}. '
-            'You use OpenAPI 3.0 spec for REST APIs.',
-      ),
-    ]);
+    return AgentTeam(
+      roles: [
+        AgentRole(
+          roleId: 'architect',
+          name: 'Lead Architect',
+          title: 'Principal Software Architect',
+          instruction:
+              'You design scalable, production-ready system architectures for ${project.projectName}. '
+              'You enforce clean boundaries, SOLID principles, and ${project.language} idioms. '
+              'Always output structured Markdown design documents.',
+        ),
+        AgentRole(
+          roleId: 'tech_lead',
+          name: 'Tech Lead',
+          title: 'Technical Lead Engineer',
+          instruction:
+              'You review implementation plans, enforce code standards, and ensure the team '
+              'stays aligned with the architectural decisions for ${project.projectName}. '
+              'You provide concrete, actionable feedback.',
+        ),
+        AgentRole(
+          roleId: 'backend_dev',
+          name: 'Backend Developer',
+          title: 'Senior ${project.language} Backend Engineer',
+          instruction:
+              'You implement production-quality backend services using ${project.language}. '
+              'You follow the architect\'s design documents and write clean, well-documented code. '
+              'You target the ${project.targetDeploymentEnv} environment.',
+        ),
+        AgentRole(
+          roleId: 'frontend_dev',
+          name: 'Frontend Developer',
+          title: 'Senior Frontend Engineer',
+          instruction:
+              'You build responsive, accessible frontend interfaces that consume the backend APIs '
+              'for ${project.projectName}. You write clean component-based code.',
+        ),
+        AgentRole(
+          roleId: 'security_auditor',
+          name: 'Security Auditor',
+          title: 'Application Security Engineer',
+          instruction:
+              'You perform thorough security audits of code and architecture for ${project.projectName}. '
+              'You identify vulnerabilities (OWASP Top 10, injection attacks, auth flaws, etc.) '
+              'and provide remediation guidance with severity scores.',
+        ),
+        AgentRole(
+          roleId: 'qa_engineer',
+          name: 'QA Engineer',
+          title: 'Senior Quality Assurance Engineer',
+          instruction:
+              'You write comprehensive unit, integration, and E2E tests for ${project.projectName}. '
+              'You use ${project.language}-idiomatic testing frameworks and ensure test coverage '
+              'meets the quality gate.',
+        ),
+        AgentRole(
+          roleId: 'tech_writer',
+          name: 'Technical Writer',
+          title: 'Senior Technical Documentation Engineer',
+          instruction:
+              'You produce clear, comprehensive API documentation, developer guides, and '
+              'operational runbooks for ${project.projectName}. '
+              'You use OpenAPI 3.0 spec for REST APIs.',
+        ),
+      ],
+    );
   }
 }
 
@@ -100,8 +102,15 @@ class ArchitectureDesignComponent extends ComposableNode {
         Task(
           agentId: 'architect',
           output: Binding('architecture_doc'),
-          prompt:
-              Template(['Read the project brief below and produce a comprehensive system architecture ', 'document for ${project.projectName} using ${project.language}.\n\n', 'Brief: ', Binding('project_brief'), '\n\n', 'Include: system overview, component diagram, API contracts, data models, ', 'deployment topology for ${project.targetDeploymentEnv}, and technology decisions.']),
+          prompt: Template([
+            'Read the project brief below and produce a comprehensive system architecture ',
+            'document for ${project.projectName} using ${project.language}.\n\n',
+            'Brief: ',
+            Binding('project_brief'),
+            '\n\n',
+            'Include: system overview, component diagram, API contracts, data models, ',
+            'deployment topology for ${project.targetDeploymentEnv}, and technology decisions.',
+          ]),
         ),
         WriteFile(path: Template.text(outputPath), content: Template([Binding('architecture_doc')])),
       ],
@@ -119,37 +128,37 @@ class ParallelImplementationComponent extends ComposableNode {
   VasterNode build(BuildContext context) {
     final project = context.read<ProjectConfig>();
     return Sequence([
-        ReadFile(path: Template.text(architecturePath), output: Binding('architecture_doc')),
-        ParallelTasks(
-          entries: [
-            ParallelTaskEntry(
-              agentId: 'backend_dev',
-              output: 'backend_implementation',
-              prompt:
-                  'Implement the backend service for ${project.projectName} based on the '
-                  'architecture document below. Write production-quality ${project.language} code '
-                  'with proper error handling, logging, and configuration management.\n\n'
-                  'Architecture: \${architecture_doc}',
-            ),
-            ParallelTaskEntry(
-              agentId: 'frontend_dev',
-              output: 'frontend_implementation',
-              prompt:
-                  'Implement the frontend client for ${project.projectName} based on the '
-                  'architecture document below. Write clean, component-based UI code that '
-                  'consumes the backend REST APIs.\n\n'
-                  'Architecture: \${architecture_doc}',
-            ),
-          ],
-        ),
-        const WriteFile(
-          path: Template.text('/workspace/src/backend/main.dart'),
-          content: Template([Binding('backend_implementation')]),
-        ),
-        const WriteFile(
-          path: Template.text('/workspace/src/frontend/app.dart'),
-          content: Template([Binding('frontend_implementation')]),
-        ),
+      ReadFile(path: Template.text(architecturePath), output: Binding('architecture_doc')),
+      ParallelTasks(
+        entries: [
+          ParallelTaskEntry(
+            agentId: 'backend_dev',
+            output: 'backend_implementation',
+            prompt:
+                'Implement the backend service for ${project.projectName} based on the '
+                'architecture document below. Write production-quality ${project.language} code '
+                'with proper error handling, logging, and configuration management.\n\n'
+                'Architecture: \${architecture_doc}',
+          ),
+          ParallelTaskEntry(
+            agentId: 'frontend_dev',
+            output: 'frontend_implementation',
+            prompt:
+                'Implement the frontend client for ${project.projectName} based on the '
+                'architecture document below. Write clean, component-based UI code that '
+                'consumes the backend REST APIs.\n\n'
+                'Architecture: \${architecture_doc}',
+          ),
+        ],
+      ),
+      const WriteFile(
+        path: Template.text('/workspace/src/backend/main.dart'),
+        content: Template([Binding('backend_implementation')]),
+      ),
+      const WriteFile(
+        path: Template.text('/workspace/src/frontend/app.dart'),
+        content: Template([Binding('frontend_implementation')]),
+      ),
     ]);
   }
 }
@@ -174,8 +183,16 @@ class SecurityAuditComponent extends ComposableNode {
         Task(
           agentId: 'security_auditor',
           output: Binding('security_report'),
-          prompt:
-              Template(['$owaspClause$depClause', 'Identify all vulnerabilities with CVSS scores. Flag anything above ', '${policy.maxCvssScore} as CRITICAL. Provide remediation steps.\n\n', 'Backend source:\n', Binding('backend_src'), '\n\n', 'Architecture:\n', Binding('architecture_doc')]),
+          prompt: Template([
+            '$owaspClause$depClause',
+            'Identify all vulnerabilities with CVSS scores. Flag anything above ',
+            '${policy.maxCvssScore} as CRITICAL. Provide remediation steps.\n\n',
+            'Backend source:\n',
+            Binding('backend_src'),
+            '\n\n',
+            'Architecture:\n',
+            Binding('architecture_doc'),
+          ]),
         ),
         const WriteFile(
           path: Template.text('/workspace/reports/security_audit.md'),
@@ -198,8 +215,23 @@ class TechLeadReviewComponent extends ComposableNode {
     return Task(
       agentId: 'tech_lead',
       output: Binding('tech_lead_review'),
-      prompt:
-          Template(['Review the backend and frontend implementations for quality, ', 'architecture alignment, and adherence to our quality gate:\n', '- Minimum test coverage: ${gate.minTestCoverage}%\n', '- Documentation coverage enforced: ${gate.enforceDocCoverage}\n', '- Required reviewers sign-off: $reviewersClause\n\n', 'Backend:\n', Binding('backend_implementation'), '\n\n', 'Frontend:\n', Binding('frontend_implementation'), '\n\n', 'Security report:\n', Binding('security_report'), '\n\n', 'List all action items with MUST/SHOULD priority.']),
+      prompt: Template([
+        'Review the backend and frontend implementations for quality, ',
+        'architecture alignment, and adherence to our quality gate:\n',
+        '- Minimum test coverage: ${gate.minTestCoverage}%\n',
+        '- Documentation coverage enforced: ${gate.enforceDocCoverage}\n',
+        '- Required reviewers sign-off: $reviewersClause\n\n',
+        'Backend:\n',
+        Binding('backend_implementation'),
+        '\n\n',
+        'Frontend:\n',
+        Binding('frontend_implementation'),
+        '\n\n',
+        'Security report:\n',
+        Binding('security_report'),
+        '\n\n',
+        'List all action items with MUST/SHOULD priority.',
+      ]),
     );
   }
 }
@@ -218,10 +250,26 @@ class TestSuiteComponent extends ComposableNode {
         Task(
           agentId: 'qa_engineer',
           output: Binding('test_suite'),
-          prompt:
-              Template(['Write a comprehensive test suite for ${project.projectName} backend. ', 'Target ${gate.minTestCoverage}% code coverage. Include:\n', '- Unit tests for all business logic\n', '- Integration tests for all API endpoints\n', '- E2E tests for critical user flows\n', '- Security regression tests based on the audit findings\n\n', 'Backend implementation:\n', Binding('backend_implementation'), '\n\n', 'Tech lead review (action items):\n', Binding('tech_lead_review'), '\n\n', 'Use ${project.language}-idiomatic testing patterns.']),
+          prompt: Template([
+            'Write a comprehensive test suite for ${project.projectName} backend. ',
+            'Target ${gate.minTestCoverage}% code coverage. Include:\n',
+            '- Unit tests for all business logic\n',
+            '- Integration tests for all API endpoints\n',
+            '- E2E tests for critical user flows\n',
+            '- Security regression tests based on the audit findings\n\n',
+            'Backend implementation:\n',
+            Binding('backend_implementation'),
+            '\n\n',
+            'Tech lead review (action items):\n',
+            Binding('tech_lead_review'),
+            '\n\n',
+            'Use ${project.language}-idiomatic testing patterns.',
+          ]),
         ),
-        const WriteFile(path: Template.text('/workspace/test/api_test.dart'), content: Template([Binding('test_suite')])),
+        const WriteFile(
+          path: Template.text('/workspace/test/api_test.dart'),
+          content: Template([Binding('test_suite')]),
+        ),
       ],
     );
   }
@@ -239,8 +287,18 @@ class DocumentationComponent extends ComposableNode {
         Task(
           agentId: 'tech_writer',
           output: Binding('api_documentation'),
-          prompt:
-              Template(['Write complete API documentation for ${project.projectName} including:\n', '1. OpenAPI 3.0 specification\n', '2. Developer getting-started guide\n', '3. Authentication & authorization guide\n', '4. Deployment runbook for ${project.targetDeploymentEnv}\n\n', 'Architecture:\n', Binding('architecture_doc'), '\n\n', 'Backend implementation:\n', Binding('backend_implementation')]),
+          prompt: Template([
+            'Write complete API documentation for ${project.projectName} including:\n',
+            '1. OpenAPI 3.0 specification\n',
+            '2. Developer getting-started guide\n',
+            '3. Authentication & authorization guide\n',
+            '4. Deployment runbook for ${project.targetDeploymentEnv}\n\n',
+            'Architecture:\n',
+            Binding('architecture_doc'),
+            '\n\n',
+            'Backend implementation:\n',
+            Binding('backend_implementation'),
+          ]),
         ),
         const WriteFile(
           path: Template.text('/workspace/docs/api_reference.md'),
@@ -261,8 +319,30 @@ class DeliveryReportComponent extends ComposableNode {
     return Task(
       agentId: 'architect',
       output: Binding('delivery_report'),
-      prompt:
-          Template(['Produce a final delivery report for ${project.projectName} summarising:\n', '- Architecture decisions and rationale\n', '- Implementation status (backend + frontend)\n', '- Security audit outcome and remediation status\n', '- Quality gate results (coverage, reviews)\n', '- Test results summary\n', '- Documentation completeness\n', '- Known risks and open items\n\n', 'Architecture: ', Binding('architecture_doc'), '\n', 'Security: ', Binding('security_report'), '\n', 'Review: ', Binding('tech_lead_review'), '\n', 'Tests: ', Binding('test_suite'), '\n', 'Docs: ', Binding('api_documentation')]),
+      prompt: Template([
+        'Produce a final delivery report for ${project.projectName} summarising:\n',
+        '- Architecture decisions and rationale\n',
+        '- Implementation status (backend + frontend)\n',
+        '- Security audit outcome and remediation status\n',
+        '- Quality gate results (coverage, reviews)\n',
+        '- Test results summary\n',
+        '- Documentation completeness\n',
+        '- Known risks and open items\n\n',
+        'Architecture: ',
+        Binding('architecture_doc'),
+        '\n',
+        'Security: ',
+        Binding('security_report'),
+        '\n',
+        'Review: ',
+        Binding('tech_lead_review'),
+        '\n',
+        'Tests: ',
+        Binding('test_suite'),
+        '\n',
+        'Docs: ',
+        Binding('api_documentation'),
+      ]),
     );
   }
 }

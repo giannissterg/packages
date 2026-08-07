@@ -14,12 +14,7 @@ class RuntimeState {
   /// Error details if status is [RuntimeStatus.error].
   final String? errorDetails;
 
-  const RuntimeState({
-    required this.pc,
-    required this.status,
-    this.registers = const {},
-    this.errorDetails,
-  });
+  const RuntimeState({required this.pc, required this.status, this.registers = const {}, this.errorDetails});
 
   RuntimeState copyWith({
     int? pc,
@@ -36,6 +31,5 @@ class RuntimeState {
   }
 
   @override
-  String toString() =>
-      'RuntimeState(pc: $pc, status: ${status.name}, vars: ${registers.keys})';
+  String toString() => 'RuntimeState(pc: $pc, status: ${status.name}, vars: ${registers.keys})';
 }

@@ -72,8 +72,8 @@ class ClaudeApiVasterModel implements VasterModel {
       supportsSystemInstruction: true,
       supportsReasoning: true,
     ),
-  })  : _clientFactory = clientFactory ?? http.Client.new,
-        modelName = modelName ?? targetModel;
+  }) : _clientFactory = clientFactory ?? http.Client.new,
+       modelName = modelName ?? targetModel;
 
   Map<String, String> _headers({bool stream = false}) {
     final key = apiKey ?? Platform.environment['ANTHROPIC_API_KEY'];
@@ -96,12 +96,14 @@ class ClaudeApiVasterModel implements VasterModel {
       final response = await client.post(
         Uri.parse('$baseUrl/v1/messages'),
         headers: _headers(),
-        body: jsonEncode(buildRequestBody(
-          request,
-          model: targetModel,
-          defaultMaxTokens: defaultMaxTokens,
-          strictTools: strictTools,
-        )),
+        body: jsonEncode(
+          buildRequestBody(
+            request,
+            model: targetModel,
+            defaultMaxTokens: defaultMaxTokens,
+            strictTools: strictTools,
+          ),
+        ),
       );
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -124,13 +126,15 @@ class ClaudeApiVasterModel implements VasterModel {
     try {
       final httpRequest = http.Request('POST', Uri.parse('$baseUrl/v1/messages'))
         ..headers.addAll(_headers(stream: true))
-        ..body = jsonEncode(buildRequestBody(
-          request,
-          model: targetModel,
-          defaultMaxTokens: defaultMaxTokens,
-          strictTools: strictTools,
-          stream: true,
-        ));
+        ..body = jsonEncode(
+          buildRequestBody(
+            request,
+            model: targetModel,
+            defaultMaxTokens: defaultMaxTokens,
+            strictTools: strictTools,
+            stream: true,
+          ),
+        );
 
       final streamed = await client.send(httpRequest);
       if (streamed.statusCode != 200) {
@@ -145,9 +149,7 @@ class ClaudeApiVasterModel implements VasterModel {
       String? pendingToolName;
       final pendingToolJson = StringBuffer();
 
-      final lines = streamed.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter());
+      final lines = streamed.stream.transform(utf8.decoder).transform(const LineSplitter());
 
       await for (final line in lines) {
         if (!line.startsWith('data:')) continue;
@@ -220,18 +222,14 @@ class ClaudeApiVasterModel implements VasterModel {
                       cacheReadTokenCount: deltaUsage.cacheReadTokenCount > 0
                           ? deltaUsage.cacheReadTokenCount
                           : prior.cacheReadTokenCount,
-                      cacheCreationTokenCount:
-                          deltaUsage.cacheCreationTokenCount > 0
-                              ? deltaUsage.cacheCreationTokenCount
-                              : prior.cacheCreationTokenCount,
+                      cacheCreationTokenCount: deltaUsage.cacheCreationTokenCount > 0
+                          ? deltaUsage.cacheCreationTokenCount
+                          : prior.cacheCreationTokenCount,
                       source: UsageSource.measured,
                     );
             }
           case 'message_stop':
-            yield ModelResponseChunk(
-              finishReason: finishReason ?? FinishReason.stop,
-              usage: usage,
-            );
+            yield ModelResponseChunk(finishReason: finishReason ?? FinishReason.stop, usage: usage);
           case 'error':
             final error = event['error'] as Map<String, dynamic>? ?? {};
             throw StateError('Claude API stream error: ${error['message']}');
@@ -266,12 +264,8 @@ class ClaudeApiVasterModel implements VasterModel {
     final config = request.generationConfig;
     final wantsCache = request.cacheHints.isNotEmpty;
     // A hint requesting >= 1h TTL upgrades the breakpoint to the 1h cache.
-    final wantsLongTtl =
-        request.cacheHints.any((h) => h.ttl >= const Duration(hours: 1));
-    final cacheControl = {
-      'type': 'ephemeral',
-      if (wantsLongTtl) 'ttl': '1h',
-    };
+    final wantsLongTtl = request.cacheHints.any((h) => h.ttl >= const Duration(hours: 1));
+    final cacheControl = {'type': 'ephemeral', if (wantsLongTtl) 'ttl': '1h'};
 
     return {
       'model': model,
@@ -280,28 +274,21 @@ class ClaudeApiVasterModel implements VasterModel {
       // System prompt: the stable prefix. When cache hints are present, place
       // a breakpoint here so tools + system cache together (render order is
       // tools -> system -> messages).
-      if (request.systemInstruction != null &&
-          request.systemInstruction!.text.trim().isNotEmpty)
+      if (request.systemInstruction != null && request.systemInstruction!.text.trim().isNotEmpty)
         'system': [
           {
             'type': 'text',
             'text': request.systemInstruction!.text,
             if (wantsCache) 'cache_control': cacheControl,
-          }
+          },
         ],
-      'messages': lowerMessages(request.messages, cacheConversation: wantsCache,
-          cacheControl: cacheControl),
+      'messages': lowerMessages(request.messages, cacheConversation: wantsCache, cacheControl: cacheControl),
       if (request.tools.isNotEmpty)
-        'tools': [
-          for (final tool in request.tools) lowerTool(tool, strict: strictTools),
-        ],
+        'tools': [for (final tool in request.tools) lowerTool(tool, strict: strictTools)],
       // Structured outputs: the compiler-level typed return value.
       if (config.responseSchema != null)
         'output_config': {
-          'format': {
-            'type': 'json_schema',
-            'schema': config.responseSchema,
-          },
+          'format': {'type': 'json_schema', 'schema': config.responseSchema},
         },
       if (config.stopSequences != null && config.stopSequences!.isNotEmpty)
         'stop_sequences': config.stopSequences,
@@ -341,11 +328,11 @@ class ClaudeApiVasterModel implements VasterModel {
                 switch (part) {
                   TextPart p => {'type': 'text', 'text': p.text},
                   FunctionCallPart p => {
-                      'type': 'tool_use',
-                      'id': p.callId,
-                      'name': p.name,
-                      'input': p.arguments,
-                    },
+                    'type': 'tool_use',
+                    'id': p.callId,
+                    'name': p.name,
+                    'input': p.arguments,
+                  },
                   _ => null,
                 },
             ].whereType<Map<String, dynamic>>().toList(),
@@ -356,11 +343,7 @@ class ClaudeApiVasterModel implements VasterModel {
             'content': [
               for (final part in message.parts)
                 if (part is FunctionResponsePart)
-                  {
-                    'type': 'tool_result',
-                    'tool_use_id': part.callId,
-                    'content': jsonEncode(part.response),
-                  },
+                  {'type': 'tool_result', 'tool_use_id': part.callId, 'content': jsonEncode(part.response)},
             ],
           });
       }
@@ -382,15 +365,11 @@ class ClaudeApiVasterModel implements VasterModel {
   }
 
   /// Lowers a [ToolDefinition] into a Messages API tool object.
-  static Map<String, dynamic> lowerTool(ToolDefinition tool,
-      {bool strict = false}) {
+  static Map<String, dynamic> lowerTool(ToolDefinition tool, {bool strict = false}) {
     final schema = Map<String, dynamic>.from(tool.parametersSchema);
     if (strict) {
       schema['additionalProperties'] = false;
-      schema.putIfAbsent(
-        'required',
-        () => ((schema['properties'] as Map?) ?? {}).keys.toList(),
-      );
+      schema.putIfAbsent('required', () => ((schema['properties'] as Map?) ?? {}).keys.toList());
     }
     return {
       'name': tool.name,
@@ -416,12 +395,13 @@ class ClaudeApiVasterModel implements VasterModel {
           final thinking = block['thinking'] as String? ?? '';
           if (thinking.isNotEmpty) parts.add(ThoughtPart(thinking));
         case 'tool_use':
-          parts.add(FunctionCallPart(
-            callId: block['id'] as String? ?? '',
-            name: block['name'] as String? ?? '',
-            arguments: Map<String, dynamic>.from(
-                block['input'] as Map? ?? const {}),
-          ));
+          parts.add(
+            FunctionCallPart(
+              callId: block['id'] as String? ?? '',
+              name: block['name'] as String? ?? '',
+              arguments: Map<String, dynamic>.from(block['input'] as Map? ?? const {}),
+            ),
+          );
       }
     }
 
@@ -435,13 +415,13 @@ class ClaudeApiVasterModel implements VasterModel {
 
   /// Maps a Messages API `stop_reason` to a [FinishReason].
   static FinishReason mapStopReason(String? stopReason) => switch (stopReason) {
-        'end_turn' || 'stop_sequence' => FinishReason.stop,
-        'max_tokens' || 'model_context_window_exceeded' => FinishReason.maxTokens,
-        'tool_use' || 'pause_turn' => FinishReason.toolCalls,
-        'refusal' => FinishReason.safety,
-        null => FinishReason.unknown,
-        _ => FinishReason.unknown,
-      };
+    'end_turn' || 'stop_sequence' => FinishReason.stop,
+    'max_tokens' || 'model_context_window_exceeded' => FinishReason.maxTokens,
+    'tool_use' || 'pause_turn' => FinishReason.toolCalls,
+    'refusal' => FinishReason.safety,
+    null => FinishReason.unknown,
+    _ => FinishReason.unknown,
+  };
 
   /// Parses exact server token usage — including prompt-cache reads/writes,
   /// which are billed as input and must be charged to the budget.

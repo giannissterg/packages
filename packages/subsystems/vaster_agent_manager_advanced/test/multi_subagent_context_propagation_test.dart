@@ -34,9 +34,7 @@ void main() {
       final sharedSource = MemoryContextSource.fromMap(
         id: 'shared_architecture_spec',
         name: 'Shared Architecture Guidelines',
-        data: {
-          'system': 'System Rule: All microservices must use JSON over HTTP.',
-        },
+        data: {'system': 'System Rule: All microservices must use JSON over HTTP.'},
         isPinned: true,
       );
       contextManager.registerSource(sharedSource);
@@ -99,15 +97,11 @@ void main() {
       // 6. Verify context propagation in child subagent session
       final coderSession = sessionManager.getSession('sess_sub_coder')!;
       final compiled = await coderSession.contextManager.compileContext(
-        budget: const TokenBudget(
-            maxContextTokens: 1000, reservedOutputTokens: 200, reservedToolTokens: 0),
+        budget: const TokenBudget(maxContextTokens: 1000, reservedOutputTokens: 200, reservedToolTokens: 0),
       );
 
       expect(compiled.systemInstruction?.parts.first, isA<TextPart>());
-      expect(
-        (compiled.systemInstruction!.parts.first as TextPart).text,
-        contains('JSON over HTTP'),
-      );
+      expect((compiled.systemInstruction!.parts.first as TextPart).text, contains('JSON over HTTP'));
 
       // 7. Dispatch parallel tasks across subagents and verify outputs
       final outputs = await agentManager.dispatchParallelTasks([

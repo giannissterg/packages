@@ -18,14 +18,14 @@ import 'package:vaster_token_estimate/vaster_token_estimate.dart';
 /// Skipped with a clear message when the model or libllama is absent, so
 /// the suite degrades gracefully on machines without the ZC-P0 setup.
 void main() {
-  final modelPath = Platform.environment['VASTER_LLAMA_TEST_MODEL'] ??
+  final modelPath =
+      Platform.environment['VASTER_LLAMA_TEST_MODEL'] ??
       '${Platform.environment['HOME']}/models/stories15M-q4_0.gguf';
-  final available = File(modelPath).existsSync() &&
-      File(LlamaBindings.defaultLibraryPath).existsSync();
+  final available = File(modelPath).existsSync() && File(LlamaBindings.defaultLibraryPath).existsSync();
   final skip = available
       ? null
       : 'needs $modelPath and ${LlamaBindings.defaultLibraryPath} '
-          '(see docs/ZERO_COPY.md setup)';
+            '(see docs/ZERO_COPY.md setup)';
 
   group('LlamaEngine (sync, real inference)', () {
     late LlamaEngine engine;
@@ -36,8 +36,7 @@ void main() {
     test('tokenize/detokenize round-trips through the real vocab', () {
       final tokens = engine.tokenize('Once upon a time');
       expect(tokens, isNotEmpty);
-      final text =
-          tokens.skip(1).map(engine.pieceOf).join(); // skip BOS
+      final text = tokens.skip(1).map(engine.pieceOf).join(); // skip BOS
       expect(text.trim(), startsWith('Once'));
     });
 
@@ -50,8 +49,7 @@ void main() {
       expect(a, b, reason: 'CPU + 1 thread + greedy must be reproducible');
     });
 
-    test('export → import into a FRESH engine continues token-identically',
-        () {
+    test('export → import into a FRESH engine continues token-identically', () {
       engine.prefill(engine.tokenize('Once upon a time'));
       final next = engine.sampleGreedy();
       final state = engine.exportState();
@@ -60,23 +58,27 @@ void main() {
       final restored = LlamaEngine.load(modelPath: modelPath);
       addTearDown(restored.dispose);
       restored.importState(state);
-      expect(restored.tokensDecoded, engine.tokensDecoded,
-          reason: 'token count re-derived from restored memory');
+      expect(
+        restored.tokensDecoded,
+        engine.tokensDecoded,
+        reason: 'token count re-derived from restored memory',
+      );
 
       engine.decodeOne(next);
       restored.decodeOne(next);
-      expect(restored.sampleGreedy(), engine.sampleGreedy(),
-          reason: 'the KV state, not a cold start, produced the logits');
+      expect(
+        restored.sampleGreedy(),
+        engine.sampleGreedy(),
+        reason: 'the KV state, not a cold start, produced the logits',
+      );
     });
 
     test('export writes DIRECTLY into shared frame pages and restores from '
         'an attachment', () {
       engine.prefill(engine.tokenize('The little dog'));
       final size = engine.stateSize;
-      final name =
-          'vaster_llama_kv_test_${DateTime.now().microsecondsSinceEpoch}';
-      final frame = SharedMemoryFrame.allocate(name,
-          payloadLength: size, meta: engine.tokensDecoded);
+      final name = 'vaster_llama_kv_test_${DateTime.now().microsecondsSinceEpoch}';
+      final frame = SharedMemoryFrame.allocate(name, payloadLength: size, meta: engine.tokensDecoded);
       addTearDown(() => frame.close(unlink: true));
 
       final written = engine.exportStateInto(frame.payloadPointer, size);
@@ -86,10 +88,8 @@ void main() {
       addTearDown(attachment.close);
       final restored = LlamaEngine.load(modelPath: modelPath);
       addTearDown(restored.dispose);
-      restored.importStateFrom(
-          attachment.payloadPointer, attachment.payloadLength);
-      expect(restored.tokensDecoded, attachment.meta,
-          reason: 'meta carries the token count');
+      restored.importStateFrom(attachment.payloadPointer, attachment.payloadLength);
+      expect(restored.tokensDecoded, attachment.meta, reason: 'meta carries the token count');
 
       // Logits don't ride with KV state: sampling first is a typed error…
       expect(restored.sampleGreedy, throwsStateError);
@@ -106,9 +106,9 @@ void main() {
       final restored = LlamaEngine.load(modelPath: modelPath);
       addTearDown(restored.dispose);
       expect(
-          () => restored.importState(
-              Uint8List.fromList(List<int>.generate(512, (i) => i % 251))),
-          throwsA(isA<LlamaStateIncompatibleException>()));
+        () => restored.importState(Uint8List.fromList(List<int>.generate(512, (i) => i % 251))),
+        throwsA(isA<LlamaStateIncompatibleException>()),
+      );
     });
 
     test('continueFromImage: validated reuse and the exact-cover case', () {
@@ -121,38 +121,38 @@ void main() {
       // Full validation chain, remainder decoded, count exact.
       final restored = LlamaEngine.load(modelPath: modelPath);
       addTearDown(restored.dispose);
-      final fullTokens =
-          restored.tokenize('$prefixText there was a dog');
+      final fullTokens = restored.tokenize('$prefixText there was a dog');
       final reuse = restored.continueFromImage(
-          image: image.image,
-          statePointer: image.statePointer,
-          promptTokens: fullTokens);
+        image: image.image,
+        statePointer: image.statePointer,
+        promptTokens: fullTokens,
+      );
       expect(reuse, isA<KvReuseValidated>());
       expect((reuse as KvReuseValidated).reusedTokens, prefixTokens.length);
       expect(restored.tokensDecoded, fullTokens.length);
 
       // Correctness: identical next token to the uninterrupted engine.
-      engine.prefill(
-          Int32List.sublistView(fullTokens, prefixTokens.length));
-      expect(restored.sampleGreedy(), engine.sampleGreedy(),
-          reason: 'validated reuse must equal a cold decode');
+      engine.prefill(Int32List.sublistView(fullTokens, prefixTokens.length));
+      expect(
+        restored.sampleGreedy(),
+        engine.sampleGreedy(),
+        reason: 'validated reuse must equal a cold decode',
+      );
 
       // Exact cover: prompt == prefix — the tail token is re-decoded so
       // logits exist, and exactly one token of reuse is given up.
       final covered = LlamaEngine.load(modelPath: modelPath);
       addTearDown(covered.dispose);
       final reuseCover = covered.continueFromImage(
-          image: image.image,
-          statePointer: image.statePointer,
-          promptTokens: prefixTokens);
-      expect((reuseCover as KvReuseValidated).reusedTokens,
-          prefixTokens.length - 1);
-      expect(covered.sampleGreedy(), isNonNegative,
-          reason: 'logits are ready after the tail re-decode');
+        image: image.image,
+        statePointer: image.statePointer,
+        promptTokens: prefixTokens,
+      );
+      expect((reuseCover as KvReuseValidated).reusedTokens, prefixTokens.length - 1);
+      expect(covered.sampleGreedy(), isNonNegative, reason: 'logits are ready after the tail re-decode');
     });
 
-    test('continueFromImage rejects a diverging prompt and decodes cold',
-        () {
+    test('continueFromImage rejects a diverging prompt and decodes cold', () {
       final prefixTokens = engine.tokenize('Once upon a time');
       engine.prefill(prefixTokens);
       final image = _exportImage(engine, prefixTokens, 'fp-engine-b');
@@ -162,16 +162,21 @@ void main() {
       addTearDown(other.dispose);
       final divergent = other.tokenize('A completely different story');
       final reuse = other.continueFromImage(
-          image: image.image,
-          statePointer: image.statePointer,
-          promptTokens: divergent);
+        image: image.image,
+        statePointer: image.statePointer,
+        promptTokens: divergent,
+      );
       expect(reuse, isA<KvReuseRejected>());
       final rejected = reuse as KvReuseRejected;
       expect(rejected.reason, 'prefix-mismatch');
       expect(rejected.divergenceIndex, isNotNull);
-      expect(other.tokensDecoded, divergent.length,
-          reason: 'rejection cold-decodes the full prompt — the caller '
-              'always ends with correct logits');
+      expect(
+        other.tokensDecoded,
+        divergent.length,
+        reason:
+            'rejection cold-decodes the full prompt — the caller '
+            'always ends with correct logits',
+      );
       expect(other.sampleGreedy(), isNonNegative);
 
       // A prompt SHORTER than the prefix diverges at its own length.
@@ -179,28 +184,33 @@ void main() {
       addTearDown(shorter.dispose);
       final shortTokens = shorter.tokenize('Once upon');
       final shortReuse = shorter.continueFromImage(
-          image: image.image,
-          statePointer: image.statePointer,
-          promptTokens: shortTokens) as KvReuseRejected;
+        image: image.image,
+        statePointer: image.statePointer,
+        promptTokens: shortTokens,
+      ) as KvReuseRejected;
       expect(shortReuse.divergenceIndex, shortTokens.length);
       expect(shorter.tokensDecoded, shortTokens.length);
     });
 
-    test('continueFromImage rejects a foreign engineTag before any restore',
-        () {
+    test('continueFromImage rejects a foreign engineTag before any restore', () {
       final prefixTokens = engine.tokenize('Once upon a time');
       engine.prefill(prefixTokens);
-      final image = _exportImage(engine, prefixTokens, 'fp-engine-c',
-          engineTag: engine.engineTag ^ 0xDEAD); // a different producer
+      final image = _exportImage(
+        engine,
+        prefixTokens,
+        'fp-engine-c',
+        engineTag: engine.engineTag ^ 0xDEAD,
+      ); // a different producer
       addTearDown(image.free);
 
       final other = LlamaEngine.load(modelPath: modelPath);
       addTearDown(other.dispose);
       final prompt = other.tokenize('Once upon a time there was a dog');
       final reuse = other.continueFromImage(
-          image: image.image,
-          statePointer: image.statePointer,
-          promptTokens: prompt) as KvReuseRejected;
+        image: image.image,
+        statePointer: image.statePointer,
+        promptTokens: prompt,
+      ) as KvReuseRejected;
       expect(reuse.reason, 'engine-tag-mismatch');
       expect(other.tokensDecoded, prompt.length, reason: 'cold decode');
     });
@@ -212,8 +222,11 @@ void main() {
 
       final other = LlamaEngine.load(modelPath: modelPath);
       addTearDown(other.dispose);
-      expect(other.generateText('Once upon a time', maxTokens: 8), text,
-          reason: 'same prompt, same loop, same greedy tokens');
+      expect(
+        other.generateText('Once upon a time', maxTokens: 8),
+        text,
+        reason: 'same prompt, same loop, same greedy tokens',
+      );
     });
 
     test('reset clears the sequence for a fresh prefill', () {
@@ -226,18 +239,18 @@ void main() {
   }, skip: skip);
 
   group('LlamaTokenEstimator (the exact seam implementation)', () {
-    test('counts exactly what the engine decodes; heuristic only guesses',
-        () {
+    test('counts exactly what the engine decodes; heuristic only guesses', () {
       final engine = LlamaEngine.load(modelPath: modelPath);
       addTearDown(engine.dispose);
       final exact = LlamaTokenEstimator(engine);
       const text = 'Once upon a time there was a small brown dog named Bo.';
 
-      expect(exact.forText(text),
-          engine.tokenize(text, addBos: false).length,
-          reason: 'exact by construction');
-      expect(exact.forExchange(prompt: text, output: text).source,
-          UsageSource.measured);
+      expect(
+        exact.forText(text),
+        engine.tokenize(text, addBos: false).length,
+        reason: 'exact by construction',
+      );
+      expect(exact.forExchange(prompt: text, output: text).source, UsageSource.measured);
       // The heuristic is in the right ballpark and the exact count is
       // authoritative — the seam lets consumers pick truth when local.
       expect(exact.forText(text), isNot(TokenEstimate.forText(text)));
@@ -262,24 +275,30 @@ void main() {
       final other = LlamaEngine.load(modelPath: modelPath);
       addTearDown(other.dispose);
       final fullTokens = other.tokenize('Once upon a time there was a dog');
-      expect('Once upon a time'.startsWith('Once upon a t'), isTrue,
-          reason: 'the STRING is a prefix — that is exactly the trap');
+      expect(
+        'Once upon a time'.startsWith('Once upon a t'),
+        isTrue,
+        reason: 'the STRING is a prefix — that is exactly the trap',
+      );
 
       final reuse = other.continueFromImage(
-          image: image.image,
-          statePointer: image.statePointer,
-          promptTokens: fullTokens);
-      expect(reuse, isA<KvReuseRejected>(),
-          reason: 'the token streams diverge at the seam even though the '
-              'strings agree');
+        image: image.image,
+        statePointer: image.statePointer,
+        promptTokens: fullTokens,
+      );
+      expect(
+        reuse,
+        isA<KvReuseRejected>(),
+        reason:
+            'the token streams diverge at the seam even though the '
+            'strings agree',
+      );
       expect((reuse as KvReuseRejected).reason, 'prefix-mismatch');
       expect(other.tokensDecoded, fullTokens.length, reason: 'cold decode');
     });
 
-    test('cross-model reuse is rejected by engineTag before any restore',
-        () {
-      final smolPath =
-          '${Platform.environment['HOME']}/models/SmolLM2-135M-Instruct-Q4_K_M.gguf';
+    test('cross-model reuse is rejected by engineTag before any restore', () {
+      final smolPath = '${Platform.environment['HOME']}/models/SmolLM2-135M-Instruct-Q4_K_M.gguf';
       if (!File(smolPath).existsSync()) {
         markTestSkipped('needs $smolPath (ZC-P0 demo tier)');
         return;
@@ -298,27 +317,27 @@ void main() {
       expect(smol.engineTag, isNot(engine.engineTag));
       final prompt = smol.tokenize('Once upon a time there was a dog');
       final reuse = smol.continueFromImage(
-          image: image.image,
-          statePointer: image.statePointer,
-          promptTokens: prompt) as KvReuseRejected;
+        image: image.image,
+        statePointer: image.statePointer,
+        promptTokens: prompt,
+      ) as KvReuseRejected;
       expect(reuse.reason, 'engine-tag-mismatch');
       expect(smol.tokensDecoded, prompt.length, reason: 'cold decode');
     });
   }, skip: skip);
 
   group('LlamaWorker (isolate host)', () {
-    test('generates off the main isolate and round-trips state via a frame',
-        () async {
+    test('generates off the main isolate and round-trips state via a frame', () async {
       final worker = await LlamaWorker.spawn(modelPath: modelPath);
       final text = await worker.generate('Once upon a time', maxTokens: 8);
       expect(text, isNotEmpty);
 
-      final name =
-          'vaster_llama_worker_test_${DateTime.now().microsecondsSinceEpoch}';
+      final name = 'vaster_llama_worker_test_${DateTime.now().microsecondsSinceEpoch}';
       final (bytes, tokens) = await worker.materializeToFrame(
-          content: 'Once upon a time',
-          contentFingerprint: 'fp-worker-roundtrip',
-          frameName: name);
+        content: 'Once upon a time',
+        contentFingerprint: 'fp-worker-roundtrip',
+        frameName: name,
+      );
       expect(bytes, greaterThan(0));
       expect(tokens, greaterThan(0));
       await worker.close();
@@ -331,17 +350,14 @@ void main() {
       // Non-empty continuation prompt: logits are not part of exported
       // state, so the restored context must decode before it can sample.
       final continuation = await second.generate(' and', maxTokens: 6);
-      expect(continuation, isNotEmpty,
-          reason: 'generation continues from restored KV state');
+      expect(continuation, isNotEmpty, reason: 'generation continues from restored KV state');
       await second.close();
 
       SharedMemoryFrame.attach(name).close(unlink: true); // evict
     });
 
     test('model-load failure surfaces as the spawn error', () async {
-      await expectLater(
-          LlamaWorker.spawn(modelPath: '/nonexistent/model.gguf'),
-          throwsStateError);
+      await expectLater(LlamaWorker.spawn(modelPath: '/nonexistent/model.gguf'), throwsStateError);
     });
   }, skip: skip);
 }
@@ -353,27 +369,25 @@ final class _NativeImage {
   final KvStateImage image;
   final Pointer<Uint8> _base;
   _NativeImage(this.image, this._base);
-  Pointer<Uint8> get statePointer =>
-      Pointer<Uint8>.fromAddress(_base.address + image.stateOffset);
+  Pointer<Uint8> get statePointer => Pointer<Uint8>.fromAddress(_base.address + image.stateOffset);
   void free() => calloc.free(_base);
 }
 
-_NativeImage _exportImage(
-    LlamaEngine engine, Int32List tokens, String fingerprint,
-    {int? engineTag}) {
+_NativeImage _exportImage(LlamaEngine engine, Int32List tokens, String fingerprint, {int? engineTag}) {
   final stateSize = engine.stateSize;
   final total = const KvStateImageCodec().layoutSize(
-      contentFingerprint: fingerprint,
-      tokenCount: tokens.length,
-      stateSize: stateSize);
+    contentFingerprint: fingerprint,
+    tokenCount: tokens.length,
+    stateSize: stateSize,
+  );
   final base = calloc<Uint8>(total);
-  final image = const KvStateImageCodec().initialize(base.asTypedList(total),
-      tokenIds: tokens,
-      contentFingerprint: fingerprint,
-      engineTag: engineTag ?? engine.engineTag,
-      stateSize: stateSize);
-  engine.exportStateInto(
-      Pointer<Uint8>.fromAddress(base.address + image.stateOffset),
-      stateSize);
+  final image = const KvStateImageCodec().initialize(
+    base.asTypedList(total),
+    tokenIds: tokens,
+    contentFingerprint: fingerprint,
+    engineTag: engineTag ?? engine.engineTag,
+    stateSize: stateSize,
+  );
+  engine.exportStateInto(Pointer<Uint8>.fromAddress(base.address + image.stateOffset), stateSize);
   return _NativeImage(image, base);
 }

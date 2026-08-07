@@ -21,7 +21,8 @@ final class CalibrationCatalog {
     backendId: 'gemini-2.0-flash',
     charsPerToken: 2.596638655462185,
     sampleCount: 3,
-    provenance: 'sdd_fidelity.replay.json (paid run, 2026-08) '
+    provenance:
+        'sdd_fidelity.replay.json (paid run, 2026-08) '
         '(median ratio, 1 implausible excluded)',
   );
 
@@ -36,13 +37,13 @@ final class CalibrationCatalog {
     charsPerToken: 4.0, // no text fit yet — heuristic ratio retained
     callOverheadFactor: 2.23,
     sampleCount: 1,
-    provenance: 'docs/PROVE_IT.md release_scribe run 2026-08-06 '
+    provenance:
+        'docs/PROVE_IT.md release_scribe run 2026-08-06 '
         '(0.1157 / 0.0518 wire vs bound; n=1)',
   );
 
   /// The canonical committed catalog.
-  static const CalibrationCatalog builtin =
-      CalibrationCatalog([geminiFlash, claudeCliAgentic]);
+  static const CalibrationCatalog builtin = CalibrationCatalog([geminiFlash, claudeCliAgentic]);
 
   /// Profile for a backend/model id, or null — callers compose the
   /// canonical heuristic when no fitted knowledge exists (never a silent

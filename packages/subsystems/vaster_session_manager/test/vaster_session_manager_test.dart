@@ -22,8 +22,7 @@ void main() {
       );
 
       expect(manager.activeSessions, hasLength(2));
-      expect(manager.activeSessionDescriptors.map((d) => d.sessionId),
-          containsAll(['sess_1', 'sess_2']));
+      expect(manager.activeSessionDescriptors.map((d) => d.sessionId), containsAll(['sess_1', 'sess_2']));
 
       expect(manager.getSession('sess_1'), equals(session1));
       expect(manager.getSession('sess_2'), equals(session2));
@@ -36,10 +35,7 @@ void main() {
 
       await manager.createSession(sessionId: 'dup', model: model);
 
-      expect(
-        () async => await manager.createSession(sessionId: 'dup', model: model),
-        throwsStateError,
-      );
+      expect(() async => await manager.createSession(sessionId: 'dup', model: model), throwsStateError);
     });
 
     test('closes sessions cleanly', () async {

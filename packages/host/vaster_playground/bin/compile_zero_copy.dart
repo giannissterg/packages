@@ -24,17 +24,20 @@ void main(List<String> args) {
         label: 'story facts',
         pinned: true,
         text: Template.text(
-            'Story facts: Bo is a small brown dog who lives at the edge of '
-            'a pine forest with a lighthouse keeper named Ana. Bo is afraid '
-            'of thunder but loves the sea. Ana found Bo as a puppy in a '
-            'rowboat after a storm. The lighthouse lamp is powered by an '
-            'old brass dynamo that Bo can hear humming from the garden. '
-            'Every autumn the geese pass over the forest and Bo howls '
-            'goodbye to them.'),
+          'Story facts: Bo is a small brown dog who lives at the edge of '
+          'a pine forest with a lighthouse keeper named Ana. Bo is afraid '
+          'of thunder but loves the sea. Ana found Bo as a puppy in a '
+          'rowboat after a storm. The lighthouse lamp is powered by an '
+          'old brass dynamo that Bo can hear humming from the garden. '
+          'Every autumn the geese pass over the forest and Bo howls '
+          'goodbye to them.',
+        ),
         child: Sequence([
           Prompt(
-            Template.text('Using the story facts, write the opening '
-                'sentence of a story about \${hero}.'),
+            Template.text(
+              'Using the story facts, write the opening '
+              'sentence of a story about \${hero}.',
+            ),
             output: Binding('opening'),
           ),
           ApprovalGate(
@@ -42,8 +45,10 @@ void main(List<String> args) {
             prompt: Template.text('Continue this story?\n\n\${opening}'),
             onApprove: [
               Prompt(
-                Template.text('Using the story facts, write one closing '
-                    'sentence for this story:\n\${opening}'),
+                Template.text(
+                  'Using the story facts, write one closing '
+                  'sentence for this story:\n\${opening}',
+                ),
                 output: Binding('ending'),
               ),
             ],
@@ -61,6 +66,8 @@ void main(List<String> args) {
   Directory(outDir).createSync(recursive: true);
   final path = '$outDir/story_scribe.vbc';
   File(path).writeAsBytesSync(program.toBytes());
-  stdout.writeln('compiled ${program.instructions.length} instructions → '
-      '$path (resultBinding: ${program.resultBinding})');
+  stdout.writeln(
+    'compiled ${program.instructions.length} instructions → '
+    '$path (resultBinding: ${program.resultBinding})',
+  );
 }

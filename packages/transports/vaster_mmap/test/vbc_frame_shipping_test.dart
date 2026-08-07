@@ -3,8 +3,7 @@ import 'package:vaster_instruction/vaster_instruction.dart';
 import 'package:vaster_mmap/vaster_mmap.dart';
 
 void main() {
-  test('a compiled VBC program ships across processes via SharedMemoryFrame',
-      () {
+  test('a compiled VBC program ships across processes via SharedMemoryFrame', () {
     const program = VasterProgram(programName: 'shipped', instructions: [
       SetRegisterOp(registerName: 'greeting', value: 'hello'),
       PromptOp(promptText: 'say hi', outputVar: 'r0'),
@@ -14,8 +13,7 @@ void main() {
 
     // Producer: encode and publish the program as a named physical frame.
     final name = 'vaster_prog_${DateTime.now().microsecondsSinceEpoch}';
-    final producer = SharedMemoryFrame.create(name, program.toBytes(),
-        meta: program.instructions.length);
+    final producer = SharedMemoryFrame.create(name, program.toBytes(), meta: program.instructions.length);
 
     // Consumer (fresh attach by name — the cross-process path): map the
     // same physical pages and decode the program zero-copy.

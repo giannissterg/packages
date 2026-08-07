@@ -12,8 +12,7 @@ import 'package:vaster_domain/vaster_domain.dart';
 // The AST stays ISA-free — this narrow import is the one ABI naming
 // convention the declarative tier must agree on with the runtime (the
 // approval-flag register an ApprovalGate's When reads).
-import 'package:vaster_instruction/vaster_instruction.dart'
-    show hitlStatusRegister;
+import 'package:vaster_instruction/vaster_instruction.dart' show hitlStatusRegister;
 import 'package:vaster_model/vaster_model.dart';
 
 part 'binding.dart';

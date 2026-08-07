@@ -10,17 +10,11 @@ void main() {
   group('GoogleAiVasterModel — Configuration & Validation', () {
     test('throws StateError when API key is empty', () {
       final model = GoogleAiVasterModel(apiKey: '');
-      expect(
-        () => model.generate(const ModelRequest(messages: [])),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => model.generate(const ModelRequest(messages: [])), throwsA(isA<StateError>()));
     });
 
     test('accepts custom target model and base URL', () {
-      final model = GoogleAiVasterModel(
-        apiKey: 'test-key',
-        targetModel: 'gemini-1.5-pro',
-      );
+      final model = GoogleAiVasterModel(apiKey: 'test-key', targetModel: 'gemini-1.5-pro');
       expect(model.targetModel, equals('gemini-1.5-pro'));
       expect(model.apiKey, equals('test-key'));
     });
@@ -41,34 +35,23 @@ void main() {
               'content': {
                 'role': 'model',
                 'parts': [
-                  {'text': 'Hello from Google AI Gemini!'}
-                ]
+                  {'text': 'Hello from Google AI Gemini!'},
+                ],
               },
-              'finishReason': 'STOP'
-            }
+              'finishReason': 'STOP',
+            },
           ],
-          'usageMetadata': {
-            'promptTokenCount': 10,
-            'candidatesTokenCount': 6,
-            'totalTokenCount': 16
-          }
+          'usageMetadata': {'promptTokenCount': 10, 'candidatesTokenCount': 6, 'totalTokenCount': 16},
         };
 
-        return http.Response(jsonEncode(responseJson), 200, headers: {
-          'content-type': 'application/json',
-        });
+        return http.Response(jsonEncode(responseJson), 200, headers: {'content-type': 'application/json'});
       });
 
-      final model = GoogleAiVasterModel(
-        apiKey: 'fake-api-key',
-        httpClient: mockClient,
-      );
+      final model = GoogleAiVasterModel(apiKey: 'fake-api-key', httpClient: mockClient);
 
       final request = ModelRequest(
         systemInstruction: ChatMessage.system('You are a coding assistant.'),
-        messages: [
-          ChatMessage.user('Hi Gemini!'),
-        ],
+        messages: [ChatMessage.user('Hi Gemini!')],
       );
 
       final response = await model.generate(request);
@@ -88,10 +71,7 @@ void main() {
         return http.Response('{"error": "API Key Invalid"}', 400);
       });
 
-      final model = GoogleAiVasterModel(
-        apiKey: 'invalid-key',
-        httpClient: mockClient,
-      );
+      final model = GoogleAiVasterModel(apiKey: 'invalid-key', httpClient: mockClient);
 
       expect(
         () => model.generate(ModelRequest(messages: [ChatMessage.user('Hi')])),
@@ -110,15 +90,10 @@ void main() {
         ].join();
 
         final stream = Stream.value(utf8.encode(ssePayload));
-        return http.StreamedResponse(stream, 200, headers: {
-          'content-type': 'text/event-stream',
-        });
+        return http.StreamedResponse(stream, 200, headers: {'content-type': 'text/event-stream'});
       });
 
-      final model = GoogleAiVasterModel(
-        apiKey: 'fake-api-key',
-        httpClient: mockClient,
-      );
+      final model = GoogleAiVasterModel(apiKey: 'fake-api-key', httpClient: mockClient);
 
       final request = ModelRequest(messages: [ChatMessage.user('Stream test')]);
       final chunks = await model.generateStream(request).toList();

@@ -49,8 +49,7 @@ final class ProgramChecker {
     final reachable = cfg.reachable();
     for (var pc = 0; pc < program.instructions.length; pc++) {
       if (!reachable.contains(pc)) {
-        findings.add(UnreachableInstruction(
-            pc: pc, opcode: program.instructions[pc].opcode.name));
+        findings.add(UnreachableInstruction(pc: pc, opcode: program.instructions[pc].opcode.name));
       }
     }
 
@@ -60,8 +59,7 @@ final class ProgramChecker {
     // the most expensive model any SelectModelOp can reach, INCLUDING
     // fallback-chain members (REL-P3). Declared resilience is priced at
     // its worst member, exactly as the analyzer's docs promise.
-    final ratedModel =
-        modelName ?? mostExpensiveSelectableModel(program, pricingCatalog);
+    final ratedModel = modelName ?? mostExpensiveSelectableModel(program, pricingCatalog);
     final (costBound, costFindings) = CostAnalyzer(
       pricingCatalog: pricingCatalog,
       modelName: ratedModel,

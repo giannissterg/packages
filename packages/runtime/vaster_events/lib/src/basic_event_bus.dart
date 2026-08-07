@@ -1,11 +1,11 @@
 import 'dart:async';
+
 import 'event_bus_interface.dart';
 import 'runtime_event.dart';
 
 /// Standard broadcast implementation of [RuntimeEventBus].
 class BasicEventBus implements RuntimeEventBus {
-  final StreamController<RuntimeEvent> _controller =
-      StreamController<RuntimeEvent>.broadcast();
+  final StreamController<RuntimeEvent> _controller = StreamController<RuntimeEvent>.broadcast();
 
   @override
   Stream<RuntimeEvent> get stream => _controller.stream;

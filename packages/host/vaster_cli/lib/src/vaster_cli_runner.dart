@@ -31,7 +31,7 @@ class VasterCliRunner {
           ReplayCommand(),
           CompileCommand(),
           AuditCommand(),
-        DebugCommand(),
+          DebugCommand(),
           DisassembleCommand(),
           ServeCommand(),
           InspectCommand(),

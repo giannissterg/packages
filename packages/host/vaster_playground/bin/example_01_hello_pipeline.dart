@@ -22,15 +22,9 @@ void main() async {
     inputs: {Binding('topic'): 'durable LLM workflows'},
     result: Binding('summary'),
     children: [
+      Prompt(Template.text('Write three short bullet points about \${topic}.'), output: Binding('bullets')),
       Prompt(
-        Template.text('Write three short bullet points about \${topic}.'),
-        output: Binding('bullets'),
-      ),
-      Prompt(
-        Template([
-          'Compress these bullets into one sentence:\n',
-          Binding('bullets'),
-        ]),
+        Template(['Compress these bullets into one sentence:\n', Binding('bullets')]),
         output: Binding('summary'),
       ),
     ],
@@ -41,31 +35,36 @@ void main() async {
   // `vaster check` proves things about, and what a checkpoint references.
   const compiler = BasicWorkflowCompiler();
   final program = compiler.compile(pipeline);
-  print('compiled ${program.instructions.length} instructions '
-      '(result binding: ${program.resultBinding})');
+  print(
+    'compiled ${program.instructions.length} instructions '
+    '(result binding: ${program.resultBinding})',
+  );
 
   // A scripted fake model: deterministic, free, offline. Swap in a real
   // backend (ClaudeCliVasterModel, GoogleAiVasterModel, …) without
   // touching the pipeline or the compiled program.
-  final model = FakeVasterModel(handler: (request) {
-    final prompt = request.messages.last.text;
-    if (prompt.contains('bullet points')) {
-      return ModelResponse(
-        message: ChatMessage.model('- pipelines compile to bytecode\n'
+  final model = FakeVasterModel(
+    handler: (request) {
+      final prompt = request.messages.last.text;
+      if (prompt.contains('bullet points')) {
+        return ModelResponse(
+          message: ChatMessage.model(
+            '- pipelines compile to bytecode\n'
             '- execution can suspend to a checkpoint\n'
-            '- a fresh process can resume it'),
-      );
-    }
-    return ModelResponse(
-      message: ChatMessage.model(
+            '- a fresh process can resume it',
+          ),
+        );
+      }
+      return ModelResponse(
+        message: ChatMessage.model(
           'Vaster compiles pipelines to bytecode whose execution can '
-          'suspend to a checkpoint and resume in a fresh process.'),
-    );
-  });
-
-  final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(defaultModel: model),
+          'suspend to a checkpoint and resume in a fresh process.',
+        ),
+      );
+    },
   );
+
+  final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: model));
   final runtime = VasterRuntime(
     vm: vm,
     policy: ExecutionPolicy.unlimited,

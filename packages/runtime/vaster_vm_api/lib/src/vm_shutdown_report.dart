@@ -13,11 +13,11 @@ final class VmShutdownReport {
   });
 
   /// The nothing-was-open teardown.
-  static const empty = VmShutdownReport(
-      sessionsClosed: 0, messagingClosed: false, eventBusClosed: false);
+  static const empty = VmShutdownReport(sessionsClosed: 0, messagingClosed: false, eventBusClosed: false);
 
   @override
-  String toString() => 'VmShutdownReport($sessionsClosed session(s), '
+  String toString() =>
+      'VmShutdownReport($sessionsClosed session(s), '
       'messaging ${messagingClosed ? 'closed' : 'already closed'}, '
       'bus ${eventBusClosed ? 'closed' : 'already closed'})';
 }

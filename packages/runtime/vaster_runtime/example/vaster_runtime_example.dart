@@ -6,15 +6,10 @@ void main() async {
   print('          Vaster Low-Level ISA Runtime Engine Demo              ');
   print('================================================================');
 
-  final fakeModel = FakeVasterModel(
-    defaultResponseText: 'AI Analysis: Code is production-ready.',
-  );
+  final fakeModel = FakeVasterModel(defaultResponseText: 'AI Analysis: Code is production-ready.');
 
   final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(
-      defaultModel: fakeModel,
-      rootMountPath: '/mem',
-    ),
+    config: VMConfig(defaultModel: fakeModel, rootMountPath: '/mem'),
   );
 
   final runtime = VasterRuntime(

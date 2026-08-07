@@ -17,19 +17,18 @@ void main() {
       final receivedEvents = <RuntimeEvent>[];
       bus.stream.listen(receivedEvents.add);
 
-      bus.publish(ModelStartedEvent(
-        eventId: 'e1',
-        sessionId: 'sess_1',
-        modelName: 'fake-model',
-        promptTokenCount: 50,
-      ));
+      bus.publish(
+        ModelStartedEvent(eventId: 'e1', sessionId: 'sess_1', modelName: 'fake-model', promptTokenCount: 50),
+      );
 
-      bus.publish(ToolCalledEvent(
-        eventId: 'e2',
-        callId: 'call_1',
-        toolName: 'read_file',
-        arguments: {'path': 'ideas.md'},
-      ));
+      bus.publish(
+        ToolCalledEvent(
+          eventId: 'e2',
+          callId: 'call_1',
+          toolName: 'read_file',
+          arguments: {'path': 'ideas.md'},
+        ),
+      );
 
       await Future.delayed(const Duration(milliseconds: 10));
       expect(receivedEvents, hasLength(2));
@@ -39,19 +38,18 @@ void main() {
       final toolEvents = <ToolCalledEvent>[];
       bus.on<ToolCalledEvent>().listen(toolEvents.add);
 
-      bus.publish(ModelStartedEvent(
-        eventId: 'e1',
-        sessionId: 'sess_1',
-        modelName: 'fake-model',
-        promptTokenCount: 50,
-      ));
+      bus.publish(
+        ModelStartedEvent(eventId: 'e1', sessionId: 'sess_1', modelName: 'fake-model', promptTokenCount: 50),
+      );
 
-      bus.publish(ToolCalledEvent(
-        eventId: 'e2',
-        callId: 'c2',
-        toolName: 'execute_code',
-        arguments: {'code': 'print("hi")'},
-      ));
+      bus.publish(
+        ToolCalledEvent(
+          eventId: 'e2',
+          callId: 'c2',
+          toolName: 'execute_code',
+          arguments: {'code': 'print("hi")'},
+        ),
+      );
 
       await Future.delayed(const Duration(milliseconds: 10));
       expect(toolEvents, hasLength(1));

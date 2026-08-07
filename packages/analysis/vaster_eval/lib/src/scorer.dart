@@ -10,11 +10,7 @@ final class TrialRun {
   /// it was written.
   final Object? resultValue;
 
-  const TrialRun({
-    required this.program,
-    required this.state,
-    required this.resultValue,
-  });
+  const TrialRun({required this.program, required this.state, required this.resultValue});
 
   String get resultText => resultValue?.toString() ?? '';
 }
@@ -26,14 +22,11 @@ final class ScoreResult {
   final String? detail;
 
   const ScoreResult(this.value, {this.detail})
-      : assert(value >= 0 && value <= 1, 'scores are normalized to [0, 1]');
+    : assert(value >= 0 && value <= 1, 'scores are normalized to [0, 1]');
 
   bool get passed => value >= 1.0;
 
-  Map<String, dynamic> toJson() => {
-        'value': value,
-        if (detail != null) 'detail': detail,
-      };
+  Map<String, dynamic> toJson() => {'value': value, if (detail != null) 'detail': detail};
 }
 
 /// A quality judgment over one trial — composable, engine-agnostic.
@@ -56,12 +49,14 @@ final class HaltedScorer implements Scorer {
   String get id => 'halted';
 
   @override
-  ScoreResult score(TrialRun trial) =>
-      trial.state.status == RuntimeStatus.halted
-          ? const ScoreResult(1)
-          : ScoreResult(0,
-              detail: 'status ${trial.state.status.name}'
-                  '${trial.state.errorDetails == null ? '' : ': ${trial.state.errorDetails}'}');
+  ScoreResult score(TrialRun trial) => trial.state.status == RuntimeStatus.halted
+      ? const ScoreResult(1)
+      : ScoreResult(
+          0,
+          detail:
+              'status ${trial.state.status.name}'
+              '${trial.state.errorDetails == null ? '' : ': ${trial.state.errorDetails}'}',
+        );
 }
 
 /// 1.0 iff the declared result contains [needle] (case-sensitive).
@@ -76,9 +71,12 @@ final class ContainsScorer implements Scorer {
   @override
   ScoreResult score(TrialRun trial) => trial.resultText.contains(needle)
       ? const ScoreResult(1)
-      : ScoreResult(0,
-          detail: 'result did not contain "$needle" '
-              '(got: "${trial.resultText.length > 80 ? '${trial.resultText.substring(0, 80)}…' : trial.resultText}")');
+      : ScoreResult(
+          0,
+          detail:
+              'result did not contain "$needle" '
+              '(got: "${trial.resultText.length > 80 ? '${trial.resultText.substring(0, 80)}…' : trial.resultText}")',
+        );
 }
 
 /// 1.0 iff the declared result matches [pattern].
@@ -130,7 +128,6 @@ final class AllOfScorer implements Scorer {
         failures.add('${child.id}: ${result.detail ?? 'failed'}');
       }
     }
-    return ScoreResult(sum / children.length,
-        detail: failures.isEmpty ? null : failures.join('; '));
+    return ScoreResult(sum / children.length, detail: failures.isEmpty ? null : failures.join('; '));
   }
 }

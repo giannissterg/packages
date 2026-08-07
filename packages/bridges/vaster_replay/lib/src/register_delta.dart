@@ -81,8 +81,7 @@ class RegisterDelta {
   bool get isNotEmpty => changes.isNotEmpty;
 
   /// Names of every register that changed, in stable order.
-  List<String> get changedRegisters =>
-      changes.map((c) => c.register).toList(growable: false);
+  List<String> get changedRegisters => changes.map((c) => c.register).toList(growable: false);
 
   /// Computes the register delta between two frames.
   ///
@@ -140,7 +139,6 @@ class RegisterDelta {
       };
 
   @override
-  String toString() =>
-      'RegisterDelta($fromStepIndex -> $toStepIndex, ${changes.length} change(s))'
+  String toString() => 'RegisterDelta($fromStepIndex -> $toStepIndex, ${changes.length} change(s))'
       '${changes.isEmpty ? '' : '\n  ${changes.join('\n  ')}'}';
 }

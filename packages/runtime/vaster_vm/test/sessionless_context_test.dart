@@ -17,36 +17,41 @@ void main() {
   tearDown(() => vm.shutdown());
 
   void installKnowledge() {
-    vm.contextManager.addRegion(ContextRegion(
-      id: 'facts',
-      label: 'story facts',
-      classId: 'knowledge',
-      messages: [ChatMessage.user('Story facts: Bo is a small brown dog.')],
-      estimatedTokens: 12,
-    ));
+    vm.contextManager.addRegion(
+      ContextRegion(
+        id: 'facts',
+        label: 'story facts',
+        classId: 'knowledge',
+        messages: [ChatMessage.user('Story facts: Bo is a small brown dog.')],
+        estimatedTokens: 12,
+      ),
+    );
     vm.contextManager.pinRegion('facts');
   }
 
   test('prompt() prepends compiled regions to the turn', () async {
     installKnowledge();
-    await vm.prompt('Continue the story of Bo.');
+    await vm.prompt('Continue the story of Bo.', model: vm.config.defaultModel);
 
     final request = model.recordedRequests.single;
     expect(request.messages, hasLength(2));
-    expect(request.messages.first.text, contains('Story facts'),
-        reason: 'the pinned region leads the prompt — the KV-reuse '
-            'alignment contract depends on stable-content-first');
+    expect(
+      request.messages.first.text,
+      contains('Story facts'),
+      reason:
+          'the pinned region leads the prompt — the KV-reuse '
+          'alignment contract depends on stable-content-first',
+    );
     expect(request.messages.last.text, 'Continue the story of Bo.');
   });
 
-  test('promptWithHistory() prepends compiled regions to the transcript',
-      () async {
+  test('promptWithHistory() prepends compiled regions to the transcript', () async {
     installKnowledge();
     await vm.promptWithHistory([
       ChatMessage.user('turn one'),
       ChatMessage.model('reply one'),
       ChatMessage.user('turn two'),
-    ]);
+    ], model: vm.config.defaultModel);
 
     final request = model.recordedRequests.single;
     expect(request.messages, hasLength(4));
@@ -56,7 +61,7 @@ void main() {
 
   test('promptStream() carries the compiled regions too', () async {
     installKnowledge();
-    await vm.promptStream('Continue the story of Bo.').drain<void>();
+    await vm.promptStream('Continue the story of Bo.', model: vm.config.defaultModel).drain<void>();
 
     // The fake's stream path records via its inner generate too — take
     // the last recorded request rather than assuming exactly one.
@@ -64,62 +69,71 @@ void main() {
     expect(request.messages.first.text, contains('Story facts'));
   });
 
-  test('system-class regions land in systemInstruction, not messages',
-      () async {
-    vm.contextManager.addRegion(ContextRegion(
-      id: 'sys',
-      label: 'persona',
-      classId: 'system',
-      messages: [ChatMessage.system('You are a storyteller.')],
-      estimatedTokens: 8,
-    ));
+  test('system-class regions land in systemInstruction, not messages', () async {
+    vm.contextManager.addRegion(
+      ContextRegion(
+        id: 'sys',
+        label: 'persona',
+        classId: 'system',
+        messages: [ChatMessage.system('You are a storyteller.')],
+        estimatedTokens: 8,
+      ),
+    );
     vm.contextManager.pinRegion('sys');
-    await vm.prompt('hello');
+    await vm.prompt('hello', model: vm.config.defaultModel);
 
     final request = model.recordedRequests.single;
     expect(request.systemInstruction?.text, contains('storyteller'));
     expect(request.messages.single.text, 'hello');
   });
 
-  test('plain sessions see ambient pinned regions too (layered manager)',
-      () async {
+  test('plain sessions see ambient pinned regions too (layered manager)', () async {
     installKnowledge();
-    await vm.promptInSession('plain_session', 'Continue the story of Bo.');
+    await vm.promptInSession('plain_session', 'Continue the story of Bo.', model: vm.config.defaultModel);
 
     final request = model.recordedRequests.single;
-    expect(request.messages.map((m) => m.text).join('\n'),
-        contains('Story facts'),
-        reason: 'createSession must layer the private manager over the '
-            'VM-wide one — a bare private manager silently blinds '
-            'session prompts to pinned Knowledge (interface contract on '
-            'createSession)');
+    expect(
+      request.messages.map((m) => m.text).join('\n'),
+      contains('Story facts'),
+      reason:
+          'createSession must layer the private manager over the '
+          'VM-wide one — a bare private manager silently blinds '
+          'session prompts to pinned Knowledge (interface contract on '
+          'createSession)',
+    );
   });
 
-  test('sessionless turns prune ephemeral regions (turn boundary)',
-      () async {
-    vm.contextManager.addRegion(ContextRegion(
-      id: 'scratch',
-      label: 'scratch',
-      classId: 'scratch',
-      lifetime: ContextLifetime.ephemeral,
-      messages: [ChatMessage.user('scratch-note-for-this-turn')],
-      estimatedTokens: 8,
-    ));
+  test('sessionless turns prune ephemeral regions (turn boundary)', () async {
+    vm.contextManager.addRegion(
+      ContextRegion(
+        id: 'scratch',
+        label: 'scratch',
+        classId: 'scratch',
+        lifetime: ContextLifetime.ephemeral,
+        messages: [ChatMessage.user('scratch-note-for-this-turn')],
+        estimatedTokens: 8,
+      ),
+    );
 
-    await vm.prompt('first turn');
-    expect(model.recordedRequests.last.messages.map((m) => m.text).join(),
-        contains('scratch-note'),
-        reason: 'ephemeral regions serve the turn that installed them');
+    await vm.prompt('first turn', model: vm.config.defaultModel);
+    expect(
+      model.recordedRequests.last.messages.map((m) => m.text).join(),
+      contains('scratch-note'),
+      reason: 'ephemeral regions serve the turn that installed them',
+    );
 
-    await vm.prompt('second turn');
-    expect(model.recordedRequests.last.messages.map((m) => m.text).join(),
-        isNot(contains('scratch-note')),
-        reason: 'the turn boundary pruned the ephemeral region — same '
-            'discipline as the session path');
+    await vm.prompt('second turn', model: vm.config.defaultModel);
+    expect(
+      model.recordedRequests.last.messages.map((m) => m.text).join(),
+      isNot(contains('scratch-note')),
+      reason:
+          'the turn boundary pruned the ephemeral region — same '
+          'discipline as the session path',
+    );
   });
 
   test('with no regions installed, requests are unchanged', () async {
-    await vm.prompt('bare prompt');
+    await vm.prompt('bare prompt', model: vm.config.defaultModel);
     final request = model.recordedRequests.single;
     expect(request.systemInstruction, isNull);
     expect(request.messages.single.text, 'bare prompt');

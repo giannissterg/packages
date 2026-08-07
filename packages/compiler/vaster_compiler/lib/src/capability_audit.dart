@@ -123,11 +123,12 @@ final class CapabilityAudit {
           // Agent-declared models (GAP-3b) are selectable capability too.
           if (descriptor.modelDescriptor != null) {
             models.add(descriptor.modelDescriptor!.descriptorKey);
-            models.addAll(
-                descriptor.modelFallbacks.map((f) => f.descriptorKey));
+            models.addAll(descriptor.modelFallbacks.map((f) => f.descriptorKey));
             if (descriptor.modelFallbacks.isNotEmpty) {
-              modelChains.add('agent ${descriptor.agentId}: '
-                  '${[descriptor.modelDescriptor!, ...descriptor.modelFallbacks].map((d) => d.descriptorKey).join(' → ')}');
+              modelChains.add(
+                'agent ${descriptor.agentId}: '
+                '${[descriptor.modelDescriptor!, ...descriptor.modelFallbacks].map((d) => d.descriptorKey).join(' → ')}',
+              );
             }
           }
         case CreateSessionOp(:final sessionId):
@@ -136,21 +137,21 @@ final class CapabilityAudit {
           models.add(descriptor.descriptorKey);
           models.addAll(fallbacks.map((f) => f.descriptorKey));
           if (fallbacks.isNotEmpty) {
-            modelChains.add([descriptor, ...fallbacks]
-                .map((d) => d.descriptorKey)
-                .join(' → '));
+            modelChains.add([descriptor, ...fallbacks].map((d) => d.descriptorKey).join(' → '));
           }
         case RegisterSandboxOp(:final sandboxId, :final language):
           sandboxes[sandboxId] = language.name;
         case ExecSandboxOp():
           sandboxExecutions++;
         case DecideOp(:final prompt, :final branches, :final defaultLabel):
-          decisions.add(DecisionPoint(
-            pc: pc,
-            prompt: prompt,
-            branches: {for (final b in branches) b.label: b.targetPc},
-            defaultLabel: defaultLabel,
-          ));
+          decisions.add(
+            DecisionPoint(
+              pc: pc,
+              prompt: prompt,
+              branches: {for (final b in branches) b.label: b.targetPc},
+              defaultLabel: defaultLabel,
+            ),
+          );
         case YieldHumanInteractionOp(:final request):
           humanGates[pc] = request.requestId;
         case SetQuotaOp(:final quota):
@@ -188,37 +189,38 @@ final class CapabilityAudit {
   }
 
   Map<String, dynamic> toJson() => {
-        'programName': programName,
-        'instructionCount': instructionCount,
-        'mounts': mounts,
-        'files': {
-          'staticReads': staticReads.toList()..sort(),
-          'staticWrites': staticWrites.toList()..sort(),
-          'dynamicReads': dynamicReads.toList()..sort(),
-          'dynamicWrites': dynamicWrites.toList()..sort(),
-        },
-        'tools': tools.toList()..sort(),
-        'agents': agents,
-        'sessions': sessions.toList()..sort(),
-        'models': models.toList()..sort(),
-        if (modelChains.isNotEmpty) 'modelChains': modelChains,
-        'sandboxes': sandboxes,
-        'sandboxExecutions': sandboxExecutions,
-        'decisions': [for (final d in decisions) d.toJson()],
-        'humanGates': humanGates.map((pc, id) => MapEntry('$pc', id)),
-        'quotas': [for (final q in quotas) q.toJson()],
-        'messageEdges': messageEdges.toList()..sort(),
-        if (contextClasses != null) 'contextClasses': contextClasses!.toJson(),
-      };
+    'programName': programName,
+    'instructionCount': instructionCount,
+    'mounts': mounts,
+    'files': {
+      'staticReads': staticReads.toList()..sort(),
+      'staticWrites': staticWrites.toList()..sort(),
+      'dynamicReads': dynamicReads.toList()..sort(),
+      'dynamicWrites': dynamicWrites.toList()..sort(),
+    },
+    'tools': tools.toList()..sort(),
+    'agents': agents,
+    'sessions': sessions.toList()..sort(),
+    'models': models.toList()..sort(),
+    if (modelChains.isNotEmpty) 'modelChains': modelChains,
+    'sandboxes': sandboxes,
+    'sandboxExecutions': sandboxExecutions,
+    'decisions': [for (final d in decisions) d.toJson()],
+    'humanGates': humanGates.map((pc, id) => MapEntry('$pc', id)),
+    'quotas': [for (final q in quotas) q.toJson()],
+    'messageEdges': messageEdges.toList()..sort(),
+    if (contextClasses != null) 'contextClasses': contextClasses!.toJson(),
+  };
 
   String toPrettyString() {
     final buffer = StringBuffer()
-      ..writeln('── CAPABILITY AUDIT ─ $programName '
-          '($instructionCount instructions) ─────')
+      ..writeln(
+        '── CAPABILITY AUDIT ─ $programName '
+        '($instructionCount instructions) ─────',
+      )
       ..writeln();
 
-    StringBuffer section(String title, Iterable<String> lines,
-        {String emptyNote = '(none)'}) {
+    StringBuffer section(String title, Iterable<String> lines, {String emptyNote = '(none)'}) {
       buffer.writeln('$title:');
       if (lines.isEmpty) {
         buffer.writeln('  $emptyNote');
@@ -232,83 +234,83 @@ final class CapabilityAudit {
     }
 
     section(
-        'Filesystem mounts',
-        mounts.entries.map((e) => e.value == 'memory'
-            ? '${e.key}  (memory)'
-            : '${e.key}  → DISK ${e.value}'));
+      'Filesystem mounts',
+      mounts.entries.map((e) => e.value == 'memory' ? '${e.key}  (memory)' : '${e.key}  → DISK ${e.value}'),
+    );
     section('File writes', [
       ...(staticWrites.toList()..sort()),
-      ...(dynamicWrites.toList()..sort())
-          .map((t) => '$t  ⚠ dynamic (interpolated)'),
+      ...(dynamicWrites.toList()..sort()).map((t) => '$t  ⚠ dynamic (interpolated)'),
     ]);
     section('File reads', [
       ...(staticReads.toList()..sort()),
-      ...(dynamicReads.toList()..sort())
-          .map((t) => '$t  ⚠ dynamic (interpolated)'),
+      ...(dynamicReads.toList()..sort()).map((t) => '$t  ⚠ dynamic (interpolated)'),
     ]);
-    section('Callable tools', tools.toList()..sort(),
-        emptyNote: '(none registered — built-in write_file/read_file VFS '
-            'syscalls remain available to tool loops)');
-    section('Agents',
-        agents.entries.map((e) => '${e.key}  (${e.value})'));
+    section(
+      'Callable tools',
+      tools.toList()..sort(),
+      emptyNote:
+          '(none registered — built-in write_file/read_file VFS '
+          'syscalls remain available to tool loops)',
+    );
+    section('Agents', agents.entries.map((e) => '${e.key}  (${e.value})'));
     section('Models', [
       ...models.toList()..sort(),
       ...modelChains.map((c) => '$c  (fallback chain)'),
     ], emptyNote: '(default model only)');
     section(
-        'Sandboxes (code execution)',
-        sandboxes.entries
-            .map((e) => '${e.key}  [${e.value}]')
-            .followedBy(sandboxExecutions > 0
-                ? ['$sandboxExecutions execution site(s)']
-                : []));
+      'Sandboxes (code execution)',
+      sandboxes.entries
+          .map((e) => '${e.key}  [${e.value}]')
+          .followedBy(sandboxExecutions > 0 ? ['$sandboxExecutions execution site(s)'] : []),
+    );
     section(
-        'Decision surface — where the model steers',
-        decisions.map((d) {
-          final menu = d.branches.entries
-              .map((b) => '${b.key}→PC:${b.value}')
-              .join(', ');
-          final def = d.defaultLabel == null ? '' : ' default=${d.defaultLabel}';
-          return '[PC:${d.pc.toString().padLeft(4, '0')}] {$menu}$def '
-              '"${d.prompt.length <= 60 ? d.prompt : '${d.prompt.substring(0, 60)}…'}"';
-        }),
-        emptyNote: '(none — control flow is fully static)');
+      'Decision surface — where the model steers',
+      decisions.map((d) {
+        final menu = d.branches.entries.map((b) => '${b.key}→PC:${b.value}').join(', ');
+        final def = d.defaultLabel == null ? '' : ' default=${d.defaultLabel}';
+        return '[PC:${d.pc.toString().padLeft(4, '0')}] {$menu}$def '
+            '"${d.prompt.length <= 60 ? d.prompt : '${d.prompt.substring(0, 60)}…'}"';
+      }),
+      emptyNote: '(none — control flow is fully static)',
+    );
     section(
-        'Human gates',
-        humanGates.entries
-            .map((e) => '[PC:${e.key.toString().padLeft(4, '0')}] ${e.value}'));
+      'Human gates',
+      humanGates.entries.map((e) => '[PC:${e.key.toString().padLeft(4, '0')}] ${e.value}'),
+    );
     section(
-        'Resource ceilings',
-        quotas.map((q) => [
-              if (q.maxTokenBudget != null) '${q.maxTokenBudget} tokens',
-              if (q.timeDeadline != null) '${q.timeDeadline!.inSeconds}s',
-              if (q.maxCostBudget != null) '\$${q.maxCostBudget}',
-            ].join(', ')),
-        emptyNote: '(none declared — unlimited)');
+      'Resource ceilings',
+      quotas.map(
+        (q) => [
+          if (q.maxTokenBudget != null) '${q.maxTokenBudget} tokens',
+          if (q.timeDeadline != null) '${q.timeDeadline!.inSeconds}s',
+          if (q.maxCostBudget != null) '\$${q.maxCostBudget}',
+        ].join(', '),
+      ),
+      emptyNote: '(none declared — unlimited)',
+    );
     section('Inter-agent messages', messageEdges.toList()..sort());
 
     final table = contextClasses;
     section(
-        'Context segments',
-        table == null
-            ? const <String>[]
-            : table.inBandOrder.map((c) {
-                final share = <String>[
-                  if (c.share.minTokens != null) 'min ${c.share.minTokens}',
-                  if (c.share.minFraction != null)
-                    'min ${(c.share.minFraction! * 100).toStringAsFixed(0)}%',
-                  if (c.share.maxTokens != null) 'max ${c.share.maxTokens}',
-                  if (c.share.maxFraction != null)
-                    'max ${(c.share.maxFraction! * 100).toStringAsFixed(0)}%',
-                  if (c.share.weight != 1.0) 'w${c.share.weight}',
-                ].join(' ');
-                return '[band ${c.band.toString().padLeft(3)}] '
-                    '${c.name.padRight(12)} '
-                    '${c.cacheStable ? 'stable  ' : 'volatile'} '
-                    'evict:${c.eviction.name.padRight(16)}'
-                    '${share.isEmpty ? '' : ' ($share)'}';
-              }),
-        emptyNote: '(standard table — no program-declared classes)');
+      'Context segments',
+      table == null
+          ? const <String>[]
+          : table.inBandOrder.map((c) {
+              final share = <String>[
+                if (c.share.minTokens != null) 'min ${c.share.minTokens}',
+                if (c.share.minFraction != null) 'min ${(c.share.minFraction! * 100).toStringAsFixed(0)}%',
+                if (c.share.maxTokens != null) 'max ${c.share.maxTokens}',
+                if (c.share.maxFraction != null) 'max ${(c.share.maxFraction! * 100).toStringAsFixed(0)}%',
+                if (c.share.weight != 1.0) 'w${c.share.weight}',
+              ].join(' ');
+              return '[band ${c.band.toString().padLeft(3)}] '
+                  '${c.name.padRight(12)} '
+                  '${c.cacheStable ? 'stable  ' : 'volatile'} '
+                  'evict:${c.eviction.name.padRight(16)}'
+                  '${share.isEmpty ? '' : ' ($share)'}';
+            }),
+      emptyNote: '(standard table — no program-declared classes)',
+    );
 
     return buffer.toString();
   }
@@ -321,17 +323,12 @@ final class DecisionPoint {
   final Map<String, int> branches;
   final String? defaultLabel;
 
-  const DecisionPoint({
-    required this.pc,
-    required this.prompt,
-    required this.branches,
-    this.defaultLabel,
-  });
+  const DecisionPoint({required this.pc, required this.prompt, required this.branches, this.defaultLabel});
 
   Map<String, dynamic> toJson() => {
-        'pc': pc,
-        'prompt': prompt,
-        'branches': branches,
-        if (defaultLabel != null) 'defaultLabel': defaultLabel,
-      };
+    'pc': pc,
+    'prompt': prompt,
+    'branches': branches,
+    if (defaultLabel != null) 'defaultLabel': defaultLabel,
+  };
 }

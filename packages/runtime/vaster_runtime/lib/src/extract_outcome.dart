@@ -46,9 +46,5 @@ final class ExtractKeyMissing extends ExtractOutcome {
   /// `Verdict`".
   final List<String> availableKeys;
 
-  const ExtractKeyMissing({
-    required this.sourceVar,
-    required this.jsonKey,
-    required this.availableKeys,
-  });
+  const ExtractKeyMissing({required this.sourceVar, required this.jsonKey, required this.availableKeys});
 }

@@ -15,14 +15,14 @@ sealed class KvReuse {
   const KvReuse();
   Map<String, Object?> toJson();
 
-  factory KvReuse.fromJson(Map<Object?, Object?> json) =>
-      switch (json['result']) {
-        'validated' =>
-          KvReuseValidated(reusedTokens: json['reusedTokens']! as int),
-        'rejected' => KvReuseRejected(json['reason']! as String,
-            divergenceIndex: json['divergenceIndex'] as int?),
-        _ => const KvReuseNone(),
-      };
+  factory KvReuse.fromJson(Map<Object?, Object?> json) => switch (json['result']) {
+    'validated' => KvReuseValidated(reusedTokens: json['reusedTokens']! as int),
+    'rejected' => KvReuseRejected(
+      json['reason']! as String,
+      divergenceIndex: json['divergenceIndex'] as int?,
+    ),
+    _ => const KvReuseNone(),
+  };
 }
 
 /// No reuse was attempted — no hint resolved to a frame.
@@ -38,8 +38,7 @@ final class KvReuseValidated extends KvReuse {
   final int reusedTokens;
   const KvReuseValidated({required this.reusedTokens});
   @override
-  Map<String, Object?> toJson() =>
-      {'result': 'validated', 'reusedTokens': reusedTokens};
+  Map<String, Object?> toJson() => {'result': 'validated', 'reusedTokens': reusedTokens};
 }
 
 /// Reuse was refused and the call decoded cold. [reason] is one of
@@ -52,10 +51,10 @@ final class KvReuseRejected extends KvReuse {
   const KvReuseRejected(this.reason, {this.divergenceIndex});
   @override
   Map<String, Object?> toJson() => {
-        'result': 'rejected',
-        'reason': reason,
-        if (divergenceIndex != null) 'divergenceIndex': divergenceIndex,
-      };
+    'result': 'rejected',
+    'reason': reason,
+    if (divergenceIndex != null) 'divergenceIndex': divergenceIndex,
+  };
 }
 
 /// Restoring sequence state failed — the blob is from an incompatible
@@ -110,11 +109,17 @@ final class LlamaEngine {
   bool _logitsReady = false;
   bool _disposed = false;
 
-  LlamaEngine._(this._b, this._model, this._context, this._vocab,
-      this._sampler, this._memory,
-      {required this.batchSize,
-      required this.contextLength,
-      required this.engineTag});
+  LlamaEngine._(
+    this._b,
+    this._model,
+    this._context,
+    this._vocab,
+    this._sampler,
+    this._memory, {
+    required this.batchSize,
+    required this.contextLength,
+    required this.engineTag,
+  });
 
   /// Loads [modelPath] and builds a ready engine. CPU-only and
   /// single-threaded by default (see the determinism recipe above).
@@ -154,8 +159,10 @@ final class LlamaEngine {
     final context = b.initFromModel(model, cp);
     if (context == nullptr) {
       b.modelFree(model);
-      throw StateError('llama.cpp could not create a context '
-          '(n_ctx=$contextLength) for "$modelPath".');
+      throw StateError(
+        'llama.cpp could not create a context '
+        '(n_ctx=$contextLength) for "$modelPath".',
+      );
     }
 
     int sizeOf(String path) {
@@ -163,13 +170,20 @@ final class LlamaEngine {
       return file.existsSync() ? file.lengthSync() : 0;
     }
 
-    return LlamaEngine._(b, model, context, b.modelGetVocab(model),
-        b.samplerInitGreedy(), b.getMemory(context),
-        batchSize: batchSize,
-        contextLength: contextLength,
-        engineTag: KvStateImage.engineTagOf(
-            'llama-ffi|lib:$libraryPath:${sizeOf(libraryPath)}'
-            '|model:$modelPath:${sizeOf(modelPath)}'));
+    return LlamaEngine._(
+      b,
+      model,
+      context,
+      b.modelGetVocab(model),
+      b.samplerInitGreedy(),
+      b.getMemory(context),
+      batchSize: batchSize,
+      contextLength: contextLength,
+      engineTag: KvStateImage.engineTagOf(
+        'llama-ffi|lib:$libraryPath:${sizeOf(libraryPath)}'
+        '|model:$modelPath:${sizeOf(modelPath)}',
+      ),
+    );
   }
 
   /// Tokens decoded into sequence 0 so far (prompt + generated). After
@@ -185,11 +199,12 @@ final class LlamaEngine {
     final capacity = bytes.length + 16;
     final tokens = calloc<Int32>(capacity);
     try {
-      final n = _b.tokenize(
-          _vocab, cText, bytes.length, tokens, capacity, addBos, false);
+      final n = _b.tokenize(_vocab, cText, bytes.length, tokens, capacity, addBos, false);
       if (n < 0) {
-        throw StateError('tokenize needed ${-n} slots for $capacity-slot '
-            'buffer — text/vocab mismatch.');
+        throw StateError(
+          'tokenize needed ${-n} slots for $capacity-slot '
+          'buffer — text/vocab mismatch.',
+        );
       }
       return Int32List.fromList(tokens.asTypedList(n));
     } finally {
@@ -205,8 +220,7 @@ final class LlamaEngine {
     try {
       final n = _b.tokenToPiece(_vocab, token, buf, 256, 0, true);
       if (n <= 0) return '';
-      return utf8.decode([for (var i = 0; i < n; i++) buf[i]],
-          allowMalformed: true);
+      return utf8.decode([for (var i = 0; i < n; i++) buf[i]], allowMalformed: true);
     } finally {
       calloc.free(buf);
     }
@@ -225,8 +239,10 @@ final class LlamaEngine {
     _checkLive();
     if (tokens.isEmpty) return;
     if (_tokensDecoded + tokens.length > contextLength) {
-      throw StateError('prefill of ${tokens.length} tokens would exceed '
-          'n_ctx=$contextLength (already at $_tokensDecoded).');
+      throw StateError(
+        'prefill of ${tokens.length} tokens would exceed '
+        'n_ctx=$contextLength (already at $_tokensDecoded).',
+      );
     }
     final buf = calloc<Int32>(tokens.length);
     try {
@@ -234,8 +250,10 @@ final class LlamaEngine {
       var offset = 0;
       while (offset < tokens.length) {
         final n = (tokens.length - offset).clamp(0, batchSize);
-        final rc = _b.decode(_context,
-            _b.batchGetOne(Pointer<Int32>.fromAddress(buf.address + offset * 4), n));
+        final rc = _b.decode(
+          _context,
+          _b.batchGetOne(Pointer<Int32>.fromAddress(buf.address + offset * 4), n),
+        );
         if (rc != 0) {
           throw StateError('llama_decode failed (rc=$rc) at offset $offset.');
         }
@@ -257,8 +275,10 @@ final class LlamaEngine {
   int sampleGreedy() {
     _checkLive();
     if (!_logitsReady) {
-      throw StateError('no logits in this context yet — decode before '
-          'sampling (logits are not part of exported KV state).');
+      throw StateError(
+        'no logits in this context yet — decode before '
+        'sampling (logits are not part of exported KV state).',
+      );
     }
     return _b.samplerSample(_sampler, _context, -1);
   }
@@ -371,8 +391,10 @@ final class LlamaEngine {
     _checkLive();
     final needed = stateSize;
     if (needed > capacity) {
-      throw ArgumentError('state needs $needed bytes; destination holds '
-          '$capacity.');
+      throw ArgumentError(
+        'state needs $needed bytes; destination holds '
+        '$capacity.',
+      );
     }
     final written = _b.stateSeqGetData(_context, destination, capacity, 0);
     if (written == 0) {
@@ -404,8 +426,9 @@ final class LlamaEngine {
     final consumed = _b.stateSeqSetData(_context, source, length, 0);
     if (consumed == 0) {
       throw LlamaStateIncompatibleException(
-          'llama_state_seq_set_data rejected a $length-byte blob — '
-          'incompatible build, different model, or corrupt state.');
+        'llama_state_seq_set_data rejected a $length-byte blob — '
+        'incompatible build, different model, or corrupt state.',
+      );
     }
     _tokensDecoded = _b.memorySeqPosMax(_memory, 0) + 1;
     // Logits do not travel with KV state — the next sample needs a decode.

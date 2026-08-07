@@ -28,13 +28,13 @@ class AgentMessage {
   }) : timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-        'messageId': messageId,
-        'senderAgentId': senderAgentId,
-        'recipientAgentId': recipientAgentId,
-        'payload': payload,
-        'timestamp': timestamp.toIso8601String(),
-        'isRead': isRead,
-      };
+    'messageId': messageId,
+    'senderAgentId': senderAgentId,
+    'recipientAgentId': recipientAgentId,
+    'payload': payload,
+    'timestamp': timestamp.toIso8601String(),
+    'isRead': isRead,
+  };
 
   factory AgentMessage.fromJson(Map<String, dynamic> json) {
     return AgentMessage(
@@ -48,6 +48,5 @@ class AgentMessage {
   }
 
   @override
-  String toString() =>
-      'AgentMessage(id: "$messageId", from: "$senderAgentId", to: "$recipientAgentId")';
+  String toString() => 'AgentMessage(id: "$messageId", from: "$senderAgentId", to: "$recipientAgentId")';
 }

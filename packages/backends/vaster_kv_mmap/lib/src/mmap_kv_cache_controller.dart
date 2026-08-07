@@ -36,30 +36,27 @@ class MmapKvCacheController implements KvCacheController, KvFrameResolver {
   MmapKvCacheController({
     this.namePrefix = 'vaster_kv_',
     FutureOr<Uint8List> Function(String content)? statePayloadBuilder,
-  }) : statePayloadBuilder =
-            statePayloadBuilder ?? ((content) => utf8.encode(content));
+  }) : statePayloadBuilder = statePayloadBuilder ?? ((content) => utf8.encode(content));
 
   @override
   KvCacheCapabilities get capabilities => const KvCacheCapabilities(
-        isStateAddressed: true,
-        supportsPersistence: true, // segments outlive the creating process
-        supportsEviction: true,
-      );
+    isStateAddressed: true,
+    supportsPersistence: true, // segments outlive the creating process
+    supportsEviction: true,
+  );
 
   @override
   String get backendId => 'mmap';
 
-  String _segmentName(String fingerprint) =>
-      kvFrameName(prefix: namePrefix, fingerprint: fingerprint);
+  String _segmentName(String fingerprint) => kvFrameName(prefix: namePrefix, fingerprint: fingerprint);
 
-  KvCacheHandle _handleFor(String fingerprint, SharedMemoryFrame frame) =>
-      KvCacheHandle(
-        handleId: frame.name,
-        contentFingerprint: fingerprint,
-        tokenCount: frame.meta,
-        sizeBytes: frame.payloadLength,
-        backend: backendId,
-      );
+  KvCacheHandle _handleFor(String fingerprint, SharedMemoryFrame frame) => KvCacheHandle(
+    handleId: frame.name,
+    contentFingerprint: fingerprint,
+    tokenCount: frame.meta,
+    sizeBytes: frame.payloadLength,
+    backend: backendId,
+  );
 
   @override
   Future<KvCacheHandle?> lookup(String contentFingerprint) async {
@@ -101,8 +98,7 @@ class MmapKvCacheController implements KvCacheController, KvFrameResolver {
   @override
   Future<bool> restore(KvCacheHandle handle) async {
     if (await lookup(handle.contentFingerprint) == null) {
-      throw StateError(
-          'KV frame ${handle.handleId} is not materialized in shared memory.');
+      throw StateError('KV frame ${handle.handleId} is not materialized in shared memory.');
     }
     // Zero-copy: the state is already mapped — nothing MOVED, which is
     // exactly what the false receipt reports.
@@ -127,8 +123,7 @@ class MmapKvCacheController implements KvCacheController, KvFrameResolver {
   }
 
   @override
-  Future<List<KvCacheHandle>> list() async =>
-      _frames.values.map((e) => e.$1).toList();
+  Future<List<KvCacheHandle>> list() async => _frames.values.map((e) => e.$1).toList();
 
   /// [KvFrameResolver]: lowers a cache-hint fingerprint to a wire frame ref
   /// (cross-process discovery included via [lookup]'s attach fallback).

@@ -32,11 +32,11 @@ final class CostBound {
   });
 
   Map<String, dynamic> toJson() => {
-        'maxModelCalls': maxModelCalls,
-        'maxTokens': maxTokens,
-        if (maxCostUsd != null) 'maxCostUsd': maxCostUsd,
-        'unbounded': unbounded,
-      };
+    'maxModelCalls': maxModelCalls,
+    'maxTokens': maxTokens,
+    if (maxCostUsd != null) 'maxCostUsd': maxCostUsd,
+    'unbounded': unbounded,
+  };
 }
 
 /// The most expensive model the program can reach — `SelectModelOp`
@@ -46,8 +46,7 @@ final class CostBound {
 /// the honest single rate is the worst one. Ranked by combined per-MTok
 /// rate (input + output); members the catalog cannot price are skipped.
 /// Null when nothing rates — the bound then stays honestly tokens-only.
-String? mostExpensiveSelectableModel(
-    VasterProgram program, PricingCatalog catalog) {
+String? mostExpensiveSelectableModel(VasterProgram program, PricingCatalog catalog) {
   String? costliest;
   double costliestRate = -1;
   void consider(ModelDescriptor descriptor) {
@@ -64,8 +63,7 @@ String? mostExpensiveSelectableModel(
     switch (op) {
       case SelectModelOp(:final descriptor, :final fallbacks):
         [descriptor, ...fallbacks].forEach(consider);
-      case CreateAgentOp(descriptor: final agent)
-          when agent.modelDescriptor != null:
+      case CreateAgentOp(descriptor: final agent) when agent.modelDescriptor != null:
         [agent.modelDescriptor!, ...agent.modelFallbacks].forEach(consider);
       default:
         break;
@@ -150,42 +148,33 @@ final class CostAnalyzer {
     for (var pc = 0; pc < instructions.length; pc++) {
       if (!reachable.contains(pc)) continue;
       final m = multiplier[pc];
-      final inUnbounded = sawUnbounded &&
-          cfg.backEdges().any((e) =>
-              _tripBound(instructions, e.$2, e.$1) == null &&
-              pc >= e.$2 &&
-              pc <= e.$1);
+      final inUnbounded =
+          sawUnbounded &&
+          cfg.backEdges().any(
+            (e) => _tripBound(instructions, e.$2, e.$1) == null && pc >= e.$2 && pc <= e.$1,
+          );
       switch (instructions[pc]) {
         case PromptOp op:
           if (inUnbounded) {
             unboundedCallSeen = true;
           }
           calls += m;
-          tokens += m *
-              (estimator.forText(op.promptText) +
-                  responseAllowanceTokens);
+          tokens += m * (estimator.forText(op.promptText) + responseAllowanceTokens);
         case DecideOp op:
           if (inUnbounded) unboundedCallSeen = true;
           calls += m;
-          tokens += m *
-              (estimator.forText(op.prompt) + responseAllowanceTokens);
+          tokens += m * (estimator.forText(op.prompt) + responseAllowanceTokens);
         case DispatchAgentTaskOp op:
           if (inUnbounded) unboundedCallSeen = true;
           final turns = agentLoopCeiling[op.agentId] ?? 10;
           calls += m * turns;
-          tokens += m *
-              turns *
-              (estimator.forText(op.taskPrompt) +
-                  responseAllowanceTokens);
+          tokens += m * turns * (estimator.forText(op.taskPrompt) + responseAllowanceTokens);
         case DispatchParallelTasksOp op:
           if (inUnbounded) unboundedCallSeen = true;
           for (final d in op.dispatches) {
             final turns = agentLoopCeiling[d.agentId] ?? 10;
             calls += m * turns;
-            tokens += m *
-                turns *
-                (estimator.forText(d.taskPrompt) +
-                    responseAllowanceTokens);
+            tokens += m * turns * (estimator.forText(d.taskPrompt) + responseAllowanceTokens);
           }
         default:
           break;
@@ -201,11 +190,8 @@ final class CostAnalyzer {
     if (name != null && !unboundedCallSeen) {
       cost = pricingCatalog.resolveCostUsd(
         UsageMetadata(
-          promptTokenCount:
-              ((tokens - calls * responseAllowanceTokens) * callOverheadFactor)
-                  .ceil(),
-          candidatesTokenCount:
-              (calls * responseAllowanceTokens * callOverheadFactor).ceil(),
+          promptTokenCount: ((tokens - calls * responseAllowanceTokens) * callOverheadFactor).ceil(),
+          candidatesTokenCount: (calls * responseAllowanceTokens * callOverheadFactor).ceil(),
           source: UsageSource.estimated,
         ),
         name,

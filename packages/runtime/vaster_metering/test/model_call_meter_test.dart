@@ -85,8 +85,7 @@ void main() {
 
       // A quota tight enough to trip on this call: the event must still
       // arrive because emission precedes charging.
-      final tracker = ResourceTracker(
-          quota: const ResourceQuota(maxTokenBudget: 10));
+      final tracker = ResourceTracker(quota: const ResourceQuota(maxTokenBudget: 10));
       final meter = ModelCallMeter(
         pricingCatalog: PricingCatalog.empty,
         sinks: [TrackerSink(tracker)],
@@ -94,8 +93,7 @@ void main() {
       );
 
       expect(
-        () => meter.charge(
-            usage: measured, modelName: 'm', callSite: 'agent_turn'),
+        () => meter.charge(usage: measured, modelName: 'm', callSite: 'agent_turn'),
         throwsA(isA<QuotaExceededException>()),
       );
       await Future<void>.delayed(Duration.zero);
@@ -110,8 +108,7 @@ void main() {
         pricingCatalog: PricingCatalog.empty,
         sinks: const [],
       );
-      final cost = meter.charge(
-          usage: measured, modelName: 'm', callSite: 'vm_prompt');
+      final cost = meter.charge(usage: measured, modelName: 'm', callSite: 'vm_prompt');
       expect(cost, isNull);
     });
 

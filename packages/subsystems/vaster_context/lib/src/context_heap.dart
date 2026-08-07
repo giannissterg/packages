@@ -15,8 +15,7 @@ class ContextHeap {
   List<ContextRegion> get regions => List.unmodifiable(_regions);
 
   /// Total estimated tokens consumed by all regions in this heap.
-  int get totalEstimatedTokens =>
-      _regions.fold(0, (sum, r) => sum + r.estimatedTokens);
+  int get totalEstimatedTokens => _regions.fold(0, (sum, r) => sum + r.estimatedTokens);
 
   /// Registers a region into the heap and returns the region it DISPLACED
   /// (same id), null when fresh — a silent overwrite is now observable
@@ -33,8 +32,7 @@ class ContextHeap {
   }
 
   /// Registers multiple regions into the heap; returns the displaced ones.
-  List<ContextRegion> addAll(Iterable<ContextRegion> regions) =>
-      [for (final r in regions) ?addRegion(r)];
+  List<ContextRegion> addAll(Iterable<ContextRegion> regions) => [for (final r in regions) ?addRegion(r)];
 
   /// Returns the region with [id], or null.
   ContextRegion? getRegion(String id) {
@@ -86,8 +84,7 @@ class ContextHeap {
 
     // A compressed region shadows its source while the source is unchanged.
     final compression = existing.compression;
-    if (compression != null &&
-        compression.sourceFingerprint == fingerprintOf(incoming)) {
+    if (compression != null && compression.sourceFingerprint == fingerprintOf(incoming)) {
       // Keep compressed content; refresh nothing.
       return existing;
     }
@@ -126,8 +123,7 @@ class ContextHeap {
   /// removed nothing is observable).
   int clearNonCritical({bool force = false}) {
     final before = _regions.length;
-    _regions.removeWhere((r) =>
-        r.priority != ContextPriority.critical && (force || !r.isPinned));
+    _regions.removeWhere((r) => r.priority != ContextPriority.critical && (force || !r.isPinned));
     return before - _regions.length;
   }
 
@@ -140,6 +136,5 @@ class ContextHeap {
   }
 
   @override
-  String toString() =>
-      'ContextHeap(regions: ${_regions.length}, tokens: ~$totalEstimatedTokens)';
+  String toString() => 'ContextHeap(regions: ${_regions.length}, tokens: ~$totalEstimatedTokens)';
 }

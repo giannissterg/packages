@@ -9,12 +9,14 @@ void main() async {
     print('Coder Received Message: ${msg.payload}');
   });
 
-  hub.sendMessage(AgentMessage(
-    messageId: 'msg_1',
-    senderAgentId: 'architect',
-    recipientAgentId: 'coder',
-    payload: {'command': 'implement_feature', 'module': 'auth'},
-  ));
+  hub.sendMessage(
+    AgentMessage(
+      messageId: 'msg_1',
+      senderAgentId: 'architect',
+      recipientAgentId: 'coder',
+      payload: {'command': 'implement_feature', 'module': 'auth'},
+    ),
+  );
 
   await Future.delayed(const Duration(milliseconds: 20));
   await hub.close();

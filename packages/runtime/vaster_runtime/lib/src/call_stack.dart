@@ -11,28 +11,22 @@ class ActivationRecord {
   /// Optional register name to write the subroutine's return value into.
   final String? outputVar;
 
-  const ActivationRecord({
-    required this.functionName,
-    required this.returnPc,
-    this.outputVar,
-  });
+  const ActivationRecord({required this.functionName, required this.returnPc, this.outputVar});
 
   Map<String, dynamic> toJson() => {
-        'functionName': functionName,
-        'returnPc': returnPc,
-        if (outputVar != null) 'outputVar': outputVar,
-      };
+    'functionName': functionName,
+    'returnPc': returnPc,
+    if (outputVar != null) 'outputVar': outputVar,
+  };
 
-  factory ActivationRecord.fromJson(Map<String, dynamic> json) =>
-      ActivationRecord(
-        functionName: json['functionName'] as String? ?? '',
-        returnPc: (json['returnPc'] as num).toInt(),
-        outputVar: json['outputVar'] as String?,
-      );
+  factory ActivationRecord.fromJson(Map<String, dynamic> json) => ActivationRecord(
+    functionName: json['functionName'] as String? ?? '',
+    returnPc: (json['returnPc'] as num).toInt(),
+    outputVar: json['outputVar'] as String?,
+  );
 
   @override
-  String toString() =>
-      'ActivationRecord(fn: "$functionName", returnPc: $returnPc, out: $outputVar)';
+  String toString() => 'ActivationRecord(fn: "$functionName", returnPc: $returnPc, out: $outputVar)';
 }
 
 /// The VM's subroutine call stack.
@@ -90,12 +84,13 @@ class CallStack implements MachineStateComponent {
   String get stateKey => 'callStack';
 
   @override
-  Map<String, dynamic> captureState() =>
-      {'frames': [for (final f in _frames) f.toJson()]};
+  Map<String, dynamic> captureState() => {
+    'frames': [for (final f in _frames) f.toJson()],
+  };
 
   @override
   void restoreState(Map<String, dynamic> snapshot) => restore([
-        for (final f in snapshot['frames'] as List? ?? const [])
-          ActivationRecord.fromJson(Map<String, dynamic>.from(f as Map)),
-      ]);
+    for (final f in snapshot['frames'] as List? ?? const [])
+      ActivationRecord.fromJson(Map<String, dynamic>.from(f as Map)),
+  ]);
 }

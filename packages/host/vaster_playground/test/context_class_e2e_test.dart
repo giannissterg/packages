@@ -41,9 +41,7 @@ void main() {
     );
 
     final result = const BasicWorkflowCompiler().compileWithDiagnostics(pipeline);
-    expect(
-        result.diagnostics.where((d) => d.severity == CompileSeverity.error),
-        isEmpty);
+    expect(result.diagnostics.where((d) => d.severity == CompileSeverity.error), isEmpty);
 
     // Audit shows the segment map statically.
     final audit = CapabilityAudit.of(result.program);
@@ -51,8 +49,7 @@ void main() {
     expect(audit.toPrettyString(), contains('Context segments'));
 
     final fake = FakeVasterModel();
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: fake));
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: fake));
     final runtime = VasterRuntime(
       vm: vm,
       policy: ExecutionPolicy.unlimited,
@@ -72,13 +69,10 @@ void main() {
     expect(request.systemInstruction?.text, contains('analyze APIs carefully'));
 
     final texts = request.messages.map((m) => m.text).toList();
-    final docIndex =
-        texts.indexWhere((t) => t.contains('GET /v1/things'));
-    final taskIndex =
-        texts.indexWhere((t) => t.contains('What endpoints exist?'));
+    final docIndex = texts.indexWhere((t) => t.contains('GET /v1/things'));
+    final taskIndex = texts.indexWhere((t) => t.contains('What endpoints exist?'));
     expect(docIndex, isNot(-1), reason: 'knowledge region reaches the prompt');
     expect(taskIndex, isNot(-1));
-    expect(docIndex, lessThan(taskIndex),
-        reason: 'stable knowledge band renders before the volatile tail');
+    expect(docIndex, lessThan(taskIndex), reason: 'stable knowledge band renders before the volatile tail');
   });
 }

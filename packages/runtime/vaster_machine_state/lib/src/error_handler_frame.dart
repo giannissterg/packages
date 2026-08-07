@@ -31,8 +31,7 @@ final class ErrorHandlerFrame {
         if (effectScopeDepth != 0) 'effectScopeDepth': effectScopeDepth,
       };
 
-  factory ErrorHandlerFrame.fromJson(Map<String, dynamic> json) =>
-      ErrorHandlerFrame(
+  factory ErrorHandlerFrame.fromJson(Map<String, dynamic> json) => ErrorHandlerFrame(
         targetPc: (json['targetPc'] as num).toInt(),
         errorVar: json['errorVar'] as String,
         transactionDepth: (json['transactionDepth'] as num?)?.toInt() ?? 0,

@@ -9,11 +9,7 @@ final class PolicyViolationException implements Exception {
   final String resource;
   final String reason;
 
-  const PolicyViolationException({
-    required this.action,
-    required this.resource,
-    required this.reason,
-  });
+  const PolicyViolationException({required this.action, required this.resource, required this.reason});
 
   @override
   String toString() => 'Policy violation: $reason';

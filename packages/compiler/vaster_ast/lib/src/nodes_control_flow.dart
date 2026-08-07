@@ -14,11 +14,7 @@ final class While extends VasterNode {
   final List<VasterNode> children;
   final int maxIterations;
 
-  const While({
-    required this.condition,
-    required this.children,
-    this.maxIterations = 100,
-  });
+  const While({required this.condition, required this.children, this.maxIterations = 100});
 }
 
 /// Executes [children] exactly [times] times. When [counter] is set, the
@@ -39,11 +35,7 @@ final class TryCatch extends VasterNode {
   final List<VasterNode> catchChildren;
   final String error;
 
-  const TryCatch({
-    required this.tryChildren,
-    this.catchChildren = const [],
-    this.error = '__error__',
-  });
+  const TryCatch({required this.tryChildren, this.catchChildren = const [], this.error = '__error__'});
 }
 
 /// Defines a named subroutine. Bodies are emitted after the main program and
@@ -64,9 +56,5 @@ final class CallSubroutine extends VasterNode {
   final Map<String, dynamic> arguments;
   final String? output;
 
-  const CallSubroutine({
-    required this.name,
-    this.arguments = const {},
-    this.output,
-  });
+  const CallSubroutine({required this.name, this.arguments = const {}, this.output});
 }

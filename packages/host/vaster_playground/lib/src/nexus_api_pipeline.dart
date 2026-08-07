@@ -35,11 +35,7 @@ const nexusApiPipeline = Pipeline(
     name: 'nexus_api_delivery_pipeline',
     version: '1.0.0',
     rootStoragePath: '/workspace',
-    metadata: {
-      'owner': 'platform-engineering',
-      'project': 'Nexus API',
-      'stage': 'production-delivery',
-    },
+    metadata: {'owner': 'platform-engineering', 'project': 'Nexus API', 'stage': 'production-delivery'},
   ),
   children: [
     // ── Phase 0: Bootstrap ────────────────────────────────────────────────────
@@ -106,10 +102,7 @@ The platform exposes a unified gateway for downstream microservices.
         // ── Phase 4 + 5 + 6: Review, Testing, Docs (with QualityGate) ─────────
         Provider<QualityGate>(
           value: _qualityGate,
-          children: [
-            TechLeadReviewComponent(),
-            TestSuiteComponent(),
-          ],
+          children: [TechLeadReviewComponent(), TestSuiteComponent()],
         ),
 
         DocumentationComponent(),

@@ -158,26 +158,30 @@ class ResilientVasterModel implements VasterModel {
 
           if (transient && retriesLeft) {
             final delay = retryPolicy.backoffFor(attempt, random: random);
-            onRetry?.call(ModelRetryEvent(
-              modelName: model.modelName,
-              modelIndex: m,
-              attempt: attempt,
-              error: e,
-              nextDelay: delay,
-            ));
+            onRetry?.call(
+              ModelRetryEvent(
+                modelName: model.modelName,
+                modelIndex: m,
+                attempt: attempt,
+                error: e,
+                nextDelay: delay,
+              ),
+            );
             await _sleep(delay);
             continue;
           }
 
           // Permanent error or retries exhausted: advance to next model.
           if (!isLastModel) {
-            onRetry?.call(ModelRetryEvent(
-              modelName: model.modelName,
-              modelIndex: m,
-              attempt: attempt,
-              error: e,
-              switchingModel: true,
-            ));
+            onRetry?.call(
+              ModelRetryEvent(
+                modelName: model.modelName,
+                modelIndex: m,
+                attempt: attempt,
+                error: e,
+                switchingModel: true,
+              ),
+            );
           }
           break;
         }
@@ -218,25 +222,29 @@ class ResilientVasterModel implements VasterModel {
 
           if (transient && retriesLeft) {
             final delay = retryPolicy.backoffFor(attempt, random: random);
-            onRetry?.call(ModelRetryEvent(
-              modelName: model.modelName,
-              modelIndex: m,
-              attempt: attempt,
-              error: e,
-              nextDelay: delay,
-            ));
+            onRetry?.call(
+              ModelRetryEvent(
+                modelName: model.modelName,
+                modelIndex: m,
+                attempt: attempt,
+                error: e,
+                nextDelay: delay,
+              ),
+            );
             await _sleep(delay);
             continue;
           }
 
           if (!isLastModel) {
-            onRetry?.call(ModelRetryEvent(
-              modelName: model.modelName,
-              modelIndex: m,
-              attempt: attempt,
-              error: e,
-              switchingModel: true,
-            ));
+            onRetry?.call(
+              ModelRetryEvent(
+                modelName: model.modelName,
+                modelIndex: m,
+                attempt: attempt,
+                error: e,
+                switchingModel: true,
+              ),
+            );
           }
           break;
         }
@@ -253,14 +261,13 @@ class ResilientVasterModel implements VasterModel {
 
   /// Stamps the serving member's name; an inner decorator's stamp wins
   /// (nested chains — the innermost knows who really served).
-  ModelResponse _stamped(ModelResponse response, VasterModel model) =>
-      response.servedBy != null
-          ? response
-          : ModelResponse(
-              message: response.message,
-              finishReason: response.finishReason,
-              usage: response.usage,
-              rawResponse: response.rawResponse,
-              servedBy: model.modelName,
-            );
+  ModelResponse _stamped(ModelResponse response, VasterModel model) => response.servedBy != null
+      ? response
+      : ModelResponse(
+          message: response.message,
+          finishReason: response.finishReason,
+          usage: response.usage,
+          rawResponse: response.rawResponse,
+          servedBy: model.modelName,
+        );
 }

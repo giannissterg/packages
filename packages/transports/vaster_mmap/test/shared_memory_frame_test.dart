@@ -7,16 +7,14 @@ import 'package:vaster_mmap/vaster_mmap.dart';
 /// content-addressed idempotency, attach probing, and lifetime semantics.
 void main() {
   var seq = 0;
-  String freshName() =>
-      '/vframe_${DateTime.now().microsecondsSinceEpoch}_${seq++}';
+  String freshName() => '/vframe_${DateTime.now().microsecondsSinceEpoch}_${seq++}';
 
   Uint8List payloadOf(String text) => Uint8List.fromList(text.codeUnits);
 
   group('SharedMemoryFrame create/attach', () {
     test('round-trips payload and meta through separate mappings', () {
       final name = freshName();
-      final creator = SharedMemoryFrame.create(name, payloadOf('kv state'),
-          meta: 128);
+      final creator = SharedMemoryFrame.create(name, payloadOf('kv state'), meta: 128);
       addTearDown(() => creator.close(unlink: true));
       expect(creator.isOwner, isTrue);
 
@@ -32,11 +30,9 @@ void main() {
       expect(() => SharedMemoryFrame.attach(freshName()), throwsStateError);
     });
 
-    test('create on an existing frame attaches idempotently (same length)',
-        () {
+    test('create on an existing frame attaches idempotently (same length)', () {
       final name = freshName();
-      final first = SharedMemoryFrame.create(name, payloadOf('same-content'),
-          meta: 7);
+      final first = SharedMemoryFrame.create(name, payloadOf('same-content'), meta: 7);
       addTearDown(() => first.close(unlink: true));
 
       // A peer materializing the same fingerprint races us benignly: it must
@@ -55,8 +51,7 @@ void main() {
       addTearDown(() => first.close(unlink: true));
       expect(
         () => SharedMemoryFrame.create(name, payloadOf('much longer payload')),
-        throwsA(isA<StateError>().having(
-            (e) => e.message, 'message', contains('content-addressed'))),
+        throwsA(isA<StateError>().having((e) => e.message, 'message', contains('content-addressed'))),
       );
     });
   });
@@ -79,8 +74,7 @@ void main() {
 
     test('writes through the creator view are visible to the attacher', () {
       final name = freshName();
-      final creator =
-          SharedMemoryFrame.create(name, Uint8List.fromList([1, 2, 3, 4]));
+      final creator = SharedMemoryFrame.create(name, Uint8List.fromList([1, 2, 3, 4]));
       addTearDown(() => creator.close(unlink: true));
       final attached = SharedMemoryFrame.attach(name);
       addTearDown(attached.close);

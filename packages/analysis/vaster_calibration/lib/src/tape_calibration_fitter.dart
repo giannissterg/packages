@@ -30,7 +30,8 @@ final class CalibrationFit {
   });
 
   @override
-  String toString() => 'CalibrationFit($calibration, '
+  String toString() =>
+      'CalibrationFit($calibration, '
       'meanErr ${(meanAbsErrorFraction * 100).toStringAsFixed(1)}%, '
       'maxErr ${(maxAbsErrorFraction * 100).toStringAsFixed(1)}%'
       '${excludedSamples > 0 ? ', $excludedSamples excluded' : ''})';
@@ -87,23 +88,22 @@ final class TapeCalibrationFitter {
       samples.add((chars, tokens));
     }
     if (samples.length < minSamples) {
-      throw StateError('only ${samples.length} plausible samples in the '
-          'tape (need >= $minSamples; $excluded excluded as implausible) — '
-          'refusing to fit a profile from noise.');
+      throw StateError(
+        'only ${samples.length} plausible samples in the '
+        'tape (need >= $minSamples; $excluded excluded as implausible) — '
+        'refusing to fit a profile from noise.',
+      );
     }
 
     ratios.sort();
     final mid = ratios.length ~/ 2;
-    final median = ratios.length.isOdd
-        ? ratios[mid]
-        : (ratios[mid - 1] + ratios[mid]) / 2;
+    final median = ratios.length.isOdd ? ratios[mid] : (ratios[mid - 1] + ratios[mid]) / 2;
 
     final calibration = EstimateCalibration(
       backendId: backendId,
       charsPerToken: median,
       sampleCount: samples.length,
-      provenance:
-          '$provenance (median ratio, $excluded implausible excluded)',
+      provenance: '$provenance (median ratio, $excluded implausible excluded)',
     );
 
     var sumErr = 0.0;
@@ -146,7 +146,8 @@ extension PromptSideFitting on TapeCalibrationFitter {
       final tokens = response.usage.promptTokenCount;
       if (tokens <= 0) continue;
       if (response.usage.source != UsageSource.measured) continue;
-      final chars = (request.systemInstruction?.text.length ?? 0) +
+      final chars =
+          (request.systemInstruction?.text.length ?? 0) +
           request.messages.fold<int>(0, (s, m) => s + m.text.length);
       if (chars <= 0) continue;
       final ratio = chars / tokens;
@@ -158,20 +159,21 @@ extension PromptSideFitting on TapeCalibrationFitter {
       samples.add((chars, tokens));
     }
     if (samples.length < minSamples) {
-      throw StateError('only ${samples.length} plausible prompt-side '
-          'samples (need >= $minSamples; $excluded excluded; v1 entries '
-          'cannot contribute) — refusing to fit.');
+      throw StateError(
+        'only ${samples.length} plausible prompt-side '
+        'samples (need >= $minSamples; $excluded excluded; v1 entries '
+        'cannot contribute) — refusing to fit.',
+      );
     }
     ratios.sort();
     final mid = ratios.length ~/ 2;
-    final median = ratios.length.isOdd
-        ? ratios[mid]
-        : (ratios[mid - 1] + ratios[mid]) / 2;
+    final median = ratios.length.isOdd ? ratios[mid] : (ratios[mid - 1] + ratios[mid]) / 2;
     final calibration = EstimateCalibration(
       backendId: backendId,
       charsPerToken: median,
       sampleCount: samples.length,
-      provenance: '$provenance (prompt-side median ratio, '
+      provenance:
+          '$provenance (prompt-side median ratio, '
           '$excluded implausible excluded)',
     );
     var sumErr = 0.0;

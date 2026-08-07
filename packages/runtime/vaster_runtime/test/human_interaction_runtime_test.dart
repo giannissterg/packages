@@ -97,8 +97,7 @@ void main() {
       final resumedState = await runtime.restoreAndResume(
         snapshot,
         program,
-        humanResponse: HumanInteractionResponse.approve(
-            requestId: 'req_qa_01', comment: 'LGTM!'),
+        humanResponse: HumanInteractionResponse.approve(requestId: 'req_qa_01', comment: 'LGTM!'),
       );
 
       expect(resumedState.status, equals(RuntimeStatus.halted));
@@ -164,10 +163,7 @@ void main() {
 
       // 2. User rejects with feedback comment
       final state2 = await runtime.resumeWithHumanResponse(
-        HumanInteractionResponse.reject(
-          requestId: 'staging_deploy',
-          reason: 'Security review pending',
-        ),
+        HumanInteractionResponse.reject(requestId: 'staging_deploy', reason: 'Security review pending'),
       );
 
       expect(state2.status, equals(RuntimeStatus.halted));
@@ -181,78 +177,80 @@ void main() {
       expect(content, equals('REJECTED_STAGING'));
     });
 
-    test('supports full VasterContinuation snapshot serialization & restoration via ContinuationManager', () async {
-      final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
+    test(
+      'supports full VasterContinuation snapshot serialization & restoration via ContinuationManager',
+      () async {
+        final continuationManager = BasicContinuationManager(store: MemoryContinuationStore());
 
-      // Build program manually with low-level ISA instructions:
-      // 0: WriteFileOp('/mem/before.txt', 'hello')
-      // 1: BeginTransactionOp
-      // 2: YieldHumanInteractionOp(approval_001)
-      // 3: JumpIfOp('approval_001_status', targetPc: 5)
-      // 4: JumpOp(targetPc: 6)          ← skip reject (empty)
-      // 5: WriteFileOp('/mem/after.txt', 'world')  ← approve branch
-      // 6: CommitOp
-      // 7: HaltOp
-      final program = VasterProgram(
-        programName: 'snapshot_pipeline',
-        instructions: [
-          const WriteFileOp(vfsPath: '/mem/before.txt', content: 'hello'),
-          const BeginTransactionOp(),
-          YieldHumanInteractionOp(
-            request: HumanInteractionRequest(
-              requestId: 'approval_001',
-              type: HumanInteractionType.approval,
-              prompt: 'Approve continuation snapshot test?',
-              options: const ['approve', 'reject'],
-              outputVar: 'approval_001',
+        // Build program manually with low-level ISA instructions:
+        // 0: WriteFileOp('/mem/before.txt', 'hello')
+        // 1: BeginTransactionOp
+        // 2: YieldHumanInteractionOp(approval_001)
+        // 3: JumpIfOp('approval_001_status', targetPc: 5)
+        // 4: JumpOp(targetPc: 6)          ← skip reject (empty)
+        // 5: WriteFileOp('/mem/after.txt', 'world')  ← approve branch
+        // 6: CommitOp
+        // 7: HaltOp
+        final program = VasterProgram(
+          programName: 'snapshot_pipeline',
+          instructions: [
+            const WriteFileOp(vfsPath: '/mem/before.txt', content: 'hello'),
+            const BeginTransactionOp(),
+            YieldHumanInteractionOp(
+              request: HumanInteractionRequest(
+                requestId: 'approval_001',
+                type: HumanInteractionType.approval,
+                prompt: 'Approve continuation snapshot test?',
+                options: const ['approve', 'reject'],
+                outputVar: 'approval_001',
+              ),
             ),
-          ),
-          const JumpIfOp(conditionVar: 'approval_001_status', targetPc: 5),
-          const JumpOp(targetPc: 6),
-          const WriteFileOp(vfsPath: '/mem/after.txt', content: 'world'),
-          const CommitOp(),
-          const HaltOp(),
-        ],
-      );
+            const JumpIfOp(conditionVar: 'approval_001_status', targetPc: 5),
+            const JumpOp(targetPc: 6),
+            const WriteFileOp(vfsPath: '/mem/after.txt', content: 'world'),
+            const CommitOp(),
+            const HaltOp(),
+          ],
+        );
 
-      // 1. First runtime instance starts program and pauses at HITL node
-      final runtime1 = VasterRuntime(
-        vm: vm,
-        policy: ExecutionPolicy.unlimited,
-        budget: ExecutionBudget.unlimited(),
-        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
-      );
-      final state1 = await runtime1.executeProgram(program);
-      expect(state1.status, equals(RuntimeStatus.pausedForHuman));
+        // 1. First runtime instance starts program and pauses at HITL node
+        final runtime1 = VasterRuntime(
+          vm: vm,
+          policy: ExecutionPolicy.unlimited,
+          budget: ExecutionBudget.unlimited(),
+          scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+        );
+        final state1 = await runtime1.executeProgram(program);
+        expect(state1.status, equals(RuntimeStatus.pausedForHuman));
 
-      // 2. Capture VasterContinuation snapshot and serialize to JSON
-      final snapshot = await continuationManager.capture(runtime1, program.programName);
-      final snapshotJson = snapshot.toJson();
+        // 2. Capture VasterContinuation snapshot and serialize to JSON
+        final snapshot = await continuationManager.capture(runtime1, program.programName);
+        final snapshotJson = snapshot.toJson();
 
-      // 3. Reconstruct VasterContinuation snapshot from JSON (e.g. Server restart)
-      final restoredSnapshot = VasterContinuation.fromJson(snapshotJson);
-      expect(restoredSnapshot.programName, equals('snapshot_pipeline'));
+        // 3. Reconstruct VasterContinuation snapshot from JSON (e.g. Server restart)
+        final restoredSnapshot = VasterContinuation.fromJson(snapshotJson);
+        expect(restoredSnapshot.programName, equals('snapshot_pipeline'));
 
-      // 4. Second runtime instance restores execution from snapshot and finishes program
-      final runtime2 = VasterRuntime(
-        vm: vm,
-        policy: ExecutionPolicy.unlimited,
-        budget: ExecutionBudget.unlimited(),
-        scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
-      );
-      final state2 = await continuationManager.restoreAndResume(
-        runtime2,
-        restoredSnapshot,
-        program,
-        humanResponse: HumanInteractionResponse.approve(requestId: 'approval_001'),
-      );
+        // 4. Second runtime instance restores execution from snapshot and finishes program
+        final runtime2 = VasterRuntime(
+          vm: vm,
+          policy: ExecutionPolicy.unlimited,
+          budget: ExecutionBudget.unlimited(),
+          scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+        );
+        final state2 = await continuationManager.restoreAndResume(
+          runtime2,
+          restoredSnapshot,
+          program,
+          humanResponse: HumanInteractionResponse.approve(requestId: 'approval_001'),
+        );
 
-      expect(state2.status, equals(RuntimeStatus.halted));
-      final afterContent = await vm.fileSystemManager
-          .resolveFileSystem('/mem/after.txt')
-          .readText('/mem/after.txt');
-      expect(afterContent, equals('world'));
-    });
-
+        expect(state2.status, equals(RuntimeStatus.halted));
+        final afterContent = await vm.fileSystemManager
+            .resolveFileSystem('/mem/after.txt')
+            .readText('/mem/after.txt');
+        expect(afterContent, equals('world'));
+      },
+    );
   });
 }

@@ -15,10 +15,8 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// as silently empty: no error, no warning, no bytes. These doubles are
 /// deliberately NOT the in-repo classes.
 void main() {
-  test('a third filesystem implementation survives capture/restore',
-      () async {
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+  test('a third filesystem implementation survives capture/restore', () async {
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     final source = _ThirdPartyFileSystem();
     vm.mountFileSystem('/third', source);
     await source.writeText('/third/notes.md', 'durable through the contract');
@@ -29,8 +27,7 @@ void main() {
       budget: ExecutionBudget.unlimited(),
       scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
     );
-    const program = VasterProgram(
-        programName: 'third_fs', instructions: [HaltOp()]);
+    const program = VasterProgram(programName: 'third_fs', instructions: [HaltOp()]);
 
     final json = jsonEncode(MachineCheckpoint.capture(
       runtime: runtime,
@@ -45,10 +42,8 @@ void main() {
 
     // Restore into a fresh VM that mounts its OWN third-party instance:
     // the contract's import hydrates it.
-    final restored =
-        MachineCheckpoint.fromJson(jsonDecode(json) as Map<String, dynamic>);
-    final vm2 = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+    final restored = MachineCheckpoint.fromJson(jsonDecode(json) as Map<String, dynamic>);
+    final vm2 = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     addTearDown(vm2.shutdown);
     final target = _ThirdPartyFileSystem();
     vm2.mountFileSystem('/third', target);
@@ -58,15 +53,13 @@ void main() {
       scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
     );
 
-    expect(await target.readText('/third/notes.md'),
-        'durable through the contract');
+    expect(await target.readText('/third/notes.md'), 'durable through the contract');
     expect(identical(vm2.fileSystemManager.mounts['/third'], target), isTrue,
         reason: 'restore imports INTO the mounted implementation rather '
             'than replacing it with a memory filesystem');
   });
 
-  test('a third messaging-hub implementation survives capture/restore',
-      () async {
+  test('a third messaging-hub implementation survives capture/restore', () async {
     final hub = _ThirdPartyHub();
     hub.sendMessage(AgentMessage(
       messageId: 'm1',
@@ -76,8 +69,7 @@ void main() {
     ));
 
     final exported = hub.exportInboxes();
-    expect(exported['b'], hasLength(1),
-        reason: 'the contract obligates every hub to export');
+    expect(exported['b'], hasLength(1), reason: 'the contract obligates every hub to export');
 
     final target = _ThirdPartyHub();
     expect(target.importInboxes(exported), 1);
@@ -100,8 +92,7 @@ final class _ThirdPartyFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<String> readText(String path) async =>
-      utf8.decode(await readBytes(path));
+  Future<String> readText(String path) async => utf8.decode(await readBytes(path));
 
   @override
   Future<Uint8List> readBytes(String path) async {
@@ -111,8 +102,7 @@ final class _ThirdPartyFileSystem implements VasterFileSystem {
   }
 
   @override
-  Map<String, String> exportFilesBase64() =>
-      {for (final e in _files.entries) e.key: base64Encode(e.value)};
+  Map<String, String> exportFilesBase64() => {for (final e in _files.entries) e.key: base64Encode(e.value)};
 
   @override
   int importFilesBase64(Map<String, String> files) {
@@ -123,8 +113,7 @@ final class _ThirdPartyFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<FileSystemSnapshot> createSnapshot() async =>
-      FileSystemSnapshot(files: Map.of(_files));
+  Future<FileSystemSnapshot> createSnapshot() async => FileSystemSnapshot(files: Map.of(_files));
 
   @override
   Future<int> restoreSnapshot(FileSystemSnapshot snapshot) async {
@@ -138,22 +127,18 @@ final class _ThirdPartyFileSystem implements VasterFileSystem {
   Future<bool> exists(String path) async => _files.containsKey(path);
 
   @override
-  Future<bool> delete(String path, {bool recursive = false}) async =>
-      _files.remove(path) != null;
+  Future<bool> delete(String path, {bool recursive = false}) async => _files.remove(path) != null;
 
   @override
-  Future<FileDescriptor?> getDescriptor(String path) async =>
-      _files.containsKey(path)
-          ? FileDescriptor(
-              path: path,
-              sizeBytes: _files[path]!.length,
-              modifiedTimestamp: DateTime.fromMillisecondsSinceEpoch(0))
-          : null;
+  Future<FileDescriptor?> getDescriptor(String path) async => _files.containsKey(path)
+      ? FileDescriptor(
+          path: path,
+          sizeBytes: _files[path]!.length,
+          modifiedTimestamp: DateTime.fromMillisecondsSinceEpoch(0))
+      : null;
 
   @override
-  Future<List<VirtualNode>> listDirectory(String path,
-          {bool recursive = false}) async =>
-      const [];
+  Future<List<VirtualNode>> listDirectory(String path, {bool recursive = false}) async => const [];
 }
 
 /// A hub that is deliberately not `BasicAgentMessagingHub`.
@@ -167,8 +152,7 @@ final class _ThirdPartyHub implements AgentMessagingHub {
   }
 
   @override
-  List<AgentMessage> getInbox(String agentId) =>
-      List.unmodifiable(_inboxes[agentId] ?? const []);
+  List<AgentMessage> getInbox(String agentId) => List.unmodifiable(_inboxes[agentId] ?? const []);
 
   @override
   Stream<AgentMessage> getMessageStream(String agentId) => const Stream.empty();
@@ -185,8 +169,7 @@ final class _ThirdPartyHub implements AgentMessagingHub {
 
   @override
   Map<String, List<Map<String, dynamic>>> exportInboxes() => {
-        for (final e in _inboxes.entries)
-          e.key: [for (final m in e.value) m.toJson()],
+        for (final e in _inboxes.entries) e.key: [for (final m in e.value) m.toJson()],
       };
 
   @override

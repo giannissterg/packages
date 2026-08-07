@@ -13,11 +13,7 @@ final class AgentTaskException implements Exception {
   final String taskId;
   final TaskOutcome outcome;
 
-  const AgentTaskException({
-    required this.agentId,
-    required this.taskId,
-    required this.outcome,
-  });
+  const AgentTaskException({required this.agentId, required this.taskId, required this.outcome});
 
   @override
   String toString() =>

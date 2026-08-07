@@ -14,11 +14,14 @@ void main() {
       final continuation = VasterContinuation(
         continuationId: 'cont_mem_1',
         programName: 'mem_prog',
-        machineState: const MachineSnapshot(pc: 10, components: {
-          'registers': {
-            'data': {'var': 'val'},
+        machineState: const MachineSnapshot(
+          pc: 10,
+          components: {
+            'registers': {
+              'data': {'var': 'val'},
+            },
           },
-        }),
+        ),
       );
 
       await store.saveContinuation(continuation);
@@ -60,19 +63,22 @@ void main() {
       final snapshot = VasterContinuation(
         continuationId: 'cont_file_1',
         programName: 'disk_program',
-        machineState: MachineSnapshot(pc: 42, components: {
-          'registers': const {
-            'data': {'result': 'success_from_disk'},
+        machineState: MachineSnapshot(
+          pc: 42,
+          components: {
+            'registers': const {
+              'data': {'result': 'success_from_disk'},
+            },
+            'machineContext': const {'activeSessionId': 'sess_disk'},
+            'hitl': {
+              'pendingRequest': const HumanInteractionRequest(
+                requestId: 'req_disk_1',
+                type: HumanInteractionType.approval,
+                prompt: 'Approve disk deployment?',
+              ).toJson(),
+            },
           },
-          'machineContext': const {'activeSessionId': 'sess_disk'},
-          'hitl': {
-            'pendingRequest': const HumanInteractionRequest(
-              requestId: 'req_disk_1',
-              type: HumanInteractionType.approval,
-              prompt: 'Approve disk deployment?',
-            ).toJson(),
-          },
-        }),
+        ),
       );
 
       await store.saveContinuation(snapshot);
@@ -86,9 +92,7 @@ void main() {
       expect(loaded!.continuationId, equals('cont_file_1'));
       expect(loaded.programName, equals('disk_program'));
       expect(loaded.resumePc, equals(42));
-      expect(
-          loaded.machineState.components['registers']?['data']?['result'],
-          equals('success_from_disk'));
+      expect(loaded.machineState.components['registers']?['data']?['result'], equals('success_from_disk'));
       expect(loaded.pendingRequest?.requestId, equals('req_disk_1'));
 
       final list = await store.listContinuations();
@@ -106,9 +110,7 @@ void main() {
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('vaster_cont_mgr_test_');
-      vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()),
-      );
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     });
 
     tearDown(() async {
@@ -155,9 +157,7 @@ void main() {
       expect(storedList, hasLength(1));
 
       // 3. Simulate process restart: create fresh manager pointing to same disk store
-      final manager2 = BasicContinuationManager(
-        store: FileContinuationStore(storageDirectory: tempDir),
-      );
+      final manager2 = BasicContinuationManager(store: FileContinuationStore(storageDirectory: tempDir));
       final restoredSnapshot = await manager2.getContinuation(captured.continuationId);
       expect(restoredSnapshot, isNotNull);
 
@@ -221,8 +221,7 @@ void main() {
       // The captured snapshot carries the activation record inside the
       // callStack component.
       final captured = await manager.capture(runtime1, program.programName);
-      final frames =
-          captured.machineState.components['callStack']?['frames'] as List;
+      final frames = captured.machineState.components['callStack']?['frames'] as List;
       expect(frames, hasLength(1));
       expect(frames.single['functionName'], equals('audited_step'));
       expect(frames.single['returnPc'], equals(1));
@@ -230,14 +229,14 @@ void main() {
 
       // Process restart: reload from disk (full JSON round-trip) onto a fresh
       // runtime whose call stack starts empty.
-      final manager2 = BasicContinuationManager(
-        store: FileContinuationStore(storageDirectory: tempDir),
-      );
+      final manager2 = BasicContinuationManager(store: FileContinuationStore(storageDirectory: tempDir));
       final reloaded = await manager2.getContinuation(captured.continuationId);
-      final reloadedFrames =
-          reloaded!.machineState.components['callStack']?['frames'] as List;
-      expect(reloadedFrames.single['outputVar'], equals('verdict'),
-          reason: 'activation record survives serialization');
+      final reloadedFrames = reloaded!.machineState.components['callStack']?['frames'] as List;
+      expect(
+        reloadedFrames.single['outputVar'],
+        equals('verdict'),
+        reason: 'activation record survives serialization',
+      );
 
       final runtime2 = VasterRuntime(
         vm: vm,

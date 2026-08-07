@@ -16,26 +16,23 @@ class ToolDefinition {
   });
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'parametersSchema': parametersSchema,
-      };
+    'name': name,
+    'description': description,
+    'parametersSchema': parametersSchema,
+  };
 
   factory ToolDefinition.fromJson(Map<String, dynamic> json) {
     return ToolDefinition(
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      parametersSchema: Map<String, dynamic>.from(
-          json['parametersSchema'] as Map? ?? <String, dynamic>{}),
+      parametersSchema: Map<String, dynamic>.from(json['parametersSchema'] as Map? ?? <String, dynamic>{}),
     );
   }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ToolDefinition &&
-          runtimeType == other.runtimeType &&
-          name == other.name;
+      other is ToolDefinition && runtimeType == other.runtimeType && name == other.name;
 
   @override
   int get hashCode => name.hashCode;

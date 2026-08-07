@@ -9,11 +9,7 @@ class ModelDescriptor {
   /// Optional parameters associated with this model descriptor (e.g. temperature, region).
   final Map<String, String> parameters;
 
-  const ModelDescriptor({
-    required this.provider,
-    required this.modelId,
-    this.parameters = const {},
-  });
+  const ModelDescriptor({required this.provider, required this.modelId, this.parameters = const {}});
 
   /// Factory helper for creating a fake model descriptor.
   const factory ModelDescriptor.fake({String modelId}) = _FakeModelDescriptor;
@@ -28,10 +24,10 @@ class ModelDescriptor {
   String get descriptorKey => '$provider:$modelId';
 
   Map<String, dynamic> toJson() => {
-        'provider': provider,
-        'modelId': modelId,
-        if (parameters.isNotEmpty) 'parameters': parameters,
-      };
+    'provider': provider,
+    'modelId': modelId,
+    if (parameters.isNotEmpty) 'parameters': parameters,
+  };
 
   factory ModelDescriptor.fromJson(Map<String, dynamic> json) {
     return ModelDescriptor(
@@ -57,16 +53,13 @@ class ModelDescriptor {
 }
 
 class _FakeModelDescriptor extends ModelDescriptor {
-  const _FakeModelDescriptor({super.modelId = 'default'})
-      : super(provider: 'fake');
+  const _FakeModelDescriptor({super.modelId = 'default'}) : super(provider: 'fake');
 }
 
 class _GeminiCliModelDescriptor extends ModelDescriptor {
-  const _GeminiCliModelDescriptor({super.modelId = 'gemini-2.5-flash'})
-      : super(provider: 'gemini_cli');
+  const _GeminiCliModelDescriptor({super.modelId = 'gemini-2.5-flash'}) : super(provider: 'gemini_cli');
 }
 
 class _GoogleAiModelDescriptor extends ModelDescriptor {
-  const _GoogleAiModelDescriptor({super.modelId = 'gemini-2.5-flash'})
-      : super(provider: 'google_ai');
+  const _GoogleAiModelDescriptor({super.modelId = 'gemini-2.5-flash'}) : super(provider: 'google_ai');
 }

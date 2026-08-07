@@ -14,12 +14,12 @@ import 'decision_outcome.dart';
 /// separation as [ToolCallOrchestrator]. The arbiter owns its collaborators at
 /// construction — and holds exactly what its contract uses: the VM's
 /// [PromptFunnel] facet (it converses with the model; it cannot mount
-/// filesystems or shut the VM down, and now its type says so), the metering
-/// pipeline, and the default model metering falls back to. Everything on
-/// [decide] is genuinely per-invocation state (active model, session, cache
-/// hints, and the branch menu). It deliberately never sees program counters:
-/// branch *labels* go in, a sealed outcome comes out, and the engine owns the
-/// control transfer.
+/// filesystems or shut the VM down, and now its type says so) and the
+/// metering pipeline. The engine resolves the active model and passes it
+/// in (Rule 5: no nullable-model fallback here); session, cache hints, and
+/// the branch menu are the genuine per-call inputs. It deliberately never
+/// sees program counters: branch *labels* go in, a sealed outcome comes
+/// out, and the engine owns the control transfer.
 ///
 /// Routing through the active session appends the decision turn to the
 /// session's history — intentional, so the agent remembers what it chose and
@@ -31,21 +31,13 @@ final class DecisionArbiter {
   /// The runtime's shared metering pipeline (host budget + program quota).
   final ModelCallMeter meter;
 
-  /// Attribution fallback when no active model is passed and the response
-  /// carries no serving-model stamp.
-  final VasterModel defaultModel;
-
-  const DecisionArbiter({
-    required this.funnel,
-    required this.meter,
-    required this.defaultModel,
-  });
+  const DecisionArbiter({required this.funnel, required this.meter});
 
   /// Asks the model to pick one of [branches] for [prompt].
   Future<DecisionOutcome> decide({
     required String prompt,
     required List<({String label, String description})> branches,
-    VasterModel? model,
+    required VasterModel model,
     String? sessionId,
     List<ContextCacheHint> cacheHints = const [],
   }) async {
@@ -75,14 +67,13 @@ final class DecisionArbiter {
             config: config,
             cacheHints: cacheHints,
           )
-        : await funnel.prompt(composed,
-            model: model, config: config, cacheHints: cacheHints);
+        : await funnel.prompt(composed, model: model, config: config, cacheHints: cacheHints);
 
     meter.charge(
       usage: response.usage.totalTokenCount > 0
           ? response.usage
           : TokenEstimate.forExchange(prompt: composed, output: response.text),
-      modelName: response.servedBy ?? (model ?? defaultModel).modelName,
+      modelName: response.servedBy ?? model.modelName,
       callSite: 'isa_decide',
     );
 

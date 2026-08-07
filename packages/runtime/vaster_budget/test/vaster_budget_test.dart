@@ -4,11 +4,7 @@ import 'package:vaster_budget/vaster_budget.dart';
 void main() {
   group('ExecutionBudget', () {
     test('tracks consumption of duration, tokens, and cost', () {
-      final budget = ExecutionBudget(
-        maxDuration: const Duration(minutes: 5),
-        maxTokens: 1000,
-        maxCost: 2.50,
-      );
+      final budget = ExecutionBudget(maxDuration: const Duration(minutes: 5), maxTokens: 1000, maxCost: 2.50);
 
       expect(budget.isExpired, isFalse);
       expect(budget.remainingDuration, equals(const Duration(minutes: 5)));

@@ -17,56 +17,69 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// report artifact.
 Future<void> main() async {
   const triager = AgentRole(
-      roleId: 'triager', name: 'Triager', title: 'Incident Triager',
-      instruction: 'You route incidents to the right responder.');
+    roleId: 'triager',
+    name: 'Triager',
+    title: 'Incident Triager',
+    instruction: 'You route incidents to the right responder.',
+  );
   const sre = AgentRole(
-      roleId: 'sre', name: 'SRE', title: 'Site Reliability Engineer',
-      instruction: 'You investigate infrastructure issues.');
+    roleId: 'sre',
+    name: 'SRE',
+    title: 'Site Reliability Engineer',
+    instruction: 'You investigate infrastructure issues.',
+  );
   const appdev = AgentRole(
-      roleId: 'appdev', name: 'AppDev', title: 'Application Engineer',
-      instruction: 'You investigate application defects.');
+    roleId: 'appdev',
+    name: 'AppDev',
+    title: 'Application Engineer',
+    instruction: 'You investigate application defects.',
+  );
   const writer = AgentRole(
-      roleId: 'writer', name: 'Writer', title: 'Comms Writer',
-      instruction: 'You draft customer communications.');
+    roleId: 'writer',
+    name: 'Writer',
+    title: 'Comms Writer',
+    instruction: 'You draft customer communications.',
+  );
   const editor = AgentRole(
-      roleId: 'editor', name: 'Editor', title: 'Comms Editor',
-      instruction: 'You critique customer communications.');
+    roleId: 'editor',
+    name: 'Editor',
+    title: 'Comms Editor',
+    instruction: 'You critique customer communications.',
+  );
 
   var drafts = 0;
-  final model = FakeVasterModel(handler: (request) {
-    final text = request.messages.last.text;
-    if (text.contains('Choose exactly one')) {
-      // Router picks the app path; RefineLoop revises once then accepts.
-      if (text.contains('own the investigation')) {
+  final model = FakeVasterModel(
+    handler: (request) {
+      final text = request.messages.last.text;
+      if (text.contains('Choose exactly one')) {
+        // Router picks the app path; RefineLoop revises once then accepts.
+        if (text.contains('own the investigation')) {
+          return ModelResponse(message: ChatMessage.model(jsonEncode({'choice': 'application'})));
+        }
         return ModelResponse(
-            message: ChatMessage.model(jsonEncode({'choice': 'application'})));
+          message: ChatMessage.model(jsonEncode({'choice': drafts >= 2 ? 'accept' : 'revise'})),
+        );
       }
-      return ModelResponse(
-          message: ChatMessage.model(
-              jsonEncode({'choice': drafts >= 2 ? 'accept' : 'revise'})));
-    }
-    String reply;
-    if (text.contains('logs angle')) {
-      reply = 'Logs show a null deref in checkout after the 14:02 deploy.';
-    } else if (text.contains('metrics angle')) {
-      reply = 'Error rate spiked to 4% at 14:03, isolated to checkout.';
-    } else if (text.contains('Merge the findings')) {
-      reply = 'Root cause: 14:02 deploy introduced a checkout null deref.';
-    } else if (text.contains('Draft the customer notice')) {
-      drafts++;
-      reply = 'Customer notice draft v$drafts.';
-    } else if (text.contains('Critique this notice')) {
-      reply = 'Tone is fine; add the resolution ETA.';
-    } else if (text.contains('incident report')) {
-      reply = jsonEncode({
-        'severity': 'sev2',
-        'summary': 'Checkout null deref from the 14:02 deploy.',
-      });
-    } else {
-      reply = 'ack';
-    }
-    return ModelResponse(message: ChatMessage.model(reply));
-  });
+      String reply;
+      if (text.contains('logs angle')) {
+        reply = 'Logs show a null deref in checkout after the 14:02 deploy.';
+      } else if (text.contains('metrics angle')) {
+        reply = 'Error rate spiked to 4% at 14:03, isolated to checkout.';
+      } else if (text.contains('Merge the findings')) {
+        reply = 'Root cause: 14:02 deploy introduced a checkout null deref.';
+      } else if (text.contains('Draft the customer notice')) {
+        drafts++;
+        reply = 'Customer notice draft v$drafts.';
+      } else if (text.contains('Critique this notice')) {
+        reply = 'Tone is fine; add the resolution ETA.';
+      } else if (text.contains('incident report')) {
+        reply = jsonEncode({'severity': 'sev2', 'summary': 'Checkout null deref from the 14:02 deploy.'});
+      } else {
+        reply = 'ack';
+      }
+      return ModelResponse(message: ChatMessage.model(reply));
+    },
+  );
 
   final pipeline = Pipeline(
     result: const Binding('report_severity'),
@@ -77,30 +90,38 @@ Future<void> main() async {
         children: const [
           Knowledge(
             label: 'incident runbook',
-            text: Template.text('Sev1 = total outage. Sev2 = degraded core flow. Always '
-            'identify the triggering change before communicating.'),
+            text: Template.text(
+              'Sev1 = total outage. Sev2 = degraded core flow. Always '
+              'identify the triggering change before communicating.',
+            ),
             pinned: true,
             child: ContextBudget(
               maxTokens: 16000,
               child: Sequence([
                 // 1. Model-steered triage to the right responder.
                 Router(
-                  prompt: Template.text('A customer reports checkout failures since 14:00. '
-            'Which responder should own the investigation?'),
+                  prompt: Template.text(
+                    'A customer reports checkout failures since 14:00. '
+                    'Which responder should own the investigation?',
+                  ),
                   routes: [
                     RouteCase(
-                        label: 'infrastructure',
-                        description: 'outages, capacity, networking',
-                        agent: sre,
-                        prompt: Template.text('Investigate the infrastructure angle.'),
-                        output: Binding('triage_note')),
+                      label: 'infrastructure',
+                      description: 'outages, capacity, networking',
+                      agent: sre,
+                      prompt: Template.text('Investigate the infrastructure angle.'),
+                      output: Binding('triage_note'),
+                    ),
                     RouteCase(
-                        label: 'application',
-                        description: 'defects in application code',
-                        agent: appdev,
-                        prompt: Template.text('Own the incident: coordinate the '
-            'investigation of the checkout failures.'),
-                        output: Binding('triage_note')),
+                      label: 'application',
+                      description: 'defects in application code',
+                      agent: appdev,
+                      prompt: Template.text(
+                        'Own the incident: coordinate the '
+                        'investigation of the checkout failures.',
+                      ),
+                      output: Binding('triage_note'),
+                    ),
                   ],
                   defaultRoute: 'infrastructure',
                 ),
@@ -109,39 +130,66 @@ Future<void> main() async {
                 FanOut(
                   tasks: [
                     ParallelTaskEntry(
-                        agentId: 'sre',
-                        prompt: 'Investigate the metrics angle of the '
-                            'checkout failures.',
-                        output: 'metrics_findings'),
+                      agentId: 'sre',
+                      prompt:
+                          'Investigate the metrics angle of the '
+                          'checkout failures.',
+                      output: 'metrics_findings',
+                    ),
                     ParallelTaskEntry(
-                        agentId: 'appdev',
-                        prompt: 'Investigate the logs angle of the '
-                            'checkout failures.',
-                        output: 'logs_findings'),
+                      agentId: 'appdev',
+                      prompt:
+                          'Investigate the logs angle of the '
+                          'checkout failures.',
+                      output: 'logs_findings',
+                    ),
                   ],
                   synthesize: Task(
-                      agent: appdev,
-                      prompt: Template(['Merge the findings into a root-cause ', 'statement.\nMetrics: ', Binding('metrics_findings'), '\n', 'Logs: ', Binding('logs_findings')]),
-                      output: Binding('root_cause')),
+                    agent: appdev,
+                    prompt: Template([
+                      'Merge the findings into a root-cause ',
+                      'statement.\nMetrics: ',
+                      Binding('metrics_findings'),
+                      '\n',
+                      'Logs: ',
+                      Binding('logs_findings'),
+                    ]),
+                    output: Binding('root_cause'),
+                  ),
                 ),
 
                 // 3. Worker/critic refinement of the customer notice.
                 RefineLoop(
                   worker: Task(
-                      agent: writer,
-                      prompt: Template(['Draft the customer notice for this incident.\n', 'Root cause: ', Binding('root_cause'), '\n', 'Critique so far: ', Binding('critique')]),
-                      output: Binding('notice')),
+                    agent: writer,
+                    prompt: Template([
+                      'Draft the customer notice for this incident.\n',
+                      'Root cause: ',
+                      Binding('root_cause'),
+                      '\n',
+                      'Critique so far: ',
+                      Binding('critique'),
+                    ]),
+                    output: Binding('notice'),
+                  ),
                   critic: Task(
-                      agent: editor,
-                      prompt: Template(['Critique this notice: ', Binding('notice')]),
-                      output: Binding('critique')),
+                    agent: editor,
+                    prompt: Template(['Critique this notice: ', Binding('notice')]),
+                    output: Binding('critique'),
+                  ),
                   maxRounds: 4,
                 ),
 
                 // 4. Schema-typed incident report artifact.
                 Produce(
                   agent: appdev,
-                  prompt: Template(['Produce the final incident report as JSON.\n', 'Root cause: ', Binding('root_cause'), '\nNotice: ', Binding('notice')]),
+                  prompt: Template([
+                    'Produce the final incident report as JSON.\n',
+                    'Root cause: ',
+                    Binding('root_cause'),
+                    '\nNotice: ',
+                    Binding('notice'),
+                  ]),
                   schema: {
                     'type': 'object',
                     'properties': {
@@ -164,9 +212,9 @@ Future<void> main() async {
 
   final program = const BasicWorkflowCompiler().compile(pipeline);
   final vm = await VasterVMEngine.bootstrap(
-      config: VMConfig(defaultModel: model, rootMountPath: '/workspace'));
-  vm.eventBus.on<DecisionMadeEvent>().listen(
-      (event) => stdout.writeln('[decision] ${event.chosenLabel}'));
+    config: VMConfig(defaultModel: model, rootMountPath: '/workspace'),
+  );
+  vm.eventBus.on<DecisionMadeEvent>().listen((event) => stdout.writeln('[decision] ${event.chosenLabel}'));
   final runtime = VasterRuntime(
     vm: vm,
     policy: ExecutionPolicy.unlimited,

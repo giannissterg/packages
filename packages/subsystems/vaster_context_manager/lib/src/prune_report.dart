@@ -16,11 +16,10 @@ final class PruneReport {
   /// Merges two sweeps (the `UsageMetadata` monoid idiom): the composite
   /// manager folds its children's reports instead of hand-merging.
   PruneReport operator +(PruneReport other) => PruneReport(
-        prunedIds: [...prunedIds, ...other.prunedIds],
-        tokensFreed: tokensFreed + other.tokensFreed,
-      );
+    prunedIds: [...prunedIds, ...other.prunedIds],
+    tokensFreed: tokensFreed + other.tokensFreed,
+  );
 
   @override
-  String toString() =>
-      'PruneReport(${prunedIds.length} region(s), freed $tokensFreed tok)';
+  String toString() => 'PruneReport(${prunedIds.length} region(s), freed $tokensFreed tok)';
 }

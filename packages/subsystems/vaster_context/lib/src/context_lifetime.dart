@@ -13,6 +13,6 @@ enum ContextLifetime {
   persistent;
 
   /// Parses a name, defaulting to [session] for unknown values.
-  static ContextLifetime parse(String? value) => ContextLifetime.values
-      .firstWhere((l) => l.name == value, orElse: () => ContextLifetime.session);
+  static ContextLifetime parse(String? value) =>
+      ContextLifetime.values.firstWhere((l) => l.name == value, orElse: () => ContextLifetime.session);
 }

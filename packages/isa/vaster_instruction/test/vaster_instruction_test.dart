@@ -39,16 +39,11 @@ void main() {
 
       final restored = VasterInstruction.fromJson(op.toJson()) as SelectModelOp;
       expect(restored.descriptor.descriptorKey, 'google_ai:gemini-2.5-pro');
-      expect(restored.fallbacks.map((f) => f.descriptorKey),
-          ['google_ai:gemini-2.5-flash', 'fake:local']);
+      expect(restored.fallbacks.map((f) => f.descriptorKey), ['google_ai:gemini-2.5-flash', 'fake:local']);
     });
 
     test('effect-scope ops roundtrip (REL-P4)', () {
-      const ops = [
-        PushEffectScopeOp(),
-        MarkEffectRetryOp(),
-        PopEffectScopeOp(),
-      ];
+      const ops = [PushEffectScopeOp(), MarkEffectRetryOp(), PopEffectScopeOp()];
       for (final op in ops) {
         final restored = VasterInstruction.fromJson(op.toJson());
         expect(restored.opcode, op.opcode);

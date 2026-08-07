@@ -46,20 +46,19 @@ class GoogleAiVasterModel implements VasterModel {
       supportsSystemInstruction: true,
       supportsReasoning: true,
     ),
-  })  : apiKey = apiKey ??
-            Platform.environment['GEMINI_API_KEY'] ??
-            Platform.environment['GOOGLE_AI_API_KEY'] ??
-            '',
-        modelName = modelName ?? targetModel,
-        _client = httpClient ?? http.Client();
+  }) : apiKey =
+           apiKey ??
+           Platform.environment['GEMINI_API_KEY'] ??
+           Platform.environment['GOOGLE_AI_API_KEY'] ??
+           '',
+       modelName = modelName ?? targetModel,
+       _client = httpClient ?? http.Client();
 
   @override
   Future<ModelResponse> generate(ModelRequest request) async {
     _ensureApiKey();
 
-    final url = Uri.parse(
-      '$apiBaseUrl/models/$targetModel:generateContent?key=$apiKey',
-    );
+    final url = Uri.parse('$apiBaseUrl/models/$targetModel:generateContent?key=$apiKey');
     final payload = _buildRequestBody(request);
 
     final httpResponse = await _client.post(
@@ -69,9 +68,7 @@ class GoogleAiVasterModel implements VasterModel {
     );
 
     if (httpResponse.statusCode != 200) {
-      throw StateError(
-        'Google AI API error (${httpResponse.statusCode}): ${httpResponse.body}',
-      );
+      throw StateError('Google AI API error (${httpResponse.statusCode}): ${httpResponse.body}');
     }
 
     final json = jsonDecode(httpResponse.body) as Map<String, dynamic>;
@@ -82,9 +79,7 @@ class GoogleAiVasterModel implements VasterModel {
   Stream<ModelResponseChunk> generateStream(ModelRequest request) async* {
     _ensureApiKey();
 
-    final url = Uri.parse(
-      '$apiBaseUrl/models/$targetModel:streamGenerateContent?key=$apiKey&alt=sse',
-    );
+    final url = Uri.parse('$apiBaseUrl/models/$targetModel:streamGenerateContent?key=$apiKey&alt=sse');
     final payload = _buildRequestBody(request);
 
     final httpRequest = http.Request('POST', url)
@@ -95,14 +90,10 @@ class GoogleAiVasterModel implements VasterModel {
 
     if (streamedResponse.statusCode != 200) {
       final body = await streamedResponse.stream.bytesToString();
-      throw StateError(
-        'Google AI streaming error (${streamedResponse.statusCode}): $body',
-      );
+      throw StateError('Google AI streaming error (${streamedResponse.statusCode}): $body');
     }
 
-    final lineStream = streamedResponse.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
+    final lineStream = streamedResponse.stream.transform(utf8.decoder).transform(const LineSplitter());
 
     await for (final line in lineStream) {
       final trimmed = line.trim();
@@ -136,7 +127,7 @@ class GoogleAiVasterModel implements VasterModel {
       return {
         'role': role,
         'parts': [
-          {'text': m.text}
+          {'text': m.text},
         ],
       };
     }).toList();
@@ -144,10 +135,8 @@ class GoogleAiVasterModel implements VasterModel {
     final body = <String, dynamic>{
       'contents': contents,
       'generationConfig': {
-        if (request.generationConfig.temperature != null)
-          'temperature': request.generationConfig.temperature,
-        if (request.generationConfig.topP != null)
-          'topP': request.generationConfig.topP,
+        if (request.generationConfig.temperature != null) 'temperature': request.generationConfig.temperature,
+        if (request.generationConfig.topP != null) 'topP': request.generationConfig.topP,
         if (request.generationConfig.maxOutputTokens != null)
           'maxOutputTokens': request.generationConfig.maxOutputTokens,
         if (request.generationConfig.stopSequences != null &&
@@ -156,12 +145,11 @@ class GoogleAiVasterModel implements VasterModel {
       },
     };
 
-    if (request.systemInstruction != null &&
-        request.systemInstruction!.text.trim().isNotEmpty) {
+    if (request.systemInstruction != null && request.systemInstruction!.text.trim().isNotEmpty) {
       body['systemInstruction'] = {
         'parts': [
-          {'text': request.systemInstruction!.text}
-        ]
+          {'text': request.systemInstruction!.text},
+        ],
       };
     }
 
@@ -178,17 +166,13 @@ class GoogleAiVasterModel implements VasterModel {
     final content = candidate['content'] as Map<String, dynamic>? ?? {};
     final parts = content['parts'] as List? ?? [];
 
-    final text = parts
-        .whereType<Map<String, dynamic>>()
-        .map((p) => p['text'] as String? ?? '')
-        .join();
+    final text = parts.whereType<Map<String, dynamic>>().map((p) => p['text'] as String? ?? '').join();
 
     final finishStr = candidate['finishReason'] as String? ?? 'STOP';
     final finishReason = _parseFinishReason(finishStr);
 
     final usageRaw = json['usageMetadata'] as Map<String, dynamic>?;
-    final usage =
-        usageRaw != null ? parseUsageMetadata(usageRaw) : const UsageMetadata();
+    final usage = usageRaw != null ? parseUsageMetadata(usageRaw) : const UsageMetadata();
 
     return ModelResponse(
       message: ChatMessage.model(text),
@@ -202,15 +186,14 @@ class GoogleAiVasterModel implements VasterModel {
   ///
   /// Gemini's `totalTokenCount` already includes thought tokens — pass it
   /// through verbatim rather than recomputing.
-  static UsageMetadata parseUsageMetadata(Map<String, dynamic> usageRaw) =>
-      UsageMetadata(
-        promptTokenCount: usageRaw['promptTokenCount'] as int? ?? 0,
-        candidatesTokenCount: usageRaw['candidatesTokenCount'] as int? ?? 0,
-        thoughtsTokenCount: usageRaw['thoughtsTokenCount'] as int? ?? 0,
-        cacheReadTokenCount: usageRaw['cachedContentTokenCount'] as int? ?? 0,
-        totalTokenCount: usageRaw['totalTokenCount'] as int?,
-        source: UsageSource.measured,
-      );
+  static UsageMetadata parseUsageMetadata(Map<String, dynamic> usageRaw) => UsageMetadata(
+    promptTokenCount: usageRaw['promptTokenCount'] as int? ?? 0,
+    candidatesTokenCount: usageRaw['candidatesTokenCount'] as int? ?? 0,
+    thoughtsTokenCount: usageRaw['thoughtsTokenCount'] as int? ?? 0,
+    cacheReadTokenCount: usageRaw['cachedContentTokenCount'] as int? ?? 0,
+    totalTokenCount: usageRaw['totalTokenCount'] as int?,
+    source: UsageSource.measured,
+  );
 
   ModelResponseChunk _parseResponseChunk(Map<String, dynamic> json) {
     final candidates = json['candidates'] as List? ?? [];
@@ -222,10 +205,7 @@ class GoogleAiVasterModel implements VasterModel {
       final content = candidate['content'] as Map<String, dynamic>? ?? {};
       final parts = content['parts'] as List? ?? [];
 
-      textDelta = parts
-          .whereType<Map<String, dynamic>>()
-          .map((p) => p['text'] as String? ?? '')
-          .join();
+      textDelta = parts.whereType<Map<String, dynamic>>().map((p) => p['text'] as String? ?? '').join();
 
       if (candidate.containsKey('finishReason')) {
         final reasonStr = candidate['finishReason'] as String? ?? '';

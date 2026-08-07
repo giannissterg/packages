@@ -29,8 +29,8 @@ class RetryPolicy {
     this.maxBackoff = const Duration(seconds: 30),
     this.jitter = 0.25,
     this.attemptTimeout,
-  })  : assert(maxAttempts >= 1),
-        assert(jitter >= 0 && jitter <= 1);
+  }) : assert(maxAttempts >= 1),
+       assert(jitter >= 0 && jitter <= 1);
 
   /// A policy that never retries and never times out.
   static const none = RetryPolicy(maxAttempts: 1);
@@ -39,8 +39,7 @@ class RetryPolicy {
   /// failure is `backoffFor(1)`). Exponential with full-jitter subtraction.
   Duration backoffFor(int retry, {math.Random? random}) {
     final exponent = retry - 1;
-    var millis = initialBackoff.inMilliseconds *
-        math.pow(backoffMultiplier, exponent).toDouble();
+    var millis = initialBackoff.inMilliseconds * math.pow(backoffMultiplier, exponent).toDouble();
     millis = math.min(millis, maxBackoff.inMilliseconds.toDouble());
     if (jitter > 0) {
       final rng = random ?? _sharedRandom;

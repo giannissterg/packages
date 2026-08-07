@@ -10,10 +10,7 @@ void main() {
     setUp(() async {
       fakeModel = FakeVasterModel(defaultResponseText: 'VasterVM Master Output');
       vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(
-          defaultModel: fakeModel,
-          rootMountPath: '/mem',
-        ),
+        config: VMConfig(defaultModel: fakeModel, rootMountPath: '/mem'),
       );
     });
 
@@ -22,7 +19,7 @@ void main() {
     });
 
     test('bootstraps managers and runs direct model prompt', () async {
-      final response = await vm.prompt('Hello VasterVM');
+      final response = await vm.prompt('Hello VasterVM', model: vm.config.defaultModel);
       expect(response.text, contains('VasterVM Master Output'));
       expect(vm.fileSystemManager.mounts.containsKey('/mem'), isTrue);
     });
@@ -57,10 +54,7 @@ void main() {
       );
 
       final output = await vm.runAgentTask(
-        const AgentTask(
-          taskId: 't_build',
-          inputPrompt: 'Build microservice',
-        ),
+        const AgentTask(taskId: 't_build', inputPrompt: 'Build microservice'),
         agentId: agent.agentId,
       );
 
@@ -91,8 +85,7 @@ void main() {
 
       vm.contextManager.heap.addRegion(region);
       final compiled = await vm.contextManager.compileContext(
-        budget: const TokenBudget(
-            maxContextTokens: 100, reservedOutputTokens: 20, reservedToolTokens: 0),
+        budget: const TokenBudget(maxContextTokens: 100, reservedOutputTokens: 20, reservedToolTokens: 0),
       );
 
       expect(compiled.includedRegions.map((r) => r.id), contains('pinned_spec'));
@@ -112,7 +105,7 @@ void main() {
       );
 
       final before = vm.resourceTracker.consumedTokens;
-      await vm.promptStream('Stream a reply.').drain<void>();
+      await vm.promptStream('Stream a reply.', model: vm.config.defaultModel).drain<void>();
 
       // Charged exactly the terminal snapshot — not a per-chunk sum.
       expect(vm.resourceTracker.consumedTokens - before, equals(100));

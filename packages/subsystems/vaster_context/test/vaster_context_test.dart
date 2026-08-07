@@ -20,22 +20,26 @@ void main() {
 
     test('ContextHeap manages regions and calculates total tokens', () {
       final heap = ContextHeap();
-      heap.addRegion(ContextRegion.text(
-        id: 'sys',
-        label: 'System Prompt',
-        role: Role.system,
-        text: 'System instructions',
-        estimatedTokens: 20,
-        priority: ContextPriority.critical,
-      ));
-      heap.addRegion(ContextRegion.text(
-        id: 'usr',
-        label: 'User Message',
-        role: Role.user,
-        text: 'User prompt',
-        estimatedTokens: 10,
-        priority: ContextPriority.medium,
-      ));
+      heap.addRegion(
+        ContextRegion.text(
+          id: 'sys',
+          label: 'System Prompt',
+          role: Role.system,
+          text: 'System instructions',
+          estimatedTokens: 20,
+          priority: ContextPriority.critical,
+        ),
+      );
+      heap.addRegion(
+        ContextRegion.text(
+          id: 'usr',
+          label: 'User Message',
+          role: Role.user,
+          text: 'User prompt',
+          estimatedTokens: 10,
+          priority: ContextPriority.medium,
+        ),
+      );
 
       expect(heap.regions.length, equals(2));
       expect(heap.totalEstimatedTokens, equals(30));
@@ -68,11 +72,7 @@ void main() {
     });
 
     test('FileContextSource generates file region', () {
-      final source = FileContextSource(
-        id: 'f1',
-        filePath: 'lib/main.dart',
-        content: 'void main() {}',
-      );
+      final source = FileContextSource(id: 'f1', filePath: 'lib/main.dart', content: 'void main() {}');
 
       final regions = source.getRegions();
       expect(regions.length, equals(1));

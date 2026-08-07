@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:vaster_model/vaster_model.dart';
+
 import 'executable_tool_interface.dart';
 import 'tool_descriptor.dart';
 import 'tool_result.dart';
@@ -11,10 +13,7 @@ class FunctionTool implements ExecutableTool {
 
   final FutureOr<Map<String, dynamic>> Function(Map<String, dynamic> arguments) handler;
 
-  FunctionTool({
-    required this.descriptor,
-    required this.handler,
-  });
+  FunctionTool({required this.descriptor, required this.handler});
 
   /// Factory helper to build a [FunctionTool] concisely.
   factory FunctionTool.define({
@@ -24,11 +23,7 @@ class FunctionTool implements ExecutableTool {
     required FutureOr<Map<String, dynamic>> Function(Map<String, dynamic> args) handler,
   }) {
     return FunctionTool(
-      descriptor: ToolDescriptor(
-        name: name,
-        description: description,
-        parametersSchema: parametersSchema,
-      ),
+      descriptor: ToolDescriptor(name: name, description: description, parametersSchema: parametersSchema),
       handler: handler,
     );
   }

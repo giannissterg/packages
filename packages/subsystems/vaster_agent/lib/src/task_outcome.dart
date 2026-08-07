@@ -24,24 +24,26 @@ sealed class TaskOutcome {
 
   Map<String, dynamic> payloadJson();
 
-  factory TaskOutcome.fromJson(Map<String, dynamic> json) =>
-      switch (json['kind']) {
-        'completed' => const TaskCompleted(),
-        'model-failure' => TaskModelFailure(
-            message: json['message'] as String? ?? '',
-            transient: json['transient'] as bool? ?? false),
-        'quota-exceeded' => TaskQuotaExceeded(
-            resourceType: json['resourceType'] as String? ?? 'unknown',
-            currentUsage: json['currentUsage'] as num? ?? 0,
-            quotaLimit: json['quotaLimit'] as num? ?? 0,
-            message: json['message'] as String? ?? ''),
-        'cancelled' => TaskCancelled(message: json['message'] as String? ?? ''),
-        'refused' => TaskRefused(reason: json['reason'] as String? ?? ''),
-        'failure' => TaskFailure(
-            error: json['error'] as String? ?? '',
-            stackTrace: json['stackTrace'] as String?),
-        _ => TaskFailure(error: 'unknown outcome kind "${json['kind']}"'),
-      };
+  factory TaskOutcome.fromJson(Map<String, dynamic> json) => switch (json['kind']) {
+    'completed' => const TaskCompleted(),
+    'model-failure' => TaskModelFailure(
+      message: json['message'] as String? ?? '',
+      transient: json['transient'] as bool? ?? false,
+    ),
+    'quota-exceeded' => TaskQuotaExceeded(
+      resourceType: json['resourceType'] as String? ?? 'unknown',
+      currentUsage: json['currentUsage'] as num? ?? 0,
+      quotaLimit: json['quotaLimit'] as num? ?? 0,
+      message: json['message'] as String? ?? '',
+    ),
+    'cancelled' => TaskCancelled(message: json['message'] as String? ?? ''),
+    'refused' => TaskRefused(reason: json['reason'] as String? ?? ''),
+    'failure' => TaskFailure(
+      error: json['error'] as String? ?? '',
+      stackTrace: json['stackTrace'] as String?,
+    ),
+    _ => TaskFailure(error: 'unknown outcome kind "${json['kind']}"'),
+  };
 }
 
 /// The task ran to completion; its product is the `AgentOutput`'s text
@@ -68,8 +70,7 @@ final class TaskModelFailure extends TaskOutcome {
   @override
   String get detail => message;
   @override
-  Map<String, dynamic> payloadJson() =>
-      {'message': message, 'transient': transient};
+  Map<String, dynamic> payloadJson() => {'message': message, 'transient': transient};
 }
 
 /// A resource quota tripped mid-task. Fields mirror
@@ -93,11 +94,11 @@ final class TaskQuotaExceeded extends TaskOutcome {
   String get detail => message;
   @override
   Map<String, dynamic> payloadJson() => {
-        'resourceType': resourceType,
-        'currentUsage': currentUsage,
-        'quotaLimit': quotaLimit,
-        'message': message,
-      };
+    'resourceType': resourceType,
+    'currentUsage': currentUsage,
+    'quotaLimit': quotaLimit,
+    'message': message,
+  };
 }
 
 /// The caller cancelled the task (a real type end-to-end — cancellation
@@ -138,6 +139,5 @@ final class TaskFailure extends TaskOutcome {
   @override
   String get detail => error;
   @override
-  Map<String, dynamic> payloadJson() =>
-      {'error': error, if (stackTrace != null) 'stackTrace': stackTrace};
+  Map<String, dynamic> payloadJson() => {'error': error, if (stackTrace != null) 'stackTrace': stackTrace};
 }

@@ -68,14 +68,15 @@ class SandboxResult {
     this.metrics = const SandboxMetrics.empty(),
     this.outputFiles = const {},
     this.errorDetails,
-  }) : status = status ??
-            (timedOut
-                ? SandboxExecutionStatus.timedOut
-                : securityViolation
-                    ? SandboxExecutionStatus.securityViolation
-                    : exitCode == 0
-                        ? SandboxExecutionStatus.success
-                        : SandboxExecutionStatus.processError);
+  }) : status =
+           status ??
+           (timedOut
+               ? SandboxExecutionStatus.timedOut
+               : securityViolation
+               ? SandboxExecutionStatus.securityViolation
+               : exitCode == 0
+               ? SandboxExecutionStatus.success
+               : SandboxExecutionStatus.processError);
 
   /// Named constructor for successful execution.
   factory SandboxResult.success({
@@ -130,10 +131,7 @@ class SandboxResult {
       executionTime: executionTime,
       securityViolation: true,
       status: SandboxExecutionStatus.securityViolation,
-      errorDetails: SandboxErrorDetails(
-        exceptionType: 'SecurityPolicyViolation',
-        violatedRule: violatedRule,
-      ),
+      errorDetails: SandboxErrorDetails(exceptionType: 'SecurityPolicyViolation', violatedRule: violatedRule),
     );
   }
 
@@ -159,18 +157,18 @@ class SandboxResult {
   bool get isSuccess => exitCode == 0 && !timedOut && !securityViolation;
 
   Map<String, dynamic> toJson() => {
-        'exitCode': exitCode,
-        'stdout': stdout,
-        'stderr': stderr,
-        'executionTimeMs': executionTime.inMilliseconds,
-        'timedOut': timedOut,
-        'securityViolation': securityViolation,
-        'status': status.name,
-        'metrics': metrics.toJson(),
-        if (resultValue != null) 'resultValue': resultValue,
-        if (errorDetails != null) 'errorDetails': errorDetails!.toJson(),
-        if (outputFiles.isNotEmpty) 'outputFileCount': outputFiles.length,
-      };
+    'exitCode': exitCode,
+    'stdout': stdout,
+    'stderr': stderr,
+    'executionTimeMs': executionTime.inMilliseconds,
+    'timedOut': timedOut,
+    'securityViolation': securityViolation,
+    'status': status.name,
+    'metrics': metrics.toJson(),
+    if (resultValue != null) 'resultValue': resultValue,
+    if (errorDetails != null) 'errorDetails': errorDetails!.toJson(),
+    if (outputFiles.isNotEmpty) 'outputFileCount': outputFiles.length,
+  };
 
   factory SandboxResult.fromJson(Map<String, dynamic> json) {
     final statusName = json['status'] as String?;

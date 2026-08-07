@@ -10,24 +10,19 @@ void main() {
   const upDescriptor = ModelDescriptor(provider: 'agent_up', modelId: 'f');
 
   Future<VasterVMEngine> boot() async {
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     vm.registerModel(
       downDescriptor,
-      FakeVasterModel(
-          modelName: 'agent-down',
-          handler: (_) => throw StateError('API error 503 down')),
+      FakeVasterModel(modelName: 'agent-down', handler: (_) => throw StateError('API error 503 down')),
     );
     vm.registerModel(
       upDescriptor,
-      FakeVasterModel(
-          modelName: 'agent-up', defaultResponseText: 'served by fallback'),
+      FakeVasterModel(modelName: 'agent-up', defaultResponseText: 'served by fallback'),
     );
     return vm;
   }
 
-  test('a task on an agent with a dead primary is served by the chain',
-      () async {
+  test('a task on an agent with a dead primary is served by the chain', () async {
     final vm = await boot();
     addTearDown(vm.shutdown);
 
@@ -65,35 +60,40 @@ void main() {
 
     // Attribution: the per-turn meter charges the SERVING member, not the
     // chain's head (the agent reads response.servedBy).
-    final agentTurns =
-        turnUsageEvents.where((e) => e.callSite == 'agent_turn');
+    final agentTurns = turnUsageEvents.where((e) => e.callSite == 'agent_turn');
     expect(agentTurns, isNotEmpty);
     expect(agentTurns.map((e) => e.modelName), everyElement('agent-up'));
   });
 
-  test('an explicit host model overrides the descriptor chain', () async {
+  test('the agent runs on its descriptor-named model (B2: model is '
+      'descriptor config, no host override parameter)', () async {
     final vm = await boot();
     addTearDown(vm.shutdown);
+    const hostDescriptor = ModelDescriptor(provider: 'host', modelId: 'm');
+    vm.registerModel(
+      hostDescriptor,
+      FakeVasterModel(modelName: 'host-model', defaultResponseText: 'host model spoke'),
+    );
 
     await vm.createAgent(
       descriptor: const AgentDescriptor(
-        agentId: 'overridden',
-        name: 'O',
+        agentId: 'named',
+        name: 'N',
         role: 'r',
         systemInstruction: 's',
-        modelDescriptor: downDescriptor,
-        modelFallbacks: [upDescriptor],
+        modelDescriptor: hostDescriptor,
       ),
-      model: FakeVasterModel(
-          modelName: 'host-model', defaultResponseText: 'host model spoke'),
     );
 
     final output = await vm.runAgentTask(
       AgentTask(taskId: 't2', inputPrompt: 'do the work'),
-      agentId: 'overridden',
+      agentId: 'named',
     );
-    expect(output.outputText, contains('host model spoke'),
-        reason: 'explicit model wins over the declared chain');
+    expect(
+      output.outputText,
+      contains('host model spoke'),
+      reason: 'the descriptor names the model — register it and point at it',
+    );
   });
 
   test('descriptor chain round-trips JSON, omitted when undeclared', () {
@@ -107,21 +107,20 @@ void main() {
     );
     final restored = AgentDescriptor.fromJson(chained.toJson());
     expect(restored.modelDescriptor?.descriptorKey, 'agent_down:p');
-    expect(restored.modelFallbacks.map((f) => f.descriptorKey),
-        ['agent_up:f']);
+    expect(restored.modelFallbacks.map((f) => f.descriptorKey), ['agent_up:f']);
 
-    const plain = AgentDescriptor(
-        agentId: 'a', name: 'n', role: 'r', systemInstruction: 's');
+    const plain = AgentDescriptor(agentId: 'a', name: 'n', role: 'r', systemInstruction: 's');
     expect(plain.toJson().containsKey('modelDescriptor'), isFalse);
-    expect(plain.toJson().containsKey('modelFallbacks'), isFalse,
-        reason: 'pre-chain descriptors stay byte-identical');
+    expect(
+      plain.toJson().containsKey('modelFallbacks'),
+      isFalse,
+      reason: 'pre-chain descriptors stay byte-identical',
+    );
   });
 
   test('a chain containing the SAME model name twice reports exact hops '
-      '(A4 — the index-based lookup, not the old indexOf-by-name)',
-      () async {
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: FakeVasterModel()));
+      '(A4 — the index-based lookup, not the old indexOf-by-name)', () async {
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: FakeVasterModel()));
     addTearDown(vm.shutdown);
     // Two distinct registry entries whose MODELS share one name, both
     // dead — the chain must walk twin-0 → twin-1 → survivor, and the
@@ -130,17 +129,14 @@ void main() {
     const twinB = ModelDescriptor(provider: 'dup_b', modelId: 'twin');
     const survivorD = ModelDescriptor(provider: 'ok', modelId: 'survivor');
     vm.registerModel(
-        twinA,
-        FakeVasterModel(
-            modelName: 'twin',
-            handler: (_) => throw StateError('API error 503 down')));
+      twinA,
+      FakeVasterModel(modelName: 'twin', handler: (_) => throw StateError('API error 503 down')),
+    );
     vm.registerModel(
-        twinB,
-        FakeVasterModel(
-            modelName: 'twin',
-            handler: (_) => throw StateError('API error 503 down')));
-    vm.registerModel(survivorD,
-        FakeVasterModel(modelName: 'survivor', defaultResponseText: 'ok'));
+      twinB,
+      FakeVasterModel(modelName: 'twin', handler: (_) => throw StateError('API error 503 down')),
+    );
+    vm.registerModel(survivorD, FakeVasterModel(modelName: 'survivor', defaultResponseText: 'ok'));
 
     final hops = <ModelFallbackEvent>[];
     final sub = vm.eventBus.on<ModelFallbackEvent>().listen(hops.add);
@@ -168,8 +164,12 @@ void main() {
     expect(hops[0].fromModel, 'twin');
     expect(hops[0].toModel, 'twin');
     expect(hops[1].fromModel, 'twin');
-    expect(hops[1].toModel, 'survivor',
-        reason: 'the second hop leaves the twins — only the chain INDEX '
-            'can say so when names collide');
+    expect(
+      hops[1].toModel,
+      'survivor',
+      reason:
+          'the second hop leaves the twins — only the chain INDEX '
+          'can say so when names collide',
+    );
   });
 }

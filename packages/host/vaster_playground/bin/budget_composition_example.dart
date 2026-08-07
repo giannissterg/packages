@@ -95,7 +95,9 @@ void main() async {
 
   final state2 = await runtime2.executeProgram(program2);
   print('  ✓ Status: ${state2.status.name}');
-  print('  ✓ Token Quota Exhausted: ${state2.status == RuntimeStatus.timedOut ? "YES (Sub-tree halted safely)" : "NO"}');
+  print(
+    '  ✓ Token Quota Exhausted: ${state2.status == RuntimeStatus.timedOut ? "YES (Sub-tree halted safely)" : "NO"}',
+  );
   await vm2.shutdown();
 
   print('\n======================================================================');

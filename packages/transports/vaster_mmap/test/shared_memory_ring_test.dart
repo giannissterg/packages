@@ -6,8 +6,7 @@ import 'package:vaster_mmap/vaster_mmap.dart';
 /// the public surface.
 void main() {
   var seq = 0;
-  String freshName() =>
-      '/vring_${DateTime.now().microsecondsSinceEpoch}_${seq++}';
+  String freshName() => '/vring_${DateTime.now().microsecondsSinceEpoch}_${seq++}';
 
   group('SharedMemoryRing ownership', () {
     test('creator is owner; second open of the same name attaches', () {
@@ -63,15 +62,13 @@ void main() {
       expect(() => SharedMemoryRing.attach(freshName()), throwsStateError);
     });
 
-    test('capacity mismatch on attach throws before touching the payload',
-        () {
+    test('capacity mismatch on attach throws before touching the payload', () {
       final name = freshName();
       final owner = SharedMemoryRing(shmName: name, capacity: 4096);
       addTearDown(owner.close);
       expect(
         () => SharedMemoryRing(shmName: name, capacity: 8192),
-        throwsA(isA<StateError>().having(
-            (e) => e.message, 'message', contains('capacity'))),
+        throwsA(isA<StateError>().having((e) => e.message, 'message', contains('capacity'))),
       );
     });
 
@@ -88,8 +85,7 @@ void main() {
       addTearDown(ring.close);
 
       ring.writePacket(List.filled(40, 1));
-      expect(() => ring.writePacket(List.filled(40, 2)),
-          throwsA(isA<RingFullException>()));
+      expect(() => ring.writePacket(List.filled(40, 2)), throwsA(isA<RingFullException>()));
       // The unread frame survived the refused write.
       expect(ring.readPacket(), equals(List.filled(40, 1)));
       // And the freed space is writable again.

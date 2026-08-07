@@ -27,12 +27,12 @@ class ResourceQuota {
   static const ResourceQuota unlimited = ResourceQuota();
 
   Map<String, dynamic> toJson() => {
-        if (maxTokenBudget != null) 'maxTokenBudget': maxTokenBudget,
-        if (maxToolCallsPerTask != null) 'maxToolCallsPerTask': maxToolCallsPerTask,
-        if (timeDeadline != null) 'timeDeadlineMs': timeDeadline!.inMilliseconds,
-        if (maxSubagentDepth != null) 'maxSubagentDepth': maxSubagentDepth,
-        if (maxCostBudget != null) 'maxCostBudget': maxCostBudget,
-      };
+    if (maxTokenBudget != null) 'maxTokenBudget': maxTokenBudget,
+    if (maxToolCallsPerTask != null) 'maxToolCallsPerTask': maxToolCallsPerTask,
+    if (timeDeadline != null) 'timeDeadlineMs': timeDeadline!.inMilliseconds,
+    if (maxSubagentDepth != null) 'maxSubagentDepth': maxSubagentDepth,
+    if (maxCostBudget != null) 'maxCostBudget': maxCostBudget,
+  };
 
   factory ResourceQuota.fromJson(Map<String, dynamic> json) {
     return ResourceQuota(

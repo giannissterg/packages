@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'prune_report.dart';
+
 import 'package:vaster_context/vaster_context.dart';
 
 import 'allocation_strategy.dart';
@@ -28,9 +30,8 @@ class CompositeContextManager implements ContextManager {
     AllocationStrategy? allocationStrategy,
     ContextClassTable classTable = ContextClassTable.standard,
     this.compressors = const [],
-  })  : _classTable = classTable,
-        allocationStrategy = allocationStrategy ??
-            ClassAwareAllocationStrategy(classTable: classTable);
+  }) : _classTable = classTable,
+       allocationStrategy = allocationStrategy ?? ClassAwareAllocationStrategy(classTable: classTable);
 
   ContextClassTable _classTable;
 
@@ -52,8 +53,10 @@ class CompositeContextManager implements ContextManager {
 
   /// A merged **snapshot** of all children's regions. Mutating this heap has
   /// no effect on any child — use the region-level methods instead.
-  @Deprecated('Snapshot only; mutations are lost. '
-      'Use regions/getRegion/addRegion/removeRegion/updateRegion.')
+  @Deprecated(
+    'Snapshot only; mutations are lost. '
+    'Use regions/getRegion/addRegion/removeRegion/updateRegion.',
+  )
   @override
   ContextHeap get heap {
     final mergedHeap = ContextHeap();
@@ -64,8 +67,7 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
-  List<ContextRegion> get regions =>
-      [for (final child in children) ...child.regions];
+  List<ContextRegion> get regions => [for (final child in children) ...child.regions];
 
   ContextManager? _ownerOf(String regionId) {
     for (final child in children) {
@@ -75,8 +77,7 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
-  ContextRegion? getRegion(String regionId) =>
-      _ownerOf(regionId)?.getRegion(regionId);
+  ContextRegion? getRegion(String regionId) => _ownerOf(regionId)?.getRegion(regionId);
 
   @override
   ContextRegion? addRegion(ContextRegion region) {
@@ -85,8 +86,7 @@ class CompositeContextManager implements ContextManager {
       return owner.addRegion(region);
     }
     if (children.isEmpty) {
-      throw StateError(
-          'Cannot add region: CompositeContextManager has no children.');
+      throw StateError('Cannot add region: CompositeContextManager has no children.');
     }
     return children.first.addRegion(region);
   }
@@ -96,8 +96,7 @@ class CompositeContextManager implements ContextManager {
       _ownerOf(regionId)?.removeRegion(regionId, force: force) ?? false;
 
   @override
-  bool updateRegion(
-          String regionId, ContextRegion Function(ContextRegion) update) =>
+  bool updateRegion(String regionId, ContextRegion Function(ContextRegion) update) =>
       _ownerOf(regionId)?.updateRegion(regionId, update) ?? false;
 
   @override
@@ -112,8 +111,7 @@ class CompositeContextManager implements ContextManager {
   @override
   ContextSource? registerSource(ContextSource source) {
     if (children.isEmpty) {
-      throw StateError(
-          'Cannot register source: CompositeContextManager has no children.');
+      throw StateError('Cannot register source: CompositeContextManager has no children.');
     }
     return children.first.registerSource(source);
   }
@@ -130,12 +128,10 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
-  ContextRegion? pinRegion(String regionId) =>
-      _ownerOf(regionId)?.pinRegion(regionId);
+  ContextRegion? pinRegion(String regionId) => _ownerOf(regionId)?.pinRegion(regionId);
 
   @override
-  ContextRegion? unpinRegion(String regionId) =>
-      _ownerOf(regionId)?.unpinRegion(regionId);
+  ContextRegion? unpinRegion(String regionId) => _ownerOf(regionId)?.unpinRegion(regionId);
 
   @override
   ContextCacheDescriptor? getCacheDescriptor(String regionId) =>
@@ -155,8 +151,7 @@ class CompositeContextManager implements ContextManager {
 
   @override
   Future<int> syncSources() async {
-    final counts =
-        await Future.wait(children.map((child) => child.syncSources()));
+    final counts = await Future.wait(children.map((child) => child.syncSources()));
     return counts.fold<int>(0, (sum, n) => sum + n);
   }
 
@@ -166,8 +161,7 @@ class CompositeContextManager implements ContextManager {
     String? regionId,
     bool includePinned = false,
   }) async {
-    final compactor =
-        ContextCompactor(compressors: compressors, classTable: _classTable);
+    final compactor = ContextCompactor(compressors: compressors, classTable: _classTable);
     // apply routes each compressed region back to the child that owns it —
     // mutations land in real heaps, not the throwaway merge.
     return compactor.compact(
@@ -182,23 +176,16 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
-  Future<CompiledContext> compileContext({
-    required TokenBudget budget,
-    bool allowCompression = true,
-  }) async {
+  Future<CompiledContext> compileContext({required TokenBudget budget, bool allowCompression = true}) async {
     await syncSources();
 
     if (allowCompression &&
         compressors.isNotEmpty &&
-        regions.fold(0, (s, r) => s + r.estimatedTokens) >
-            budget.availableInputBudget) {
+        regions.fold(0, (s, r) => s + r.estimatedTokens) > budget.availableInputBudget) {
       await compact(targetTokens: (budget.availableInputBudget * 0.9).floor());
     }
 
-    final compiled = allocationStrategy.allocate(
-      regions: regions,
-      budget: budget,
-    );
+    final compiled = allocationStrategy.allocate(regions: regions, budget: budget);
     _lastCompiled = compiled;
     return compiled;
   }
@@ -207,11 +194,10 @@ class CompositeContextManager implements ContextManager {
   CompiledContext? get lastCompiled => _lastCompiled;
 
   @override
-  PruneReport pruneLifetimes(Set<ContextLifetime> expiredLifetimes,
-          {bool force = false}) =>
+  PruneReport pruneLifetimes(Set<ContextLifetime> expiredLifetimes, {bool force = false}) =>
       // The monoid does the merging — no hand-rolled accumulation.
       children.fold(
-          PruneReport.empty,
-          (acc, child) =>
-              acc + child.pruneLifetimes(expiredLifetimes, force: force));
+        PruneReport.empty,
+        (acc, child) => acc + child.pruneLifetimes(expiredLifetimes, force: force),
+      );
 }

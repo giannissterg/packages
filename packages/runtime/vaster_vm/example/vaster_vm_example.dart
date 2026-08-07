@@ -14,10 +14,7 @@ void main() async {
     config: VMConfig(
       defaultModel: fakeModel,
       rootMountPath: '/mem',
-      defaultQuota: const ResourceQuota(
-        maxTokenBudget: 100000,
-        maxToolCallsPerTask: 10,
-      ),
+      defaultQuota: const ResourceQuota(maxTokenBudget: 100000, maxToolCallsPerTask: 10),
     ),
   );
 
@@ -45,11 +42,13 @@ void main() async {
   print('2. Registered Code Sandbox (Auto-bridged tool: exec_dart_evaluator)');
 
   // 3. Register custom function tool
-  vm.registerTool(FunctionTool.define(
-    name: 'fetch_user_db',
-    description: 'Fetches mock user record.',
-    handler: (args) => {'id': 42, 'name': 'Alice'},
-  ));
+  vm.registerTool(
+    FunctionTool.define(
+      name: 'fetch_user_db',
+      description: 'Fetches mock user record.',
+      handler: (args) => {'id': 42, 'name': 'Alice'},
+    ),
+  );
   print('3. Registered Function Tool: fetch_user_db');
 
   // 4. Create Lead Developer Agent

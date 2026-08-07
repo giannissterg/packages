@@ -90,14 +90,8 @@ class Clarify extends ComposableNode {
   /// [BindingScope].
   final Binding? output;
 
-  const Clarify({
-    required this.topic,
-    this.agent,
-    this.agentId,
-    this.maxQuestions,
-    this.output,
-  }) : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+  const Clarify({required this.topic, this.agent, this.agentId, this.maxQuestions, this.output})
+    : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
@@ -130,11 +124,7 @@ class Clarify extends ComposableNode {
                   'Reply with only the question.',
             ]),
           ),
-          AskHuman(
-            requestId: 'clarify',
-            prompt: Template([question]),
-            output: answer,
-          ),
+          AskHuman(requestId: 'clarify', prompt: Template([question]), output: answer),
           Task(
             agent: agent,
             agentId: agentId,
@@ -153,10 +143,7 @@ class Clarify extends ComposableNode {
           ),
         ],
         exits: const [
-          DecisionPath(
-            label: 'ready',
-            description: 'enough information has been gathered to specify',
-          ),
+          DecisionPath(label: 'ready', description: 'enough information has been gathered to specify'),
         ],
         defaultPath: 'ready',
       ),
@@ -183,12 +170,7 @@ class Verify extends ComposableNode {
   final List<VasterNode> onPass;
   final List<VasterNode> onFail;
 
-  const Verify({
-    required this.run,
-    this.envId,
-    this.onPass = const [],
-    this.onFail = const [],
-  });
+  const Verify({required this.run, this.envId, this.onPass = const [], this.onFail = const []});
 
   @override
   VasterNode build(BuildContext context) {
@@ -197,9 +179,9 @@ class Verify extends ComposableNode {
     return Sequence([
       Execute(envId: envId, code: run, output: verification),
       WriteFile(
-          path: Template.text(
-              SddConventions.scopedPath(context, conventions.verifyPath)),
-          content: Template([verification])),
+        path: Template.text(SddConventions.scopedPath(context, conventions.verifyPath)),
+        content: Template([verification]),
+      ),
       Decide(
         prompt: Template([
           'Below is the output of the verification run. Did verification '
@@ -241,14 +223,8 @@ class Specify extends ComposableNode {
   /// Artifact path override (default: the conventions' spec path).
   final String? artifact;
 
-  const Specify({
-    required this.goal,
-    this.agent,
-    this.agentId,
-    this.artifact,
-    this.output,
-  }) : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+  const Specify({required this.goal, this.agent, this.agentId, this.artifact, this.output})
+    : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
@@ -260,14 +236,15 @@ class Specify extends ComposableNode {
         agentId: agentId,
         output: spec,
         prompt: Template.text(
-            'Write a complete, reviewable specification in Markdown for '
-            'the following goal. Cover scope, requirements, non-goals, and '
-            'acceptance criteria.\n\nGoal: $goal$_documentOnly'),
+          'Write a complete, reviewable specification in Markdown for '
+          'the following goal. Cover scope, requirements, non-goals, and '
+          'acceptance criteria.\n\nGoal: $goal$_documentOnly',
+        ),
       ),
       WriteFile(
-          path: Template.text(SddConventions.scopedPath(
-              context, artifact ?? conventions.specPath)),
-          content: Template([spec])),
+        path: Template.text(SddConventions.scopedPath(context, artifact ?? conventions.specPath)),
+        content: Template([spec]),
+      ),
     ]);
   }
 }
@@ -294,15 +271,8 @@ class Plan extends ComposableNode {
   /// embedded and the planner is instructed to fix every blocking issue.
   final Binding? addressing;
 
-  const Plan({
-    this.agent,
-    this.agentId,
-    this.from,
-    this.artifact,
-    this.addressing,
-    this.output,
-  }) : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+  const Plan({this.agent, this.agentId, this.from, this.artifact, this.addressing, this.output})
+    : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 
   @override
   VasterNode build(BuildContext context) {
@@ -311,9 +281,9 @@ class Plan extends ComposableNode {
     final plan = output ?? context.scopedBinding('plan');
     return Sequence([
       ReadFile(
-          path: Template.text(SddConventions.scopedPath(
-              context, from ?? conventions.specPath)),
-          output: specDoc),
+        path: Template.text(SddConventions.scopedPath(context, from ?? conventions.specPath)),
+        output: specDoc,
+      ),
       Task(
         agent: agent,
         agentId: agentId,
@@ -333,9 +303,9 @@ class Plan extends ComposableNode {
         ]),
       ),
       WriteFile(
-          path: Template.text(SddConventions.scopedPath(
-              context, artifact ?? conventions.planPath)),
-          content: Template([plan])),
+        path: Template.text(SddConventions.scopedPath(context, artifact ?? conventions.planPath)),
+        content: Template([plan]),
+      ),
     ]);
   }
 }
@@ -354,14 +324,8 @@ class Workstream {
   /// Optional artifact path the result is written to.
   final String? artifact;
 
-  const Workstream({
-    this.agent,
-    this.agentId,
-    required this.focus,
-    required this.output,
-    this.artifact,
-  }) : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId');
+  const Workstream({this.agent, this.agentId, required this.focus, required this.output, this.artifact})
+    : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId');
 }
 
 /// Phase 3 — execute the plan as concurrent [workstreams], each grounded in
@@ -389,9 +353,9 @@ class Implement extends ComposableNode {
     final planDoc = context.scopedBinding('plan_doc');
     return Sequence([
       ReadFile(
-          path: Template.text(SddConventions.scopedPath(
-              context, from ?? conventions.planPath)),
-          output: planDoc),
+        path: Template.text(SddConventions.scopedPath(context, from ?? conventions.planPath)),
+        output: planDoc,
+      ),
       FanOut(
         tasks: [
           for (final ws in workstreams)
@@ -399,7 +363,8 @@ class Implement extends ComposableNode {
             ParallelTaskEntry(
               agentId: ws.agent?.roleId ?? ws.agentId ?? 'default',
               output: ws.output.name,
-              prompt: 'Execute your workstream of the implementation plan '
+              prompt:
+                  'Execute your workstream of the implementation plan '
                   'below. Own it end to end and produce the deliverable in '
                   'Markdown.\n\nYour workstream: ${ws.focus}\n\n'
                   'Plan:\n\${${planDoc.name}}$_documentOnly',
@@ -407,10 +372,7 @@ class Implement extends ComposableNode {
         ],
       ),
       for (final ws in workstreams)
-        if (ws.artifact != null)
-          WriteFile(
-              path: Template.text(ws.artifact!),
-              content: Template([ws.output])),
+        if (ws.artifact != null) WriteFile(path: Template.text(ws.artifact!), content: Template([ws.output])),
       ?integrate,
     ]);
   }
@@ -482,18 +444,17 @@ class Review extends ComposableNode {
     this.maxRounds,
     this.output,
     this.verdict,
-  })  : assert(agent == null || agentId == null,
-            'Provide at most one of agent/agentId'),
-        assert(revise == null || !gate,
-            'The revise loop is model-decided; combine gate with onRevise');
+  }) : assert(agent == null || agentId == null, 'Provide at most one of agent/agentId'),
+       assert(revise == null || !gate, 'The revise loop is model-decided; combine gate with onRevise');
 
   @override
   VasterNode build(BuildContext context) {
-    assert(revise == null || onRevise.isEmpty,
-        'Provide either revise (loop) or onRevise (terminal), not both');
+    assert(
+      revise == null || onRevise.isEmpty,
+      'Provide either revise (loop) or onRevise (terminal), not both',
+    );
     final conventions = context.tryRead<SddConventions>() ?? const SddConventions();
-    final target =
-        SddConventions.scopedPath(context, of ?? conventions.planPath);
+    final target = SddConventions.scopedPath(context, of ?? conventions.planPath);
     final reviewTarget = context.scopedBinding('review_target');
     final review = output ?? context.scopedBinding('review');
     final reviewVerdict = verdict ?? context.scopedBinding('review_verdict');
@@ -515,9 +476,9 @@ class Review extends ComposableNode {
         ]),
       ),
       WriteFile(
-          path: Template.text(SddConventions.scopedPath(
-              context, artifact ?? conventions.reviewPath)),
-          content: Template([review])),
+        path: Template.text(SddConventions.scopedPath(context, artifact ?? conventions.reviewPath)),
+        content: Template([review]),
+      ),
     ];
     // Calibration note (claude-cli recording, 2026-08-04): backends without
     // schema enforcement will happily re-review the artifact and override the
@@ -530,8 +491,7 @@ class Review extends ComposableNode {
           'one.\n\nReview:\n',
       review,
     ]);
-    const approveDescription =
-        'no blocking issues — minor notes can ride along';
+    const approveDescription = 'no blocking issues — minor notes can ride along';
     const reviseDescription = 'blocking issues must be fixed first';
 
     if (gate) {
@@ -539,11 +499,7 @@ class Review extends ComposableNode {
         ...reviewSteps,
         ApprovalGate(
           requestId: requestId,
-          prompt: Template([
-            'A review of $target is ready:\n\n',
-            review,
-            '\n\nApprove?',
-          ]),
+          prompt: Template(['A review of $target is ready:\n\n', review, '\n\nApprove?']),
           onApprove: onApprove,
           onReject: onRevise,
         ),
@@ -562,13 +518,7 @@ class Review extends ComposableNode {
           continueLabel: 'revise',
           continueDescription: reviseDescription,
           onContinue: [revise!, ...reviewSteps],
-          exits: [
-            DecisionPath(
-              label: 'approve',
-              description: approveDescription,
-              children: onApprove,
-            ),
-          ],
+          exits: [DecisionPath(label: 'approve', description: approveDescription, children: onApprove)],
           defaultPath: 'approve',
           maxIterations: maxRounds,
         ),
@@ -581,16 +531,8 @@ class Review extends ComposableNode {
         output: reviewVerdict,
         defaultPath: 'approve',
         paths: [
-          DecisionPath(
-            label: 'approve',
-            description: approveDescription,
-            children: onApprove,
-          ),
-          DecisionPath(
-            label: 'revise',
-            description: reviseDescription,
-            children: onRevise,
-          ),
+          DecisionPath(label: 'approve', description: approveDescription, children: onApprove),
+          DecisionPath(label: 'revise', description: reviseDescription, children: onRevise),
         ],
       ),
     ]);

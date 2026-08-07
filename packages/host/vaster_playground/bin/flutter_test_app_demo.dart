@@ -13,28 +13,20 @@ void main() async {
   print('  Target Project: (temp dir, printed below)');
   print('======================================================================\n');
 
-  final flutterProjectPath =
-      Directory.systemTemp.createTempSync('vaster_flutter_target_').path;
+  final flutterProjectPath = Directory.systemTemp.createTempSync('vaster_flutter_target_').path;
 
   // 1. Assemble complete Flutter application workflow using specialized composable nodes
   final pipeline = Pipeline(
     name: 'flutter_test_app_pipeline',
     children: const [
       // Step 1: Design system tokens & typography
-      FlutterDesignSystemComponent(
-        primaryColorHex: '#6750A4',
-        accentColorHex: '#625B71',
-      ),
+      FlutterDesignSystemComponent(primaryColorHex: '#6750A4', accentColorHex: '#625B71'),
 
       // Step 2: Domain entity data model
       FlutterDomainModelNode(
         featureName: 'task_manager',
         entityName: 'TaskItem',
-        fields: {
-          'id': 'String',
-          'title': 'String',
-          'isCompleted': 'bool',
-        },
+        fields: {'id': 'String', 'title': 'String', 'isCompleted': 'bool'},
       ),
 
       // Step 3: State management (BLoC, Events, States)
@@ -53,10 +45,7 @@ void main() async {
       ),
 
       // Step 5: Widget unit test suite
-      FlutterWidgetTestComponent(
-        featureName: 'task_manager',
-        pageTitle: 'Task Manager Dashboard',
-      ),
+      FlutterWidgetTestComponent(featureName: 'task_manager', pageTitle: 'Task Manager Dashboard'),
     ],
   );
 
@@ -75,10 +64,7 @@ void main() async {
   print('┌─ EXECUTING FLUTTER WORKFLOW ON REAL LOCAL DISK ────────────────┐');
 
   final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(
-      defaultModel: FakeVasterModel(),
-      rootMountPath: '/workspace',
-    ),
+    config: VMConfig(defaultModel: FakeVasterModel(), rootMountPath: '/workspace'),
     rootFileSystem: LocalVasterFileSystem(flutterProjectPath),
   );
 
@@ -96,8 +82,12 @@ void main() async {
   // Verify created files exist on local disk
   final themeFile = File('$flutterProjectPath/lib/core/theme/app_theme.dart');
   final modelFile = File('$flutterProjectPath/lib/features/task_manager/domain/taskitem.dart');
-  final blocFile = File('$flutterProjectPath/lib/features/task_manager/presentation/bloc/task_manager_bloc.dart');
-  final pageFile = File('$flutterProjectPath/lib/features/task_manager/presentation/pages/task_manager_page.dart');
+  final blocFile = File(
+    '$flutterProjectPath/lib/features/task_manager/presentation/bloc/task_manager_bloc.dart',
+  );
+  final pageFile = File(
+    '$flutterProjectPath/lib/features/task_manager/presentation/pages/task_manager_page.dart',
+  );
   final testFile = File('$flutterProjectPath/test/features/task_manager/task_manager_page_test.dart');
 
   print('\n┌─ VERIFYING LOCAL DISK FILES ──────────────────────────────────┐');

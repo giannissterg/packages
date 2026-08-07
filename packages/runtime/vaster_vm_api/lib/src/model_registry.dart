@@ -29,8 +29,7 @@ class ModelRegistry {
   /// only one hid a real event: registering `anthropic:opus` silently
   /// evicted whatever was serving the bare `anthropic` key. A caller can
   /// now see both (Rule 11: report every displacement, not the first).
-  Map<String, VasterModel> registerModel(
-      ModelDescriptor descriptor, VasterModel model) {
+  Map<String, VasterModel> registerModel(ModelDescriptor descriptor, VasterModel model) {
     final displaced = <String, VasterModel>{};
     final byKey = _models[descriptor.descriptorKey];
     if (byKey != null) displaced[descriptor.descriptorKey] = byKey;
@@ -46,9 +45,7 @@ class ModelRegistry {
   /// Returns the registered model matching [descriptor.descriptorKey] or
   /// [descriptor.provider], or falls back to [defaultModel].
   VasterModel? resolveModel(ModelDescriptor descriptor) {
-    return _models[descriptor.descriptorKey] ??
-        _models[descriptor.provider] ??
-        _defaultModel;
+    return _models[descriptor.descriptorKey] ?? _models[descriptor.provider] ?? _defaultModel;
   }
 
   /// Resolves a model by descriptor key or provider name.
@@ -58,7 +55,6 @@ class ModelRegistry {
 
   /// Returns `true` if a model for [descriptor] is registered.
   bool contains(ModelDescriptor descriptor) {
-    return _models.containsKey(descriptor.descriptorKey) ||
-        _models.containsKey(descriptor.provider);
+    return _models.containsKey(descriptor.descriptorKey) || _models.containsKey(descriptor.provider);
   }
 }

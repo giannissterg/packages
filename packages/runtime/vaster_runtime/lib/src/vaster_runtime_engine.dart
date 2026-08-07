@@ -37,7 +37,6 @@ import 'runtime_state.dart';
 import 'runtime_status.dart';
 import 'tool_call_orchestrator.dart';
 
-
 /// Observer invoked after each instruction is executed by a [VasterRuntime].
 ///
 /// Fires with the program counter of the instruction that just ran, the
@@ -90,7 +89,6 @@ class VasterRuntime {
   /// traps.
   final ResourceTracker _quotaTracker;
 
-
   int _pc = 0;
 
   /// The machine's execution phase — sealed, data-carrying (a pause holds
@@ -122,12 +120,18 @@ class VasterRuntime {
   /// the serving member stamps [ModelResponse.servedBy] so metering
   /// attributes the call to the model that really served it.
   VasterModel? get _activeModel =>
-      ModelChainResolver(registry: vm.modelRegistry, eventBus: vm.eventBus)
-          .resolve(
+      ModelChainResolver(registry: vm.modelRegistry, eventBus: vm.eventBus).resolve(
         primary: _machineContext.activeModelDescriptor,
         fallbacks: _machineContext.activeModelFallbacks,
         eventScope: 'pc_$_pc',
       );
+
+  /// The active model resolved to a concrete backend — the ISA-selected
+  /// chain when one is active, else the VM default. The collaborators the
+  /// engine drives (funnel, orchestrator, arbiter) take a REQUIRED model
+  /// (Rule 5: no nullable-model fallback threaded through their calls);
+  /// resolving the default is the engine's job, done here once.
+  VasterModel get _resolvedModel => _activeModel ?? vm.config.defaultModel;
 
   String? get _activeSessionId => _machineContext.activeSessionId;
 
@@ -157,26 +161,28 @@ class VasterRuntime {
 
   /// Publishes one extraction warning (same pattern as unresolved
   /// interpolation: tolerated at runtime, visible in telemetry).
-  void _warnExtract(String code, String message) =>
-      vm.eventBus.publish(RuntimeWarningEvent(
-        eventId: 'evt_warn_${code}_$_pc',
-        code: code,
-        message: message,
-        pc: _pc,
-      ));
+  void _warnExtract(String code, String message) => vm.eventBus.publish(
+    RuntimeWarningEvent(eventId: 'evt_warn_${code}_$_pc', code: code, message: message, pc: _pc),
+  );
 
   /// Resolves an interpolated instruction field, surfacing unresolvable
   /// references as runtime warnings instead of failing.
-  String _interp(String template) => _interpolator.resolve(
-        template,
-        onMissing: (name) => vm.eventBus.publish(RuntimeWarningEvent(
-          eventId: 'evt_warn_interp_$_pc',
-          code: 'unresolved_interpolation',
-          message:
-              'Register "$name" referenced by \${...} is unset at PC $_pc.',
-          pc: _pc,
-        )),
-      );
+  String _interp(String template) {
+    final result = _interpolator.resolve(template);
+    for (final name in result.missing) {
+      _warnMissingRef(name);
+    }
+    return result.text;
+  }
+
+  void _warnMissingRef(String name) => vm.eventBus.publish(
+    RuntimeWarningEvent(
+      eventId: 'evt_warn_interp_$_pc',
+      code: 'unresolved_interpolation',
+      message: 'Register "$name" referenced by \${...} is unset at PC $_pc.',
+      pc: _pc,
+    ),
+  );
 
   /// The full collaborator graph is built here, eagerly and in dependency
   /// order — construction-time ownership (Rule 5), no lazy initialization.
@@ -197,8 +203,7 @@ class VasterRuntime {
     // GAP-3a: agent-internal tool calls share this runtime's dedup
     // memory. Last bind wins — one executing runtime per VM is the
     // supported shape; the displaced recorder is intentionally dropped.
-    final effectRecorder =
-        LedgerToolEffectRecorder(ledger: effectLedger, eventBus: vm.eventBus);
+    final effectRecorder = LedgerToolEffectRecorder(ledger: effectLedger, eventBus: vm.eventBus);
     vm.agentToolRecorder.bind(effectRecorder);
     // A1: agent-internal tool calls answer to the PROGRAM's policy — the
     // same guard the ISA loop enforces, bound through the VM.
@@ -217,17 +222,12 @@ class VasterRuntime {
       ToolCallOrchestrator(
         host: vm,
         meter: meter,
-        defaultModel: vm.config.defaultModel,
         quotaTracker: quotaTracker,
         guard: policyGuard,
         maxIterations: maxToolIterations,
         recorder: effectRecorder,
       ),
-      DecisionArbiter(
-        funnel: vm,
-        meter: meter,
-        defaultModel: vm.config.defaultModel,
-      ),
+      DecisionArbiter(funnel: vm, meter: meter),
       RegisterInterpolator(registers: registers),
       HitlController(eventBus: vm.eventBus),
       effectLedger,
@@ -276,17 +276,16 @@ class VasterRuntime {
   /// a component here — loose fields on the runtime are forbidden (they are
   /// exactly how the first checkpoint silently lost the active session).
   List<MachineStateComponent> get _stateComponents => [
-        _registers,
-        _callStack,
-        _machineContext,
-        _hitl,
-        _effectLedger,
-        QuotaStateAdapter(_quotaTracker),
-      ];
+    _registers,
+    _callStack,
+    _machineContext,
+    _hitl,
+    _effectLedger,
+    QuotaStateAdapter(_quotaTracker),
+  ];
 
   /// The whole machine at this instruction boundary, as pure JSON.
-  MachineSnapshot captureSnapshot() =>
-      MachineSnapshot.capture(pc: _pc, componentList: _stateComponents);
+  MachineSnapshot captureSnapshot() => MachineSnapshot.capture(pc: _pc, componentList: _stateComponents);
 
   /// Restores a previously captured whole-machine snapshot.
   void restoreSnapshot(MachineSnapshot snapshot) {
@@ -295,12 +294,8 @@ class VasterRuntime {
   }
 
   /// Current execution state snapshot.
-  RuntimeState get state => RuntimeState(
-        pc: _pc,
-        status: _status,
-        registers: _registers.snapshot(),
-        errorDetails: _lastError,
-      );
+  RuntimeState get state =>
+      RuntimeState(pc: _pc, status: _status, registers: _registers.snapshot(), errorDetails: _lastError);
 
   /// Currently active [VasterProgram] being executed.
   VasterProgram? get currentProgram => _currentProgram;
@@ -348,8 +343,7 @@ class VasterRuntime {
     // Program-header class table: static metadata installed at load, never
     // mutated by executing instructions.
     if (program.contextClasses != null) {
-      vm.contextManager
-          .installClassTable(ContextClassTable.fromJson(program.contextClasses!));
+      vm.contextManager.installClassTable(ContextClassTable.fromJson(program.contextClasses!));
     }
 
     return _runLoop(program);
@@ -420,8 +414,7 @@ class VasterRuntime {
         _status == RuntimeStatus.running &&
         (maxSteps == null || executed < maxSteps)) {
       if (budget.isExpired) {
-        _phase = PhaseTimedOut(
-            reason: 'Execution budget or deadline expired at PC $_pc');
+        _phase = PhaseTimedOut(reason: 'Execution budget or deadline expired at PC $_pc');
         break;
       }
       final instruction = program.instructions[_pc];
@@ -473,8 +466,7 @@ class VasterRuntime {
       _phase = const PhaseHalted();
     }
     if (_status == RuntimeStatus.halted) {
-      vm.contextManager
-          .pruneLifetimes({ContextLifetime.ephemeral, ContextLifetime.step});
+      vm.contextManager.pruneLifetimes({ContextLifetime.ephemeral, ContextLifetime.step});
     }
     return state;
   }
@@ -510,9 +502,7 @@ class VasterRuntime {
     final registers = _registers.snapshot();
     final registerDump = registers.isEmpty
         ? '  (empty)'
-        : registers.entries
-            .map((e) => '  ${e.key} = ${_truncate('${e.value}')}')
-            .join('\n');
+        : registers.entries.map((e) => '  ${e.key} = ${_truncate('${e.value}')}').join('\n');
     return [
       '── VASTER VM TRAP ──────────────────────────────',
       'fault    : $error',
@@ -538,15 +528,13 @@ class VasterRuntime {
     if (operator == 'ne') return !_looseEquals(left, right);
     final ln = left is num ? left : num.tryParse('$left');
     final rn = right is num ? right : num.tryParse('$right');
-    final cmp =
-        (ln != null && rn != null) ? ln.compareTo(rn) : '$left'.compareTo('$right');
+    final cmp = (ln != null && rn != null) ? ln.compareTo(rn) : '$left'.compareTo('$right');
     return switch (operator) {
       'lt' => cmp < 0,
       'le' => cmp <= 0,
       'gt' => cmp > 0,
       'ge' => cmp >= 0,
-      _ => throw StateError(
-          'Unknown compare operator "$operator" (expected lt/le/gt/ge/eq/ne).'),
+      _ => throw StateError('Unknown compare operator "$operator" (expected lt/le/gt/ge/eq/ne).'),
     };
   }
 
@@ -589,13 +577,13 @@ class VasterRuntime {
             ? await vm.promptInSession(
                 _activeSessionId!,
                 promptText,
-                model: _activeModel,
+                model: _resolvedModel,
                 config: promptConfig,
                 cacheHints: _cacheHints.activeHints,
               )
             : await vm.prompt(
                 promptText,
-                model: _activeModel,
+                model: _resolvedModel,
                 config: promptConfig,
                 cacheHints: _cacheHints.activeHints,
               );
@@ -604,7 +592,7 @@ class VasterRuntime {
             prompt: promptText,
             initialResponse: response,
             programToolSet: _machineContext.programToolSet,
-            model: _activeModel,
+            model: _resolvedModel,
             cacheHints: _cacheHints.activeHints,
           );
         }
@@ -615,10 +603,8 @@ class VasterRuntime {
         _meter.charge(
           usage: response.usage.totalTokenCount > 0
               ? response.usage
-              : TokenEstimate.forExchange(
-                  prompt: promptText, output: response.text),
-          modelName: response.servedBy ??
-              (_activeModel ?? vm.config.defaultModel).modelName,
+              : TokenEstimate.forExchange(prompt: promptText, output: response.text),
+          modelName: response.servedBy ?? (_activeModel ?? vm.config.defaultModel).modelName,
           callSite: 'isa_prompt',
         );
         if (op.outputVar != null) _registers.write(op.outputVar!, response.text);
@@ -628,10 +614,7 @@ class VasterRuntime {
         _machineContext.activeModelFallbacks = op.fallbacks;
 
       case CreateSessionOp op:
-        await vm.createSession(
-          sessionId: op.sessionId,
-          modelDescriptor: op.modelDescriptor,
-        );
+        await vm.createSession(sessionId: op.sessionId, modelDescriptor: op.modelDescriptor);
 
       case SetSessionOp op:
         _machineContext.activeSessionId = op.sessionId;
@@ -674,23 +657,27 @@ class VasterRuntime {
         // program believes it has rollback protection it does not have.
         // Tolerated, but never silently (Rule 2).
         if (vm.fileSystemManager.transactionDepth == 0) {
-          vm.eventBus.publish(RuntimeWarningEvent(
-            eventId: 'evt_warn_tx_unpaired_$_pc',
-            code: 'transaction_unpaired',
-            message: 'CommitOp at PC $_pc found no open transaction.',
-            pc: _pc,
-          ));
+          vm.eventBus.publish(
+            RuntimeWarningEvent(
+              eventId: 'evt_warn_tx_unpaired_$_pc',
+              code: 'transaction_unpaired',
+              message: 'CommitOp at PC $_pc found no open transaction.',
+              pc: _pc,
+            ),
+          );
         }
         await vm.fileSystemManager.commit();
 
       case RollbackOp _:
         if (vm.fileSystemManager.transactionDepth == 0) {
-          vm.eventBus.publish(RuntimeWarningEvent(
-            eventId: 'evt_warn_tx_unpaired_$_pc',
-            code: 'transaction_unpaired',
-            message: 'RollbackOp at PC $_pc found no open transaction.',
-            pc: _pc,
-          ));
+          vm.eventBus.publish(
+            RuntimeWarningEvent(
+              eventId: 'evt_warn_tx_unpaired_$_pc',
+              code: 'transaction_unpaired',
+              message: 'RollbackOp at PC $_pc found no open transaction.',
+              pc: _pc,
+            ),
+          );
         }
         await vm.fileSystemManager.rollback();
 
@@ -709,9 +696,7 @@ class VasterRuntime {
         vm.mountSandbox(
           op.sandboxId,
           op.language,
-          timeout: op.timeoutMs == null
-              ? null
-              : Duration(milliseconds: op.timeoutMs!),
+          timeout: op.timeoutMs == null ? null : Duration(milliseconds: op.timeoutMs!),
         );
 
       case ExecSandboxOp op:
@@ -722,16 +707,16 @@ class VasterRuntime {
           codeOrCommand: _interp(op.code),
         );
         sandboxClock.stop();
-        final languages =
-            vm.sandboxManager.getSandbox(op.sandboxId)?.descriptor.supportedLanguages;
-        vm.eventBus.publish(SandboxExecutedEvent(
-          eventId: 'evt_sandbox_exec_${op.sandboxId}_$_pc',
-          sandboxId: op.sandboxId,
-          language:
-              (languages == null || languages.isEmpty) ? 'unknown' : languages.first.name,
-          exitCode: result.exitCode,
-          executionDuration: sandboxClock.elapsed,
-        ));
+        final languages = vm.sandboxManager.getSandbox(op.sandboxId)?.descriptor.supportedLanguages;
+        vm.eventBus.publish(
+          SandboxExecutedEvent(
+            eventId: 'evt_sandbox_exec_${op.sandboxId}_$_pc',
+            sandboxId: op.sandboxId,
+            language: (languages == null || languages.isEmpty) ? 'unknown' : languages.first.name,
+            exitCode: result.exitCode,
+            executionDuration: sandboxClock.elapsed,
+          ),
+        );
         if (op.outputVar != null) _registers.write(op.outputVar!, result.stdout);
 
       // ── Agents ────────────────────────────────────────────────────────────
@@ -751,19 +736,18 @@ class VasterRuntime {
         // never re-run, and never re-charged.
         final dispatchClaim = _effectLedger.claim(
           name: 'agent:${op.agentId}',
-          arguments: {
-            'prompt': taskPrompt,
-            if (op.responseSchema != null) 'schema': op.responseSchema,
-          },
+          arguments: {'prompt': taskPrompt, if (op.responseSchema != null) 'schema': op.responseSchema},
         );
         final AgentOutput output;
         if (dispatchClaim.recorded != null) {
           output = AgentOutput.fromJson(dispatchClaim.recorded!);
-          vm.eventBus.publish(AgentTaskReplayedEvent(
-            eventId: 'evt_task_replay_$_pc',
-            agentId: op.agentId,
-            taskId: output.taskId,
-          ));
+          vm.eventBus.publish(
+            AgentTaskReplayedEvent(
+              eventId: 'evt_task_replay_$_pc',
+              agentId: op.agentId,
+              taskId: output.taskId,
+            ),
+          );
         } else {
           // The dispatch slot's identity is the agent's effect region
           // (GAP-3a): its internal tool records nest under this dispatch,
@@ -771,12 +755,10 @@ class VasterRuntime {
           // predecessor already executed.
           output = await vm.runAgentTask(
             AgentTask(
-                taskId: 'isa_task_$_pc',
-                inputPrompt: taskPrompt,
-                metadata: {
-                  ...meta,
-                  EffectRegion.metadataKey: ?dispatchClaim.slotId,
-                }),
+              taskId: 'isa_task_$_pc',
+              inputPrompt: taskPrompt,
+              metadata: {...meta, EffectRegion.metadataKey: ?dispatchClaim.slotId},
+            ),
             agentId: op.agentId,
           );
           // Charge the task tree's real accumulated usage (agent +
@@ -788,8 +770,7 @@ class VasterRuntime {
           _meter.charge(
             usage: taskUsage.totalTokenCount > 0
                 ? taskUsage
-                : TokenEstimate.forExchange(
-                    prompt: taskPrompt, output: output.outputText),
+                : TokenEstimate.forExchange(prompt: taskPrompt, output: output.outputText),
             modelName: vm.config.defaultModel.modelName,
             callSite: 'isa_agent_task',
           );
@@ -801,18 +782,13 @@ class VasterRuntime {
         // (ABI convention: taskOutcomeRegister) — observable data even
         // when a handler recovers the failure.
         if (op.outputVar != null) {
-          _registers.write(
-              taskOutcomeRegister(op.outputVar!), output.outcome.kind);
+          _registers.write(taskOutcomeRegister(op.outputVar!), output.outcome.kind);
         }
         // Failure is a program error, not an empty register: route it to
         // the error-handler stack (TryCatch / Resilient) or trap. This is
         // what makes agent failures recoverable at all.
         if (!output.isSuccess) {
-          throw AgentTaskException(
-            agentId: op.agentId,
-            taskId: output.taskId,
-            outcome: output.outcome,
-          );
+          throw AgentTaskException(agentId: op.agentId, taskId: output.taskId, outcome: output.outcome);
         }
         if (op.outputVar != null) _registers.write(op.outputVar!, output.outputText);
 
@@ -823,26 +799,20 @@ class VasterRuntime {
         // identity), then fan out only the misses: in a retried batch the
         // successes replay and only the failures re-run (GAP-2). Each
         // claim's slot id is its dispatch's effect region (GAP-3a).
-        final prompts = [
-          for (final d in op.dispatches) _interp(d.taskPrompt),
-        ];
+        final prompts = [for (final d in op.dispatches) _interp(d.taskPrompt)];
         final claims = [
           for (var i = 0; i < op.dispatches.length; i++)
-            _effectLedger.claim(
-              name: 'agent:${op.dispatches[i].agentId}',
-              arguments: {'prompt': prompts[i]},
-            ),
+            _effectLedger.claim(name: 'agent:${op.dispatches[i].agentId}', arguments: {'prompt': prompts[i]}),
         ];
         final dispatches = [
           for (var i = 0; i < op.dispatches.length; i++)
             (
               agentId: op.dispatches[i].agentId,
               task: AgentTask(
-                  taskId: 'parallel_${_pc}_$i',
-                  inputPrompt: prompts[i],
-                  metadata: {
-                    EffectRegion.metadataKey: ?claims[i].slotId,
-                  }),
+                taskId: 'parallel_${_pc}_$i',
+                inputPrompt: prompts[i],
+                metadata: {EffectRegion.metadataKey: ?claims[i].slotId},
+              ),
             ),
         ];
         final outputs = List<AgentOutput?>.filled(dispatches.length, null);
@@ -851,18 +821,21 @@ class VasterRuntime {
           final recorded = claims[i].recorded;
           if (recorded != null) {
             outputs[i] = AgentOutput.fromJson(recorded);
-            vm.eventBus.publish(AgentTaskReplayedEvent(
-              eventId: 'evt_task_replay_${_pc}_$i',
-              agentId: dispatches[i].agentId,
-              taskId: outputs[i]!.taskId,
-            ));
+            vm.eventBus.publish(
+              AgentTaskReplayedEvent(
+                eventId: 'evt_task_replay_${_pc}_$i',
+                agentId: dispatches[i].agentId,
+                taskId: outputs[i]!.taskId,
+              ),
+            );
           } else {
             freshIndices.add(i);
           }
         }
         if (freshIndices.isNotEmpty) {
-          final fresh = await vm.agentManager.dispatchParallelTasks(
-              [for (final i in freshIndices) dispatches[i]]);
+          final fresh = await vm.agentManager.dispatchParallelTasks([
+            for (final i in freshIndices) dispatches[i],
+          ]);
           for (var j = 0; j < freshIndices.length; j++) {
             final i = freshIndices[j];
             outputs[i] = fresh[j];
@@ -908,19 +881,20 @@ class VasterRuntime {
         if (firstFailure != null) throw firstFailure;
 
       case SendMessageOp op:
-        vm.messagingHub.sendMessage(AgentMessage(
-          messageId: 'isa_msg_$_pc',
-          senderAgentId: op.senderId,
-          recipientAgentId: op.recipientId,
-          payload: _interpolator.resolveMap(op.payload,
-              onMissing: (name) => vm.eventBus.publish(RuntimeWarningEvent(
-                    eventId: 'evt_warn_interp_$_pc',
-                    code: 'unresolved_interpolation',
-                    message: 'Register "$name" referenced by \${...} is '
-                        'unset at PC $_pc.',
-                    pc: _pc,
-                  ))),
-        ));
+        vm.messagingHub.sendMessage(
+          AgentMessage(
+            messageId: 'isa_msg_$_pc',
+            senderAgentId: op.senderId,
+            recipientAgentId: op.recipientId,
+            payload: () {
+              final resolved = _interpolator.resolveMap(op.payload);
+              for (final name in resolved.missing) {
+                _warnMissingRef(name);
+              }
+              return resolved.payload;
+            }(),
+          ),
+        );
 
       case PopMessageOp op:
         final msg = vm.messagingHub.popNextMessage(op.agentId);
@@ -945,23 +919,22 @@ class VasterRuntime {
         final content = op.sourceVar != null
             ? (_registers.read(op.sourceVar!)?.toString() ?? '')
             : _interp(op.text);
-        final displacedRegion =
-            vm.contextManager.addRegion(ContextRegion.text(
-          id: op.regionId,
-          label: op.label,
-          role: Role.user,
-          text: content,
-          classId: op.className,
-          // Null policy fields inherit from the region's context class.
-          priority:
-              op.priority != null ? ContextPriority.parse(op.priority!) : null,
-          lifetime:
-              op.lifetime != null ? ContextLifetime.parse(op.lifetime!) : null,
-          compressibility: op.compressibility != null
-              ? ContextCompressibility.parse(op.compressibility!)
-              : null,
-          isPinned: op.pinned,
-        ));
+        final displacedRegion = vm.contextManager.addRegion(
+          ContextRegion.text(
+            id: op.regionId,
+            label: op.label,
+            role: Role.user,
+            text: content,
+            classId: op.className,
+            // Null policy fields inherit from the region's context class.
+            priority: op.priority != null ? ContextPriority.parse(op.priority!) : null,
+            lifetime: op.lifetime != null ? ContextLifetime.parse(op.lifetime!) : null,
+            compressibility: op.compressibility != null
+                ? ContextCompressibility.parse(op.compressibility!)
+                : null,
+            isPinned: op.pinned,
+          ),
+        );
         if (op.pinned) {
           _cacheHints.onRegionPinned(op.regionId, vm.contextManager);
         } else if (displacedRegion?.isPinned ?? false) {
@@ -972,8 +945,7 @@ class VasterRuntime {
         }
 
       case EvictContextOp op:
-        final removed =
-            vm.contextManager.removeRegion(op.regionId, force: op.force);
+        final removed = vm.contextManager.removeRegion(op.regionId, force: op.force);
         if (removed) _cacheHints.removeHint(op.regionId);
 
       case UnpinContextOp op:
@@ -984,8 +956,7 @@ class VasterRuntime {
         vm.contextManager.updateRegion(
           op.regionId,
           (r) => r.copyWith(
-            priority:
-                op.priority != null ? ContextPriority.parse(op.priority) : null,
+            priority: op.priority != null ? ContextPriority.parse(op.priority) : null,
             isPinned: op.pinned,
             compressibility: op.compressibility != null
                 ? ContextCompressibility.parse(op.compressibility)
@@ -1000,11 +971,9 @@ class VasterRuntime {
         }
 
       case CompressContextOp op:
-        final target = op.targetTokens ??
-            (_activeModel ?? vm.config.defaultModel)
-                    .capabilities.maxContextTokens *
-                9 ~/
-                10;
+        final target =
+            op.targetTokens ??
+            (_activeModel ?? vm.config.defaultModel).capabilities.maxContextTokens * 9 ~/ 10;
         final report = await vm.contextManager.compact(
           targetTokens: target,
           regionId: op.regionId,
@@ -1035,8 +1004,7 @@ class VasterRuntime {
                 name: VfsSyscalls.writeFileName,
                 description: tool.description,
                 parametersSchema: tool.parametersSchema,
-                handler: (args) =>
-                    VfsSyscalls.writeFile(vm.fileSystemManager, args),
+                handler: (args) => VfsSyscalls.writeFile(vm.fileSystemManager, args),
               ),
             );
           } else if (tool.name == VfsSyscalls.readFileName) {
@@ -1045,8 +1013,7 @@ class VasterRuntime {
                 name: VfsSyscalls.readFileName,
                 description: tool.description,
                 parametersSchema: tool.parametersSchema,
-                handler: (args) =>
-                    VfsSyscalls.readFile(vm.fileSystemManager, args),
+                handler: (args) => VfsSyscalls.readFile(vm.fileSystemManager, args),
               ),
             );
           } else {
@@ -1068,17 +1035,20 @@ class VasterRuntime {
           // cost or the pricing catalog rates its model — otherwise declare
           // the gap loudly instead of pretending.
           final costModel = _activeModel ?? vm.config.defaultModel;
-          final enforceable = costModel.capabilities.reportsCostUsd ||
-              vm.config.pricingCatalog.prices(costModel.modelName);
+          final enforceable =
+              costModel.capabilities.reportsCostUsd || vm.config.pricingCatalog.prices(costModel.modelName);
           if (!enforceable) {
-            vm.eventBus.publish(RuntimeWarningEvent(
-              eventId: 'evt_warn_quota_cost_$_pc',
-              code: 'cost_quota_unenforced',
-              message: 'maxCostBudget is declared at PC $_pc but the active '
-                  'backend "${costModel.modelName}" neither reports cost nor '
-                  'has catalog pricing — the cost ceiling is not enforced.',
-              pc: _pc,
-            ));
+            vm.eventBus.publish(
+              RuntimeWarningEvent(
+                eventId: 'evt_warn_quota_cost_$_pc',
+                code: 'cost_quota_unenforced',
+                message:
+                    'maxCostBudget is declared at PC $_pc but the active '
+                    'backend "${costModel.modelName}" neither reports cost nor '
+                    'has catalog pricing — the cost ceiling is not enforced.',
+                pc: _pc,
+              ),
+            );
           }
         }
 
@@ -1100,11 +1070,9 @@ class VasterRuntime {
       // ── Control flow ──────────────────────────────────────────────────────
       case CallOp op:
         _registers.writeAll(op.arguments);
-        _callStack.push(ActivationRecord(
-          functionName: op.functionName,
-          returnPc: _pc + 1,
-          outputVar: op.outputVar,
-        ));
+        _callStack.push(
+          ActivationRecord(functionName: op.functionName, returnPc: _pc + 1, outputVar: op.outputVar),
+        );
         _pc = op.targetPc - 1;
 
       case ReturnSubroutineOp op:
@@ -1136,11 +1104,8 @@ class VasterRuntime {
         }
         final decision = await _decisionArbiter.decide(
           prompt: _interp(op.prompt),
-          branches: [
-            for (final b in op.branches)
-              (label: b.label, description: b.description),
-          ],
-          model: _activeModel,
+          branches: [for (final b in op.branches) (label: b.label, description: b.description)],
+          model: _resolvedModel,
           sessionId: _activeSessionId,
           cacheHints: _cacheHints.activeHints,
         );
@@ -1165,36 +1130,40 @@ class VasterRuntime {
             DecisionChosen(:final label) => label,
           };
           throw StateError(
-              'DecideOp at PC $_pc: model answer "$rawAnswer" resolved to no '
-              'branch label (${op.branches.map((b) => b.label).join(', ')}) '
-              'and no valid defaultLabel is set.');
+            'DecideOp at PC $_pc: model answer "$rawAnswer" resolved to no '
+            'branch label (${op.branches.map((b) => b.label).join(', ')}) '
+            'and no valid defaultLabel is set.',
+          );
         }
         if (op.outputVar != null) {
           _registers.write(op.outputVar!, branch.label);
           if (decision.rationale != null) {
-            _registers.write(
-                decideRationaleRegister(op.outputVar!), decision.rationale);
+            _registers.write(decideRationaleRegister(op.outputVar!), decision.rationale);
           }
         }
-        vm.eventBus.publish(DecisionMadeEvent(
-          eventId: 'evt_decide_$_pc',
-          chosenLabel: branch.label,
-          rationale: decision.rationale,
-          branchCount: op.branches.length,
-          targetPc: branch.targetPc,
-          usedDefault: decision is DecisionUnresolved,
-        ));
+        vm.eventBus.publish(
+          DecisionMadeEvent(
+            eventId: 'evt_decide_$_pc',
+            chosenLabel: branch.label,
+            rationale: decision.rationale,
+            branchCount: op.branches.length,
+            targetPc: branch.targetPc,
+            usedDefault: decision is DecisionUnresolved,
+          ),
+        );
         _pc = branch.targetPc - 1;
 
       case PushErrorHandlerOp op:
         // The frame records what is open NOW — the unwind marks a caught
         // failure rolls back / merges to before control transfers (REL-P4).
-        _machineContext.errorHandlers.add(ErrorHandlerFrame(
-          targetPc: op.targetPc,
-          errorVar: op.errorVar,
-          transactionDepth: vm.fileSystemManager.transactionDepth,
-          effectScopeDepth: _effectLedger.depth,
-        ));
+        _machineContext.errorHandlers.add(
+          ErrorHandlerFrame(
+            targetPc: op.targetPc,
+            errorVar: op.errorVar,
+            transactionDepth: vm.fileSystemManager.transactionDepth,
+            effectScopeDepth: _effectLedger.depth,
+          ),
+        );
 
       case PopErrorHandlerOp _:
         if (_machineContext.errorHandlers.isNotEmpty) _machineContext.errorHandlers.removeLast();
@@ -1210,8 +1179,7 @@ class VasterRuntime {
 
       case CompareRegisterOp op:
         final left = _registers.read(op.leftVar);
-        final right =
-            op.rightVar != null ? _registers.read(op.rightVar!) : op.rightValue;
+        final right = op.rightVar != null ? _registers.read(op.rightVar!) : op.rightValue;
         _registers.write(op.targetVar, _compare(left, op.operator, right));
 
       case JsonExtractOp op:
@@ -1228,20 +1196,18 @@ class VasterRuntime {
           case ExtractOk():
             break;
           case ExtractSourceMissing(:final sourceVar):
-            _warnExtract('extract_source_missing',
-                'JsonExtract source register "$sourceVar" is unset.');
+            _warnExtract('extract_source_missing', 'JsonExtract source register "$sourceVar" is unset.');
           case ExtractParseFailure(:final sourceVar, :final detail):
-            _warnExtract('extract_parse_error',
-                'JsonExtract source "$sourceVar" is not a JSON object: $detail');
-          case ExtractKeyMissing(
-              :final sourceVar,
-              :final jsonKey,
-              :final availableKeys
-            ):
             _warnExtract(
-                'extract_key_missing',
-                'JsonExtract key "$jsonKey" not found in "$sourceVar" '
-                '(available: ${availableKeys.join(', ')}).');
+              'extract_parse_error',
+              'JsonExtract source "$sourceVar" is not a JSON object: $detail',
+            );
+          case ExtractKeyMissing(:final sourceVar, :final jsonKey, :final availableKeys):
+            _warnExtract(
+              'extract_key_missing',
+              'JsonExtract key "$jsonKey" not found in "$sourceVar" '
+                  '(available: ${availableKeys.join(', ')}).',
+            );
         }
 
       case ConcatRegisterOp op:
@@ -1252,13 +1218,11 @@ class VasterRuntime {
     }
   }
 
-
   /// Currently active tool definitions registered in this runtime context.
   List<ToolDefinition> get activeToolSet => List.unmodifiable(_machineContext.programToolSet);
 
   /// Maximum model turns in one tool-calling loop (runaway guard).
   static const int maxToolIterations = 8;
 
-  void _checkPolicy(PolicyAction action, String resource) =>
-      _policyGuard.check(action, resource);
+  void _checkPolicy(PolicyAction action, String resource) => _policyGuard.check(action, resource);
 }

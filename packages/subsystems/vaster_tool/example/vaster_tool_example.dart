@@ -23,11 +23,13 @@ void main() async {
 
   print('Tool Descriptor: ${tool.descriptor}');
 
-  final result = await tool.execute(const FunctionCallPart(
-    callId: 'call_tax_01',
-    name: 'calculate_tax',
-    arguments: {'amount': 100.0, 'rate': 0.24},
-  ));
+  final result = await tool.execute(
+    const FunctionCallPart(
+      callId: 'call_tax_01',
+      name: 'calculate_tax',
+      arguments: {'amount': 100.0, 'rate': 0.24},
+    ),
+  );
 
   print('Execution Result: ${result.response}');
 }

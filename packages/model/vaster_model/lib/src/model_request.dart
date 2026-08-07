@@ -40,15 +40,13 @@ class ModelRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        if (systemInstruction != null)
-          'systemInstruction': systemInstruction!.toJson(),
-        'messages': messages.map((m) => m.toJson()).toList(),
-        if (tools.isNotEmpty) 'tools': tools.map((t) => t.toJson()).toList(),
-        'generationConfig': generationConfig.toJson(),
-        if (metadata.isNotEmpty) 'metadata': metadata,
-        if (cacheHints.isNotEmpty)
-          'cacheHints': cacheHints.map((h) => h.toJson()).toList(),
-      };
+    if (systemInstruction != null) 'systemInstruction': systemInstruction!.toJson(),
+    'messages': messages.map((m) => m.toJson()).toList(),
+    if (tools.isNotEmpty) 'tools': tools.map((t) => t.toJson()).toList(),
+    'generationConfig': generationConfig.toJson(),
+    if (metadata.isNotEmpty) 'metadata': metadata,
+    if (cacheHints.isNotEmpty) 'cacheHints': cacheHints.map((h) => h.toJson()).toList(),
+  };
 
   factory ModelRequest.fromJson(Map<String, dynamic> json) {
     final sysRaw = json['systemInstruction'] as Map<String, dynamic>?;
@@ -57,19 +55,10 @@ class ModelRequest {
     final genRaw = json['generationConfig'] as Map<String, dynamic>?;
 
     return ModelRequest(
-      systemInstruction:
-          sysRaw != null ? ChatMessage.fromJson(sysRaw) : null,
-      messages: msgsRaw
-          .whereType<Map<String, dynamic>>()
-          .map((m) => ChatMessage.fromJson(m))
-          .toList(),
-      tools: toolsRaw
-          .whereType<Map<String, dynamic>>()
-          .map((t) => ToolDefinition.fromJson(t))
-          .toList(),
-      generationConfig: genRaw != null
-          ? GenerationConfig.fromJson(genRaw)
-          : const GenerationConfig(),
+      systemInstruction: sysRaw != null ? ChatMessage.fromJson(sysRaw) : null,
+      messages: msgsRaw.whereType<Map<String, dynamic>>().map((m) => ChatMessage.fromJson(m)).toList(),
+      tools: toolsRaw.whereType<Map<String, dynamic>>().map((t) => ToolDefinition.fromJson(t)).toList(),
+      generationConfig: genRaw != null ? GenerationConfig.fromJson(genRaw) : const GenerationConfig(),
       metadata: Map<String, dynamic>.from(json['metadata'] as Map? ?? {}),
       cacheHints: (json['cacheHints'] as List? ?? [])
           .whereType<Map<String, dynamic>>()

@@ -46,22 +46,22 @@ void main() {
     var dir = Directory.current;
     while (true) {
       final candidate = Directory('${dir.path}/packages');
-      if (candidate.existsSync() &&
-          Directory('${candidate.path}/isa/vaster_instruction').existsSync()) {
+      if (candidate.existsSync() && Directory('${candidate.path}/isa/vaster_instruction').existsSync()) {
         return candidate;
       }
       final parent = dir.parent;
       if (parent.path == dir.path) {
-        fail('Could not locate the workspace packages/ directory '
-            'from ${Directory.current.path}');
+        fail(
+          'Could not locate the workspace packages/ directory '
+          'from ${Directory.current.path}',
+        );
       }
       dir = parent;
     }
   }
 
   bool isProtected(String packageName) =>
-      protectedExact.contains(packageName) ||
-      protectedPrefixes.any(packageName.startsWith);
+      protectedExact.contains(packageName) || protectedPrefixes.any(packageName.startsWith);
 
   // Also protect exact family roots (vaster_session, vaster_context,
   // vaster_filesystem, vaster_sandbox, vaster_agent, vaster_model): rules.md
@@ -76,19 +76,19 @@ void main() {
   ];
 
   // Two-level tree: packages/<group>/<name>.
-  late final List<Directory> protectedDirs = packagesDir()
-      .listSync()
-      .whereType<Directory>()
-      .expand((group) => group.listSync().whereType<Directory>())
-      .where((d) {
-        final name = d.path.split(Platform.pathSeparator).last;
-        return isProtected(name) || protectedFamilyRoots.contains(name);
-      })
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  late final List<Directory> protectedDirs =
+      packagesDir()
+          .listSync()
+          .whereType<Directory>()
+          .expand((group) => group.listSync().whereType<Directory>())
+          .where((d) {
+            final name = d.path.split(Platform.pathSeparator).last;
+            return isProtected(name) || protectedFamilyRoots.contains(name);
+          })
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
 
-  test('Rule 1: no runtime package references a frontend package in Dart code',
-      () {
+  test('Rule 1: no runtime package references a frontend package in Dart code', () {
     final violations = <String>[];
 
     for (final pkg in protectedDirs) {
@@ -106,13 +106,16 @@ void main() {
       }
     }
 
-    expect(violations, isEmpty,
-        reason: 'Runtime/ISA/backend packages must never import the compiler '
-            'frontend (rules.md Rule 1):\n${violations.join('\n')}');
+    expect(
+      violations,
+      isEmpty,
+      reason:
+          'Runtime/ISA/backend packages must never import the compiler '
+          'frontend (rules.md Rule 1):\n${violations.join('\n')}',
+    );
   });
 
-  test('Rule 1: no runtime package declares a frontend pubspec dependency',
-      () {
+  test('Rule 1: no runtime package declares a frontend pubspec dependency', () {
     final violations = <String>[];
 
     for (final pkg in protectedDirs) {
@@ -127,23 +130,32 @@ void main() {
       }
     }
 
-    expect(violations, isEmpty,
-        reason: 'Runtime/ISA/backend pubspecs must not depend on the compiler '
-            'frontend, even as dev_dependencies (rules.md Rule 1):\n'
-            '${violations.join('\n')}');
+    expect(
+      violations,
+      isEmpty,
+      reason:
+          'Runtime/ISA/backend pubspecs must not depend on the compiler '
+          'frontend, even as dev_dependencies (rules.md Rule 1):\n'
+          '${violations.join('\n')}',
+    );
   });
 
   test('protected package set actually matches the workspace', () {
     // Guard the guard: if the workspace grows a new runtime-family package,
     // the prefix rules should pick it up; this assertion documents the
     // currently protected set so unexpected shrinkage is visible in review.
-    final names = protectedDirs
-        .map((d) => d.path.split(Platform.pathSeparator).last)
-        .toList();
-    expect(names, containsAll(['vaster_instruction', 'vaster_runtime', 'vaster_vm']),
-        reason: 'core runtime packages must always be under the boundary guard');
-    expect(names.length, greaterThanOrEqualTo(25),
-        reason: 'the protected set unexpectedly shrank — was a runtime '
-            'package renamed outside the known families?');
+    final names = protectedDirs.map((d) => d.path.split(Platform.pathSeparator).last).toList();
+    expect(
+      names,
+      containsAll(['vaster_instruction', 'vaster_runtime', 'vaster_vm']),
+      reason: 'core runtime packages must always be under the boundary guard',
+    );
+    expect(
+      names.length,
+      greaterThanOrEqualTo(25),
+      reason:
+          'the protected set unexpectedly shrank — was a runtime '
+          'package renamed outside the known families?',
+    );
   });
 }

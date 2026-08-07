@@ -20,8 +20,7 @@ void main() {
 
     Future<void> boot({ExecutionPolicy? policy}) async {
       fakeModel = FakeVasterModel();
-      vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: fakeModel));
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: fakeModel));
       runtime = VasterRuntime(
         vm: vm,
         policy: policy ?? ExecutionPolicy.unlimited,
@@ -36,19 +35,20 @@ void main() {
       await vm.shutdown();
     });
 
-    Pipeline pipeline(List<VasterNode> children, {Binding? result}) =>
-      Pipeline(
-        result: result,
-          spec: const PipelineSpec(name: 'control_flow_e2e'),
-          children: children,
-        );
+    Pipeline pipeline(List<VasterNode> children, {Binding? result}) => Pipeline(
+      result: result,
+      spec: const PipelineSpec(name: 'control_flow_e2e'),
+      children: children,
+    );
 
     const compiler = BasicWorkflowCompiler();
 
     test('compiled Repeat runs its body exactly `times` times', () async {
-      final program = compiler.compile(pipeline(const [
-        Repeat(times: 4, children: [Prompt(Template.text('loop body prompt'))]),
-      ]));
+      final program = compiler.compile(
+        pipeline(const [
+          Repeat(times: 4, children: [Prompt(Template.text('loop body prompt'))]),
+        ]),
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
@@ -57,13 +57,11 @@ void main() {
 
     test('compiled While exits via maxIterations guard on an always-true '
         'condition', () async {
-      final program = compiler.compile(pipeline(const [
-        While(
-          condition: 'always',
-          maxIterations: 3,
-          children: [Prompt(Template.text('while body'))],
-        ),
-      ]));
+      final program = compiler.compile(
+        pipeline(const [
+          While(condition: 'always', maxIterations: 3, children: [Prompt(Template.text('while body'))]),
+        ]),
+      );
 
       // Pre-set the condition register, then run without resetting state so
       // the loop sees a truthy condition forever — only the guard stops it.
@@ -75,26 +73,26 @@ void main() {
     });
 
     test('compiled While never runs the body on a falsy condition', () async {
-      final program = compiler.compile(pipeline(const [
-        While(condition: 'unset', children: [Prompt(Template.text('never'))]),
-      ]));
+      final program = compiler.compile(
+        pipeline(const [
+          While(condition: 'unset', children: [Prompt(Template.text('never'))]),
+        ]),
+      );
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
       expect(fakeModel.recordedRequests, isEmpty);
     });
 
-    test('TryCatch catches a VFS error, lands in catch with errorVar set',
-        () async {
-      final program = compiler.compile(pipeline(const [
-        TryCatch(
-          tryChildren: [ReadFile(path: Template.text('/not_mounted/missing.txt'))],
-          catchChildren: [
-            Prompt(Template.text('recovering from failure'),
-                output: Binding('recovery'))
-          ],
-          error: 'err',
-        ),
-      ], result: const Binding('recovery')));
+    test('TryCatch catches a VFS error, lands in catch with errorVar set', () async {
+      final program = compiler.compile(
+        pipeline(const [
+          TryCatch(
+            tryChildren: [ReadFile(path: Template.text('/not_mounted/missing.txt'))],
+            catchChildren: [Prompt(Template.text('recovering from failure'), output: Binding('recovery'))],
+            error: 'err',
+          ),
+        ], result: const Binding('recovery')),
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
@@ -107,51 +105,59 @@ void main() {
     });
 
     test('the same error without TryCatch traps the VM', () async {
-      final program = compiler.compile(pipeline(const [
-        ReadFile(path: Template.text('/not_mounted/missing.txt')),
-      ]));
+      final program = compiler.compile(
+        pipeline(const [ReadFile(path: Template.text('/not_mounted/missing.txt'))]),
+      );
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.error);
       expect(state.errorDetails, contains('VASTER VM TRAP'));
     });
 
     test('a popped handler no longer catches later errors', () async {
-      final program = compiler.compile(pipeline(const [
-        TryCatch(
-          tryChildren: [Prompt(Template.text('fine'))],
-          catchChildren: [Prompt(Template.text('should not run'))],
-        ),
-        ReadFile(path: Template.text('/not_mounted/after_try.txt')),
-      ]));
+      final program = compiler.compile(
+        pipeline(const [
+          TryCatch(
+            tryChildren: [Prompt(Template.text('fine'))],
+            catchChildren: [Prompt(Template.text('should not run'))],
+          ),
+          ReadFile(path: Template.text('/not_mounted/after_try.txt')),
+        ]),
+      );
       final state = await runtime.executeProgram(program);
-      expect(state.status, RuntimeStatus.error,
-          reason: 'the handler was popped when the try block completed');
+      expect(
+        state.status,
+        RuntimeStatus.error,
+        reason: 'the handler was popped when the try block completed',
+      );
     });
 
     test('policy violations are NOT catchable by TryCatch', () async {
       await vm.shutdown();
       await boot(policy: ExecutionPolicy.readOnly);
 
-      final program = compiler.compile(pipeline(const [
-        TryCatch(
-          tryChildren: [WriteFile(path: Template.text('/mnt/x.txt'), content: Template.text('data'))],
-          catchChildren: [Prompt(Template.text('must never run'))],
-        ),
-      ]));
+      final program = compiler.compile(
+        pipeline(const [
+          TryCatch(
+            tryChildren: [WriteFile(path: Template.text('/mnt/x.txt'), content: Template.text('data'))],
+            catchChildren: [Prompt(Template.text('must never run'))],
+          ),
+        ]),
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.error);
       expect(state.errorDetails, contains('Policy violation'));
-      expect(fakeModel.recordedRequests, isEmpty,
-          reason: 'the catch block must not execute for policy traps');
+      expect(
+        fakeModel.recordedRequests,
+        isEmpty,
+        reason: 'the catch block must not execute for policy traps',
+      );
     });
 
-    test('subroutine call/return: body runs, result returns to caller',
-        () async {
+    test('subroutine call/return: body runs, result returns to caller', () async {
       fakeModel = FakeVasterModel(responseMap: {'hello sub': 'SUB_RESULT'});
       await vm.shutdown();
-      vm = await VasterVMEngine.bootstrap(
-          config: VMConfig(defaultModel: fakeModel));
+      vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: fakeModel));
       runtime = VasterRuntime(
         vm: vm,
         policy: ExecutionPolicy.unlimited,
@@ -159,10 +165,12 @@ void main() {
         scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
       );
 
-      final program = compiler.compile(pipeline(const [
-        DefineSubroutine(name: 'greet', children: [Prompt(Template.text('hello sub'))]),
-        CallSubroutine(name: 'greet', output: 'sub_result'),
-      ], result: const Binding('sub_result')));
+      final program = compiler.compile(
+        pipeline(const [
+          DefineSubroutine(name: 'greet', children: [Prompt(Template.text('hello sub'))]),
+          CallSubroutine(name: 'greet', output: 'sub_result'),
+        ], result: const Binding('sub_result')),
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
@@ -171,17 +179,18 @@ void main() {
     });
 
     test('execution continues after a subroutine returns', () async {
-      final program = compiler.compile(pipeline(const [
-        DefineSubroutine(name: 'noop', children: [Prompt(Template.text('inside sub'))]),
-        CallSubroutine(name: 'noop'),
-        Prompt(Template.text('back in main')),
-      ]));
+      final program = compiler.compile(
+        pipeline(const [
+          DefineSubroutine(name: 'noop', children: [Prompt(Template.text('inside sub'))]),
+          CallSubroutine(name: 'noop'),
+          Prompt(Template.text('back in main')),
+        ]),
+      );
 
       final state = await runtime.executeProgram(program);
       expect(state.status, RuntimeStatus.halted);
       expect(fakeModel.recordedRequests, hasLength(2));
-      expect(fakeModel.recordedRequests.last.messages.last.text,
-          contains('back in main'));
+      expect(fakeModel.recordedRequests.last.messages.last.text, contains('back in main'));
     });
   });
 }

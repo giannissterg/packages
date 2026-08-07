@@ -34,13 +34,12 @@ class CancellationToken {
   /// Throws a [CancelledException] if cancellation has been requested.
   void throwIfCancelled() {
     if (_isCancelled) {
-      throw CancelledException(_reason != null
-          ? 'Operation cancelled: $_reason'
-          : 'Operation was cancelled.');
+      throw CancelledException(
+        _reason != null ? 'Operation cancelled: $_reason' : 'Operation was cancelled.',
+      );
     }
   }
 
   @override
-  String toString() =>
-      'CancellationToken(isCancelled: $_isCancelled, reason: $_reason)';
+  String toString() => 'CancellationToken(isCancelled: $_isCancelled, reason: $_reason)';
 }

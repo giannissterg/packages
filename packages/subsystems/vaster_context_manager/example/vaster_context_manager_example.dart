@@ -31,22 +31,23 @@ void main() async {
     children: [systemContextManager, workspaceContextManager],
   );
 
-  compositeManager.heap.addRegion(ContextRegion.text(
-    id: 'user_prompt',
-    label: 'User Prompt',
-    role: Role.user,
-    text: 'How does composite context management work in Vaster?',
-    priority: ContextPriority.critical,
-  ));
+  compositeManager.heap.addRegion(
+    ContextRegion.text(
+      id: 'user_prompt',
+      label: 'User Prompt',
+      role: Role.user,
+      text: 'How does composite context management work in Vaster?',
+      priority: ContextPriority.critical,
+    ),
+  );
 
-  print('Registered sources across composite manager: ${compositeManager.sources.map((s) => s.id).join(', ')}');
+  print(
+    'Registered sources across composite manager: ${compositeManager.sources.map((s) => s.id).join(', ')}',
+  );
 
   print('\nCompiling unified context from composite manager...');
   final compiled = await compositeManager.compileContext(
-    budget: const TokenBudget(
-      maxContextTokens: 128000,
-      reservedOutputTokens: 4096,
-    ),
+    budget: const TokenBudget(maxContextTokens: 128000, reservedOutputTokens: 4096),
   );
 
   print('System instruction: ${compiled.systemInstruction?.text}');

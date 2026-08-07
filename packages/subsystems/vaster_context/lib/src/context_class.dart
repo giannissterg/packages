@@ -52,67 +52,53 @@ class BudgetShare {
   /// headroom after reservations. 0 = never receives surplus.
   final double weight;
 
-  const BudgetShare({
-    this.minTokens,
-    this.minFraction,
-    this.maxTokens,
-    this.maxFraction,
-    this.weight = 1.0,
-  });
+  const BudgetShare({this.minTokens, this.minFraction, this.maxTokens, this.maxFraction, this.weight = 1.0});
 
   /// No reservation, no cap, weight 1 — competes for surplus only.
   static const BudgetShare unreserved = BudgetShare();
 
   /// Effective guaranteed floor for a window of [availableTokens].
   int floorFor(int availableTokens) {
-    final fromFraction =
-        minFraction != null ? (minFraction! * availableTokens).floor() : 0;
+    final fromFraction = minFraction != null ? (minFraction! * availableTokens).floor() : 0;
     final fromTokens = minTokens ?? 0;
     return fromTokens > fromFraction ? fromTokens : fromFraction;
   }
 
   /// Effective ceiling for a window of [availableTokens]; null = uncapped.
   int? ceilingFor(int availableTokens) {
-    final fromFraction =
-        maxFraction != null ? (maxFraction! * availableTokens).floor() : null;
+    final fromFraction = maxFraction != null ? (maxFraction! * availableTokens).floor() : null;
     if (maxTokens == null) return fromFraction;
     if (fromFraction == null) return maxTokens;
     return maxTokens! < fromFraction ? maxTokens : fromFraction;
   }
 
   List<String> validate(String owner) => [
-        if (minFraction != null && (minFraction! < 0 || minFraction! > 1))
-          '$owner: minFraction must be in [0,1]',
-        if (maxFraction != null && (maxFraction! < 0 || maxFraction! > 1))
-          '$owner: maxFraction must be in [0,1]',
-        if (minTokens != null && minTokens! < 0)
-          '$owner: minTokens must be >= 0',
-        if (maxTokens != null && maxTokens! < 0)
-          '$owner: maxTokens must be >= 0',
-        if (minTokens != null && maxTokens != null && minTokens! > maxTokens!)
-          '$owner: minTokens exceeds maxTokens',
-        if (minFraction != null &&
-            maxFraction != null &&
-            minFraction! > maxFraction!)
-          '$owner: minFraction exceeds maxFraction',
-        if (weight < 0) '$owner: weight must be >= 0',
-      ];
+    if (minFraction != null && (minFraction! < 0 || minFraction! > 1)) '$owner: minFraction must be in [0,1]',
+    if (maxFraction != null && (maxFraction! < 0 || maxFraction! > 1)) '$owner: maxFraction must be in [0,1]',
+    if (minTokens != null && minTokens! < 0) '$owner: minTokens must be >= 0',
+    if (maxTokens != null && maxTokens! < 0) '$owner: maxTokens must be >= 0',
+    if (minTokens != null && maxTokens != null && minTokens! > maxTokens!)
+      '$owner: minTokens exceeds maxTokens',
+    if (minFraction != null && maxFraction != null && minFraction! > maxFraction!)
+      '$owner: minFraction exceeds maxFraction',
+    if (weight < 0) '$owner: weight must be >= 0',
+  ];
 
   Map<String, dynamic> toJson() => {
-        if (minTokens != null) 'minTokens': minTokens,
-        if (minFraction != null) 'minFraction': minFraction,
-        if (maxTokens != null) 'maxTokens': maxTokens,
-        if (maxFraction != null) 'maxFraction': maxFraction,
-        if (weight != 1.0) 'weight': weight,
-      };
+    if (minTokens != null) 'minTokens': minTokens,
+    if (minFraction != null) 'minFraction': minFraction,
+    if (maxTokens != null) 'maxTokens': maxTokens,
+    if (maxFraction != null) 'maxFraction': maxFraction,
+    if (weight != 1.0) 'weight': weight,
+  };
 
   factory BudgetShare.fromJson(Map<String, dynamic> json) => BudgetShare(
-        minTokens: json['minTokens'] as int?,
-        minFraction: (json['minFraction'] as num?)?.toDouble(),
-        maxTokens: json['maxTokens'] as int?,
-        maxFraction: (json['maxFraction'] as num?)?.toDouble(),
-        weight: (json['weight'] as num?)?.toDouble() ?? 1.0,
-      );
+    minTokens: json['minTokens'] as int?,
+    minFraction: (json['minFraction'] as num?)?.toDouble(),
+    maxTokens: json['maxTokens'] as int?,
+    maxFraction: (json['maxFraction'] as num?)?.toDouble(),
+    weight: (json['weight'] as num?)?.toDouble() ?? 1.0,
+  );
 }
 
 /// A named allocation class for context regions — the segment descriptor of
@@ -169,46 +155,36 @@ class ContextClass {
     this.pinnedByDefault = false,
   });
 
-  List<String> validate() => [
-        if (name.isEmpty) 'class name must be non-empty',
-        ...share.validate(name),
-      ];
+  List<String> validate() => [if (name.isEmpty) 'class name must be non-empty', ...share.validate(name)];
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'band': band,
-        if (share.toJson().isNotEmpty) 'share': share.toJson(),
-        if (priority != ContextPriority.medium) 'priority': priority.name,
-        if (lifetime != ContextLifetime.session) 'lifetime': lifetime.name,
-        if (compressibility != ContextCompressibility.none)
-          'compressibility': compressibility.name,
-        if (eviction != EvictionPolicy.dropLowestUtility)
-          'eviction': eviction.name,
-        if (cacheStable) 'cacheStable': cacheStable,
-        if (pinnedByDefault) 'pinnedByDefault': pinnedByDefault,
-      };
+    'name': name,
+    'band': band,
+    if (share.toJson().isNotEmpty) 'share': share.toJson(),
+    if (priority != ContextPriority.medium) 'priority': priority.name,
+    if (lifetime != ContextLifetime.session) 'lifetime': lifetime.name,
+    if (compressibility != ContextCompressibility.none) 'compressibility': compressibility.name,
+    if (eviction != EvictionPolicy.dropLowestUtility) 'eviction': eviction.name,
+    if (cacheStable) 'cacheStable': cacheStable,
+    if (pinnedByDefault) 'pinnedByDefault': pinnedByDefault,
+  };
 
   factory ContextClass.fromJson(Map<String, dynamic> json) => ContextClass(
-        name: json['name'] as String? ?? '',
-        band: json['band'] as int? ?? 0,
-        share: json['share'] != null
-            ? BudgetShare.fromJson(
-                Map<String, dynamic>.from(json['share'] as Map))
-            : BudgetShare.unreserved,
-        priority:
-            ContextPriority.parse(json['priority'] as String? ?? 'medium'),
-        lifetime: ContextLifetime.parse(json['lifetime'] as String? ?? 'session'),
-        compressibility: ContextCompressibility.parse(
-            json['compressibility'] as String? ?? 'none'),
-        eviction: EvictionPolicy.parse(
-            json['eviction'] as String? ?? 'dropLowestUtility'),
-        cacheStable: json['cacheStable'] as bool? ?? false,
-        pinnedByDefault: json['pinnedByDefault'] as bool? ?? false,
-      );
+    name: json['name'] as String? ?? '',
+    band: json['band'] as int? ?? 0,
+    share: json['share'] != null
+        ? BudgetShare.fromJson(Map<String, dynamic>.from(json['share'] as Map))
+        : BudgetShare.unreserved,
+    priority: ContextPriority.parse(json['priority'] as String? ?? 'medium'),
+    lifetime: ContextLifetime.parse(json['lifetime'] as String? ?? 'session'),
+    compressibility: ContextCompressibility.parse(json['compressibility'] as String? ?? 'none'),
+    eviction: EvictionPolicy.parse(json['eviction'] as String? ?? 'dropLowestUtility'),
+    cacheStable: json['cacheStable'] as bool? ?? false,
+    pinnedByDefault: json['pinnedByDefault'] as bool? ?? false,
+  );
 
   @override
-  String toString() =>
-      'ContextClass($name, band: $band, ${cacheStable ? 'stable' : 'volatile'})';
+  String toString() => 'ContextClass($name, band: $band, ${cacheStable ? 'stable' : 'volatile'})';
 }
 
 /// The segment table: every context class known to a program or manager.
@@ -223,10 +199,7 @@ class ContextClassTable {
   /// The class that classless regions resolve to. Must exist in [classes].
   final String defaultClassName;
 
-  const ContextClassTable({
-    required this.classes,
-    this.defaultClassName = generalClassName,
-  });
+  const ContextClassTable({required this.classes, this.defaultClassName = generalClassName});
 
   // Canonical class names (the model-ABI segments plus the neutral default).
   static const String systemClassName = 'system';
@@ -274,10 +247,7 @@ class ContextClassTable {
         compressibility: ContextCompressibility.summarize,
         eviction: EvictionPolicy.dropOldest,
       ),
-      generalClassName: ContextClass(
-        name: generalClassName,
-        band: 25,
-      ),
+      generalClassName: ContextClass(name: generalClassName, band: 25),
       scratchClassName: ContextClass(
         name: scratchClassName,
         band: 90,
@@ -291,8 +261,7 @@ class ContextClassTable {
   /// Resolves a region's class: unknown/absent ids land in the default class
   /// rather than failing — static verification of *program-declared* class
   /// references is the compiler's job, not the allocator's.
-  ContextClass resolve(String? classId) =>
-      classes[classId] ?? classes[defaultClassName]!;
+  ContextClass resolve(String? classId) => classes[classId] ?? classes[defaultClassName]!;
 
   /// Whether [classId] names a declared class.
   bool contains(String classId) => classes.containsKey(classId);
@@ -309,46 +278,39 @@ class ContextClassTable {
 
   /// Sum of hard reservations for a window of [availableTokens] — audit uses
   /// this to report the minimum viable window.
-  int totalReservedFor(int availableTokens) => classes.values
-      .fold(0, (sum, c) => sum + c.share.floorFor(availableTokens));
+  int totalReservedFor(int availableTokens) =>
+      classes.values.fold(0, (sum, c) => sum + c.share.floorFor(availableTokens));
 
   /// A new table with [overrides] layered on top (same names replace, new
   /// names extend).
-  ContextClassTable withOverrides(Iterable<ContextClass> overrides) =>
-      ContextClassTable(
-        classes: {
-          ...classes,
-          for (final c in overrides) c.name: c,
-        },
-        defaultClassName: defaultClassName,
-      );
+  ContextClassTable withOverrides(Iterable<ContextClass> overrides) => ContextClassTable(
+    classes: {...classes, for (final c in overrides) c.name: c},
+    defaultClassName: defaultClassName,
+  );
 
   /// Structural issues in this table; empty means valid.
   List<String> validate() => [
-        for (final entry in classes.entries) ...[
-          if (entry.key != entry.value.name)
-            'table key "${entry.key}" does not match class name '
-                '"${entry.value.name}"',
-          ...entry.value.validate(),
-        ],
-        if (!classes.containsKey(defaultClassName))
-          'default class "$defaultClassName" is not declared',
-      ];
+    for (final entry in classes.entries) ...[
+      if (entry.key != entry.value.name)
+        'table key "${entry.key}" does not match class name '
+            '"${entry.value.name}"',
+      ...entry.value.validate(),
+    ],
+    if (!classes.containsKey(defaultClassName)) 'default class "$defaultClassName" is not declared',
+  ];
 
   Map<String, dynamic> toJson() => {
-        'classes': [for (final c in inBandOrder) c.toJson()],
-        if (defaultClassName != generalClassName)
-          'defaultClassName': defaultClassName,
-      };
+    'classes': [for (final c in inBandOrder) c.toJson()],
+    if (defaultClassName != generalClassName) 'defaultClassName': defaultClassName,
+  };
 
   factory ContextClassTable.fromJson(Map<String, dynamic> json) {
-    final classList = (json['classes'] as List? ?? [])
-        .whereType<Map>()
-        .map((m) => ContextClass.fromJson(Map<String, dynamic>.from(m)));
+    final classList = (json['classes'] as List? ?? []).whereType<Map>().map(
+      (m) => ContextClass.fromJson(Map<String, dynamic>.from(m)),
+    );
     return ContextClassTable(
       classes: {for (final c in classList) c.name: c},
-      defaultClassName:
-          json['defaultClassName'] as String? ?? generalClassName,
+      defaultClassName: json['defaultClassName'] as String? ?? generalClassName,
     );
   }
 }

@@ -33,16 +33,10 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
   /// input budget actually allocated).
   final double allocationSlack;
 
-  const ClassAwareAllocationStrategy({
-    required this.classTable,
-    this.allocationSlack = 0.9,
-  });
+  const ClassAwareAllocationStrategy({required this.classTable, this.allocationSlack = 0.9});
 
   @override
-  CompiledContext allocate({
-    required List<ContextRegion> regions,
-    required TokenBudget budget,
-  }) {
+  CompiledContext allocate({required List<ContextRegion> regions, required TokenBudget budget}) {
     final window = (budget.availableInputBudget * allocationSlack).floor();
 
     // Group members by resolved class, preserving heap order for tie-breaks.
@@ -61,7 +55,8 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
     for (final entry in byClass.entries) {
       final cls = classTable.resolve(entry.key);
       for (final region in entry.value) {
-        final unconditional = cls.eviction == EvictionPolicy.never ||
+        final unconditional =
+            cls.eviction == EvictionPolicy.never ||
             region.effectivePinned(cls) ||
             region.effectivePriority(cls) == ContextPriority.critical;
         if (unconditional) {
@@ -69,8 +64,7 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
           admittedIds.add(region.id);
           admittedTokens += region.estimatedTokens;
           unevictableTokensByClass[cls.name] =
-              (unevictableTokensByClass[cls.name] ?? 0) +
-                  region.estimatedTokens;
+              (unevictableTokensByClass[cls.name] ?? 0) + region.estimatedTokens;
         }
       }
     }
@@ -83,10 +77,8 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
     }
 
     // Class-local admission preference order for the remaining members.
-    List<ContextRegion> admissionOrder(
-        ContextClass cls, List<ContextRegion> members) {
-      final pending =
-          members.where((r) => !admittedIds.contains(r.id)).toList();
+    List<ContextRegion> admissionOrder(ContextClass cls, List<ContextRegion> members) {
+      final pending = members.where((r) => !admittedIds.contains(r.id)).toList();
       if (cls.cacheStable) {
         // Deterministic (order, id) prefix — never utility-driven.
         pending.sort(_byOrderThenId);
@@ -96,10 +88,7 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
         return pending.reversed.toList();
       } else {
         pending.sort((a, b) {
-          final byPriority = b
-              .effectivePriority(cls)
-              .index
-              .compareTo(a.effectivePriority(cls).index);
+          final byPriority = b.effectivePriority(cls).index.compareTo(a.effectivePriority(cls).index);
           if (byPriority != 0) return byPriority;
           final byUtility = b.utility.compareTo(a.utility);
           if (byUtility != 0) return byUtility;
@@ -110,9 +99,8 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
     }
 
     // ── Phase A: reservations ───────────────────────────────────────────────
-    final classAdmittedTokens = <String, int>{
-      for (final name in byClass.keys) name: 0,
-    }..addAll(unevictableTokensByClass);
+    final classAdmittedTokens = <String, int>{for (final name in byClass.keys) name: 0}
+      ..addAll(unevictableTokensByClass);
 
     for (final entry in byClass.entries) {
       final cls = classTable.resolve(entry.key);
@@ -142,8 +130,7 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
       final cls = classTable.resolve(name);
       final ceiling = cls.share.ceilingFor(window);
       final used = classAdmittedTokens[name] ?? 0;
-      final headroom =
-          ceiling == null ? window : (ceiling - used).clamp(0, window);
+      final headroom = ceiling == null ? window : (ceiling - used).clamp(0, window);
       var pendingTokens = 0;
       for (final r in byClass[name]!) {
         if (!admittedIds.contains(r.id)) pendingTokens += r.estimatedTokens;
@@ -158,8 +145,7 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
     // count since each round finalizes at least one class).
     var active = byClass.keys.where((n) => demandOf(n) > 0).toList()..sort();
     while (surplus > 0 && active.isNotEmpty) {
-      final totalWeight = active.fold<double>(
-          0, (s, n) => s + classTable.resolve(n).share.weight);
+      final totalWeight = active.fold<double>(0, (s, n) => s + classTable.resolve(n).share.weight);
       if (totalWeight <= 0) break;
       var distributed = 0;
       final stillActive = <String>[];
@@ -191,8 +177,7 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
         admittedIds.add(region.id);
         admittedTokens += region.estimatedTokens;
         allowance -= region.estimatedTokens;
-        classAdmittedTokens[name] =
-            (classAdmittedTokens[name] ?? 0) + region.estimatedTokens;
+        classAdmittedTokens[name] = (classAdmittedTokens[name] ?? 0) + region.estimatedTokens;
       }
     }
 
@@ -207,22 +192,20 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
       classEvicted.putIfAbsent(clsName, () => [0, 0]);
       classEvicted[clsName]![0]++;
       classEvicted[clsName]![1] += region.estimatedTokens;
-      evictionRecords.add(EvictionRecord(
-        regionId: region.id,
-        reason: EvictionReason.budgetExceeded,
-        regionTokens: region.estimatedTokens,
-        tokensAvailableAtDecision:
-            (window - admittedTokens).clamp(0, window),
-      ));
+      evictionRecords.add(
+        EvictionRecord(
+          regionId: region.id,
+          reason: EvictionReason.budgetExceeded,
+          regionTokens: region.estimatedTokens,
+          tokensAvailableAtDecision: (window - admittedTokens).clamp(0, window),
+        ),
+      );
     }
 
     // ── Layout: (band, order, id) ───────────────────────────────────────────
     final layout = List<ContextRegion>.of(admitted)
       ..sort((a, b) {
-        final bandDiff = classTable
-            .resolve(a.classId)
-            .band
-            .compareTo(classTable.resolve(b.classId).band);
+        final bandDiff = classTable.resolve(a.classId).band.compareTo(classTable.resolve(b.classId).band);
         if (bandDiff != 0) return bandDiff;
         return _byOrderThenId(a, b);
       });
@@ -232,9 +215,7 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
     final systemTexts = <String>[];
     final compiledMessages = <ChatMessage>[];
     for (final region in layout) {
-      final isSystemClass =
-          classTable.resolve(region.classId).name ==
-              ContextClassTable.systemClassName;
+      final isSystemClass = classTable.resolve(region.classId).name == ContextClassTable.systemClassName;
       for (final msg in region.messages) {
         if (msg.role == Role.system || isSystemClass) {
           final text = msg.text.trim();
@@ -246,8 +227,7 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
     }
     final systemInstruction = systemTexts.isEmpty
         ? null
-        : ChatMessage(
-            role: Role.system, parts: [TextPart(systemTexts.join('\n\n'))]);
+        : ChatMessage(role: Role.system, parts: [TextPart(systemTexts.join('\n\n'))]);
 
     return CompiledContext(
       systemInstruction: systemInstruction,
@@ -260,9 +240,7 @@ class ClassAwareAllocationStrategy implements AllocationStrategy {
       classUsage: {
         for (final name in byClass.keys.toList()..sort())
           name: ContextClassUsage(
-            admittedRegions: byClass[name]!
-                .where((r) => admittedIds.contains(r.id))
-                .length,
+            admittedRegions: byClass[name]!.where((r) => admittedIds.contains(r.id)).length,
             admittedTokens: classAdmittedTokens[name] ?? 0,
             evictedRegions: classEvicted[name]?[0] ?? 0,
             evictedTokens: classEvicted[name]?[1] ?? 0,

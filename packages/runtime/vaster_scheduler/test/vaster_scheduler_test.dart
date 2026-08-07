@@ -70,6 +70,7 @@ void main() {
         taskId: 'task_1',
         taskName: 'Task 1',
         priority: TaskPriority.normal,
+        budget: ExecutionBudget.unlimited(),
         action: () async {
           executed.add('task_1');
           return 'ok1';
@@ -80,6 +81,7 @@ void main() {
         taskId: 'task_2',
         taskName: 'Task 2',
         priority: TaskPriority.high,
+        budget: ExecutionBudget.unlimited(),
         action: () async {
           executed.add('task_2');
           return 'ok2';
@@ -95,6 +97,7 @@ void main() {
       final task = await scheduler.submitTask(
         taskId: 'cancel_me',
         taskName: 'Cancel Task',
+        budget: ExecutionBudget.unlimited(),
         action: () async => 'done',
       );
 
@@ -109,9 +112,7 @@ void main() {
     });
 
     test('handles budget expiration on task execution', () async {
-      final expiredBudget = ExecutionBudget(
-        deadline: DateTime.now().subtract(const Duration(seconds: 1)),
-      );
+      final expiredBudget = ExecutionBudget(deadline: DateTime.now().subtract(const Duration(seconds: 1)));
 
       final task = await scheduler.submitTask(
         taskId: 'expired_task',
@@ -130,10 +131,7 @@ void main() {
 
   group('BasicVasterScheduler — virtual cores', () {
     test('runAll overlaps I/O-bound tasks up to the core count', () async {
-      final scheduler = BasicVasterScheduler(
-        taskQueue: PriorityTaskQueue(),
-        cores: 2,
-      );
+      final scheduler = BasicVasterScheduler(taskQueue: PriorityTaskQueue(), cores: 2);
 
       var inFlight = 0;
       var maxInFlight = 0;
@@ -149,29 +147,26 @@ void main() {
         await scheduler.submitTask(
           taskId: 't_$i',
           taskName: 'io_$i',
+          budget: ExecutionBudget.unlimited(),
           action: () => ioBoundTask('t_$i'),
         );
       }
 
       await scheduler.runAll();
 
-      expect(maxInFlight, equals(2),
-          reason: 'two cores must overlap exactly two tasks at a time');
+      expect(maxInFlight, equals(2), reason: 'two cores must overlap exactly two tasks at a time');
       expect(scheduler.runningTasks, isEmpty);
       expect(scheduler.taskQueue.isEmpty, isTrue);
     });
 
-    test('an idle worker waits for in-flight tasks that enqueue follow-ups',
-        () async {
-      final scheduler = BasicVasterScheduler(
-        taskQueue: PriorityTaskQueue(),
-        cores: 2,
-      );
+    test('an idle worker waits for in-flight tasks that enqueue follow-ups', () async {
+      final scheduler = BasicVasterScheduler(taskQueue: PriorityTaskQueue(), cores: 2);
 
       final executed = <String>[];
       await scheduler.submitTask(
         taskId: 'parent',
         taskName: 'parent',
+        budget: ExecutionBudget.unlimited(),
         action: () async {
           // The queue is empty while this runs; the second worker must not
           // exit, because this task enqueues a follow-up before finishing.
@@ -179,6 +174,7 @@ void main() {
           await scheduler.submitTask(
             taskId: 'child',
             taskName: 'child',
+            budget: ExecutionBudget.unlimited(),
             action: () async {
               executed.add('child');
               return 'child';
@@ -191,8 +187,11 @@ void main() {
 
       await scheduler.runAll();
 
-      expect(executed, containsAll(['parent', 'child']),
-          reason: 'follow-up work enqueued mid-flight must still be drained');
+      expect(
+        executed,
+        containsAll(['parent', 'child']),
+        reason: 'follow-up work enqueued mid-flight must still be drained',
+      );
       expect(scheduler.taskQueue.isEmpty, isTrue);
     });
 
@@ -205,6 +204,7 @@ void main() {
         await scheduler.submitTask(
           taskId: 's_$i',
           taskName: 'serial_$i',
+          budget: ExecutionBudget.unlimited(),
           action: () async {
             inFlight++;
             maxInFlight = inFlight > maxInFlight ? inFlight : maxInFlight;

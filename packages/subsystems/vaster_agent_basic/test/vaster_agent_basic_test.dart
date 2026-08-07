@@ -28,10 +28,7 @@ void main() {
         toolManager: BasicToolManager(),
       );
 
-      final output = await agent.run(const AgentTask(
-        taskId: 't1',
-        inputPrompt: 'Analyze task requirements',
-      ));
+      final output = await agent.run(const AgentTask(taskId: 't1', inputPrompt: 'Analyze task requirements'));
 
       expect(output.isSuccess, isTrue);
       expect(output.outputText, contains('Agent task complete.'));
@@ -66,16 +63,12 @@ void main() {
           systemInstruction: 'Research subagent',
         ),
         model: model,
-        task: const AgentTask(
-          taskId: 'sub_t1',
-          inputPrompt: 'Research topic details',
-        ),
+        task: const AgentTask(taskId: 'sub_t1', inputPrompt: 'Research topic details'),
       );
 
-      final subOutput = await subagent.run(const AgentTask(
-        taskId: 'sub_t1',
-        inputPrompt: 'Research topic details',
-      ));
+      final subOutput = await subagent.run(
+        const AgentTask(taskId: 'sub_t1', inputPrompt: 'Research topic details'),
+      );
 
       expect(subOutput.isSuccess, isTrue);
       expect(subOutput.agentId, equals('child_ag'));

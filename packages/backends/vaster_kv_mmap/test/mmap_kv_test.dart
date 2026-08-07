@@ -32,8 +32,7 @@ void main() {
       final discovered = await consumer.lookup(fingerprint);
       expect(discovered, isNotNull);
       expect(discovered!.contentFingerprint, equals(fingerprint));
-      expect(discovered.tokenCount, equals(42),
-          reason: 'metadata travels through the frame header');
+      expect(discovered.tokenCount, equals(42), reason: 'metadata travels through the frame header');
       expect(utf8.decode(consumer.readState(discovered)), equals(content));
 
       await producer.evict(handle);
@@ -75,8 +74,7 @@ void main() {
   });
 
   group('ContextMmu over shared memory — cross-process page hits', () {
-    test('a second MMU in a fresh controller hits pages the first faulted in',
-        () async {
+    test('a second MMU in a fresh controller hits pages the first faulted in', () async {
       final region = ContextRegion(
         id: 'shared_sys',
         label: 'shared system prompt',

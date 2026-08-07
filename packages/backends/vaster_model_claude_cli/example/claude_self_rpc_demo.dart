@@ -38,8 +38,10 @@ Future<void> main() async {
     print('\n─ Response from Claude over RPC ─────────────────────────────');
     print(response.text);
     print('─────────────────────────────────────────────────────────────');
-    print('tokens: in=${response.usage.promptTokenCount} '
-        'out=${response.usage.candidatesTokenCount}');
+    print(
+      'tokens: in=${response.usage.promptTokenCount} '
+      'out=${response.usage.candidatesTokenCount}',
+    );
   } on StateError catch (e) {
     // e.g. "Claude CLI error: Not logged in" — the request still made a full
     // round-trip through the socket, proving the RPC wiring works.

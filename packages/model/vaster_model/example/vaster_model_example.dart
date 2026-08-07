@@ -18,9 +18,7 @@ void main() async {
     systemInstruction: ChatMessage.system(
       'You are an intelligent agent operating inside the Vaster LLM runtime VM.',
     ),
-    messages: [
-      ChatMessage.user('List files in the project workspace.'),
-    ],
+    messages: [ChatMessage.user('List files in the project workspace.')],
     tools: [
       const ToolDefinition(
         name: 'list_files',
@@ -33,10 +31,7 @@ void main() async {
         },
       ),
     ],
-    generationConfig: const GenerationConfig(
-      temperature: 0.2,
-      maxOutputTokens: 2048,
-    ),
+    generationConfig: const GenerationConfig(temperature: 0.2, maxOutputTokens: 2048),
   );
 
   print('\nSending synchronous generation request...');

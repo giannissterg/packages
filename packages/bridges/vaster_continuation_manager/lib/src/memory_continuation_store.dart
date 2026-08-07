@@ -1,4 +1,5 @@
 import 'package:vaster_continuation/vaster_continuation.dart';
+
 import 'continuation_store_interface.dart';
 
 /// Lightweight in-memory implementation of [ContinuationStore] backed by a `Map`.

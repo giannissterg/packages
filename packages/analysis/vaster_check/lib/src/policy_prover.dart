@@ -39,13 +39,11 @@ final class PolicyProver {
 
     void checkStatic(int pc, PolicyAction action, String resource) {
       if (DefiniteAssignment.interpolationReads(resource).isNotEmpty) {
-        findings.add(PolicyUnprovable(
-            action: action.name, resourceTemplate: resource, pc: pc));
+        findings.add(PolicyUnprovable(action: action.name, resourceTemplate: resource, pc: pc));
         return;
       }
       if (!_allows(action, resource)) {
-        findings.add(PolicyViolationProven(
-            action: action.name, resource: resource, pc: pc));
+        findings.add(PolicyViolationProven(action: action.name, resource: resource, pc: pc));
       }
     }
 

@@ -12,22 +12,18 @@ void main(List<String> args) async {
   print('    VASTER REAL LIVE MODEL EXAMPLE (Google AI Gemini REST / CLI)      ');
   print('======================================================================\n');
 
-  final apiKey = Platform.environment['GEMINI_API_KEY'] ??
+  final apiKey =
+      Platform.environment['GEMINI_API_KEY'] ??
       Platform.environment['GOOGLE_AI_API_KEY'] ??
       (args.isNotEmpty && !args.first.startsWith('-') ? args.first : null);
 
   late final VasterModel liveModel;
   if (apiKey != null && apiKey.isNotEmpty) {
     print('🔑 Using Google AI REST API Key ($apiKey)');
-    liveModel = GoogleAiVasterModel(
-      apiKey: apiKey,
-      targetModel: 'gemini-2.5-flash',
-    );
+    liveModel = GoogleAiVasterModel(apiKey: apiKey, targetModel: 'gemini-2.5-flash');
   } else {
     print('⚡ No GEMINI_API_KEY provided in environment. Using live Gemini CLI backend!');
-    liveModel = GeminiCliVasterModel(
-      modelName: 'gemini-2.5-flash',
-    );
+    liveModel = GeminiCliVasterModel(modelName: 'gemini-2.5-flash');
   }
 
   const researcherRole = AgentRole(
@@ -54,9 +50,11 @@ void main(List<String> args) async {
       Agent(
         role: researcherRole,
         child: const Task(
-            prompt: Template.text(
-                'Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.'),
-            output: Binding('report')),
+          prompt: Template.text(
+            'Analyze the query at /workspace/query.txt and return a 2-paragraph executive report.',
+          ),
+          output: Binding('report'),
+        ),
       ),
     ],
   );
@@ -68,10 +66,7 @@ void main(List<String> args) async {
 
   print('┌─ BOOTSTRAP VM & LIVE MODEL BACKEND ───────────────────────────┐');
   final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(
-      defaultModel: liveModel,
-      rootMountPath: '/workspace',
-    ),
+    config: VMConfig(defaultModel: liveModel, rootMountPath: '/workspace'),
   );
   print('  VM initialized with model: ${liveModel.modelName}\n');
 

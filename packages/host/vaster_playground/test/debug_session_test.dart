@@ -13,20 +13,23 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// verified tape replay.
 void main() {
   const architect = AgentRole(
-      roleId: 'architect',
-      name: 'Architect',
-      title: 'Principal Architect',
-      instruction: 'You write precise, reviewable specifications.');
+    roleId: 'architect',
+    name: 'Architect',
+    title: 'Principal Architect',
+    instruction: 'You write precise, reviewable specifications.',
+  );
   const lead = AgentRole(
-      roleId: 'lead',
-      name: 'Lead',
-      title: 'Tech Lead',
-      instruction: 'You turn specs into concrete implementation plans.');
+    roleId: 'lead',
+    name: 'Lead',
+    title: 'Tech Lead',
+    instruction: 'You turn specs into concrete implementation plans.',
+  );
   const reviewer = AgentRole(
-      roleId: 'reviewer',
-      name: 'Reviewer',
-      title: 'Staff Reviewer',
-      instruction: 'You review artifacts rigorously.');
+    roleId: 'reviewer',
+    name: 'Reviewer',
+    title: 'Staff Reviewer',
+    instruction: 'You review artifacts rigorously.',
+  );
 
   const pipeline = Pipeline(
     name: 'sdd_prompt_calibration',
@@ -35,7 +38,8 @@ void main() {
     mounts: [StorageMount(mountPrefix: '/workspace')],
     children: [
       Specify(
-        goal: 'Add a --version flag to a small command-line tool: it prints '
+        goal:
+            'Add a --version flag to a small command-line tool: it prints '
             'the tool version and exits 0. Keep the spec under 300 words.',
         agent: architect,
       ),
@@ -53,9 +57,11 @@ void main() {
     // the in-test pipeline above documents its shape and guards drift:
     final compiled = const BasicWorkflowCompiler().compile(pipeline);
     final envelope = DebugEnvelope.parse(fixture.readAsStringSync());
-    expect(envelope.program.instructions.length,
-        equals(compiled.instructions.length),
-        reason: 'fixture program drifted from the in-repo pipeline');
+    expect(
+      envelope.program.instructions.length,
+      equals(compiled.instructions.length),
+      reason: 'fixture program drifted from the in-repo pipeline',
+    );
     return DebugSession.load(envelope);
   }
 
@@ -88,8 +94,7 @@ void main() {
     final withReview = List.generate(session.length, (i) {
       session.seek(i);
       return session.diffFromPrevious();
-    }).where((d) =>
-        d.changedRegisters.contains('review'));
+    }).where((d) => d.changedRegisters.contains('review'));
     expect(withReview, isNotEmpty);
   });
 
@@ -98,9 +103,9 @@ void main() {
 
     // Mid-run: after the spec write (find the WriteFileOp step).
     final specWriteStep = session.journal.frames
-        .firstWhere((f) =>
-            f.instruction is WriteFileOp &&
-            (f.instruction as WriteFileOp).vfsPath.contains('spec'))
+        .firstWhere(
+          (f) => f.instruction is WriteFileOp && (f.instruction as WriteFileOp).vfsPath.contains('spec'),
+        )
         .stepIndex;
     session.seek(specWriteStep);
 
@@ -108,8 +113,7 @@ void main() {
     expect(spec, contains('--version'));
 
     // The review artifact must NOT exist yet at this point in time.
-    expect(() => session.readVfs('/workspace/review.md'),
-        throwsA(anything));
+    expect(() => session.readVfs('/workspace/review.md'), throwsA(anything));
 
     // End of run: all three artifacts exist; context is class-managed.
     session.seek(session.length - 1);
@@ -119,8 +123,11 @@ void main() {
     final ctx = await session.contextState();
     expect(ctx.classTable.contains('knowledge'), isTrue);
 
-    expect(session.materializedModelCalls, equals(4),
-        reason: 'all four recorded model calls consumed by the end');
+    expect(
+      session.materializedModelCalls,
+      equals(4),
+      reason: 'all four recorded model calls consumed by the end',
+    );
   });
 
   test('stepping backward re-materializes cleanly', () async {
@@ -131,8 +138,7 @@ void main() {
     // Travel back before the review existed.
     session.seek(3);
     expect(() => session.readVfs('/workspace/review.md'), throwsA(anything));
-    final spec = await session.readVfs('/workspace/spec.md')
-        .then((s) => s, onError: (_) => '(not yet)');
+    final spec = await session.readVfs('/workspace/spec.md').then((s) => s, onError: (_) => '(not yet)');
     expect(spec, isNotNull);
   });
 
@@ -145,13 +151,10 @@ void main() {
       ],
     );
     expect(
-      () => DebugSession.load(DebugEnvelope(
-        program: program,
-        journal: VasterExecutionJournal(),
-        tape: ModelTape(),
-      )),
-      throwsA(isA<StateError>()
-          .having((e) => e.message, 'message', contains('disk'))),
+      () => DebugSession.load(
+        DebugEnvelope(program: program, journal: VasterExecutionJournal(), tape: ModelTape()),
+      ),
+      throwsA(isA<StateError>().having((e) => e.message, 'message', contains('disk'))),
     );
   });
 }

@@ -22,12 +22,11 @@ void main() {
   Set<String> directDeps(String package) {
     final file = pubspecOf(package);
     if (file == null) return const {};
-    final production =
-        file.readAsStringSync().split(RegExp(r'^dev_dependencies:', multiLine: true))[0];
-    return RegExp(r'^\s{2}(vaster_\w+):', multiLine: true)
-        .allMatches(production)
-        .map((m) => m.group(1)!)
-        .toSet();
+    final production = file.readAsStringSync().split(RegExp(r'^dev_dependencies:', multiLine: true))[0];
+    return RegExp(
+      r'^\s{2}(vaster_\w+):',
+      multiLine: true,
+    ).allMatches(production).map((m) => m.group(1)!).toSet();
   }
 
   Set<String> closure(String package) {
@@ -44,16 +43,24 @@ void main() {
   }
 
   test('direct deps: token estimation only', () {
-    expect(directDeps('vaster_kv'), {'vaster_token_estimate'},
-        reason: 'vaster_kv may depend on token estimation (Rule 6.12: '
-            'estimates are centralized) and nothing else directly');
+    expect(
+      directDeps('vaster_kv'),
+      {'vaster_token_estimate'},
+      reason:
+          'vaster_kv may depend on token estimation (Rule 6.12: '
+          'estimates are centralized) and nothing else directly',
+    );
   });
 
   test('transitive closure never reaches the context layer', () {
     final reached = closure('vaster_kv');
-    expect(reached.where((d) => d.contains('context')), isEmpty,
-        reason: 'the contracts leaf must not drag vaster_context* into '
-            'backend packages (Rule 6.15) — the ContextMmu bridge in '
-            'vaster_context_mmu is the only component knowing both sides');
+    expect(
+      reached.where((d) => d.contains('context')),
+      isEmpty,
+      reason:
+          'the contracts leaf must not drag vaster_context* into '
+          'backend packages (Rule 6.15) — the ContextMmu bridge in '
+          'vaster_context_mmu is the only component knowing both sides',
+    );
   });
 }

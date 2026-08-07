@@ -9,10 +9,9 @@ void main() {
         evaluator: (code, inputs) => {'sum': (inputs['a'] as int) + (inputs['b'] as int)},
       );
 
-      final result = await sandbox.run(const SandboxRequest(
-        codeOrCommand: 'add(a, b)',
-        inputs: {'a': 10, 'b': 20},
-      ));
+      final result = await sandbox.run(
+        const SandboxRequest(codeOrCommand: 'add(a, b)', inputs: {'a': 10, 'b': 20}),
+      );
 
       expect(result.isSuccess, isTrue);
       expect(result.resultValue, equals({'sum': 30}));
@@ -20,18 +19,14 @@ void main() {
 
     test('times out when isolate execution exceeds policy maxTimeout', () async {
       final sandbox = IsolateCodeSandbox(
-        defaultPolicy: const SandboxSecurityPolicy(
-          maxTimeout: Duration(milliseconds: 100),
-        ),
+        defaultPolicy: const SandboxSecurityPolicy(maxTimeout: Duration(milliseconds: 100)),
         evaluator: (code, inputs) async {
           await Future.delayed(const Duration(milliseconds: 500));
           return 'done';
         },
       );
 
-      final result = await sandbox.run(const SandboxRequest(
-        codeOrCommand: 'slowTask()',
-      ));
+      final result = await sandbox.run(const SandboxRequest(codeOrCommand: 'slowTask()'));
 
       expect(result.timedOut, isTrue);
       expect(result.isSuccess, isFalse);

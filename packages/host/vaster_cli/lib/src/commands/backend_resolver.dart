@@ -34,8 +34,7 @@ Future<void> _noDispose() async {}
 
 /// Fallback GGUF used by `--backend llama` when neither `--model` nor
 /// `VASTER_LLAMA_MODEL` names one.
-String defaultLlamaModelPath() =>
-    '${Platform.environment['HOME']}/models/SmolLM2-135M-Instruct-Q4_K_M.gguf';
+String defaultLlamaModelPath() => '${Platform.environment['HOME']}/models/SmolLM2-135M-Instruct-Q4_K_M.gguf';
 
 /// One backend-name → model resolution for every CLI verb (`run`, `resume`).
 ///
@@ -61,9 +60,8 @@ Future<ResolvedBackend> resolveBackendModel({
       );
 
   if (backend == 'llama') {
-    final modelPath = results['model'] as String? ??
-        Platform.environment['VASTER_LLAMA_MODEL'] ??
-        defaultLlamaModelPath();
+    final modelPath =
+        results['model'] as String? ?? Platform.environment['VASTER_LLAMA_MODEL'] ?? defaultLlamaModelPath();
     if (!File(modelPath).existsSync()) {
       throw StateError('llama backend: model file not found at "$modelPath" '
           '(pass --model <path.gguf> or set VASTER_LLAMA_MODEL).');
@@ -77,10 +75,7 @@ Future<ResolvedBackend> resolveBackendModel({
     final stem = modelPath.split('/').last.replaceAll('.gguf', '');
     return ResolvedBackend(
       LlamaFfiVasterModel(
-          worker: worker,
-          frameResolver: kv,
-          promptComposer: composer,
-          modelName: 'llama-ffi:$stem'),
+          worker: worker, frameResolver: kv, promptComposer: composer, modelName: 'llama-ffi:$stem'),
       kvPrewarmer: KvPrewarmer(
         controller: kv,
         renderMessages: composer.renderMessages,
@@ -89,20 +84,19 @@ Future<ResolvedBackend> resolveBackendModel({
     );
   }
 
-  return ResolvedBackend(dispose: _noDispose, switch (backend) {
-    'claude-api' => resilient(ClaudeApiVasterModel(
-        targetModel: results['model'] as String? ?? 'claude-opus-5')),
-    'claude-cli' => resilient(ClaudeCliVasterModel(
-        selectedModel: results['model'] as String?,
-        workingDirectory: context.workingDirectory)),
-    'gemini' => resilient(GoogleAiVasterModel(
-        apiKey: Platform.environment['GEMINI_API_KEY'] ??
-            Platform.environment['GOOGLE_AI_API_KEY'],
-        targetModel: results['model'] as String? ?? 'gemini-2.0-flash')),
-    'gemini-cli' => resilient(GeminiCliVasterModel(
-        selectedModel: results['model'] as String?,
-        workingDirectory: context.workingDirectory)),
-    'rpc' => resilient(RpcVasterModel(socketPath: context.socketPath)),
-    _ => FakeVasterModel(),
-  });
+  return ResolvedBackend(
+      dispose: _noDispose,
+      switch (backend) {
+        'claude-api' =>
+          resilient(ClaudeApiVasterModel(targetModel: results['model'] as String? ?? 'claude-opus-5')),
+        'claude-cli' => resilient(ClaudeCliVasterModel(
+            selectedModel: results['model'] as String?, workingDirectory: context.workingDirectory)),
+        'gemini' => resilient(GoogleAiVasterModel(
+            apiKey: Platform.environment['GEMINI_API_KEY'] ?? Platform.environment['GOOGLE_AI_API_KEY'],
+            targetModel: results['model'] as String? ?? 'gemini-2.0-flash')),
+        'gemini-cli' => resilient(GeminiCliVasterModel(
+            selectedModel: results['model'] as String?, workingDirectory: context.workingDirectory)),
+        'rpc' => resilient(RpcVasterModel(socketPath: context.socketPath)),
+        _ => FakeVasterModel(),
+      });
 }

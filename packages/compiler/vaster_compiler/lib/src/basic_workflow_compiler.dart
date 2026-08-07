@@ -40,9 +40,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
   VasterProgram compile(Pipeline pipeline) {
     final result = compileWithDiagnostics(pipeline);
     if (result.hasErrors) {
-      throw StateError(
-        'Compilation failed:\n${result.errors.map((e) => '  $e').join('\n')}',
-      );
+      throw StateError('Compilation failed:\n${result.errors.map((e) => '  $e').join('\n')}');
     }
     return result.program;
   }
@@ -65,9 +63,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     // to a fixed point.
     final emittedSubs = <String>{};
     while (true) {
-      final pending = state.subroutineBodies.keys
-          .where((name) => !emittedSubs.contains(name))
-          .toList();
+      final pending = state.subroutineBodies.keys.where((name) => !emittedSubs.contains(name)).toList();
       if (pending.isEmpty) break;
       for (final name in pending) {
         emittedSubs.add(name);
@@ -86,16 +82,14 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         .toList();
     if (undefinedSubs.isNotEmpty) {
       return CompileResult(
-        program: VasterProgram(
-          programName: pipeline.effectiveSpec.name,
-          instructions: const [HaltOp()],
-        ),
+        program: VasterProgram(programName: pipeline.effectiveSpec.name, instructions: const [HaltOp()]),
         diagnostics: [
           for (final name in undefinedSubs)
             CompileDiagnostic(
               severity: CompileSeverity.error,
               code: 'undefined_subroutine',
-              message: 'CallSubroutine references "$name", '
+              message:
+                  'CallSubroutine references "$name", '
                   'but no DefineSubroutine with that name exists.',
             ),
         ],
@@ -121,19 +115,14 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     final program = VasterProgram(
       programName: pipeline.effectiveSpec.name,
       contextClasses: state.contextClassOverrides.isNotEmpty
-          ? ContextClassTable.standard
-              .withOverrides(state.contextClassOverrides)
-              .toJson()
+          ? ContextClassTable.standard.withOverrides(state.contextClassOverrides).toJson()
           : null,
       resultBinding: pipeline.result?.name,
       instructions: instructions,
     );
 
     // Pass 6: semantic analysis (lowering-time diagnostics merged in).
-    final diagnostics = [
-      ...state.diagnostics,
-      ...const ProgramAnalyzer().analyze(program),
-    ];
+    final diagnostics = [...state.diagnostics, ...const ProgramAnalyzer().analyze(program)];
 
     return CompileResult(program: program, diagnostics: diagnostics);
   }
@@ -165,17 +154,13 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     switch (node) {
       case Prompt n:
         final reg = _binding(n.output, state);
-        ir.emit(PromptOp(
-          promptText: _template(n.prompt, state),
-          outputVar: reg,
-          responseSchema: n.outputSchema,
-        ));
+        ir.emit(
+          PromptOp(promptText: _template(n.prompt, state), outputVar: reg, responseSchema: n.outputSchema),
+        );
         state.lastOutputRegister = reg;
 
       case WriteFile n:
-        ir.emit(WriteFileOp(
-            vfsPath: _template(n.path, state),
-            content: _template(n.content, state)));
+        ir.emit(WriteFileOp(vfsPath: _template(n.path, state), content: _template(n.content, state)));
 
       case ReadFile n:
         final reg = _binding(n.output, state);
@@ -188,13 +173,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
           // ParallelTaskEntry is a vaster_domain spec type (serializable,
           // Binding-free by design) — string tier.
           final reg = _bindingName(t.output, state);
-          dispatches.add(
-            ParallelTaskDispatch(
-              agentId: t.agentId,
-              taskPrompt: t.prompt,
-              outputVar: reg,
-            ),
-          );
+          dispatches.add(ParallelTaskDispatch(agentId: t.agentId, taskPrompt: t.prompt, outputVar: reg));
           state.lastOutputRegister = reg;
         }
         ir.emit(DispatchParallelTasksOp(dispatches: dispatches));
@@ -202,17 +181,19 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
       case Extract n:
         final source = n.from?.name ?? state.lastOutputRegister;
         if (source == null) {
-          state.diagnostics.add(const CompileDiagnostic(
-            severity: CompileSeverity.error,
-            code: 'extract_no_source',
-            message: 'Extract has no `from` binding and no value was '
-                'produced before it.',
-          ));
+          state.diagnostics.add(
+            const CompileDiagnostic(
+              severity: CompileSeverity.error,
+              code: 'extract_no_source',
+              message:
+                  'Extract has no `from` binding and no value was '
+                  'produced before it.',
+            ),
+          );
           break;
         }
         final target = _binding(n.output, state);
-        ir.emit(JsonExtractOp(
-            sourceVar: source, jsonKey: n.field, targetVar: target));
+        ir.emit(JsonExtractOp(sourceVar: source, jsonKey: n.field, targetVar: target));
         state.lastOutputRegister = target;
 
       case When n:
@@ -252,16 +233,13 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         final policy = context.tryRead<DecisionPolicy>();
         final chosenReg = _binding(n.output, state);
         final joinLabel = ir.newLabel('decide_join');
-        final pathLabels = [
-          for (final path in n.paths) ir.newLabel('decide_${path.label}'),
-        ];
+        final pathLabels = [for (final path in n.paths) ir.newLabel('decide_${path.label}')];
 
         ir.decide(
           _template(n.prompt, state),
           [
             for (var i = 0; i < n.paths.length; i++)
-              IrDecideBranch(
-                  n.paths[i].label, n.paths[i].description, pathLabels[i]),
+              IrDecideBranch(n.paths[i].label, n.paths[i].description, pathLabels[i]),
           ],
           outputVar: chosenReg,
           defaultLabel: n.defaultPath ?? policy?.defaultPath,
@@ -290,8 +268,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         //   jump -> JOIN
         // JOIN:
         final loopPolicy = context.tryRead<DecisionPolicy>();
-        final maxIterations =
-            n.maxIterations ?? loopPolicy?.maxIterations ?? 8;
+        final maxIterations = n.maxIterations ?? loopPolicy?.maxIterations ?? 8;
         final loopDefault = n.defaultPath ?? loopPolicy?.defaultPath;
         final counterReg = state.nextAutoRegister();
         final guardOkReg = state.nextAutoRegister();
@@ -299,9 +276,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         final loopStart = ir.newLabel('decide_loop_start');
         final decideLabel = ir.newLabel('decide_loop_decide');
         final joinLabel = ir.newLabel('decide_loop_join');
-        final exitLabels = [
-          for (final exit in n.exits) ir.newLabel('decide_loop_${exit.label}'),
-        ];
+        final exitLabels = [for (final exit in n.exits) ir.newLabel('decide_loop_${exit.label}')];
 
         // Exhaustion must terminate: route to defaultPath's exit when it
         // names one, else the first exit — never back to the loop.
@@ -312,31 +287,29 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
         // The continue edge: straight back to the loop start, or through the
         // onContinue block first (the review-then-revise shape).
-        final continueTarget = n.onContinue.isEmpty
-            ? loopStart
-            : ir.newLabel('decide_loop_continue');
+        final continueTarget = n.onContinue.isEmpty ? loopStart : ir.newLabel('decide_loop_continue');
 
         ir.emit(SetRegisterOp(registerName: counterReg, value: 0));
         ir.bind(loopStart);
         _lowerNodes(n.body, ir, context, state);
         ir.emit(IncrementRegisterOp(registerName: counterReg));
-        ir.emit(CompareRegisterOp(
-          leftVar: counterReg,
-          operator: 'lt',
-          rightValue: maxIterations,
-          targetVar: guardOkReg,
-        ));
+        ir.emit(
+          CompareRegisterOp(
+            leftVar: counterReg,
+            operator: 'lt',
+            rightValue: maxIterations,
+            targetVar: guardOkReg,
+          ),
+        );
         ir.jumpIf(guardOkReg, decideLabel);
         ir.jump(exitLabels[exhaustIndex]);
         ir.bind(decideLabel);
         ir.decide(
           _template(n.prompt, state),
           [
-            IrDecideBranch(
-                n.continueLabel, n.continueDescription, continueTarget),
+            IrDecideBranch(n.continueLabel, n.continueDescription, continueTarget),
             for (var i = 0; i < n.exits.length; i++)
-              IrDecideBranch(
-                  n.exits[i].label, n.exits[i].description, exitLabels[i]),
+              IrDecideBranch(n.exits[i].label, n.exits[i].description, exitLabels[i]),
           ],
           outputVar: chosenReg,
           defaultLabel: loopDefault,
@@ -379,12 +352,14 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
         ir.emit(SetRegisterOp(registerName: guardReg, value: 0));
         ir.bind(whileStart);
-        ir.emit(CompareRegisterOp(
-          leftVar: guardReg,
-          operator: 'lt',
-          rightValue: n.maxIterations,
-          targetVar: guardOkReg,
-        ));
+        ir.emit(
+          CompareRegisterOp(
+            leftVar: guardReg,
+            operator: 'lt',
+            rightValue: n.maxIterations,
+            targetVar: guardOkReg,
+          ),
+        );
         ir.jumpIf(guardOkReg, whileCheck);
         ir.jump(whileEnd);
         ir.bind(whileCheck);
@@ -407,12 +382,9 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
         ir.emit(SetRegisterOp(registerName: counterReg, value: 0));
         ir.bind(repeatStart);
-        ir.emit(CompareRegisterOp(
-          leftVar: counterReg,
-          operator: 'lt',
-          rightValue: n.times,
-          targetVar: cmpReg,
-        ));
+        ir.emit(
+          CompareRegisterOp(leftVar: counterReg, operator: 'lt', rightValue: n.times, targetVar: cmpReg),
+        );
         ir.jumpIf(cmpReg, repeatBody);
         ir.jump(repeatEnd);
         ir.bind(repeatBody);
@@ -437,8 +409,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         // recorded results on the next attempt instead of re-performing
         // the side effect; VFS writes roll back via the transaction
         // machinery instead. Constant code size regardless of attempts.
-        final totalAttempts =
-            n.attempts ?? context.tryRead<RetryPolicy>()?.maxAttempts ?? 3;
+        final totalAttempts = n.attempts ?? context.tryRead<RetryPolicy>()?.maxAttempts ?? 3;
         final attemptReg = state.nextAutoRegister();
         final retryCmp = state.nextAutoRegister();
         final retryHead = ir.newLabel('retry_head');
@@ -450,12 +421,14 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         ir.emit(const PushEffectScopeOp());
         ir.emit(SetRegisterOp(registerName: attemptReg, value: 0));
         ir.bind(retryHead);
-        ir.emit(CompareRegisterOp(
-          leftVar: attemptReg,
-          operator: 'lt',
-          rightValue: totalAttempts,
-          targetVar: retryCmp,
-        ));
+        ir.emit(
+          CompareRegisterOp(
+            leftVar: attemptReg,
+            operator: 'lt',
+            rightValue: totalAttempts,
+            targetVar: retryCmp,
+          ),
+        );
         ir.jumpIf(retryCmp, retryBody);
         ir.jump(retryExhausted);
         ir.bind(retryBody);
@@ -509,18 +482,20 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
       // ── Context management nodes ──────────────────────────────────────
       case AddContext n:
-        ir.emit(AddContextOp(
-          regionId: n.regionId,
-          label: n.label,
-          text: n.text,
-          sourceVar: n.from,
-          className: n.className,
-          // Null enum fields stay null in the ISA — inherit from the class.
-          priority: n.priority?.name,
-          lifetime: n.lifetime?.name,
-          compressibility: n.compressibility?.name,
-          pinned: n.pinned,
-        ));
+        ir.emit(
+          AddContextOp(
+            regionId: n.regionId,
+            label: n.label,
+            text: n.text,
+            sourceVar: n.from,
+            className: n.className,
+            // Null enum fields stay null in the ISA — inherit from the class.
+            priority: n.priority?.name,
+            lifetime: n.lifetime?.name,
+            compressibility: n.compressibility?.name,
+            pinned: n.pinned,
+          ),
+        );
 
       case ContextClasses n:
         // Header metadata, not instructions: layered onto any previously
@@ -533,24 +508,22 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
 
       case CompressContext n:
         final reg = _bindingName(n.output, state);
-        ir.emit(CompressContextOp(
-          regionId: n.regionId,
-          targetTokens: n.targetTokens,
-          outputVar: reg,
-        ));
+        ir.emit(CompressContextOp(regionId: n.regionId, targetTokens: n.targetTokens, outputVar: reg));
         state.lastOutputRegister = reg;
 
       case YieldHuman n:
-        ir.emit(YieldHumanInteractionOp(
-          request: HumanInteractionRequest(
-            requestId: n.requestId,
-            type: HumanInteractionType.parse(n.interactionType),
-            prompt: n.prompt,
-            options: n.options,
-            outputVar: n.output,
-            timeoutMs: n.timeoutMs,
+        ir.emit(
+          YieldHumanInteractionOp(
+            request: HumanInteractionRequest(
+              requestId: n.requestId,
+              type: HumanInteractionType.parse(n.interactionType),
+              prompt: n.prompt,
+              options: n.options,
+              outputVar: n.output,
+              timeoutMs: n.timeoutMs,
+            ),
           ),
-        ));
+        );
 
       case AskHuman n:
         final reg = _binding(n.output, state);
@@ -566,7 +539,6 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
           ),
         );
         state.lastOutputRegister = reg;
-
 
       case Sequence n:
         _lowerNodes(n.children, ir, context, state);
@@ -604,31 +576,37 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
             ),
           ),
         );
-        ir.emit(CreateSessionOp(
-            sessionId: AgentDescriptor.sessionIdFor(n.role.roleId)));
+        ir.emit(CreateSessionOp(sessionId: AgentDescriptor.sessionIdFor(n.role.roleId)));
 
       case MountHeader n:
         final mount = n.mount;
         if (mount.type == StorageMountType.disk && mount.diskPath == null) {
-          state.diagnostics.add(CompileDiagnostic(
-            severity: CompileSeverity.error,
-            code: 'mount_missing_disk_path',
-            message: 'Disk mount "${mount.mountPrefix}" declares no diskPath.',
-          ));
+          state.diagnostics.add(
+            CompileDiagnostic(
+              severity: CompileSeverity.error,
+              code: 'mount_missing_disk_path',
+              message: 'Disk mount "${mount.mountPrefix}" declares no diskPath.',
+            ),
+          );
           break;
         }
         if (mount.type == StorageMountType.memory && mount.diskPath != null) {
-          state.diagnostics.add(CompileDiagnostic(
-            severity: CompileSeverity.warning,
-            code: 'mount_ignored_disk_path',
-            message: 'Memory mount "${mount.mountPrefix}" declares a diskPath '
-                'that will be ignored — set type: StorageMountType.disk.',
-          ));
+          state.diagnostics.add(
+            CompileDiagnostic(
+              severity: CompileSeverity.warning,
+              code: 'mount_ignored_disk_path',
+              message:
+                  'Memory mount "${mount.mountPrefix}" declares a diskPath '
+                  'that will be ignored — set type: StorageMountType.disk.',
+            ),
+          );
         }
-        ir.emit(MountFsOp(
-          mountPrefix: mount.mountPrefix,
-          diskPath: mount.type == StorageMountType.disk ? mount.diskPath : null,
-        ));
+        ir.emit(
+          MountFsOp(
+            mountPrefix: mount.mountPrefix,
+            diskPath: mount.type == StorageMountType.disk ? mount.diskPath : null,
+          ),
+        );
 
       case ToolSetHeader n:
         ir.emit(RegisterToolSetOp(tools: n.tools));
@@ -645,19 +623,16 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         );
 
       case SandboxHeader n:
-        ir.emit(RegisterSandboxOp(
-          sandboxId: n.env.envId,
-          language: n.env.language,
-          timeoutMs: n.env.timeoutMs,
-        ));
+        ir.emit(
+          RegisterSandboxOp(sandboxId: n.env.envId, language: n.env.language, timeoutMs: n.env.timeoutMs),
+        );
 
       case SelectModelHeader n:
         ir.emit(SelectModelOp(descriptor: n.model, fallbacks: n.fallbacks));
 
       case TaskExecution n:
         final reg = _bindingName(n.output, state);
-        ir.emit(
-            SetSessionOp(sessionId: AgentDescriptor.sessionIdFor(n.agentId)));
+        ir.emit(SetSessionOp(sessionId: AgentDescriptor.sessionIdFor(n.agentId)));
         ir.emit(
           DispatchAgentTaskOp(
             agentId: n.agentId,
@@ -674,13 +649,7 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
         state.lastOutputRegister = reg;
 
       case SendMessageExecution n:
-        ir.emit(
-          SendMessageOp(
-            senderId: n.fromId,
-            recipientId: n.toId,
-            payload: n.payload,
-          ),
-        );
+        ir.emit(SendMessageOp(senderId: n.fromId, recipientId: n.toId, payload: n.payload));
 
       case ReceiveMessageExecution n:
         final reg = _bindingName(n.output, state);
@@ -693,26 +662,21 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
   /// Lowers a [Cond] to a register to `jumpIf` on, plus a negation flag the
   /// caller resolves by swapping branch targets. Comparisons emit a
   /// [CompareRegisterOp] into a fresh register; `not` just flips the flag.
-  ({String register, bool negated}) _lowerCond(
-      Cond cond, IrModule ir, _CompilerState state) {
+  ({String register, bool negated}) _lowerCond(Cond cond, IrModule ir, _CompilerState state) {
     switch (cond) {
       case CondIsTrue c:
         return (register: c.binding.name, negated: false);
       case CondEquals c:
         final tmp = state.nextAutoRegister();
-        ir.emit(CompareRegisterOp(
-            leftVar: c.binding.name,
-            operator: 'eq',
-            rightValue: c.value,
-            targetVar: tmp));
+        ir.emit(
+          CompareRegisterOp(leftVar: c.binding.name, operator: 'eq', rightValue: c.value, targetVar: tmp),
+        );
         return (register: tmp, negated: false);
       case CondNotEquals c:
         final tmp = state.nextAutoRegister();
-        ir.emit(CompareRegisterOp(
-            leftVar: c.binding.name,
-            operator: 'ne',
-            rightValue: c.value,
-            targetVar: tmp));
+        ir.emit(
+          CompareRegisterOp(leftVar: c.binding.name, operator: 'ne', rightValue: c.value, targetVar: tmp),
+        );
         return (register: tmp, negated: false);
       case CondNot c:
         final inner = _lowerCond(c.inner, ir, state);
@@ -738,28 +702,33 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
           buffer.write('\${${b.name}}');
         case String s:
           if (s.contains(r'${')) {
-            state.diagnostics.add(CompileDiagnostic(
-              severity: CompileSeverity.warning,
-              code: 'raw_interpolation_in_template',
-              message: 'Template text contains raw "\${…}" — use a Binding '
-                  'part instead ("${_truncateForDiag(s)}").',
-            ));
+            state.diagnostics.add(
+              CompileDiagnostic(
+                severity: CompileSeverity.warning,
+                code: 'raw_interpolation_in_template',
+                message:
+                    'Template text contains raw "\${…}" — use a Binding '
+                    'part instead ("${_truncateForDiag(s)}").',
+              ),
+            );
           }
           buffer.write(s);
         default:
-          state.diagnostics.add(CompileDiagnostic(
-            severity: CompileSeverity.error,
-            code: 'invalid_template_part',
-            message: 'Template parts must be String or Binding; got '
-                '${part.runtimeType}.',
-          ));
+          state.diagnostics.add(
+            CompileDiagnostic(
+              severity: CompileSeverity.error,
+              code: 'invalid_template_part',
+              message:
+                  'Template parts must be String or Binding; got '
+                  '${part.runtimeType}.',
+            ),
+          );
       }
     }
     return buffer.toString();
   }
 
-  static String _truncateForDiag(String s) =>
-      s.length <= 40 ? s : '${s.substring(0, 40)}…';
+  static String _truncateForDiag(String s) => s.length <= 40 ? s : '${s.substring(0, 40)}…';
 
   /// Resolves an author-declared [Binding] to its ISA register name,
   /// validating the reserved `__` prefix, or allocates an auto register.
@@ -768,11 +737,13 @@ class BasicWorkflowCompiler implements WorkflowCompiler {
     if (requested == null) return state.nextAutoRegister();
     final name = requested.name;
     if (name.startsWith('__')) {
-      state.diagnostics.add(CompileDiagnostic(
-        severity: CompileSeverity.error,
-        code: 'reserved_binding',
-        message: 'Binding name "$name" uses the reserved "__" prefix.',
-      ));
+      state.diagnostics.add(
+        CompileDiagnostic(
+          severity: CompileSeverity.error,
+          code: 'reserved_binding',
+          message: 'Binding name "$name" uses the reserved "__" prefix.',
+        ),
+      );
     }
     return name;
   }

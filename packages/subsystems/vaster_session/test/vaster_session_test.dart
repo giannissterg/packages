@@ -27,7 +27,10 @@ void main() {
 
     test('supports dynamic model switching per turn', () async {
       final defaultModel = FakeVasterModel(modelName: 'fast-model', defaultResponseText: 'Fast model output');
-      final targetModel = FakeVasterModel(modelName: 'reasoning-model', defaultResponseText: 'Reasoning model output');
+      final targetModel = FakeVasterModel(
+        modelName: 'reasoning-model',
+        defaultResponseText: 'Reasoning model output',
+      );
 
       final session = BasicModelSession(
         sessionId: 'sess_dyn',
@@ -64,10 +67,7 @@ void main() {
       final fakeModel = FakeVasterModel(defaultResponseText: 'Contextual response');
       final contextManager = BasicContextManager(
         sources: [
-          MemoryContextSource.fromMap(
-            id: 'mem',
-            data: {'system': 'You are bound to a session context.'},
-          ),
+          MemoryContextSource.fromMap(id: 'mem', data: {'system': 'You are bound to a session context.'}),
         ],
       );
 
@@ -80,8 +80,10 @@ void main() {
       final response = await session.send(ChatMessage.user('Query with context'));
       expect(response.text, contains('Contextual response'));
 
-      expect(fakeModel.recordedRequests.first.systemInstruction?.text,
-          equals('system: You are bound to a session context.'));
+      expect(
+        fakeModel.recordedRequests.first.systemInstruction?.text,
+        equals('system: You are bound to a session context.'),
+      );
     });
 
     test('clearHistory resets history', () async {

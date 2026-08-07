@@ -24,8 +24,7 @@ class FakeVasterModel implements VasterModel {
   /// Builds the [UsageMetadata] reported for a generated response, letting
   /// tests pin exact token/cost numbers. When null, usage defaults to a
   /// token-scale length estimate (~4 chars/token, `source: estimated`).
-  final UsageMetadata Function(ModelRequest request, String responseText)?
-      usageBuilder;
+  final UsageMetadata Function(ModelRequest request, String responseText)? usageBuilder;
 
   /// Recorded history of requests received by this model backend.
   final List<ModelRequest> recordedRequests = [];
@@ -70,15 +69,13 @@ class FakeVasterModel implements VasterModel {
 
     // Token-scale estimate (~4 chars/token), mirroring real backends'
     // magnitudes; raw character counts would be ~4x inflated.
-    final promptTokens = request.messages.fold<int>(
-      0,
-      (sum, msg) => sum + TokenEstimate.forText(msg.text),
-    );
+    final promptTokens = request.messages.fold<int>(0, (sum, msg) => sum + TokenEstimate.forText(msg.text));
 
     return ModelResponse(
       message: ChatMessage.model(responseText),
       finishReason: FinishReason.stop,
-      usage: usageBuilder?.call(request, responseText) ??
+      usage:
+          usageBuilder?.call(request, responseText) ??
           UsageMetadata(
             promptTokenCount: promptTokens,
             candidatesTokenCount: TokenEstimate.forText(responseText),
@@ -98,10 +95,7 @@ class FakeVasterModel implements VasterModel {
         for (var i = 0; i < words.length; i++) {
           final isLast = i == words.length - 1;
           final wordWithSpace = isLast ? words[i] : '${words[i]} ';
-          yield ModelResponseChunk(
-            delta: TextPart(wordWithSpace),
-            textDelta: wordWithSpace,
-          );
+          yield ModelResponseChunk(delta: TextPart(wordWithSpace), textDelta: wordWithSpace);
           await Future.delayed(const Duration(milliseconds: 5));
         }
       } else {
@@ -109,9 +103,6 @@ class FakeVasterModel implements VasterModel {
       }
     }
 
-    yield ModelResponseChunk(
-      finishReason: fullResponse.finishReason,
-      usage: fullResponse.usage,
-    );
+    yield ModelResponseChunk(finishReason: fullResponse.finishReason, usage: fullResponse.usage);
   }
 }

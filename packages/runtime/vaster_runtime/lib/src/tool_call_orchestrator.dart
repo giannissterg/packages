@@ -9,7 +9,6 @@ import 'package:vaster_vm_api/vaster_vm_api.dart';
 
 import 'policy_guard.dart';
 
-
 /// Orchestrates the model ↔ tool conversation for one prompt.
 ///
 /// This is model-orchestration concern, not instruction dispatch — extracting
@@ -17,9 +16,9 @@ import 'policy_guard.dart';
 /// orchestrator owns its collaborators at construction — and holds exactly
 /// the VM facet its job needs ([ToolLoopHost]: prompt funnel, tool symbol
 /// table, event bus, VFS), so its type says "tool loop", not "whole VM".
-/// Everything passed to [resolve] is genuinely per-invocation state (the
-/// active model, cache hints, and program-registered toolset all change as
-/// the program executes).
+/// The engine passes the resolved active model, cache hints, and the
+/// program-registered toolset into [resolve] — genuine per-call inputs
+/// (the model is resolved by the engine, never a nullable fallback here).
 ///
 /// Tool calls dispatch through the VM's [ToolManager] symbol table — any
 /// registered tool (sandbox bridges, function tools, toolsets) is callable by
@@ -33,10 +32,6 @@ final class ToolCallOrchestrator {
 
   /// The runtime's shared metering pipeline (host budget + program quota).
   final ModelCallMeter meter;
-
-  /// Attribution fallback when no active model is passed and the response
-  /// carries no serving-model stamp.
-  final VasterModel defaultModel;
 
   /// Kept alongside [meter] for the one thing metering doesn't cover:
   /// recording tool-call counts against the program quota.
@@ -57,7 +52,6 @@ final class ToolCallOrchestrator {
   const ToolCallOrchestrator({
     required this.host,
     required this.meter,
-    required this.defaultModel,
     required this.quotaTracker,
     required this.guard,
     required this.maxIterations,
@@ -70,7 +64,7 @@ final class ToolCallOrchestrator {
     required String prompt,
     required ModelResponse initialResponse,
     required List<ToolDefinition> programToolSet,
-    VasterModel? model,
+    required VasterModel model,
     List<ContextCacheHint> cacheHints = const [],
   }) async {
     var response = initialResponse;
@@ -95,12 +89,14 @@ final class ToolCallOrchestrator {
       transcript.add(response.message);
       final turn = ToolTurn(response.functionCalls.toList());
       for (final call in turn.calls) {
-        host.eventBus.publish(ToolCalledEvent(
-          eventId: 'evt_tool_call_${call.callId}',
-          callId: call.callId,
-          toolName: call.name,
-          arguments: call.arguments,
-        ));
+        host.eventBus.publish(
+          ToolCalledEvent(
+            eventId: 'evt_tool_call_${call.callId}',
+            callId: call.callId,
+            toolName: call.name,
+            arguments: call.arguments,
+          ),
+        );
       }
       final runner = ToolTurnRunner(
         gate: guard,
@@ -119,20 +115,20 @@ final class ToolCallOrchestrator {
         },
         concurrency: ToolTurnConcurrency.sequential,
       );
-      final outcome =
-          await runner.run(turn, region: const EffectRegion.isaLoop());
+      final outcome = await runner.run(turn, region: const EffectRegion.isaLoop());
       // ToolCallReplayedEvent has ONE owner — the effect recorder that
       // decided the replay (one-owner emission, Rule 6.10's discipline).
       // Publishing here too double-counted every replay.
       for (final execution in outcome.executions) {
-        host.eventBus.publish(ToolFinishedEvent(
-          eventId: 'evt_tool_done_${execution.result.callId}',
-          callId: execution.result.callId,
-          toolName: execution.result.name,
-          isError: execution.result.isError ||
-              execution.result.response.containsKey('error'),
-          executionDuration: execution.result.executionDuration,
-        ));
+        host.eventBus.publish(
+          ToolFinishedEvent(
+            eventId: 'evt_tool_done_${execution.result.callId}',
+            callId: execution.result.callId,
+            toolName: execution.result.name,
+            isError: execution.result.isError || execution.result.response.containsKey('error'),
+            executionDuration: execution.result.executionDuration,
+          ),
+        );
       }
       // Replays perform no work: only real executions count against the
       // program's tool-call quota.
@@ -156,8 +152,7 @@ final class ToolCallOrchestrator {
                 promptTokenCount: TokenEstimate.forMessages(transcript),
                 candidatesTokenCount: TokenEstimate.forText(response.text),
               ),
-        modelName:
-            response.servedBy ?? (model ?? defaultModel).modelName,
+        modelName: response.servedBy ?? model.modelName,
         callSite: 'isa_tool_loop',
       );
     }
@@ -177,28 +172,21 @@ final class ToolCallOrchestrator {
       //    the policy gate lives here.
       switch (call.name) {
         case VfsSyscalls.writeFileName:
-          guard.check(
-              PolicyAction.fileWrite, call.arguments['path']?.toString() ?? '');
+          guard.check(PolicyAction.fileWrite, call.arguments['path']?.toString() ?? '');
           return await VfsSyscalls.writeFile(host.fileSystemManager, call.arguments);
         case VfsSyscalls.readFileName:
-          guard.check(
-              PolicyAction.fileRead, call.arguments['path']?.toString() ?? '');
+          guard.check(PolicyAction.fileRead, call.arguments['path']?.toString() ?? '');
           return await VfsSyscalls.readFile(host.fileSystemManager, call.arguments);
       }
 
       // 2. Symbol table — the linked tool registry.
       if (host.toolManager.getTool(call.name) != null) {
         final result = await host.toolManager.executeCall(call);
-        return result.isError
-            ? {'error': result.errorDetails ?? 'Tool execution failed.'}
-            : result.response;
+        return result.isError ? {'error': result.errorDetails ?? 'Tool execution failed.'} : result.response;
       }
 
       // 3. Unlinked symbol.
-      return {
-        'error':
-            'Unknown tool "${call.name}" — not registered in the VM tool table.',
-      };
+      return {'error': 'Unknown tool "${call.name}" — not registered in the VM tool table.'};
     } on PolicyViolationException {
       rethrow; // security trap — uncatchable, never fed back to the model
     } on StateError catch (e) {

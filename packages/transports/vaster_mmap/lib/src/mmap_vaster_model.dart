@@ -15,8 +15,7 @@ final class SidecarUnavailableException implements Exception {
   final Duration waited;
   SidecarUnavailableException(this.ringName, this.waited);
   @override
-  String toString() =>
-      'SidecarUnavailableException: no sidecar response on "$ringName" '
+  String toString() => 'SidecarUnavailableException: no sidecar response on "$ringName" '
       'within ${waited.inMilliseconds}ms — is `vaster serve` running?';
 }
 
@@ -110,8 +109,7 @@ class MmapVasterModel implements VasterModel {
     }
 
     // Write zero-copy request frame into shared RAM pages.
-    ring.writeString(
-        jsonEncode(envelopeCodec.encodeGenerate(request, frameRefs)));
+    ring.writeString(jsonEncode(envelopeCodec.encodeGenerate(request, frameRefs)));
 
     // Poll the response ring for a sidecar answer. No answer is an error —
     // the transport never fabricates success.

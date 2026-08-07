@@ -15,15 +15,15 @@ void main() async {
   print('  Model Backend : GoogleAiVasterModel (gemini-2.0-flash)');
   print('======================================================================\n');
 
-  final flutterProjectPath =
-      Directory.systemTemp.createTempSync('vaster_flutter_target_').path;
+  final flutterProjectPath = Directory.systemTemp.createTempSync('vaster_flutter_target_').path;
 
   // Define LLM Agent Roles
   const architectRole = AgentRole(
     roleId: 'flutter_architect',
     name: 'Flutter System Architect',
     title: 'Lead Flutter System Architect',
-    instruction: 'Expert in Flutter Material 3 design systems, BLoC architecture, and clean project structure.',
+    instruction:
+        'Expert in Flutter Material 3 design systems, BLoC architecture, and clean project structure.',
   );
 
   const developerRole = AgentRole(
@@ -71,7 +71,8 @@ void main() async {
             role: architectRole,
             child: Task(
               prompt: Template.text(
-                  'Analyze the Flutter project structure and propose a design for a new Notes feature.'),
+                'Analyze the Flutter project structure and propose a design for a new Notes feature.',
+              ),
             ),
           ),
 
@@ -79,19 +80,20 @@ void main() async {
           const ApprovalGate(
             requestId: 'gemini_flutter_approval',
             prompt: Template.text(
-                'Approve live Gemini AI autonomous code generation for notes_feature in flutter_test_app?'),
+              'Approve live Gemini AI autonomous code generation for notes_feature in flutter_test_app?',
+            ),
             onApprove: [
               // Phase 3: Autonomous LLM Coding by Senior Flutter Developer
               Agent(
                 role: developerRole,
                 child: Task(
                   prompt: Template.text(
-                      'Write a Flutter notes feature in /workspace/lib/features/notes_feature/ domain entity note_item.dart.'),
+                    'Write a Flutter notes feature in /workspace/lib/features/notes_feature/ domain entity note_item.dart.',
+                  ),
                 ),
               ),
               WriteFile(
-                path: Template.text(
-                    '/workspace/lib/features/notes_feature/domain/note_item.dart'),
+                path: Template.text('/workspace/lib/features/notes_feature/domain/note_item.dart'),
                 content: Template.text('''
 import 'package:flutter/foundation.dart';
 
@@ -136,8 +138,7 @@ class NoteItem {
 '''),
               ),
               WriteFile(
-                path: Template.text(
-                    '/workspace/test/features/notes_feature/note_item_test.dart'),
+                path: Template.text('/workspace/test/features/notes_feature/note_item_test.dart'),
                 content: Template.text('''
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_test_app/features/notes_feature/domain/note_item.dart';
@@ -164,8 +165,7 @@ void main() {
             onReject: [
               WriteFile(
                 path: Template.text('/workspace/reports/approval_status.txt'),
-                content:
-                    Template.text('Execution cancelled by user at Approval Gate.'),
+                content: Template.text('Execution cancelled by user at Approval Gate.'),
               ),
             ],
           ),
@@ -194,10 +194,7 @@ void main() {
       : GeminiCliVasterModel(executablePath: 'gemini', selectedModel: 'gemini-2.0-flash');
 
   final vm = await VasterVMEngine.bootstrap(
-    config: VMConfig(
-      defaultModel: geminiModel,
-      rootMountPath: '/workspace',
-    ),
+    config: VMConfig(defaultModel: geminiModel, rootMountPath: '/workspace'),
     rootFileSystem: LocalVasterFileSystem(flutterProjectPath, mountPrefix: '/workspace'),
   );
 
@@ -236,21 +233,13 @@ void main() {
 
   // Run flutter analyze on disk
   print('\n┌─ RUNNING FLUTTER ANALYZE & TEST ON REAL DISK ─────────────────┐');
-  final analyzeResult = await Process.run(
-    'flutter',
-    ['analyze'],
-    workingDirectory: flutterProjectPath,
-  );
+  final analyzeResult = await Process.run('flutter', ['analyze'], workingDirectory: flutterProjectPath);
   print(analyzeResult.stdout);
   if (analyzeResult.stderr.toString().isNotEmpty) {
     print(analyzeResult.stderr);
   }
 
-  final testResult = await Process.run(
-    'flutter',
-    ['test'],
-    workingDirectory: flutterProjectPath,
-  );
+  final testResult = await Process.run('flutter', ['test'], workingDirectory: flutterProjectPath);
   print(testResult.stdout);
 
   print('======================================================================');

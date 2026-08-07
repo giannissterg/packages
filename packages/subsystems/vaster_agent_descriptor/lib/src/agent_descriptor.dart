@@ -61,21 +61,19 @@ class AgentDescriptor {
   static String sessionIdFor(String agentId) => 'sess_$agentId';
 
   Map<String, dynamic> toJson() => {
-        'agentId': agentId,
-        'name': name,
-        'role': role,
-        'systemInstruction': systemInstruction,
-        'allowedToolNames': allowedToolNames,
-        'maxToolCallLoops': maxToolCallLoops,
-        if (policy != null) 'policy': policy!.toJson(),
-        // Emitted only when declared: pre-chain descriptors stay
-        // byte-identical (tape/checkpoint compatibility).
-        if (modelDescriptor != null)
-          'modelDescriptor': modelDescriptor!.toJson(),
-        if (modelFallbacks.isNotEmpty)
-          'modelFallbacks': [for (final f in modelFallbacks) f.toJson()],
-        if (metadata.isNotEmpty) 'metadata': metadata,
-      };
+    'agentId': agentId,
+    'name': name,
+    'role': role,
+    'systemInstruction': systemInstruction,
+    'allowedToolNames': allowedToolNames,
+    'maxToolCallLoops': maxToolCallLoops,
+    if (policy != null) 'policy': policy!.toJson(),
+    // Emitted only when declared: pre-chain descriptors stay
+    // byte-identical (tape/checkpoint compatibility).
+    if (modelDescriptor != null) 'modelDescriptor': modelDescriptor!.toJson(),
+    if (modelFallbacks.isNotEmpty) 'modelFallbacks': [for (final f in modelFallbacks) f.toJson()],
+    if (metadata.isNotEmpty) 'metadata': metadata,
+  };
 
   factory AgentDescriptor.fromJson(Map<String, dynamic> json) {
     return AgentDescriptor(
@@ -83,15 +81,13 @@ class AgentDescriptor {
       name: json['name'] as String? ?? '',
       role: json['role'] as String? ?? '',
       systemInstruction: json['systemInstruction'] as String? ?? '',
-      allowedToolNames:
-          (json['allowedToolNames'] as List?)?.cast<String>() ?? [],
+      allowedToolNames: (json['allowedToolNames'] as List?)?.cast<String>() ?? [],
       maxToolCallLoops: json['maxToolCallLoops'] as int? ?? 10,
       policy: json['policy'] != null
           ? ExecutionPolicy.fromJson(json['policy'] as Map<String, dynamic>)
           : null,
       modelDescriptor: json['modelDescriptor'] != null
-          ? ModelDescriptor.fromJson(
-              Map<String, dynamic>.from(json['modelDescriptor'] as Map))
+          ? ModelDescriptor.fromJson(Map<String, dynamic>.from(json['modelDescriptor'] as Map))
           : null,
       modelFallbacks: [
         for (final f in json['modelFallbacks'] as List? ?? const [])
@@ -102,6 +98,5 @@ class AgentDescriptor {
   }
 
   @override
-  String toString() =>
-      'AgentDescriptor(id: "$agentId", name: "$name", role: "$role")';
+  String toString() => 'AgentDescriptor(id: "$agentId", name: "$name", role: "$role")';
 }

@@ -30,13 +30,7 @@ void main() {
       final usage = GeminiCliVasterModel.parseStats({
         'models': {
           'gemini-2.5-pro': {
-            'tokens': {
-              'prompt': 1000,
-              'candidates': 200,
-              'cached': 600,
-              'thoughts': 150,
-              'tool': 50,
-            },
+            'tokens': {'prompt': 1000, 'candidates': 200, 'cached': 600, 'thoughts': 150, 'tool': 50},
           },
           'gemini-2.5-flash': {
             'tokens': {'input': 100, 'output': 20},
@@ -52,10 +46,7 @@ void main() {
     });
 
     test('flat schema: input_tokens/output_tokens', () {
-      final usage = GeminiCliVasterModel.parseStats({
-        'input_tokens': 42,
-        'output_tokens': 7,
-      });
+      final usage = GeminiCliVasterModel.parseStats({'input_tokens': 42, 'output_tokens': 7});
 
       expect(usage.promptTokenCount, equals(42));
       expect(usage.candidatesTokenCount, equals(7));
@@ -68,59 +59,56 @@ void main() {
     // (roadmap item 7), so binary detection alone would stall any dev
     // machine or CI runner that happens to have it installed.
     final optedIn = Platform.environment['VASTER_GEMINI_CLI_TESTS'] == '1';
-    final geminiAvailable =
-        optedIn && Process.runSync('gemini', ['--version']).exitCode == 0;
+    final geminiAvailable = optedIn && Process.runSync('gemini', ['--version']).exitCode == 0;
 
-    test('generate() calls Gemini CLI and parses JSON response', () async {
-      final model = GeminiCliVasterModel(
-        executablePath: 'gemini',
-        extraArgs: ['--skip-trust'],
-      );
+    test(
+      'generate() calls Gemini CLI and parses JSON response',
+      () async {
+        final model = GeminiCliVasterModel(executablePath: 'gemini', extraArgs: ['--skip-trust']);
 
-      final request = ModelRequest(
-        messages: [
-          ChatMessage.user('Say "Vaster Gemini CLI Integration Success" and nothing else.'),
-        ],
-      );
+        final request = ModelRequest(
+          messages: [ChatMessage.user('Say "Vaster Gemini CLI Integration Success" and nothing else.')],
+        );
 
-      try {
-        final response = await model.generate(request);
-        expect(response.message.text, isNotEmpty);
-        expect(response.finishReason, equals(FinishReason.stop));
-      } catch (e) {
-        if (e.toString().contains('quota') || e.toString().contains('429')) {
-          print('Skipping test due to local Gemini CLI daily quota limit: $e');
-        } else {
-          rethrow;
+        try {
+          final response = await model.generate(request);
+          expect(response.message.text, isNotEmpty);
+          expect(response.finishReason, equals(FinishReason.stop));
+        } catch (e) {
+          if (e.toString().contains('quota') || e.toString().contains('429')) {
+            print('Skipping test due to local Gemini CLI daily quota limit: $e');
+          } else {
+            rethrow;
+          }
         }
-      }
-    }, skip: geminiAvailable ? null : 'opt-in: set VASTER_GEMINI_CLI_TESTS=1 with an authenticated gemini CLI');
+      },
+      skip: geminiAvailable ? null : 'opt-in: set VASTER_GEMINI_CLI_TESTS=1 with an authenticated gemini CLI',
+    );
 
-    test('generateStream() streams responses from Gemini CLI', () async {
-      final model = GeminiCliVasterModel(
-        executablePath: 'gemini',
-        extraArgs: ['--skip-trust'],
-      );
+    test(
+      'generateStream() streams responses from Gemini CLI',
+      () async {
+        final model = GeminiCliVasterModel(executablePath: 'gemini', extraArgs: ['--skip-trust']);
 
-      final request = ModelRequest(
-        messages: [
-          ChatMessage.user('Count: 1 2 3'),
-        ],
-      );
+        final request = ModelRequest(messages: [ChatMessage.user('Count: 1 2 3')]);
 
-      try {
-        final chunks = await model.generateStream(request).toList();
-        expect(chunks, isNotEmpty);
+        try {
+          final chunks = await model.generateStream(request).toList();
+          expect(chunks, isNotEmpty);
 
-        final textParts = chunks.map((c) => c.textDelta).whereType<String>().join();
-        expect(textParts, isNotEmpty);
-      } catch (e) {
-        if (e.toString().contains('quota') || e.toString().contains('429') || e.toString().contains('unknown error')) {
-          print('Skipping test due to local Gemini CLI daily quota limit: $e');
-        } else {
-          rethrow;
+          final textParts = chunks.map((c) => c.textDelta).whereType<String>().join();
+          expect(textParts, isNotEmpty);
+        } catch (e) {
+          if (e.toString().contains('quota') ||
+              e.toString().contains('429') ||
+              e.toString().contains('unknown error')) {
+            print('Skipping test due to local Gemini CLI daily quota limit: $e');
+          } else {
+            rethrow;
+          }
         }
-      }
-    }, skip: geminiAvailable ? null : 'opt-in: set VASTER_GEMINI_CLI_TESTS=1 with an authenticated gemini CLI');
+      },
+      skip: geminiAvailable ? null : 'opt-in: set VASTER_GEMINI_CLI_TESTS=1 with an authenticated gemini CLI',
+    );
   });
 }

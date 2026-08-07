@@ -15,15 +15,14 @@ import 'package:vaster_vm/vaster_vm.dart';
 /// When it fails, `vaster replay <fixture> --diff` says exactly what
 /// changed, down to the character.
 void main() {
-  test('story_lines behaves exactly as recorded (agent regression)',
-      () async {
+  test('story_lines behaves exactly as recorded (agent regression)', () async {
     final envelope = const ReplayEnvelopeCodec().decodeString(
-        File('test/fixtures/story_lines_v2.replay.json').readAsStringSync());
+      File('test/fixtures/story_lines_v2.replay.json').readAsStringSync(),
+    );
     final program = VasterProgram.fromJson(envelope.programJson!);
 
     final replayModel = ReplayVasterModel(tape: envelope.tape);
-    final vm = await VasterVMEngine.bootstrap(
-        config: VMConfig(defaultModel: replayModel));
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: replayModel));
     addTearDown(vm.shutdown);
     final runtime = VasterRuntime(
       vm: vm,
@@ -34,15 +33,26 @@ void main() {
 
     final state = await runtime.executeProgram(program);
 
-    expect(replayModel.lastDivergence, isNull,
-        reason: 'a request the tape does not hold means behavior changed — '
-            'run `vaster replay <fixture> --diff` for the char-located '
-            'report');
+    expect(
+      replayModel.lastDivergence,
+      isNull,
+      reason:
+          'a request the tape does not hold means behavior changed — '
+          'run `vaster replay <fixture> --diff` for the char-located '
+          'report',
+    );
     expect(state.status, RuntimeStatus.halted);
-    expect(replayModel.remaining, 0,
-        reason: 'unconsumed recordings mean the pipeline now makes fewer '
-            'or different calls — also a behavior change');
-    expect(state.registers[program.resultBinding], isNotNull,
-        reason: 'the declared result materialized from replayed calls');
+    expect(
+      replayModel.remaining,
+      0,
+      reason:
+          'unconsumed recordings mean the pipeline now makes fewer '
+          'or different calls — also a behavior change',
+    );
+    expect(
+      state.registers[program.resultBinding],
+      isNotNull,
+      reason: 'the declared result materialized from replayed calls',
+    );
   });
 }

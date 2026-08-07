@@ -47,18 +47,14 @@ final class ReplayEnvelopeCodec {
     }
     return ReplayEnvelope(
       version: version,
-      programJson: map['program'] == null
-          ? null
-          : Map<String, dynamic>.from(map['program'] as Map),
-      journal: VasterExecutionJournal.fromJson(Map<String, dynamic>.from(
-          map['journal'] as Map? ?? {'frames': []})),
-      tape: ModelTape.fromJson(
-          Map<String, dynamic>.from(map['modelTape'] as Map? ?? {})),
+      programJson: map['program'] == null ? null : Map<String, dynamic>.from(map['program'] as Map),
+      journal: VasterExecutionJournal.fromJson(
+          Map<String, dynamic>.from(map['journal'] as Map? ?? {'frames': []})),
+      tape: ModelTape.fromJson(Map<String, dynamic>.from(map['modelTape'] as Map? ?? {})),
     );
   }
 
-  ReplayEnvelope decodeString(String json) =>
-      decode(jsonDecode(json) as Map<String, dynamic>);
+  ReplayEnvelope decodeString(String json) => decode(jsonDecode(json) as Map<String, dynamic>);
 
   /// Encodes a complete v2 envelope (writers always write the current
   /// version).

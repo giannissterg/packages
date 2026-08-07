@@ -1,4 +1,5 @@
 import 'package:vaster_model/vaster_model.dart';
+
 import 'context_region.dart';
 import 'eviction_record.dart';
 import 'token_budget.dart';
@@ -19,11 +20,11 @@ class ContextClassUsage {
   });
 
   Map<String, dynamic> toJson() => {
-        'admittedRegions': admittedRegions,
-        'admittedTokens': admittedTokens,
-        if (evictedRegions != 0) 'evictedRegions': evictedRegions,
-        if (evictedTokens != 0) 'evictedTokens': evictedTokens,
-      };
+    'admittedRegions': admittedRegions,
+    'admittedTokens': admittedTokens,
+    if (evictedRegions != 0) 'evictedRegions': evictedRegions,
+    if (evictedTokens != 0) 'evictedTokens': evictedTokens,
+  };
 
   @override
   String toString() =>

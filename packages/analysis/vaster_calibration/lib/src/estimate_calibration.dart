@@ -39,28 +39,26 @@ final class EstimateCalibration {
   });
 
   Map<String, dynamic> toJson() => {
-        'backendId': backendId,
-        'charsPerToken': charsPerToken,
-        'perCallOverheadTokens': perCallOverheadTokens,
-        'callOverheadFactor': callOverheadFactor,
-        'sampleCount': sampleCount,
-        'provenance': provenance,
-      };
+    'backendId': backendId,
+    'charsPerToken': charsPerToken,
+    'perCallOverheadTokens': perCallOverheadTokens,
+    'callOverheadFactor': callOverheadFactor,
+    'sampleCount': sampleCount,
+    'provenance': provenance,
+  };
 
-  factory EstimateCalibration.fromJson(Map<String, dynamic> json) =>
-      EstimateCalibration(
-        backendId: json['backendId'] as String,
-        charsPerToken: (json['charsPerToken'] as num).toDouble(),
-        perCallOverheadTokens:
-            (json['perCallOverheadTokens'] as num? ?? 0).toDouble(),
-        callOverheadFactor:
-            (json['callOverheadFactor'] as num? ?? 1.0).toDouble(),
-        sampleCount: json['sampleCount'] as int,
-        provenance: json['provenance'] as String,
-      );
+  factory EstimateCalibration.fromJson(Map<String, dynamic> json) => EstimateCalibration(
+    backendId: json['backendId'] as String,
+    charsPerToken: (json['charsPerToken'] as num).toDouble(),
+    perCallOverheadTokens: (json['perCallOverheadTokens'] as num? ?? 0).toDouble(),
+    callOverheadFactor: (json['callOverheadFactor'] as num? ?? 1.0).toDouble(),
+    sampleCount: json['sampleCount'] as int,
+    provenance: json['provenance'] as String,
+  );
 
   @override
-  String toString() => 'EstimateCalibration($backendId: '
+  String toString() =>
+      'EstimateCalibration($backendId: '
       '${charsPerToken.toStringAsFixed(2)} chars/token '
       '+${perCallOverheadTokens.toStringAsFixed(1)}/call, '
       'x${callOverheadFactor.toStringAsFixed(2)} overhead, '

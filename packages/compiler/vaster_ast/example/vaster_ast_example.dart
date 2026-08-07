@@ -42,7 +42,10 @@ void main() {
     mounts: const [StorageMount(mountPrefix: '/workspace')],
     roles: const [architectRole],
     children: [
-      const WriteFile(path: Template.text('/workspace/brief.md'), content: Template.text('Build a cloud REST API.')),
+      const WriteFile(
+        path: Template.text('/workspace/brief.md'),
+        content: Template.text('Build a cloud REST API.'),
+      ),
 
       // `output:` binds a step's value; later steps consume it with ${...}.
       const ReadFile(path: Template.text('/workspace/brief.md'), output: Binding('brief')),
@@ -61,14 +64,17 @@ void main() {
               // Task inherits architectRole from BuildContext, and its prompt
               // interpolates the bound brief at runtime.
               Task(
-                prompt: Template(['Produce the final system architecture document for ', 'this brief:\n', Binding('brief')]),
+                prompt: Template([
+                  'Produce the final system architecture document for ',
+                  'this brief:\n',
+                  Binding('brief'),
+                ]),
                 output: Binding('architecture'),
               ),
             ]),
           ),
         ],
       ),
-
     ],
   );
 
