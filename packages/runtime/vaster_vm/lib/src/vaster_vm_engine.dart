@@ -49,6 +49,9 @@ class VasterVMEngine implements VasterVirtualMachine {
   final AgentManager agentManager;
 
   @override
+  final ToolEffectRecorderBinding agentToolRecorder;
+
+  @override
   final RuntimeEventBus eventBus;
 
   @override
@@ -87,6 +90,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     required this.toolManager,
     required this.sandboxManager,
     required this.agentManager,
+    required this.agentToolRecorder,
     required this.eventBus,
     required this.messagingHub,
     required this.resourceTracker,
@@ -149,10 +153,15 @@ class VasterVMEngine implements VasterVirtualMachine {
         BasicVasterScheduler(taskQueue: PriorityTaskQueue(), cores: config.cores);
     final activeRootBudget = rootBudget ?? ExecutionBudget.unlimited();
 
+    // GAP-3a: agents hold this binding eagerly; the executing runtime
+    // binds its effect ledger's adapter so agent tool calls replay across
+    // retry attempts. Unbound = no-op passthrough.
+    final agentToolRecorder = ToolEffectRecorderBinding();
     final agentManager = AdvancedAgentManager(
       sessionManager: sessionManager,
       eventBus: eventBus,
       resourceTracker: resourceTracker,
+      toolEffectRecorder: agentToolRecorder,
       // Tool-loop turns were invisible to metering: only a task-level rollup
       // with wire-reported cost existed. Per-turn wiring meters every model
       // call an agent makes as it happens.
@@ -173,6 +182,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       toolManager: toolManager,
       sandboxManager: sandboxManager,
       agentManager: agentManager,
+      agentToolRecorder: agentToolRecorder,
       eventBus: eventBus,
       messagingHub: messagingHub,
       resourceTracker: resourceTracker,

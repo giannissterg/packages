@@ -43,6 +43,13 @@ abstract interface class VasterVirtualMachine
   /// Active Multi-Agent Supervisor Manager.
   AgentManager get agentManager;
 
+  /// The agent-loop effect-recorder binding (GAP-3a): agents hold it
+  /// eagerly at construction; the executing runtime binds its idempotency
+  /// ledger's adapter into it so agent-internal tool calls replay across
+  /// retry attempts instead of re-executing side effects. Unbound, it is
+  /// a no-op — agents execute directly.
+  ToolEffectRecorderBinding get agentToolRecorder;
+
   /// Active Inter-Agent Messaging Hub.
   AgentMessagingHub get messagingHub;
 

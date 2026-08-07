@@ -25,6 +25,7 @@ import 'decision_arbiter.dart';
 import 'decision_outcome.dart';
 import 'effect_ledger.dart';
 import 'extract_outcome.dart';
+import 'ledger_tool_effect_recorder.dart';
 import 'hitl_controller.dart';
 import 'machine_context.dart';
 import 'machine_phase.dart';
@@ -217,6 +218,11 @@ class VasterRuntime {
       sinks: [BudgetSink(budget), TrackerSink(quotaTracker)],
     );
     final effectLedger = EffectLedger();
+    // GAP-3a: agent-internal tool calls share this runtime's dedup
+    // memory. Last bind wins — one executing runtime per VM is the
+    // supported shape; the displaced recorder is intentionally dropped.
+    vm.agentToolRecorder.bind(
+        LedgerToolEffectRecorder(ledger: effectLedger, eventBus: vm.eventBus));
     return VasterRuntime._(
       vm,
       budget,
@@ -779,11 +785,18 @@ class VasterRuntime {
             taskId: output.taskId,
           ));
         } else {
+          // The dispatch slot's identity is the agent's effect region
+          // (GAP-3a): its internal tool records nest under this dispatch,
+          // so a re-dispatched task replays the tools its failed
+          // predecessor already executed.
           output = await vm.runAgentTask(
             AgentTask(
                 taskId: 'isa_task_$_pc',
                 inputPrompt: taskPrompt,
-                metadata: meta),
+                metadata: {
+                  ...meta,
+                  EffectRegion.metadataKey: ?dispatchClaim.slotId,
+                }),
             agentId: op.agentId,
           );
           // Charge the task tree's real accumulated usage (agent +
@@ -826,23 +839,30 @@ class VasterRuntime {
       case DispatchParallelTasksOp op:
         // Each dispatch gets its own taskId — a shared id would collide in
         // event streams and output correlation across the parallel batch.
+        // Claim pass in DECLARATION order (deterministic occurrence
+        // identity), then fan out only the misses: in a retried batch the
+        // successes replay and only the failures re-run (GAP-2). Each
+        // claim's slot id is its dispatch's effect region (GAP-3a).
+        final prompts = [
+          for (final d in op.dispatches) _interp(d.taskPrompt),
+        ];
+        final claims = [
+          for (var i = 0; i < op.dispatches.length; i++)
+            _effectLedger.claim(
+              name: 'agent:${op.dispatches[i].agentId}',
+              arguments: {'prompt': prompts[i]},
+            ),
+        ];
         final dispatches = [
           for (var i = 0; i < op.dispatches.length; i++)
             (
               agentId: op.dispatches[i].agentId,
               task: AgentTask(
                   taskId: 'parallel_${_pc}_$i',
-                  inputPrompt: _interp(op.dispatches[i].taskPrompt)),
-            ),
-        ];
-        // Claim pass in DECLARATION order (deterministic occurrence
-        // identity), then fan out only the misses: in a retried batch the
-        // successes replay and only the failures re-run (GAP-2).
-        final claims = [
-          for (final d in dispatches)
-            _effectLedger.claim(
-              name: 'agent:${d.agentId}',
-              arguments: {'prompt': d.task.inputPrompt},
+                  inputPrompt: prompts[i],
+                  metadata: {
+                    EffectRegion.metadataKey: ?claims[i].slotId,
+                  }),
             ),
         ];
         final outputs = List<AgentOutput?>.filled(dispatches.length, null);

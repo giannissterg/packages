@@ -1,5 +1,8 @@
 ## Unreleased
 
+- `agentToolRecorder` binding constructed at bootstrap and wired into
+  the agent manager (GAP-3a).
+
 - `createAgent` resolves a descriptor-declared model chain (GAP-3b):
   same one-attempt `ResilientVasterModel` composition as the runtime's
   active model — model-kind failures advance (publishing

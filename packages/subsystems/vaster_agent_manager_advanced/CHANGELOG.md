@@ -1,3 +1,8 @@
+## Unreleased
+
+- `toolEffectRecorder` construction collaborator (GAP-3a, canonical
+  no-op default) wired into every agent this manager creates.
+
 ## 0.3.0
 
 - **Actor semantics**: tasks for the same agent are serialized FIFO through

@@ -1,5 +1,14 @@
 ## Unreleased
 
+- `LedgerToolEffectRecorder` (GAP-3a): the runtime binds its effect
+  ledger into the VM's agent-loop recorder binding, so agent-internal
+  tool calls share the machine's dedup memory — scoped per dispatch
+  (the GAP-2 claim's `slotId` rides task metadata as the agent's
+  `EffectRegion`), reset by `MarkEffectRetryOp`, checkpoint-safe. VFS
+  syscalls claim inert (transactions own them); every replay publishes
+  `ToolCallReplayedEvent`. `EffectLedger.commit` echoes its result and
+  `EffectClaim.slotId` names the claimed slot (Rule 11).
+
 - **Agent dispatches join the effect ledger (GAP-2).** Inside an effect
   scope, `DispatchAgentTaskOp` and each entry of
   `DispatchParallelTasksOp` claim occurrence slots; a retried attempt

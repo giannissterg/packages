@@ -7,6 +7,7 @@ export 'src/agent_task_exception.dart';
 export 'src/decision_arbiter.dart';
 export 'src/decision_outcome.dart';
 export 'src/effect_ledger.dart';
+export 'src/ledger_tool_effect_recorder.dart';
 export 'src/extract_outcome.dart';
 export 'src/hitl_controller.dart';
 export 'src/machine_context.dart';

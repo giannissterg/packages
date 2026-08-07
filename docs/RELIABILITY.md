@@ -22,7 +22,7 @@ table. Two families:
   primary, a model dying mid-turn after its tool ran. They prove the
   REL-P2/P3/P4 semantics hold, every push.
 
-## Published CI numbers (2026-08-07, commits through GAP-2)
+## Published CI numbers (2026-08-07, commits through GAP-3)
 
 | benchmark | exercises | backend | trials | success | tokens | cost |
 |---|---|---|---|---|---|---|
@@ -31,6 +31,7 @@ table. Two families:
 | retry_heals | Resilient retry loop (REL-P2): transient failures heal within the declared ceiling | fault:500-500-ok | 3 | 3/3 | 30 | — |
 | fallback_serves | SelectModel fallback chain (REL-P3): model-kind failure falls through, fallback serves | fault:dead-primary | 3 | 3/3 | 51 | — |
 | effects_once | effect ledger (REL-P4): a retried turn replays tool results instead of re-executing side effects | fault:die-after-tool | 3 | 3/3 | 96 | — |
+| agent_effects_once | agent-internal effect replay (GAP-3a): a re-dispatched task never re-executes its predecessor's tool effects | fault:die-mid-task | 3 | 3/3 | 129 | — |
 
 Tape rows are **fidelity locks**: the CI test asserts the replayed totals
 equal the recorded run's exactly — a drifted number fails the build.
@@ -51,6 +52,11 @@ labeled, never passed off as measurement).
   mid-turn, and the retried attempt REPLAYS the recorded tool result.
   The tool reports its own execution count; the final answer must carry
   `executions=1`. This is REL-P4's exactly-once claim, scored.
+- **agent_effects_once** — the same claim one layer down (GAP-3a): the
+  tool call happens INSIDE an agent task, the task dies after the tool
+  ran, and the retried dispatch re-runs the agent — whose tool call
+  replays through the dispatch's effect region. Same `executions=1`
+  scoring; this row is the measurable definition of agent parity.
 
 ## The live-run protocol
 

@@ -51,6 +51,12 @@ class AdvancedAgentManager implements AgentManager {
   /// in any consumer that sums usage events.
   final void Function(UsageMetadata usage, String modelName)? onTurnUsage;
 
+  /// Effect recorder wired into every agent this manager creates
+  /// (GAP-3a): inside a dispatch's effect region, agent tool calls
+  /// replay recorded results across retry attempts. The canonical no-op
+  /// default records nothing.
+  final ToolEffectRecorder toolEffectRecorder;
+
   final Map<String, _AgentEntry> _entries = {};
 
   AdvancedAgentManager({
@@ -59,6 +65,7 @@ class AdvancedAgentManager implements AgentManager {
     required this.resourceTracker,
     this.maxTreeDepth = 5,
     this.onTurnUsage,
+    this.toolEffectRecorder = const NoopToolEffectRecorder(),
     List<VasterAgent> initialAgents = const [],
   }) {
     for (final agent in initialAgents) {
@@ -180,6 +187,7 @@ class AdvancedAgentManager implements AgentManager {
       resourceTracker: resourceTracker,
       toolManager: toolManager,
       onTurnUsage: onTurnUsage,
+      toolEffectRecorder: toolEffectRecorder,
     );
 
     registerAgent(agent, parentAgentId: parentAgentId);

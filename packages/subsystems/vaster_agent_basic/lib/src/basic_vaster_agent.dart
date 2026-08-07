@@ -46,6 +46,13 @@ class BasicVasterAgent implements VasterAgent {
   /// The agent stays unaware of pricing and telemetry — it only reports.
   final void Function(UsageMetadata usage, String modelName)? onTurnUsage;
 
+  /// Records tool effects inside the dispatch's effect region (GAP-3a):
+  /// a retried task replays recorded results instead of re-executing
+  /// side effects. The region rides task metadata
+  /// ([EffectRegion.metadataKey]); with none — or with the canonical
+  /// no-op recorder — calls execute directly.
+  final ToolEffectRecorder toolEffectRecorder;
+
   BasicVasterAgent({
     required this.descriptor,
     required this.session,
@@ -53,6 +60,7 @@ class BasicVasterAgent implements VasterAgent {
     required this.toolManager,
     this.subagentLauncher,
     this.onTurnUsage,
+    this.toolEffectRecorder = const NoopToolEffectRecorder(),
   });
 
   @override
@@ -172,11 +180,49 @@ class BasicVasterAgent implements VasterAgent {
         final calls = response.functionCalls.toList();
         if (calls.isEmpty) break;
 
-        // f. Execute all tool calls in parallel
-        final results = await Future.wait(calls.map(toolManager.executeCall));
+        // f. Execute all tool calls in parallel — through the effect
+        //    recorder: inside a dispatch's effect region, a call that
+        //    already performed in a failed attempt REPLAYS its recorded
+        //    result instead of re-executing the side effect. Claims are
+        //    taken in list order during the synchronous prefix, so
+        //    occurrence identity is deterministic even under Future.wait.
+        final region = EffectRegion.fromMetadata(task.metadata);
+        var executedCalls = 0;
+        final results = await Future.wait(calls.map((call) {
+          final claim = toolEffectRecorder.claim(
+            region: region,
+            name: call.name,
+            arguments: call.arguments,
+            callId: call.callId,
+          );
+          switch (claim) {
+            case ToolEffectReplay(:final result):
+              return Future.value(ToolResult(
+                callId: call.callId,
+                name: call.name,
+                response: result,
+              ));
+            case ToolEffectSlot slot:
+              executedCalls++;
+              return toolManager.executeCall(call).then((r) => r.isError
+                  ? r
+                  : ToolResult(
+                      callId: r.callId,
+                      name: r.name,
+                      response: toolEffectRecorder.commit(slot, r.response),
+                      executionDuration: r.executionDuration,
+                    ));
+            case ToolEffectInert():
+              executedCalls++;
+              return toolManager.executeCall(call);
+          }
+        }));
 
-        // h. Record quota for every tool call executed
-        resourceTracker.recordToolCall(count: calls.length);
+        // h. Record quota for tool calls that really EXECUTED — replays
+        //    perform no work and never count against the ceiling.
+        if (executedCalls > 0) {
+          resourceTracker.recordToolCall(count: executedCalls);
+        }
 
         // i. Batch all FunctionResponseParts into a single tool-role message.
         //    Both Gemini and OpenAI require all responses from one model turn to
@@ -271,6 +317,10 @@ class BasicVasterAgent implements VasterAgent {
         resourceTracker: resourceTracker,
         toolManager: toolManager,
         onTurnUsage: onTurnUsage,
+        // Subagents inherit the recorder: their tool effects belong to
+        // the same dispatch region (their tasks carry the region in
+        // metadata like any other task).
+        toolEffectRecorder: toolEffectRecorder,
       );
     }
 

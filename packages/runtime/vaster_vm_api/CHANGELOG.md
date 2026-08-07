@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `VasterVirtualMachine.agentToolRecorder` (GAP-3a): the agent-loop
+  effect-recorder binding — agents hold it eagerly, the executing
+  runtime binds its ledger adapter into it.
+
 - Capability facets carved out of the master interface (ISP): `PromptFunnel`
   (the four model-turn verbs, carrying the compiled-context contract) and
   `ToolLoopHost` (funnel + tool table + event bus + VFS — what the runtime's

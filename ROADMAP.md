@@ -272,9 +272,12 @@ batches replay successes, re-run only failures), never re-charging.
 REL-P5 ✅: the published benchmark set (`vaster_benchmarks`,
 `docs/RELIABILITY.md`) closes gate 4 — recorded tapes from two real
 backends in CI, fault injection for the semantics, documented live-run
-protocol. Remaining in this thread: GAP-3 agent reliability parity
-(dedup inside agent-internal tool loops, descriptor-level fallback
-chains — see ~/.claude/plans/rel-open-gaps.md).
+protocol. GAP-3 ✅ (agent reliability parity): agent model chains are descriptor
+data with the full P3 semantics and attribution, and agent-internal tool
+calls replay through the dispatch's effect region (ToolEffectRecorder
+contract in vaster_tool, ledger-backed) — the agent_effects_once
+benchmark row is the measurable proof. **Thread D is closed end to
+end.**
 
 ### E. Multi-run evaluation harness — ✅ delivered (vaster_eval; see above)
 Replay gave us determinism for one run; the next level is *comparing* runs.

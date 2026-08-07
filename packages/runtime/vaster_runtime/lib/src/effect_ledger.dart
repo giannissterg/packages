@@ -36,6 +36,12 @@ final class EffectClaim {
   final String? _recordKey;
 
   const EffectClaim._(this.recorded, this._recordKey);
+
+  /// The claimed slot's stable identity, null when inert. This is the
+  /// dispatch-visible handle: GAP-3a threads it to agents as their
+  /// [EffectRegion] so agent-internal tool records nest under the
+  /// dispatch that owns them.
+  String? get slotId => _recordKey;
 }
 
 /// The idempotency ledger (REL-P4): inside an effect scope, non-compensable
@@ -121,12 +127,13 @@ final class EffectLedger implements MachineStateComponent {
         recordKey);
   }
 
-  /// Records [result] into [claim]'s slot. Call only for effects that
-  /// really performed and succeeded — failures must re-execute on retry.
-  void commit(EffectClaim claim, Map<String, dynamic> result) {
+  /// Records [result] into [claim]'s slot and echoes it back so call
+  /// sites compose (Rule 11). Call only for effects that really
+  /// performed and succeeded — failures must re-execute on retry.
+  Map<String, dynamic> commit(EffectClaim claim, Map<String, dynamic> result) {
     final key = claim._recordKey;
-    if (key == null) return;
-    _records[key] = Map<String, dynamic>.from(result);
+    if (key != null) _records[key] = Map<String, dynamic>.from(result);
+    return result;
   }
 
   /// Executes [execute] exactly once per (region, name, args, occurrence):

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:vaster_ast/vaster_ast.dart';
 import 'package:vaster_compiler/vaster_compiler.dart';
+import 'package:vaster_domain/vaster_domain.dart' show AgentRole;
 import 'package:vaster_eval/vaster_eval.dart';
 import 'package:vaster_model_fake/vaster_model_fake.dart';
 import 'package:vaster_replay/vaster_replay.dart';
@@ -82,6 +83,7 @@ final class ReliabilityBenchmarks {
     _retryHeals(),
     _fallbackServes(),
     _effectsOnce(),
+    _agentEffectsOnce(),
   ]);
 
   // ── Tape benchmarks: real recorded backend traffic ─────────────────────
@@ -261,6 +263,88 @@ final class ReliabilityBenchmarks {
                 return ModelResponse(
                     message:
                         ChatMessage.model('done, executions=$toolCount'));
+            }
+          })));
+          vm.registerTool(FunctionTool.define(
+            name: 'send_alert',
+            description: 'Send an alert (non-compensable)',
+            parametersSchema: const {
+              'type': 'object',
+              'properties': {
+                'msg': {'type': 'string'},
+              },
+            },
+            handler: (args) {
+              executions++;
+              return {'status': 'sent', 'count': executions};
+            },
+          ));
+          return vm;
+        },
+      );
+  /// GAP-3a's parity claim, scored: the tool call happens INSIDE an agent
+  /// task; the task dies after the tool ran; the retried dispatch re-runs
+  /// the agent, whose tool call REPLAYS through its effect region. The
+  /// tool reports its execution count; the answer must carry
+  /// `executions=1`.
+  static ReliabilityBenchmark _agentEffectsOnce() => ReliabilityBenchmark(
+        id: 'agent_effects_once',
+        exercises: 'agent-internal effect replay (GAP-3a): a re-dispatched '
+            'task never re-executes its predecessor\'s tool effects',
+        backendLabel: 'fault:die-mid-task',
+        scorer: const AllOfScorer(
+            [HaltedScorer(), ContainsScorer('executions=1')]),
+        liveRunnable: false,
+        program: () => const BasicWorkflowCompiler().compile(Pipeline(
+          name: 'benchmark',
+          result: Binding('outcome'),
+          roles: [
+            AgentRole(
+                roleId: 'notifier',
+                name: 'Notifier',
+                title: 'Operator Notifier',
+                instruction: 'Send alerts.'),
+          ],
+          children: [
+            Resilient(
+              attempts: 3,
+              child: Task(
+                  agentId: 'notifier',
+                  prompt: Template.text('alert the operator'),
+                  output: Binding('outcome')),
+            ),
+          ],
+        )),
+        ciVm: () async {
+          var generateCalls = 0;
+          var executions = 0;
+          final vm = await VasterVMEngine.bootstrap(
+              config: VMConfig(defaultModel: FakeVasterModel(
+                  handler: (request) {
+            generateCalls++;
+            switch (generateCalls) {
+              case 1: // attempt 1, agent turn 1: call the tool
+              case 3: // attempt 2 re-dispatch: same call
+                return ModelResponse(
+                  message: ChatMessage(role: Role.model, parts: [
+                    const TextPart('Alerting.'),
+                    FunctionCallPart(
+                        callId: 'c$generateCalls',
+                        name: 'send_alert',
+                        arguments: const {'msg': 'disk full'}),
+                  ]),
+                  finishReason: FinishReason.toolCalls,
+                );
+              case 2: // attempt 1 dies AFTER the tool executed
+                throw StateError('API error 500 mid-task');
+              default:
+                final count = request.messages
+                    .expand((m) => m.parts)
+                    .whereType<FunctionResponsePart>()
+                    .map((p) => p.response['count'])
+                    .lastOrNull;
+                return ModelResponse(
+                    message: ChatMessage.model('done, executions=$count'));
             }
           })));
           vm.registerTool(FunctionTool.define(

@@ -310,6 +310,105 @@ void main() {
     });
   });
 
+  group('agent-INTERNAL tool dedup (GAP-3a)', () {
+    test('a re-dispatched task replays the tool its failed predecessor '
+        'already executed', () async {
+      var generateCalls = 0;
+      var alertsSent = 0;
+
+      final model = FakeVasterModel(handler: (request) {
+        generateCalls++;
+        switch (generateCalls) {
+          case 1: // attempt 1, agent turn 1: call the tool
+          case 3: // attempt 2 (re-dispatch), agent turn 1: same call
+            return ModelResponse(
+              message: ChatMessage(role: Role.model, parts: [
+                const TextPart('Alerting.'),
+                FunctionCallPart(
+                    callId: 'c$generateCalls',
+                    name: 'send_alert',
+                    arguments: const {'msg': 'disk full'}),
+              ]),
+              finishReason: FinishReason.toolCalls,
+            );
+          case 2: // attempt 1: the agent's model dies AFTER the tool ran
+            throw StateError('API error 500 mid-task');
+          default: // attempt 2 continuation: success
+            return ModelResponse(message: ChatMessage.model('delivered'));
+        }
+      });
+
+      final (vm, runtime) = await boot(model);
+      vm.registerTool(FunctionTool.define(
+        name: 'send_alert',
+        description: 'Send an alert (non-compensable side effect)',
+        parametersSchema: const {
+          'type': 'object',
+          'properties': {
+            'msg': {'type': 'string'},
+          },
+        },
+        handler: (args) {
+          alertsSent++;
+          return {'status': 'sent'};
+        },
+      ));
+
+      final replayed = <ToolCallReplayedEvent>[];
+      final sub =
+          vm.eventBus.on<ToolCallReplayedEvent>().listen(replayed.add);
+
+      // Resilient loop around the DISPATCH: the task itself fails on
+      // attempt 1 (so GAP-2 records nothing) and the re-dispatched
+      // agent's first tool call must replay through its effect region.
+      const program = VasterProgram(
+        programName: 'agent_internal_dedup',
+        instructions: [
+          CreateAgentOp(
+              descriptor: AgentDescriptor(
+                  agentId: 'notifier',
+                  name: 'Notifier',
+                  role: 'ops',
+                  systemInstruction: 'Notify.')), // 0
+          PushEffectScopeOp(), // 1
+          SetRegisterOp(registerName: 'attempt', value: 0), // 2
+          CompareRegisterOp( // 3 head
+              leftVar: 'attempt',
+              operator: 'lt',
+              rightValue: 3,
+              targetVar: 'cmp'),
+          JumpIfOp(conditionVar: 'cmp', targetPc: 6), // 4
+          JumpOp(targetPc: 13), // 5 exhausted → end
+          PushErrorHandlerOp(targetPc: 10, errorVar: 'retry_error'), // 6
+          DispatchAgentTaskOp(
+              agentId: 'notifier',
+              taskPrompt: 'alert the operator',
+              outputVar: 'result'), // 7
+          PopErrorHandlerOp(), // 8
+          JumpOp(targetPc: 13), // 9 success → end
+          MarkEffectRetryOp(), // 10 catch
+          IncrementRegisterOp(registerName: 'attempt'), // 11
+          JumpOp(targetPc: 3), // 12 back-edge
+          PopEffectScopeOp(), // 13 end
+          HaltOp(), // 14
+        ],
+      );
+
+      final state = await runtime.executeProgram(program);
+      await sub.cancel();
+
+      expect(state.status, RuntimeStatus.halted,
+          reason: 'error: ${state.errorDetails}');
+      expect(state.registers['result'], contains('delivered'));
+      expect(alertsSent, 1,
+          reason: 'agent parity (GAP-3a): the re-dispatched task must '
+              'replay the tool its failed predecessor executed');
+      expect(replayed, hasLength(1));
+      expect(replayed.single.toolName, 'send_alert');
+      await vm.shutdown();
+    });
+  });
+
   group('EffectLedger unit semantics', () {
     Future<Map<String, dynamic>> counted(
         List<int> counter, Map<String, dynamic> result) async {
