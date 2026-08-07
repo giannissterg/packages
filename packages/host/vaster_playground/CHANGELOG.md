@@ -1,5 +1,12 @@
 ## Unreleased
 
+- `implement_from_plan` — dogfood phase two: the framework WRITES
+  CODE into another codebase. Reads the target's committed plan.md AND
+  review.md, implements the task model + unit tests as real files
+  (raw-source discipline, budget-capped, recorded), reviews its own
+  output. Verified externally: flutter analyze clean, all generated
+  tests pass, the prior review's blocking fixes landed in the code.
+
 - `example_04_bring_your_own_model` — the BYO-model + zero-cost-replay
   story: a local function standing in for "your existing SDK call"
   wrapped via `VasterModel.fromTextHandler`, run through `runPipeline`
