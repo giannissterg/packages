@@ -17,6 +17,7 @@ dependencies:
   vaster_domain:
   vaster_instruction:
   vaster_model:
+  vaster_model_claude_cli:
   vaster_model_fake:
   vaster_model_gemini_cli:
   vaster_model_google_ai:
