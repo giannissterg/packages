@@ -339,9 +339,14 @@ claims is enforced by a test, bounded by `vaster check`, measured by
    `VasterContinuation`, `MachineCheckpoint`, and the replay envelope get a
    written spec and a compatibility promise: a checkpoint captured on 1.x
    resumes on any 1.y ≥ x (versioned migration, never silent rejection).
-2. **The portability claim becomes testable.** An ISA reference document and
-   a conformance suite a second-language runtime could pass — the suite
-   exists at 1.0 even if the second runtime does not.
+2. **The portability claim becomes testable.** ✅ DELIVERED 2026-08-08:
+   `docs/specs/ISA.md` (normative — abstract machine, all 44 opcodes,
+   comparison rules, VBC layout) + `vaster_conformance` (15 golden
+   vectors covering all 42 core opcodes via replay-equivalence, the
+   language-agnostic comparator, the Dart reference runner passing in
+   CI, byte-stable generation, coverage gates that fail the build on an
+   undocumented or unvectored opcode). Residue: the second-language
+   runtime itself remains optional by the gate's own definition.
 3. **Outside users exist.** Published to pub.dev, a docs site with the
    10-minute getting-started, ≥3 runnable examples, and at least one real
    workload owned by someone who is not us.
