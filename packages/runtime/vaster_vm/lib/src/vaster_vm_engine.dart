@@ -604,31 +604,31 @@ class VasterVMEngine implements VasterVirtualMachine {
   }
 
   @override
-  void mountFileSystem(String pathPrefix, VasterFileSystem fs) {
-    fileSystemManager.mount(pathPrefix, fs);
+  String mountFileSystem(String pathPrefix, VasterFileSystem fs) {
+    final normalized = fileSystemManager.mount(pathPrefix, fs);
 
-    // Bridge: Publish file operation event
+    // Bridge: Publish file operation event — under the NORMALIZED prefix,
+    // the identity resolution actually uses.
     eventBus.publish(FileOperationEvent(
-      eventId: 'evt_mount_$pathPrefix',
+      eventId: 'evt_mount_$normalized',
       operation: FileOperationType.mount,
-      path: pathPrefix,
+      path: normalized,
       sizeBytes: 0,
     ));
+    return normalized;
   }
 
   @override
-  void registerModel(ModelDescriptor descriptor, VasterModel model) {
-    modelRegistry.registerModel(descriptor, model);
-  }
+  VasterModel? registerModel(ModelDescriptor descriptor, VasterModel model) =>
+      modelRegistry.registerModel(descriptor, model);
 
   @override
-  void registerTool(ExecutableTool tool) {
-    toolManager.registerTool(tool);
-  }
+  ExecutableTool? registerTool(ExecutableTool tool) =>
+      toolManager.registerTool(tool);
 
   @override
-  void registerSandbox(CodeSandbox sandbox) {
-    sandboxManager.registerSandbox(sandbox);
+  CodeSandbox? registerSandbox(CodeSandbox sandbox) {
+    final displaced = sandboxManager.registerSandbox(sandbox);
 
     // Bridge: Automatically create executable tool for sandbox and register in ToolManager
     final sandboxTool = sandboxManager.createSandboxTool(
@@ -637,12 +637,13 @@ class VasterVMEngine implements VasterVirtualMachine {
       description: sandbox.descriptor.description,
     );
     toolManager.registerTool(sandboxTool);
+    return displaced;
   }
 
   @override
-  void mountSandbox(String sandboxId, SandboxLanguage language,
+  CodeSandbox mountSandbox(String sandboxId, SandboxLanguage language,
       {Duration? timeout}) {
-    registerSandbox(IsolateCodeSandbox(
+    final sandbox = IsolateCodeSandbox(
       descriptor: SandboxDescriptor(
         sandboxId: sandboxId,
         type: 'isolate',
@@ -652,7 +653,9 @@ class VasterVMEngine implements VasterVirtualMachine {
       defaultPolicy: SandboxSecurityPolicy(
         maxTimeout: timeout ?? const Duration(seconds: 10),
       ),
-    ));
+    );
+    registerSandbox(sandbox);
+    return sandbox;
   }
 
   @override

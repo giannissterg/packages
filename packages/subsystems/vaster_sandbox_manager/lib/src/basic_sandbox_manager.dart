@@ -17,8 +17,10 @@ class BasicSandboxManager implements SandboxManager {
       List.unmodifiable(_sandboxes.values.map((s) => s.descriptor));
 
   @override
-  void registerSandbox(CodeSandbox sandbox) {
+  CodeSandbox? registerSandbox(CodeSandbox sandbox) {
+    final displaced = _sandboxes[sandbox.descriptor.sandboxId];
     _sandboxes[sandbox.descriptor.sandboxId] = sandbox;
+    return displaced;
   }
 
   @override

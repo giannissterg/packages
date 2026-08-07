@@ -82,11 +82,13 @@ class AdvancedAgentManager implements AgentManager {
       List.unmodifiable(_entries.values.map((e) => e.agent));
 
   @override
-  void registerAgent(VasterAgent agent, {String? parentAgentId}) {
+  VasterAgent? registerAgent(VasterAgent agent, {String? parentAgentId}) {
+    final displaced = _entries[agent.agentId]?.agent;
     _entries[agent.agentId] = _AgentEntry(agent, parentId: parentAgentId);
     if (parentAgentId != null) {
       _entries[parentAgentId]?.childIds.add(agent.agentId);
     }
+    return displaced;
   }
 
   @override

@@ -44,6 +44,18 @@ if [ "${1:-}" = "--update" ]; then
     echo "#   ./tool/rule11_ratchet.sh --update"
     echo "# Counts only go DOWN (see tool/rule11_ratchet.sh)."
     current
+    cat <<'LEDGER'
+#
+# ── Sanctioned-sink ledger (Rule 11) ─────────────────────────────────
+# These remain void BY LAW, with justification — everything else above
+# is migration inventory (plan: rule11-void-migration.md):
+#   - main() entrypoints (excluded from counts entirely)
+#   - MachineStateComponent.restoreState — Rule 8's restore is a
+#     dispatch; the snapshot is the input, the component IS the result
+#   - `void Function(...)` callback/observer types — a callback is its
+#     consumer's sink by construction (excluded from counts)
+#   - CLI _print*/terminal-output helpers — stdout is a genuine sink
+LEDGER
   } > "$BASELINE"
   echo "baseline rewritten: $BASELINE"
   exit 0

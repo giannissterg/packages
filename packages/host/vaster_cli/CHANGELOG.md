@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Rule 11 V1: `registerCommand` returns the same-name command it
+  displaced.
+
 - **`vaster replay <envelope> [--diff]`** — agent regression testing as
   a first-class verb: re-execute a recorded run against its tape at
   zero tokens; a faithful replay consumes every recording and exits 0;

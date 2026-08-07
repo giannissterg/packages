@@ -7,7 +7,8 @@ abstract interface class SandboxManager {
   List<SandboxDescriptor> get activeDescriptors;
 
   /// Registers a [CodeSandbox] backend instance.
-  void registerSandbox(CodeSandbox sandbox);
+  /// Returns the same-id sandbox it displaced, null when fresh.
+  CodeSandbox? registerSandbox(CodeSandbox sandbox);
 
   /// Unregisters a sandbox backend by ID.
   bool unregisterSandbox(String sandboxId);

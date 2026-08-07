@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **BREAKING (Rule 11 V1)**: `mount` returns the NORMALIZED prefix —
+  the handle resolution actually uses.
+
 - Open transactions export/import (GAP-1): `exportTransactions()` /
   `importTransactions()` serialize the open frames (outermost first, one
   `{mountPrefix: {path: base64}}` per frame) so a checkpoint taken inside

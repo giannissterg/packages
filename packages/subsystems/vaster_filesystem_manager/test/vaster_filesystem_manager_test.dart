@@ -35,6 +35,24 @@ void main() {
       expect(contextSource.content, equals('Document for context manager.'));
     });
 
+    test('mount returns the normalized prefix — the resolution handle',
+        () {
+      final manager = BasicFileSystemManager();
+      expect(manager.mount('workspace///', MemoryVasterFileSystem()),
+          '/workspace',
+          reason: 'Rule 11: the caller sees the identity resolution uses');
+      expect(manager.mounts.keys, contains('/workspace'));
+    });
+
+    test('re-mounting an existing prefix is observable via mounts map',
+        () {
+      final manager = BasicFileSystemManager();
+      final first = MemoryVasterFileSystem();
+      manager.mount('/m', first);
+      manager.mount('/m', MemoryVasterFileSystem());
+      expect(manager.mounts['/m'], isNot(same(first)));
+    });
+
     test('beginTransaction and rollback restore mounted filesystems', () async {
       final fs = MemoryVasterFileSystem();
       await fs.writeText('/data.json', '{"version": 1}');

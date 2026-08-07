@@ -30,7 +30,8 @@ abstract interface class AgentManager {
   List<VasterAgent> get activeAgents;
 
   /// Registers an existing [VasterAgent].
-  void registerAgent(VasterAgent agent);
+  /// Returns the same-id agent it displaced, null when fresh.
+  VasterAgent? registerAgent(VasterAgent agent);
 
   /// Unregisters an agent by ID.
   bool unregisterAgent(String agentId);

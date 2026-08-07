@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **BREAKING (Rule 11 V1)**: `ModelRegistry.registerModel` and the
+  master interface's `registerModel`/`registerTool`/`registerSandbox`
+  return displaced entities; `mountFileSystem` returns the normalized
+  prefix; `mountSandbox` returns the sandbox it constructed (previously
+  unreachable).
+
 - `VasterVirtualMachine.agentToolRecorder` (GAP-3a): the agent-loop
   effect-recorder binding — agents hold it eagerly, the executing
   runtime binds its ledger adapter into it.

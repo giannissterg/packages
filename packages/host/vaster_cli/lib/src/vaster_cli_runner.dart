@@ -44,7 +44,9 @@ class VasterCliRunner {
   }
 
   /// Registers a [VasterCommand] in the runner registry.
-  void registerCommand(VasterCommand command) {
+  /// Returns the same-name command it displaced, null when fresh.
+  VasterCommand? registerCommand(VasterCommand command) {
+    final displaced = _commands[command.name];
     _commands[command.name] = command;
     for (final alias in command.aliases) {
       _commands[alias] = command;
@@ -55,6 +57,7 @@ class VasterCliRunner {
     for (final alias in command.aliases) {
       mainParser.addCommand(alias, subParser);
     }
+    return displaced;
   }
 
   /// Evaluates CLI arguments and dispatches execution to the matching [VasterCommand].

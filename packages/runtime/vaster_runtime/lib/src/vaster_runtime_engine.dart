@@ -965,7 +965,8 @@ class VasterRuntime {
         final content = op.sourceVar != null
             ? (_registers.read(op.sourceVar!)?.toString() ?? '')
             : _interp(op.text);
-        vm.contextManager.addRegion(ContextRegion.text(
+        final displacedRegion =
+            vm.contextManager.addRegion(ContextRegion.text(
           id: op.regionId,
           label: op.label,
           role: Role.user,
@@ -983,6 +984,11 @@ class VasterRuntime {
         ));
         if (op.pinned) {
           _cacheHints.onRegionPinned(op.regionId, vm.contextManager);
+        } else if (displacedRegion?.isPinned ?? false) {
+          // The displaced-region handle closes a stale-hint hole: replacing
+          // a PINNED region with unpinned content used to leave its cache
+          // hint pointing at a fingerprint no longer in the heap.
+          _cacheHints.removeHint(op.regionId);
         }
 
       case EvictContextOp op:

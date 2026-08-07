@@ -51,17 +51,19 @@ class BasicContextManager implements ContextManager {
   }
 
   @override
-  void installClassTable(ContextClassTable table) {
+  ContextClassTable installClassTable(ContextClassTable table) {
     final issues = table.validate();
     if (issues.isNotEmpty) {
       throw ArgumentError('Invalid context class table: ${issues.join('; ')}');
     }
+    final displaced = _classTable;
     _classTable = table;
     // The default strategy is table-bound; rebind it. A custom strategy is
     // the caller's responsibility.
     if (allocationStrategy is ClassAwareAllocationStrategy) {
       allocationStrategy = ClassAwareAllocationStrategy(classTable: table);
     }
+    return displaced;
   }
 
   // ── Region CRUD ────────────────────────────────────────────────────────
@@ -73,7 +75,7 @@ class BasicContextManager implements ContextManager {
   ContextRegion? getRegion(String regionId) => heap.getRegion(regionId);
 
   @override
-  void addRegion(ContextRegion region) => heap.replaceRegion(region);
+  ContextRegion? addRegion(ContextRegion region) => heap.replaceRegion(region);
 
   @override
   bool removeRegion(String regionId, {bool force = false}) {
@@ -96,9 +98,12 @@ class BasicContextManager implements ContextManager {
   List<ContextSource> get sources => List.unmodifiable(_sources);
 
   @override
-  void registerSource(ContextSource source) {
+  ContextSource? registerSource(ContextSource source) {
+    final displaced =
+        _sources.where((s) => s.id == source.id).firstOrNull;
     _sources.removeWhere((s) => s.id == source.id);
     _sources.add(source);
+    return displaced;
   }
 
   @override

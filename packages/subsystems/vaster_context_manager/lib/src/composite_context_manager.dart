@@ -37,7 +37,8 @@ class CompositeContextManager implements ContextManager {
   ContextClassTable get classTable => _classTable;
 
   @override
-  void installClassTable(ContextClassTable table) {
+  ContextClassTable installClassTable(ContextClassTable table) {
+    final displaced = _classTable;
     _classTable = table;
     if (allocationStrategy is ClassAwareAllocationStrategy) {
       allocationStrategy = ClassAwareAllocationStrategy(classTable: table);
@@ -45,6 +46,7 @@ class CompositeContextManager implements ContextManager {
     for (final child in children) {
       child.installClassTable(table);
     }
+    return displaced;
   }
 
   /// A merged **snapshot** of all children's regions. Mutating this heap has
@@ -76,17 +78,16 @@ class CompositeContextManager implements ContextManager {
       _ownerOf(regionId)?.getRegion(regionId);
 
   @override
-  void addRegion(ContextRegion region) {
+  ContextRegion? addRegion(ContextRegion region) {
     final owner = _ownerOf(region.id);
     if (owner != null) {
-      owner.addRegion(region);
-      return;
+      return owner.addRegion(region);
     }
     if (children.isEmpty) {
       throw StateError(
           'Cannot add region: CompositeContextManager has no children.');
     }
-    children.first.addRegion(region);
+    return children.first.addRegion(region);
   }
 
   @override
@@ -108,13 +109,12 @@ class CompositeContextManager implements ContextManager {
   }
 
   @override
-  void registerSource(ContextSource source) {
-    if (children.isNotEmpty) {
-      children.first.registerSource(source);
-    } else {
+  ContextSource? registerSource(ContextSource source) {
+    if (children.isEmpty) {
       throw StateError(
           'Cannot register source: CompositeContextManager has no children.');
     }
+    return children.first.registerSource(source);
   }
 
   @override

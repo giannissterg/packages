@@ -6,8 +6,11 @@ abstract interface class FileSystemManager {
   /// Unmodifiable view of active mount points (prefix -> VasterFileSystem).
   Map<String, VasterFileSystem> get mounts;
 
-  /// Mounts a filesystem backend at [mountPrefix] (e.g. '/mem', '/workspace').
-  void mount(String mountPrefix, VasterFileSystem fileSystem);
+  /// Mounts a filesystem backend at [mountPrefix] (e.g. '/mem',
+  /// '/workspace') and returns the NORMALIZED prefix it mounted under —
+  /// the handle resolution actually uses (Rule 11; callers previously
+  /// could not know the normalization).
+  String mount(String mountPrefix, VasterFileSystem fileSystem);
 
   /// Unmounts a filesystem backend by prefix.
   bool unmount(String mountPrefix);

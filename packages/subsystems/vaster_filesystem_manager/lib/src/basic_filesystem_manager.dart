@@ -36,9 +36,10 @@ class BasicFileSystemManager implements FileSystemManager {
   Map<String, VasterFileSystem> get mounts => Map.unmodifiable(_mounts);
 
   @override
-  void mount(String mountPrefix, VasterFileSystem fileSystem) {
+  String mount(String mountPrefix, VasterFileSystem fileSystem) {
     final norm = _normalizePrefix(mountPrefix);
     _mounts[norm] = fileSystem;
+    return norm;
   }
 
   @override

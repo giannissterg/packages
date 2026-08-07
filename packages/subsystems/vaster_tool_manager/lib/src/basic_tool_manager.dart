@@ -25,8 +25,10 @@ class BasicToolManager implements ToolManager {
       List.unmodifiable(_tools.values.map((t) => t.definition));
 
   @override
-  void registerTool(ExecutableTool tool) {
+  ExecutableTool? registerTool(ExecutableTool tool) {
+    final displaced = _tools[tool.name];
     _tools[tool.name] = tool;
+    return displaced;
   }
 
   @override

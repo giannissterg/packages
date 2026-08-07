@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Rule 11 V1 consumer: `AddContextOp` uses the displaced-region handle
+  to drop the stale cache hint when a PINNED region is replaced by
+  unpinned content (latent stale-fingerprint hole).
+
 - `LedgerToolEffectRecorder` (GAP-3a): the runtime binds its effect
   ledger into the VM's agent-loop recorder binding, so agent-internal
   tool calls share the machine's dedup memory — scoped per dispatch

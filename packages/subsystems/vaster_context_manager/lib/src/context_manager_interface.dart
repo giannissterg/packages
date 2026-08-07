@@ -10,7 +10,8 @@ abstract interface class ContextManager {
 
   /// Installs a program-declared class table (at program load — class tables
   /// are static metadata, never mutated mid-execution).
-  void installClassTable(ContextClassTable table);
+  /// Returns the table it displaced (Rule 11).
+  ContextClassTable installClassTable(ContextClassTable table);
 
   /// The active virtual context memory heap.
   ///
@@ -27,7 +28,8 @@ abstract interface class ContextManager {
   ContextRegion? getRegion(String regionId);
 
   /// Adds (or replaces, same id in place) a region.
-  void addRegion(ContextRegion region);
+  /// Returns the same-id region it displaced, null when fresh.
+  ContextRegion? addRegion(ContextRegion region);
 
   /// Removes a region. Pinned regions are protected unless [force].
   /// Returns whether a region was removed.
@@ -41,7 +43,8 @@ abstract interface class ContextManager {
   List<ContextSource> get sources;
 
   /// Registers a new [ContextSource].
-  void registerSource(ContextSource source);
+  /// Returns the same-id source it displaced, null when fresh.
+  ContextSource? registerSource(ContextSource source);
 
   /// Unregisters a [ContextSource] by ID.
   bool unregisterSource(String id);

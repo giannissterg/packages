@@ -68,8 +68,10 @@ abstract interface class VasterVirtualMachine
   /// Root VM Execution Budget.
   ExecutionBudget get rootBudget;
 
-  /// Registers a concrete [VasterModel] for a given [ModelDescriptor].
-  void registerModel(ModelDescriptor descriptor, VasterModel model);
+  /// Registers a concrete [VasterModel] for a given [ModelDescriptor];
+  /// returns the model it displaced under the descriptor key, null when
+  /// fresh.
+  VasterModel? registerModel(ModelDescriptor descriptor, VasterModel model);
 
   /// Creates a new model session in [sessionManager].
   ///
@@ -83,19 +85,24 @@ abstract interface class VasterVirtualMachine
     ModelDescriptor? modelDescriptor,
   });
 
-  /// Mounts a filesystem backend into [fileSystemManager] and bridges files to context.
-  void mountFileSystem(String pathPrefix, VasterFileSystem fs);
+  /// Mounts a filesystem backend into [fileSystemManager] and bridges
+  /// files to context; returns the normalized mount prefix.
+  String mountFileSystem(String pathPrefix, VasterFileSystem fs);
 
-  /// Registers an [ExecutableTool] into [toolManager].
-  void registerTool(ExecutableTool tool);
+  /// Registers an [ExecutableTool] into [toolManager]; returns the
+  /// same-name tool it displaced, null when fresh.
+  ExecutableTool? registerTool(ExecutableTool tool);
 
-  /// Registers a [CodeSandbox] into [sandboxManager] and bridges it into an [ExecutableTool].
-  void registerSandbox(CodeSandbox sandbox);
+  /// Registers a [CodeSandbox] into [sandboxManager] and bridges it into
+  /// an [ExecutableTool]; returns the same-id sandbox it displaced.
+  CodeSandbox? registerSandbox(CodeSandbox sandbox);
 
   /// Constructs and registers a default isolate-backed [CodeSandbox] for [sandboxId]
   /// supporting [language]. This is a factory convenience so the runtime does not
   /// need to depend on concrete sandbox implementations.
-  void mountSandbox(String sandboxId, SandboxLanguage language,
+  /// Returns the sandbox it constructed and registered — previously
+  /// unreachable by the caller (Rule 11's handle idiom).
+  CodeSandbox mountSandbox(String sandboxId, SandboxLanguage language,
       {Duration? timeout});
 
   /// Creates and registers an autonomous agent in [agentManager].

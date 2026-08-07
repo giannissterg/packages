@@ -20,10 +20,15 @@ class ModelRegistry {
     }
   }
 
-  /// Registers a concrete [VasterModel] backend for a given [ModelDescriptor].
-  void registerModel(ModelDescriptor descriptor, VasterModel model) {
+  /// Registers a concrete [VasterModel] backend for a given
+  /// [ModelDescriptor] and returns the model it displaced under the
+  /// descriptor key, null when fresh — a silent re-registration is
+  /// observable (Rule 11).
+  VasterModel? registerModel(ModelDescriptor descriptor, VasterModel model) {
+    final displaced = _models[descriptor.descriptorKey];
     _models[descriptor.descriptorKey] = model;
     _models[descriptor.provider] = model;
+    return displaced;
   }
 
   /// Resolves a concrete [VasterModel] for [descriptor].

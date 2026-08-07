@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **BREAKING (Rule 11 V1)**: registration/mount verbs return handles
+  and displaced entities; the mount event now carries the NORMALIZED
+  prefix.
+
 - `agentToolRecorder` binding constructed at bootstrap and wired into
   the agent manager (GAP-3a).
 

@@ -13,7 +13,9 @@ abstract interface class ToolManager {
   List<ToolDefinition> get compiledDefinitions;
 
   /// Registers an executable tool.
-  void registerTool(ExecutableTool tool);
+  /// Returns the same-name tool it displaced, null when fresh (a silent
+  /// override is observable — Rule 11).
+  ExecutableTool? registerTool(ExecutableTool tool);
 
   /// Unregisters a tool by name.
   bool unregisterTool(String name);

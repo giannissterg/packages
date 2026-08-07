@@ -1,3 +1,8 @@
+## Unreleased
+
+- **BREAKING (Rule 11 V1)**: `registerAgent` returns the same-id agent
+  it displaced.
+
 ## 0.3.0
 
 - New sealed `AgentLifecycle` (`AgentIdle` / `AgentRunning` with active

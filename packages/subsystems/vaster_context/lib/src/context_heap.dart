@@ -18,22 +18,23 @@ class ContextHeap {
   int get totalEstimatedTokens =>
       _regions.fold(0, (sum, r) => sum + r.estimatedTokens);
 
-  /// Registers a region into the heap.
+  /// Registers a region into the heap and returns the region it DISPLACED
+  /// (same id), null when fresh — a silent overwrite is now observable
+  /// (Rule 11).
   ///
   /// NOTE: upsert-by-id that appends at the tail — re-adding an existing id
   /// *moves it to the end*. For in-place policy/content updates that must not
   /// reorder the heap, use [updateRegion] or [replaceRegion].
-  void addRegion(ContextRegion region) {
+  ContextRegion? addRegion(ContextRegion region) {
+    final displaced = getRegion(region.id);
     _regions.removeWhere((r) => r.id == region.id);
     _regions.add(region);
+    return displaced;
   }
 
-  /// Registers multiple regions into the heap.
-  void addAll(Iterable<ContextRegion> regions) {
-    for (final r in regions) {
-      addRegion(r);
-    }
-  }
+  /// Registers multiple regions into the heap; returns the displaced ones.
+  List<ContextRegion> addAll(Iterable<ContextRegion> regions) =>
+      [for (final r in regions) ?addRegion(r)];
 
   /// Returns the region with [id], or null.
   ContextRegion? getRegion(String id) {
@@ -55,11 +56,14 @@ class ContextHeap {
     return false;
   }
 
-  /// Replaces the region with the same id in place, or appends when absent.
-  void replaceRegion(ContextRegion region) {
+  /// Replaces the region with the same id in place (or appends when
+  /// absent) and returns the region it displaced, null when fresh.
+  ContextRegion? replaceRegion(ContextRegion region) {
+    final displaced = getRegion(region.id);
     if (!updateRegion(region.id, (_) => region)) {
       _regions.add(region);
     }
+    return displaced;
   }
 
   /// Source-sync upsert: merges [incoming] (fresh from a [ContextSource])
@@ -67,14 +71,17 @@ class ContextHeap {
   /// *policy* mutations (pin, priority, utility, compressibility overrides)
   /// and keeping compressed content ("shadow") as long as the incoming
   /// content still matches the compression's source fingerprint.
-  void upsertFromSource(
+  /// Returns the region now standing in the heap for [incoming.id] —
+  /// the fresh insert, the still-shadowing compressed region, or the
+  /// merged result (Rule 11: the caller sees what the sync produced).
+  ContextRegion upsertFromSource(
     ContextRegion incoming, {
     required String Function(ContextRegion) fingerprintOf,
   }) {
     final existing = getRegion(incoming.id);
     if (existing == null) {
       _regions.add(incoming);
-      return;
+      return incoming;
     }
 
     // A compressed region shadows its source while the source is unchanged.
@@ -82,7 +89,7 @@ class ContextHeap {
     if (compression != null &&
         compression.sourceFingerprint == fingerprintOf(incoming)) {
       // Keep compressed content; refresh nothing.
-      return;
+      return existing;
     }
 
     // Source content wins; heap-side policy survives. (With nullable policy
@@ -100,6 +107,7 @@ class ContextHeap {
         clearCompression: true,
       ),
     );
+    return getRegion(incoming.id)!;
   }
 
   /// Removes a region by ID. Pinned regions are protected: the call returns

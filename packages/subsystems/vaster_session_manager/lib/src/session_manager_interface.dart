@@ -19,7 +19,8 @@ abstract interface class SessionManager {
   });
 
   /// Registers an existing [ModelSession] with [sessionId].
-  void registerSession(String sessionId, ModelSession session);
+  /// Returns the same-id session it displaced, null when fresh.
+  ModelSession? registerSession(String sessionId, ModelSession session);
 
   /// Retrieves an existing [ModelSession] by ID.
   ModelSession? getSession(String sessionId);
