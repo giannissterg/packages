@@ -43,3 +43,5 @@ export 'package:vaster_scheduler/vaster_scheduler.dart';
 export 'package:vaster_session/vaster_session.dart';
 export 'package:vaster_tool/vaster_tool.dart';
 export 'package:vaster_vm/vaster_vm.dart';
+
+export 'src/run_pipeline.dart';

@@ -1,5 +1,10 @@
 ## Unreleased
 
+- `WriteFileOp` publishes `FileOperationEvent` (operation `write`,
+  resolved path, UTF-8 byte size) — the enum member existed but only
+  `mount` was wired; observers (RunReport artifacts, future OTel
+  export) can now see what a program wrote. Ids follow the A5 grammar.
+
 - **A5+A6**: engine event ids are `evt_<kind>_<pc>_<seq>` — the
   sequence is MACHINE STATE (unique across loop iterations, retries,
   and checkpoint resumes; deterministic under replay). The effect-record

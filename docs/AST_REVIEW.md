@@ -103,10 +103,11 @@ Future<RunReport> runPipeline(
 ```
 
 `RunReport` is a named report class (Rule R): final state, result value,
-consumed tokens/cost, envelope path, artifact-friendly `toString()`. The
-facade unwinds the VM on every path (owned-resources rule). HITL pauses in v1:
-return the paused report and let the host decide (the CLI keeps its richer
-park/resume loop).
+consumed tokens/cost, envelope path, and `artifacts` — the run's own
+`FileOperationEvent` writes (path + size), i.e. what the program wrote, not
+a directory listing of the mount target (§6.5). The facade unwinds the VM on
+every path (owned-resources rule). HITL pauses in v1: return the paused
+report and let the host decide (the CLI keeps its richer park/resume loop).
 
 **Migration:** additive; nothing changes for existing callers. The three
 in-repo duplications migrate opportunistically.
@@ -131,11 +132,10 @@ case. Keep a `String` overload only where content is genuinely literal.
 Internally the SDD nodes already compose `Template`s; only the public parameter
 types change.
 
-**Migration:** breaking for SDD callers (`goal:` type change). Mechanical:
-`goal: 'x'` → `goal: Template.text('x')`. Alternatively accept
-`Object goal` (String | Template) and validate at build — rejected: rules
-prefer typed params over runtime type sniffing. Take the break; the SDD kit is
-young.
+**Migration (decided: take the break — §6.3):** breaking for SDD callers
+(`goal:` type change). Mechanical: `goal: 'x'` → `goal: Template.text('x')`.
+`Object goal` transition params rejected: rules prefer typed params over
+runtime type sniffing, and the SDD kit is young.
 **Risk:** low-medium; touches every SDD example and fixture-guard test.
 
 ### F2 — `roles:` + `agent:` double declaration *(compiler-behavior wave)*
@@ -144,9 +144,10 @@ young.
 names its agent. Forgetting a role in the list is a runtime provisioning
 failure the tree could have prevented — the information is already in the tree.
 
-**Proposal.** The pipeline build walks its subtree and collects every distinct
-`AgentRole` referenced by an `agent:` slot (identity-distinct, name-deduped
-with a conflict diagnostic), emitting provision headers automatically.
+**Proposal (decided: whole-subtree collection — §6.1).** The pipeline build
+walks its entire subtree and collects every distinct `AgentRole` referenced
+by an `agent:` slot (identity-distinct, name-deduped with a conflict
+diagnostic), emitting provision headers automatically.
 `roles:` stays for roles used only via `agentId:` string reference — with the
 doc rewritten to say so ("declare only what the tree cannot see").
 
@@ -203,15 +204,14 @@ StorageMountType.disk, diskPath: targetDir)]` — three named args for the
 common case; AND a separate `Mount` scope node exists that still takes a
 `StorageMount` inside. Two spellings, both verbose.
 
-**Proposal.** Factory constructors on the value type:
-`StorageMount.disk('/project', targetDir)` / `StorageMount.memory('/scratch')`,
-surfaced in the AST barrel as `Mount.disk(...)`-style aliases if we keep the
-node. Decide the node's fate in review: `Pipeline.mounts` for provisioning,
-`Mount` node only if subtree-scoped mounts have a real consumer — otherwise
-deprecate the node.
+**Proposal (decided: keep the node — §6.4).** Factory constructors on the
+value type: `StorageMount.disk('/project', targetDir)` /
+`StorageMount.memory('/scratch')`. The `Mount` node stays: multi-project
+plans (several mounts scoped to different subtrees) are a plausible future,
+and the standing principle is that `Pipeline` is convenience, not law —
+raw node trees remain first-class (the no-`MaterialApp` path).
 
-**Migration:** additive ctors; node deprecation (if chosen) is a separate
-breaking step.
+**Migration:** additive ctors only.
 **Risk:** low.
 
 ### F7 — `result:` couples to a node's *internal* default binding *(compiler-behavior wave)*
@@ -222,21 +222,20 @@ reaching into another node's internals; a rename inside the SDD kit breaks
 consumers silently at compile (or worse, rebinds to nothing and fails the
 dataflow check with an unrelated-looking error).
 
-**Proposal.** Output-producing composables expose their binding:
-`final review = Review(agent: reviewer); … result: review.output`. Node
-identity carries the wire; the string never appears in consumer code. The
-default (`result:` omitted) could additionally mean "the last child's declared
-output" — decide in review whether that implicitness is worth it (leaning no:
-explicit `result:` is one line and self-documenting).
+**Proposal (decided: builder equivalents — §6.2).** Sugar nodes gain builder
+slots: `VasterNode Function(BuildContext context, Binding output)` in place
+of a plain child, exposing the *context-resolved* output binding type-safely
+to the subtree that consumes it. Because the function runs inside build, the
+binding it receives is the effective, correctly-namespaced one — honest by
+construction, no magic string, no getter that can lie under `BindingScope`.
+Wiring the pipeline result becomes referencing the builder-exposed binding
+(or a `result` builder on `Pipeline` itself); the exact slot names land in
+W2 design. The same mechanism generalizes to any scoped value a subtree
+needs — this is the framework's `Builder` pattern, not an F7 one-off.
 
-**Migration:** additive (`output` getters on Specify/Plan/Review/Task sugar
-already exist as params; expose the *effective* binding, namespaced the way
-`build` would mint it — needs care with `BindingScope` namespacing, which is
-context-dependent: the getter may need to be honest that it reports the
-unscoped default).
-**Risk:** medium — the namespacing caveat is real; a naive getter that lies
-under `BindingScope` is worse than the string. May need `result:` to accept
-the node itself and resolve during build, where context exists.
+**Migration:** additive (builder slots beside existing children slots).
+**Risk:** low-medium — new mechanism, but it removes the namespacing hazard
+instead of working around it.
 
 ---
 
@@ -255,17 +254,31 @@ compiled instruction streams only where F2 adds collected provision headers —
 replay-equivalence of existing recordings must be checked against the
 committed fixture before landing.
 
-## 6. Open questions
+## 6. Resolved decisions (2026-08-07)
 
-1. **F2 collection scope:** collect from the whole subtree or only direct
-   children? (Subtree, presumably — Router/FanOut nest agents deep.)
-2. **F7 namespacing:** can `output` getters be honest under `BindingScope`,
-   or must `result:` learn to accept a node and resolve at build time?
-3. **F1 break vs. overload:** take the `goal:` type break now (kit is young)
-   or carry `Object` params temporarily? (Doc recommends the break.)
-4. **`Mount` node fate** (F6): does subtree-scoped mounting have a consumer?
-5. Does `RunReport` (F0) fold in artifact listing (files written under the
-   pipeline's mounts), or is that the host's business?
+1. **F2 collection scope: the whole subtree.** Router/FanOut nest agents
+   deep; collection walks everything under the pipeline.
+2. **F7 mechanism: builder equivalents.** Instead of getters that could lie
+   under `BindingScope`, sugar nodes gain builder variants — slots that take
+   `VasterNode Function(BuildContext context, P param)` instead of a
+   `VasterNode` — exposing the *context-resolved* value (`P` = the effective
+   `Binding`, typed) to the subtree the function returns. Resolution happens
+   inside build, where namespacing is knowable, so the exposed binding is
+   honest by construction. This is the general mechanism (the Flutter
+   `Builder` pattern), not an F7 one-off: any scoped value a subtree needs
+   (`SddConventions`, mounts, outputs) gets the same shape.
+3. **F1: take the break.** `goal:` (and peers) become `Template`-typed now,
+   while the SDD kit is young. No `Object` transition params.
+4. **F6: keep the `Mount` node.** Multi-project plans (several mounts scoped
+   to different subtrees) are a plausible future, and — as a standing
+   principle — `Pipeline` is convenience, not law: like building a Flutter
+   app without `MaterialApp`, assembling raw node trees (or raw ISA) stays
+   possible and supported, just not the recommended path. Sugar must never
+   be load-bearing. `StorageMount.disk/.memory` factories land regardless.
+5. **F0 artifacts: derived from the machine, enabled by mounts staying
+   declared.** `RunReport.artifacts` collects the run's own
+   `FileOperationEvent` writes (path + size) — the report states what the
+   program wrote, not a directory listing of the mount target.
 
 ## 7. Rules alignment
 

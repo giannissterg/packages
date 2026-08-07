@@ -645,7 +645,16 @@ class VasterRuntime {
         final writePath = _interp(op.vfsPath);
         _checkPolicy(PolicyAction.fileWrite, writePath);
         final fs = vm.fileSystemManager.resolveFileSystem(writePath);
-        await fs.writeText(writePath, _interp(op.content));
+        final writeContent = _interp(op.content);
+        await fs.writeText(writePath, writeContent);
+        vm.eventBus.publish(
+          FileOperationEvent(
+            eventId: _eventId('file_write'),
+            operation: FileOperationType.write,
+            path: writePath,
+            sizeBytes: utf8.encode(writeContent).length,
+          ),
+        );
 
       case ReadFileOp op:
         final readPath = _interp(op.vfsPath);
