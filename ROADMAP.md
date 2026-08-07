@@ -103,6 +103,17 @@ Outward order of attack:
 
 Ordered roughly by value-for-effort. Each is a self-contained sprint or less.
 
+### 0. AST ergonomics + the missing `runApp` — design doc drafted
+The first external-codebase dogfood run exposed that consumer code is ~4×
+more verbose than it should be: a 75-line hand-assembled harness (no
+`runPipeline` facade) and seven AST frictions, the sharpest being that
+sugar-node `String` params force the stringly interpolation tier the
+compiler itself warns against. Full review with proposed contracts,
+migration notes, and four waves (W0 facade → W1 additive sugar → W2
+compiler-behavior → W3 scope sugar): `docs/AST_REVIEW.md`. Benchmark and
+acceptance criterion: `plan_external_codebase.dart` in ≤ half the lines
+with zero escaped-dollar strings.
+
 ### 1. Release v0.3.0
 Four of the five AR phases are breaking (`vaster_vm_api` extraction, required
 ownership params, interface promotion, package moves). Roll the `Unreleased`
