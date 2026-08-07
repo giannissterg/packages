@@ -13,6 +13,7 @@ import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 
 import 'model_registry.dart';
 import 'sandbox_registration.dart';
+import 'snapshot_host.dart';
 import 'prompt_funnel.dart';
 import 'tool_loop_host.dart';
 import 'vm_config.dart';
@@ -25,14 +26,16 @@ import 'vm_shutdown_report.dart';
 /// runtime's tool loop needs). Collaborators with a bounded job depend on
 /// a facet, not on this master one — the type then documents what the
 /// component can actually do.
-abstract interface class VasterVirtualMachine implements PromptFunnel, ToolLoopHost {
+abstract interface class VasterVirtualMachine implements PromptFunnel, ToolLoopHost, SnapshotHost {
   /// VM configuration settings.
   VMConfig get config;
 
   /// Active Session Manager.
+  @override
   SessionManager get sessionManager;
 
   /// Active Context Manager.
+  @override
   ContextManager get contextManager;
 
   /// Ergonomic context-management facade over [contextManager]:
@@ -59,6 +62,7 @@ abstract interface class VasterVirtualMachine implements PromptFunnel, ToolLoopH
   ToolCallGateBinding get agentToolGate;
 
   /// Active Inter-Agent Messaging Hub.
+  @override
   AgentMessagingHub get messagingHub;
 
   /// Active Resource Tracker.
@@ -90,10 +94,12 @@ abstract interface class VasterVirtualMachine implements PromptFunnel, ToolLoopH
   /// one, so ambient pinned regions remain visible to session prompts
   /// exactly as they are to sessionless ones. Agents receive the same
   /// layering.
+  @override
   Future<ModelSession> createSession({required String sessionId, ModelDescriptor? modelDescriptor});
 
   /// Mounts a filesystem backend into [fileSystemManager] and bridges
   /// files to context; returns the normalized mount prefix.
+  @override
   String mountFileSystem(String pathPrefix, VasterFileSystem fs);
 
   /// Registers an [ExecutableTool] into [toolManager]; returns the

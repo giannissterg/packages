@@ -1,6 +1,14 @@
-import 'package:vaster_vm/vaster_vm.dart';
-
+import 'package:vaster_budget/vaster_budget.dart';
+import 'package:vaster_filesystem/vaster_filesystem.dart';
+import 'package:vaster_context/vaster_context.dart';
+import 'package:vaster_instruction/vaster_instruction.dart';
+import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_replay/vaster_replay.dart';
+import 'package:vaster_runtime/vaster_runtime.dart';
+import 'package:vaster_scheduler/vaster_scheduler.dart';
+import 'package:vaster_vm_api/vaster_vm_api.dart';
+
 
 /// A recorded execution envelope loaded for debugging: the compiled program,
 /// the step journal, and the model I/O tape.
@@ -82,6 +90,13 @@ class ContextStateView {
 class DebugSession {
   final DebugEnvelope envelope;
 
+  /// Builds the hermetic VM a materialization runs in, around the
+  /// session's replay model (B1: hosts own composition — this package
+  /// programs against the vm_api interface and never constructs the
+  /// engine; the `vaster debug` CLI supplies the bootstrap).
+  final Future<VasterVirtualMachine> Function(VasterModel replayModel)
+      vmFactory;
+
   /// Non-fatal limitations detected at load (sandbox execution, HITL).
   final List<String> warnings;
 
@@ -92,13 +107,17 @@ class DebugSession {
   VasterRuntime? _runtime;
   int _materializedStep = -1;
 
-  DebugSession._(this.envelope, this.warnings);
+  DebugSession._(this.envelope, this.warnings, this.vmFactory);
 
   /// Validates the envelope and constructs a session.
   ///
   /// Throws [StateError] for programs that cannot be safely replayed
   /// (disk mounts).
-  static DebugSession load(DebugEnvelope envelope) {
+  static DebugSession load(
+    DebugEnvelope envelope, {
+    required Future<VasterVirtualMachine> Function(VasterModel replayModel)
+        vmFactory,
+  }) {
     final warnings = <String>[];
     for (final inst in envelope.program.instructions) {
       if (inst is MountFsOp && inst.diskPath != null) {
@@ -118,7 +137,7 @@ class DebugSession {
           'unavailable past the first yield (human answers are not taped); '
           'journal views remain exact.');
     }
-    return DebugSession._(envelope, warnings);
+    return DebugSession._(envelope, warnings, vmFactory);
   }
 
   // ── Journal tier ─────────────────────────────────────────────────────────
@@ -179,7 +198,7 @@ class DebugSession {
   Future<VasterVirtualMachine> materialize() async {
     if (_vm == null || _materializedStep > _cursor) {
       _replayModel = ReplayVasterModel(tape: tape);
-      _vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: _replayModel!));
+      _vm = await vmFactory(_replayModel!);
       _runtime = VasterRuntime(
         vm: _vm!,
         policy: ExecutionPolicy.unlimited,

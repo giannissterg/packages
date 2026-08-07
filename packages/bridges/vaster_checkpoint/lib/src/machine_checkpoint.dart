@@ -104,7 +104,7 @@ final class MachineCheckpoint {
   /// state; capturing a machine that is mid-`_execute` is a caller bug.
   factory MachineCheckpoint.capture({
     required VasterRuntime runtime,
-    required VasterVirtualMachine vm,
+    required SnapshotHost vm,
     required VasterProgram program,
   }) {
     final machineState = runtime.captureSnapshot();
@@ -168,6 +168,10 @@ final class MachineCheckpoint {
   /// [budget] defaults to [buildBudget] with no limits; pass your own to
   /// impose resume-time capacity (still built via [buildBudget] so the
   /// meters continue).
+  /// [vm] stays the MASTER interface deliberately (B5): this method
+  /// constructs a [VasterRuntime], and the runtime programs against the
+  /// whole VM by law — subsystem restoration below uses only the
+  /// [SnapshotHost] members.
   Future<VasterRuntime> restoreRuntime({
     required VasterVirtualMachine vm,
     required ExecutionPolicy policy,

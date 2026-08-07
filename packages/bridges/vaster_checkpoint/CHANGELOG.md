@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **B5**: capture composes the `SnapshotHost` facet — the checkpoint's
+  type no longer claims it can run agents or shut the VM down.
+
 - **A3 (Rule 8 violation fixed)**: capture/restore compose subsystem
   export/import contracts — no `is BasicAgentMessagingHub` /
   `is MemoryVasterFileSystem` downcasts. A third implementation of

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **B5**: `SnapshotHost` facet — the six members checkpoint
+  capture/restore actually uses; `MachineCheckpoint.capture` and
+  `SessionSnapshot` take the facet, and only `restoreRuntime` (which
+  CONSTRUCTS a runtime) keeps the master interface, with the reason in
+  its doc.
+
 - **BREAKING (B2, Rule 5)**: `PromptFunnel`'s four verbs take a
   REQUIRED `model` — the caller that owns the selection resolves it.
   `createAgent`'s `model:` override parameter is GONE: an agent's model
