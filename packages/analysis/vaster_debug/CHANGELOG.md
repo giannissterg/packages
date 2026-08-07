@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **TT-P4**: `DebugSession.materializedMachine()` returns a
+  `MaterializedMachine` — the runtime plus the `SnapshotHost` facet of
+  the verified replay VM at the cursor, exactly what a checkpoint
+  capture takes and never the master interface. Hosts compose live
+  resume from it (`vaster debug --resume-at`); the debugger itself gains
+  no checkpoint dependency.
+
 - **BREAKING (B1, Rule 10.6)**: `DebugSession.load` requires a
   `vmFactory` — hosts own composition; this package no longer depends on
   the engine in production (`vaster_vm` is dev-only, matching

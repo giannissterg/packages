@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **TT-P4 — the debugger becomes a surgery table.** `vaster debug
+  <envelope> --resume-at N [--backend …] [--model …] [--trace]`
+  reconstructs the state after recorded step N by verified tape replay,
+  captures it as a `MachineCheckpoint`, and finishes the run in a fresh
+  VM on the LIVE backend — the prefix is never re-paid. New REPL verb
+  `checkpoint <file>` exports a durable checkpoint of the cursor state
+  that `vaster resume` completes.
+
 - Rule 11 V8: `configureArgs` echoes the configured parser across the
   base command and all eleven commands (fluent registration).
 

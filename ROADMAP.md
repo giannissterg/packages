@@ -144,12 +144,16 @@ proven on a recorded llama fixture. Remaining: grow the claude-cli
 factor beyond n=1 (each future paid run is now a richer fixture
 automatically).
 
-### 5. TT-P4: resume from the debugger
-The debugger can inspect and materialize any step; it cannot yet *resume live
-execution* from one. `vaster debug --resume-at <step>` = seed a runtime from
-the materialized state, swap the replay model for a live backend, continue.
-This turns the debugger from a microscope into a surgery table (fix a bad
-decision mid-run without re-paying the prefix).
+### 5. TT-P4: resume from the debugger — ✅ delivered 2026-08-07
+`vaster debug <envelope> --resume-at <step>` reconstructs the state after
+the recorded step by verified tape replay, captures it as a
+`MachineCheckpoint`, and finishes the run in a fresh VM on the live
+`--backend` — the prefix is never re-paid. The debugger also gained a
+`checkpoint <file>` REPL verb: export the cursor state as a durable
+checkpoint any `vaster resume` completes. Composition, not new machinery:
+`DebugSession.materializedMachine()` exposes (runtime + `SnapshotHost`)
+and the CLI wires it to the existing checkpoint/restore path (hosts own
+composition — the debugger gained no new dependency).
 
 ### 6. Codify the sprint's rules
 `rules.md` should absorb what this sprint established as law: the
@@ -344,10 +348,10 @@ claims is enforced by a test, bounded by `vaster check`, measured by
    reproducible and the format spec frozen.
 6. **Hardened surface.** Fuzzed VBC decoder, an interpolation-injection
    suite beyond the single lock test, and a sandbox isolation audit.
-7. **Operational completeness.** TT-P4 debugger resume, OTel export, and
-   eval auto-respond for gated pipelines. (Per-backend calibrated
-   estimates incl. the CLI-agentic overhead factor: ✅ shipped
-   2026-08-06.)
+7. **Operational completeness.** TT-P4 debugger resume (✅ shipped
+   2026-08-07), OTel export, and eval auto-respond for gated pipelines.
+   (Per-backend calibrated estimates incl. the CLI-agentic overhead
+   factor: ✅ shipped 2026-08-06.)
 
 Everything else — distribution, multi-node, cache planning beyond
 measurement — is explicitly post-1.0.

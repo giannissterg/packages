@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:vaster_checkpoint/vaster_checkpoint.dart';
 import 'package:vaster_debug/vaster_debug.dart';
+import 'package:vaster_dis/tracer.dart';
 import 'package:vaster_dis/vaster_dis.dart';
 import 'package:vaster_vm/vaster_vm.dart';
 
 import '../vaster_command.dart';
+import 'backend_resolver.dart';
 
 /// Time-travel debugger over a recorded execution envelope.
 ///
@@ -35,6 +38,20 @@ class DebugCommand extends VasterCommand {
       help: 'Semicolon/newline-separated debugger commands to execute '
           'non-interactively (e.g. "seek 12; regs; cat /workspace/spec.md").',
     );
+    parser.addOption(
+      'resume-at',
+      help: 'TT-P4: resume LIVE execution from recorded step N — the state '
+          'after step N is reconstructed by verified tape replay, then '
+          'execution continues on the --backend model (the prefix is never '
+          're-paid).',
+    );
+    parser.addOption(
+      'backend',
+      help: 'Model backend for --resume-at '
+          '(fake|claude-api|claude-cli|gemini|gemini-cli|llama|rpc).',
+    );
+    parser.addOption('model', help: 'Backend-specific model name for --resume-at.');
+    parser.addFlag('trace', negatable: false, help: 'Live disassembly trace while resuming.');
     return parser;
   }
 
@@ -90,7 +107,22 @@ class DebugCommand extends VasterCommand {
     }
     _printFrame(session, out);
 
+    final resumeAtRaw = context.parsedResults['resume-at'] as String?;
     final script = context.parsedResults['script'] as String?;
+    if (resumeAtRaw != null) {
+      if (script != null) {
+        err.writeln('Error: --resume-at and --script are mutually exclusive.');
+        return 1;
+      }
+      final step = int.tryParse(resumeAtRaw);
+      if (step == null || step < 0 || step > session.length - 1) {
+        err.writeln('Error: --resume-at must be a step in 0..${session.length - 1} '
+            '(this recording has ${session.length} steps).');
+        return 1;
+      }
+      return _resumeLive(session, step, context, out, err);
+    }
+
     if (script != null) {
       for (final raw in script.split(RegExp(r'[;\n]'))) {
         final command = raw.trim();
@@ -111,6 +143,114 @@ class DebugCommand extends VasterCommand {
       final keepGoing = await _dispatch(line, session, out, err);
       if (!keepGoing) return 0;
     }
+  }
+
+  /// TT-P4: the surgery table. Reconstructs the machine after [step] by
+  /// verified tape replay, captures it as a [MachineCheckpoint], restores
+  /// it into a fresh VM whose default model is the LIVE backend, and runs
+  /// to completion — the recorded prefix is never re-paid.
+  Future<int> _resumeLive(
+    DebugSession session,
+    int step,
+    CommandContext context,
+    StringSink out,
+    StringSink err,
+  ) async {
+    session.seek(step);
+    out.writeln('\n── LIVE RESUME (TT-P4) ─────────────────────────────────');
+    out.writeln('  materializing state after step $step by verified replay…');
+
+    final MachineCheckpoint checkpoint;
+    try {
+      final machine = await session.materializedMachine();
+      checkpoint = MachineCheckpoint.capture(
+        runtime: machine.runtime,
+        vm: machine.host,
+        program: session.program,
+      );
+    } on ReplayDivergence catch (e) {
+      err.writeln('✗ $e');
+      err.writeln('  The recording no longer matches this toolchain — cannot '
+          'seed a live resume from a diverged state.');
+      return 1;
+    } on StateError catch (e) {
+      err.writeln('✗ ${e.message}');
+      return 1;
+    }
+
+    final resolved = await resolveBackendModel(results: context.parsedResults, context: context, err: err);
+    final model = resolved.model;
+    out.writeln('  prefix  : ${step + 1} step(s), '
+        '${session.materializedModelCalls} taped model call(s), '
+        '${checkpoint.budgetConsumedTokens} tokens already accounted');
+    out.writeln('  backend : ${model.modelName} (live from step ${step + 1})');
+
+    final vm = await VasterVMEngine.bootstrap(config: VMConfig(defaultModel: model));
+    final runtime = await checkpoint.restoreRuntime(
+      vm: vm,
+      policy: ExecutionPolicy.unlimited,
+      scheduler: BasicVasterScheduler(taskQueue: PriorityTaskQueue()),
+    );
+
+    ExecutionTracer? tracer;
+    if (context.parsedResults['trace'] as bool? ?? false) {
+      tracer = ExecutionTracer(runtime, sink: out.writeln)..attach();
+    }
+
+    var state = await checkpoint.resumeWith(runtime);
+
+    // HITL gates reached by the live suffix answer interactively, the same
+    // stdin contract `vaster resume` uses when no re-park dir is given.
+    while (state.status == RuntimeStatus.pausedForHuman) {
+      final request = runtime.pendingHumanRequest;
+      if (request == null) break;
+      out.writeln('\n── HUMAN INTERACTION REQUIRED ──────────────────────────');
+      out.writeln('  ${request.prompt}');
+      if (request.options.isNotEmpty) {
+        out.writeln('  options: ${request.options.join(' / ')}');
+      }
+      out.write('> ');
+      final answer = stdin.readLineSync()?.trim();
+      if (answer == null || answer.isEmpty) {
+        err.writeln('No input available — leaving program paused.');
+        tracer?.detach();
+        await vm.shutdown();
+        await resolved.dispose();
+        return 2;
+      }
+      final reply = switch (answer.toLowerCase()) {
+        'yes' || 'y' || 'approve' => HumanInteractionResponse.approve(requestId: request.requestId),
+        'no' ||
+        'n' ||
+        'reject' =>
+          HumanInteractionResponse.reject(requestId: request.requestId, reason: 'Rejected by user.'),
+        _ => HumanInteractionResponse.answer(requestId: request.requestId, answerText: answer),
+      };
+      state = await runtime.resumeWithHumanResponse(reply);
+    }
+
+    tracer?.detach();
+
+    out.writeln('\n── LIVE RESUME COMPLETE ────────────────────────────────');
+    out.writeln('  status : ${state.status.name}');
+    out.writeln('  tokens : ${runtime.budget.consumedTokens} total '
+        '(${runtime.budget.consumedTokens - checkpoint.budgetConsumedTokens} '
+        'live this resume)');
+    if (runtime.budget.consumedCost > 0) {
+      out.writeln('  cost   : \$${runtime.budget.consumedCost.toStringAsFixed(6)}');
+    }
+    final resultRegister = session.program.resultBinding;
+    if (resultRegister != null && state.registers.containsKey(resultRegister)) {
+      out.writeln('  output :');
+      out.writeln('${state.registers[resultRegister]}');
+    }
+    if (state.status == RuntimeStatus.error) {
+      err.writeln('\n${state.errorDetails}');
+    }
+
+    await vm.shutdown();
+    await resolved.dispose();
+    return state.status == RuntimeStatus.halted ? 0 : 1;
   }
 
   /// Executes one debugger command; returns false to quit.
@@ -188,6 +328,22 @@ class DebugCommand extends VasterCommand {
           }
         case 'result':
           out.writeln('${session.declaredResult}');
+        case 'checkpoint':
+          if (arg == null) {
+            err.writeln('Usage: checkpoint <file.ckpt.json>');
+          } else {
+            final machine = await session.materializedMachine();
+            final checkpoint = MachineCheckpoint.capture(
+              runtime: machine.runtime,
+              vm: machine.host,
+              program: session.program,
+            );
+            File(arg)
+              ..parent.createSync(recursive: true)
+              ..writeAsStringSync(const JsonEncoder.withIndent('  ').convert(checkpoint.toJson()));
+            out.writeln('  checkpoint at step ${session.cursor} → $arg');
+            out.writeln('  resume: vaster resume $arg --backend <backend>');
+          }
         case 'vfs':
           final listing = await session.listVfs(arg ?? '/');
           if (listing.isEmpty) out.writeln('  (empty)');
@@ -269,5 +425,7 @@ class DebugCommand extends VasterCommand {
   ctx             context heap + segment usage at cursor (materialized)
   tape            recorded model calls with usage/cost
   info / result   program header / declared result value
+  checkpoint <f>  export a durable checkpoint of the state at the cursor
+                  (resume later: vaster resume <f> --backend <backend>)
   q               quit''';
 }

@@ -55,6 +55,23 @@ class ReplayDivergence implements Exception {
   String toString() => 'ReplayDivergence at step $stepIndex: $detail';
 }
 
+/// The materialized machine at the cursor, exposed through the narrowest
+/// surfaces host-side composition needs: the runtime (machine snapshot +
+/// consumed meters) and the [SnapshotHost] facet of the hermetic VM —
+/// exactly what a checkpoint capture takes, never the master interface.
+///
+/// TT-P4: hosts capture a `MachineCheckpoint` from this pair and restore
+/// it into a fresh VM on a live backend — resume from any recorded step
+/// without re-paying the prefix. Capture from it; do not execute on it:
+/// driving this runtime forward desynchronizes the session's replay
+/// bookkeeping.
+final class MaterializedMachine {
+  final VasterRuntime runtime;
+  final SnapshotHost host;
+
+  const MaterializedMachine({required this.runtime, required this.host});
+}
+
 /// Point-in-time view of the replayed VM's context state.
 class ContextStateView {
   final List<ContextRegion> regions;
@@ -250,6 +267,14 @@ class DebugSession {
       }
     }
     return _vm!;
+  }
+
+  /// The verified machine at the cursor, for host-side composition
+  /// (checkpoint export, live resume). Materializes on demand — the same
+  /// replay-verified reconstruction the inspection views use.
+  Future<MaterializedMachine> materializedMachine() async {
+    final vm = await materialize();
+    return MaterializedMachine(runtime: _runtime!, host: vm);
   }
 
   /// VFS listing at the cursor (materializes on demand).
