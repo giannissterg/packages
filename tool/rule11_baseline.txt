@@ -25,9 +25,6 @@ runtime/vaster_vm 2
 subsystems/vaster_agent_messaging 2
 subsystems/vaster_context 1
 subsystems/vaster_context_manager 4
-subsystems/vaster_filesystem 1
-subsystems/vaster_filesystem_local 1
-subsystems/vaster_filesystem_memory 1
 subsystems/vaster_session 2
 transports/vaster_mmap 14
 transports/vaster_model_rpc_server 3

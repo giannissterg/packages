@@ -119,11 +119,15 @@ final class MachineCheckpoint {
       contextRegions: [
         for (final region in vm.contextManager.regions) region.toJson(),
       ],
+      // Every filesystem exports through the CONTRACT (Rule 8) — no
+      // downcast, so a third implementation is captured, not silently
+      // dropped. Backends whose bytes live outside the process return an
+      // empty map and ride `diskMounts` instead.
       memoryMounts: {
         for (final entry in vm.fileSystemManager.mounts.entries)
-          if (entry.value is MemoryVasterFileSystem)
-            entry.key:
-                (entry.value as MemoryVasterFileSystem).exportFilesBase64(),
+          if (entry.value.exportFilesBase64() case final files
+              when files.isNotEmpty)
+            entry.key: files,
       },
       diskMounts: {
         for (final entry in vm.fileSystemManager.mounts.entries)
@@ -132,9 +136,7 @@ final class MachineCheckpoint {
                 (entry.value as LocalVasterFileSystem).rootDirectory.path,
       },
       openTransactions: vm.fileSystemManager.exportTransactions(),
-      messageInboxes: vm.messagingHub is BasicAgentMessagingHub
-          ? (vm.messagingHub as BasicAgentMessagingHub).exportInboxes()
-          : const {},
+      messageInboxes: vm.messagingHub.exportInboxes(),
       budgetConsumedTokens: runtime.budget.consumedTokens,
       budgetConsumedCost: runtime.budget.consumedCost,
       budgetConsumedDuration: runtime.budget.consumedDuration,
@@ -183,8 +185,11 @@ final class MachineCheckpoint {
       vm.contextManager.addRegion(ContextRegion.fromJson(regionJson));
     }
     for (final entry in memoryMounts.entries) {
+      // Import through the contract into whatever is mounted; only the
+      // MISSING-mount case constructs a filesystem, and memory is the
+      // honest default for content that rode the checkpoint as bytes.
       final existing = vm.fileSystemManager.mounts[entry.key];
-      if (existing is MemoryVasterFileSystem) {
+      if (existing != null) {
         existing.importFilesBase64(entry.value);
       } else {
         vm.mountFileSystem(
@@ -201,10 +206,8 @@ final class MachineCheckpoint {
     if (openTransactions.isNotEmpty) {
       vm.fileSystemManager.importTransactions(openTransactions);
     }
-    if (messageInboxes.isNotEmpty &&
-        vm.messagingHub is BasicAgentMessagingHub) {
-      (vm.messagingHub as BasicAgentMessagingHub)
-          .importInboxes(messageInboxes);
+    if (messageInboxes.isNotEmpty) {
+      vm.messagingHub.importInboxes(messageInboxes);
     }
 
     return VasterRuntime(

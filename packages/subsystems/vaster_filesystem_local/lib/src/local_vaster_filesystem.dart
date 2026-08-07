@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -40,11 +39,11 @@ class LocalVasterFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<int> writeText(String path, String content) async {
+  Future<String> writeText(String path, String content) async {
     final file = _resolveFile(path);
     await file.parent.create(recursive: true);
     await file.writeAsString(content);
-    return utf8.encode(content).length;
+    return file.path;
   }
 
   @override
@@ -54,11 +53,11 @@ class LocalVasterFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<int> writeBytes(String path, Uint8List bytes) async {
+  Future<String> writeBytes(String path, Uint8List bytes) async {
     final file = _resolveFile(path);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes);
-    return bytes.length;
+    return file.path;
   }
 
   @override
@@ -146,7 +145,7 @@ class LocalVasterFileSystem implements VasterFileSystem {
   }
 
   @override
-  Future<void> restoreSnapshot(FileSystemSnapshot snapshot) async {
+  Future<int> restoreSnapshot(FileSystemSnapshot snapshot) async {
     if (await rootDirectory.exists()) {
       await rootDirectory.delete(recursive: true);
     }
@@ -157,5 +156,16 @@ class LocalVasterFileSystem implements VasterFileSystem {
       await file.parent.create(recursive: true);
       await file.writeAsBytes(entry.value);
     }
+    return snapshot.files.length;
   }
+
+  /// Disk-backed content survives the process by nature — the checkpoint
+  /// carries this mount's PATH, not its bytes (Rule 8's descriptors-are-
+  /// state discipline). Exporting gigabytes of workspace into a JSON
+  /// checkpoint would be the wrong durability model.
+  @override
+  Map<String, String> exportFilesBase64() => const {};
+
+  @override
+  int importFilesBase64(Map<String, String> files) => 0;
 }

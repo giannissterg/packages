@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **BREAKING (A3)**: `exportInboxes`/`importInboxes` join the
+  `AgentMessagingHub` contract — undelivered messages survive a
+  checkpoint for ANY hub implementation, not just the in-repo one.
+
 - **BREAKING (Rule 11 V6)**: `clearInbox` returns the messages dropped;
   `close` returns whether this call closed the hub.
 

@@ -46,6 +46,7 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
   ///
   /// Undelivered actor messages are durable state: a message sent before a
   /// suspension and popped after resume must survive the process boundary.
+  @override
   Map<String, List<Map<String, dynamic>>> exportInboxes() => {
         for (final entry in _inboxes.entries)
           entry.key: [for (final m in entry.value) m.toJson()],
@@ -55,6 +56,7 @@ class BasicAgentMessagingHub implements AgentMessagingHub {
   /// same-agent inboxes (checkpoint restore).
   /// Returns the number of messages hydrated across all inboxes — the
   /// checkpoint-restore audit trail (Rule 11).
+  @override
   int importInboxes(Map<String, List<Map<String, dynamic>>> inboxes) {
     var hydrated = 0;
     for (final entry in inboxes.entries) {

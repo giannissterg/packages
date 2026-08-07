@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **A3 (Rule 8 violation fixed)**: capture/restore compose subsystem
+  export/import contracts — no `is BasicAgentMessagingHub` /
+  `is MemoryVasterFileSystem` downcasts. A third implementation of
+  either used to checkpoint as silently empty (no error, no warning);
+  a new test with deliberately-not-in-repo doubles proves it survives,
+  and restore now imports INTO the mounted implementation rather than
+  replacing it.
+
 - Checkpoints carry open VFS transaction frames (`openTransactions`,
   GAP-1) — a checkpoint inside a `Transaction` (the default around every
   `Task` since REL-P4) resumes with rollback protection intact instead of

@@ -14,13 +14,25 @@ abstract interface class AgentMessagingHub {
   /// Pops the oldest unread [AgentMessage] for [agentId] and marks it read.
   AgentMessage? popNextMessage(String agentId);
 
-  /// Clears inbox for [agentId].
-/// Returns the number of messages dropped (Rule 11 — an empty clear is
-  /// observable).
+  /// Clears inbox for [agentId]; returns the number of messages dropped
+  /// (Rule 11 — an empty clear is observable).
   int clearInbox(String agentId);
 
-  /// Closes messaging hub resources.
-/// Returns true when this call closed the hub, false when it was
-  /// already closed (idempotence made observable).
+  /// Exports every inbox as pure JSON — read/unread state included.
+  ///
+  /// Durability is a CONTRACT obligation, not an implementation detail
+  /// (Rule 8: every stateful VM subsystem exposes export/import in its
+  /// own package; `vaster_checkpoint` composes them and must never
+  /// downcast to a concrete hub — that silently checkpointed any other
+  /// implementation as empty).
+  Map<String, List<Map<String, dynamic>>> exportInboxes();
+
+  /// Imports inboxes previously exported with [exportInboxes], replacing
+  /// same-agent inboxes; returns how many messages were hydrated.
+  int importInboxes(Map<String, List<Map<String, dynamic>>> inboxes);
+
+  /// Closes messaging hub resources; returns true when this call closed
+  /// the hub, false when it was already closed (idempotence made
+  /// observable).
   Future<bool> close();
 }
