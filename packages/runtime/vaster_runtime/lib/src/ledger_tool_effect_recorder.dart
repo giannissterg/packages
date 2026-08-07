@@ -4,9 +4,10 @@ import 'package:vaster_vm_api/vaster_vm_api.dart';
 
 import 'effect_ledger.dart';
 
-/// The runtime's implementation of the agent-loop [ToolEffectRecorder]
-/// contract (GAP-3a): claims delegate into the [EffectLedger], so
-/// agent-internal tool calls share the machine's dedup memory — scoped by
+/// The runtime's implementation of the [ToolEffectRecorder] contract
+/// (GAP-3a, shared by BOTH tool loops since A1): claims delegate into
+/// the [EffectLedger], so every tool call shares the machine's dedup
+/// memory — scoped by
 /// the dispatch's [EffectRegion], reset by `MarkEffectRetryOp`, discarded
 /// with the effect scope, and serialized with the checkpoint.
 ///
@@ -42,7 +43,7 @@ final class LedgerToolEffectRecorder implements ToolEffectRecorder {
     final recorded = slot.recorded;
     if (recorded != null) {
       eventBus.publish(ToolCallReplayedEvent(
-        eventId: 'evt_tool_replay_agent_${callId ?? name}',
+        eventId: 'evt_tool_replay_${callId ?? name}',
         callId: callId ?? '',
         toolName: name,
       ));

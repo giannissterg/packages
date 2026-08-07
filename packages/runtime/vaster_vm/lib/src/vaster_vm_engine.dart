@@ -52,6 +52,9 @@ class VasterVMEngine implements VasterVirtualMachine {
   final ToolEffectRecorderBinding agentToolRecorder;
 
   @override
+  final ToolCallGateBinding agentToolGate;
+
+  @override
   final RuntimeEventBus eventBus;
 
   @override
@@ -91,6 +94,7 @@ class VasterVMEngine implements VasterVirtualMachine {
     required this.sandboxManager,
     required this.agentManager,
     required this.agentToolRecorder,
+    required this.agentToolGate,
     required this.eventBus,
     required this.messagingHub,
     required this.resourceTracker,
@@ -157,11 +161,24 @@ class VasterVMEngine implements VasterVirtualMachine {
     // binds its effect ledger's adapter so agent tool calls replay across
     // retry attempts. Unbound = no-op passthrough.
     final agentToolRecorder = ToolEffectRecorderBinding();
+    // A1: the program's policy gate reaches agent loops through this
+    // binding; agents additionally compose their own descriptor policy.
+    final agentToolGate = ToolCallGateBinding();
     final agentManager = AdvancedAgentManager(
       sessionManager: sessionManager,
       eventBus: eventBus,
       resourceTracker: resourceTracker,
       toolEffectRecorder: agentToolRecorder,
+      // A1: every agent answers to the program's policy (bound by the
+      // executing runtime); a descriptor-declared agent policy composes
+      // ON TOP — the dormant AgentDescriptor.policy field becomes law.
+      toolCallGateFor: (descriptor) => descriptor.policy != null
+          ? CompositeToolCallGate([
+              PolicyGuard(
+                  engine: activePolicyEngine, policy: descriptor.policy!),
+              agentToolGate,
+            ])
+          : agentToolGate,
       // Tool-loop turns were invisible to metering: only a task-level rollup
       // with wire-reported cost existed. Per-turn wiring meters every model
       // call an agent makes as it happens.
@@ -183,6 +200,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       sandboxManager: sandboxManager,
       agentManager: agentManager,
       agentToolRecorder: agentToolRecorder,
+      agentToolGate: agentToolGate,
       eventBus: eventBus,
       messagingHub: messagingHub,
       resourceTracker: resourceTracker,

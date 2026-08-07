@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **A1 (security)**: the ISA tool loop and the agent tool loop are now
+  the SAME pipeline (`ToolTurnRunner`). `PolicyGuard` implements
+  `ToolCallGate` and the runtime binds it into the VM's agent gate — so
+  agent-internal tool calls answer to the program's execution policy,
+  which they previously did NOT. `ToolCallReplayedEvent` has one owner
+  (the recorder); the orchestrator's duplicate publish is gone. The
+  orchestrator takes a `ToolEffectRecorder` (shared with agents) instead
+  of the ledger directly. `PolicyGuard.check` echoes its resource
+  (Rule 11).
+
 - Rule 11 V8: `EffectLedger` scope ops return depths (push/pop/unwind)
   and reset counts (markRetry, clear); `CallStack.push` returns the new
   depth.

@@ -38,6 +38,8 @@ final class _AgentEntry {
 /// for different agents run concurrently. [pauseAgent] gates both acceptance
 /// and dequeue: new dispatches fail immediately, and tasks already queued
 /// fail when their turn comes while the agent is still paused.
+ToolCallGate _noGate(AgentDescriptor _) => const NoopToolCallGate();
+
 class AdvancedAgentManager implements AgentManager {
   final SessionManager sessionManager;
   final RuntimeEventBus eventBus;
@@ -57,6 +59,11 @@ class AdvancedAgentManager implements AgentManager {
   /// default records nothing.
   final ToolEffectRecorder toolEffectRecorder;
 
+  /// Builds the tool-call gate for one agent from its descriptor (A1):
+  /// the wiring owner composes the program-policy binding with any
+  /// descriptor-declared policy. Canonical default permits everything.
+  final ToolCallGate Function(AgentDescriptor descriptor) toolCallGateFor;
+
   final Map<String, _AgentEntry> _entries = {};
 
   AdvancedAgentManager({
@@ -66,6 +73,7 @@ class AdvancedAgentManager implements AgentManager {
     this.maxTreeDepth = 5,
     this.onTurnUsage,
     this.toolEffectRecorder = const NoopToolEffectRecorder(),
+    this.toolCallGateFor = _noGate,
     List<VasterAgent> initialAgents = const [],
   }) {
     for (final agent in initialAgents) {
@@ -195,6 +203,7 @@ class AdvancedAgentManager implements AgentManager {
       toolManager: toolManager,
       onTurnUsage: onTurnUsage,
       toolEffectRecorder: toolEffectRecorder,
+      toolCallGate: toolCallGateFor(descriptor),
     );
 
     registerAgent(agent, parentAgentId: parentAgentId);

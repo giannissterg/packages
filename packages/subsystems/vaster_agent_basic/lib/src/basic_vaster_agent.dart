@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:vaster_agent/vaster_agent.dart';
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_model/vaster_model.dart';
+import 'package:vaster_policy/vaster_policy.dart' show PolicyViolationException;
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_session/vaster_session.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
@@ -53,6 +54,11 @@ class BasicVasterAgent implements VasterAgent {
   /// no-op recorder — calls execute directly.
   final ToolEffectRecorder toolEffectRecorder;
 
+  /// Gates every tool call this agent makes (A1). The VM wires the
+  /// program-policy binding here; a descriptor-declared agent policy
+  /// composes on top at the VM's construction site.
+  final ToolCallGate toolCallGate;
+
   BasicVasterAgent({
     required this.descriptor,
     required this.session,
@@ -61,6 +67,7 @@ class BasicVasterAgent implements VasterAgent {
     this.subagentLauncher,
     this.onTurnUsage,
     this.toolEffectRecorder = const NoopToolEffectRecorder(),
+    this.toolCallGate = const NoopToolCallGate(),
   });
 
   @override
@@ -180,59 +187,29 @@ class BasicVasterAgent implements VasterAgent {
         final calls = response.functionCalls.toList();
         if (calls.isEmpty) break;
 
-        // f. Execute all tool calls in parallel — through the effect
-        //    recorder: inside a dispatch's effect region, a call that
-        //    already performed in a failed attempt REPLAYS its recorded
-        //    result instead of re-executing the side effect. Claims are
-        //    taken in list order during the synchronous prefix, so
-        //    occurrence identity is deterministic even under Future.wait.
-        final region = EffectRegion.fromMetadata(task.metadata);
-        var executedCalls = 0;
-        final results = await Future.wait(calls.map((call) {
-          final claim = toolEffectRecorder.claim(
-            region: region,
-            name: call.name,
-            arguments: call.arguments,
-            callId: call.callId,
-          );
-          switch (claim) {
-            case ToolEffectReplay(:final result):
-              return Future.value(ToolResult(
-                callId: call.callId,
-                name: call.name,
-                response: result,
-              ));
-            case ToolEffectSlot slot:
-              executedCalls++;
-              return toolManager.executeCall(call).then((r) => r.isError
-                  ? r
-                  : ToolResult(
-                      callId: r.callId,
-                      name: r.name,
-                      response: toolEffectRecorder.commit(slot, r.response),
-                      executionDuration: r.executionDuration,
-                    ));
-            case ToolEffectInert():
-              executedCalls++;
-              return toolManager.executeCall(call);
-          }
-        }));
+        // f. Execute the turn through the SHARED guarded pipeline (A1):
+        //    the same ToolTurnRunner the ISA loop uses — gated by the
+        //    program policy the runtime bound plus any descriptor policy,
+        //    effect-replayed inside the dispatch's region, parallel by
+        //    declaration.
+        final runner = ToolTurnRunner(
+          gate: toolCallGate,
+          recorder: toolEffectRecorder,
+          dispatch: toolManager.executeCall,
+          concurrency: ToolTurnConcurrency.parallel,
+        );
+        final outcome = await runner.run(ToolTurn(calls),
+            region: EffectRegion.fromMetadata(task.metadata));
 
-        // h. Record quota for tool calls that really EXECUTED — replays
+        // h. Record quota for calls that really EXECUTED — replays
         //    perform no work and never count against the ceiling.
-        if (executedCalls > 0) {
-          resourceTracker.recordToolCall(count: executedCalls);
+        if (outcome.executedCount > 0) {
+          resourceTracker.recordToolCall(count: outcome.executedCount);
         }
 
-        // i. Batch all FunctionResponseParts into a single tool-role message.
-        //    Both Gemini and OpenAI require all responses from one model turn to
-        //    arrive together before the next generation — sending them separately
-        //    produces a malformed turn structure that providers reject.
-        final toolMessage = ChatMessage(
-          role: Role.tool,
-          parts: results.map((r) => r.toResponsePart()).toList(),
-        );
-        session.appendMessage(toolMessage);
+        // i. One tool-role message per turn — the provider batching rule
+        //    is a property of ToolTurnOutcome now, not a comment.
+        session.appendMessage(outcome.toToolMessage());
 
         // Loop-iteration boundary: expire ephemeral scratch context.
         session.contextManager.pruneLifetimes({ContextLifetime.ephemeral});
@@ -279,6 +256,11 @@ class BasicVasterAgent implements VasterAgent {
         usage: taskUsage,
         executionDuration: watch.elapsed,
       );
+    } on PolicyViolationException {
+      // A1: a policy violation is a VM security trap, never a task
+      // outcome — it must escape the agent, the mailbox, and every
+      // program-level handler untouched.
+      rethrow;
     } catch (e, st) {
       watch.stop();
       return AgentOutput(
@@ -317,10 +299,11 @@ class BasicVasterAgent implements VasterAgent {
         resourceTracker: resourceTracker,
         toolManager: toolManager,
         onTurnUsage: onTurnUsage,
-        // Subagents inherit the recorder: their tool effects belong to
-        // the same dispatch region (their tasks carry the region in
-        // metadata like any other task).
+        // Subagents inherit the recorder AND the gate: their tool
+        // effects belong to the same dispatch region, and they answer
+        // to the same policy as their parent (A1).
         toolEffectRecorder: toolEffectRecorder,
+        toolCallGate: toolCallGate,
       );
     }
 

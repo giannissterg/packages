@@ -50,6 +50,12 @@ abstract interface class VasterVirtualMachine
   /// a no-op — agents execute directly.
   ToolEffectRecorderBinding get agentToolRecorder;
 
+  /// The agent-loop tool-call gate binding (A1): agents pass every tool
+  /// call through it; the executing runtime binds the PROGRAM's policy
+  /// guard here, so agent-internal tool calls answer to the same
+  /// execution policy the ISA loop enforces. Unbound, it permits.
+  ToolCallGateBinding get agentToolGate;
+
   /// Active Inter-Agent Messaging Hub.
   AgentMessagingHub get messagingHub;
 

@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A1**: the tool loop runs through the shared `ToolTurnRunner` with a
+  `ToolCallGate` collaborator; `PolicyViolationException` rethrows past
+  the task-outcome catch-all (a security trap is never a task outcome).
+  Subagents inherit gate and recorder.
+
 - Tool calls execute through a `ToolEffectRecorder` (GAP-3a): inside a
   dispatch's effect region, a re-dispatched task replays recorded tool
   results instead of re-executing side effects; only really-executed

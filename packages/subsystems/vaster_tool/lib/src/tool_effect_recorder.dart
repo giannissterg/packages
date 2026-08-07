@@ -10,6 +10,11 @@ final class EffectRegion {
 
   const EffectRegion.none() : key = '';
 
+  /// The runtime ISA tool loop's own dedup region (A6 unification: the
+  /// ISA loop and agent loops share ONE key grammar through this
+  /// contract — the ISA loop is just another region).
+  const EffectRegion.isaLoop() : key = 'isa';
+
   /// The task-metadata slot the serialized region travels in — an ABI
   /// convention shared by the dispatching runtime and the agent.
   static const String metadataKey = 'effectRegion';

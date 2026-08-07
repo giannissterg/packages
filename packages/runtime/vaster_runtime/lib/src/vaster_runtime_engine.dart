@@ -221,8 +221,12 @@ class VasterRuntime {
     // GAP-3a: agent-internal tool calls share this runtime's dedup
     // memory. Last bind wins — one executing runtime per VM is the
     // supported shape; the displaced recorder is intentionally dropped.
-    vm.agentToolRecorder.bind(
-        LedgerToolEffectRecorder(ledger: effectLedger, eventBus: vm.eventBus));
+    final effectRecorder =
+        LedgerToolEffectRecorder(ledger: effectLedger, eventBus: vm.eventBus);
+    vm.agentToolRecorder.bind(effectRecorder);
+    // A1: agent-internal tool calls answer to the PROGRAM's policy — the
+    // same guard the ISA loop enforces, bound through the VM.
+    vm.agentToolGate.bind(policyGuard);
     return VasterRuntime._(
       vm,
       budget,
@@ -241,7 +245,7 @@ class VasterRuntime {
         quotaTracker: quotaTracker,
         guard: policyGuard,
         maxIterations: maxToolIterations,
-        ledger: effectLedger,
+        recorder: effectRecorder,
       ),
       DecisionArbiter(
         funnel: vm,

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **A1**: `VasterVirtualMachine.agentToolGate` — the gate binding the
+  executing runtime fills with the program's policy guard.
+
 - **BREAKING (Rule 11 V6)**: `shutdown` returns the teardown summary
   (sessions closed, hub/bus closure).
 

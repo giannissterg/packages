@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **A1**: `toolCallGateFor(descriptor)` construction collaborator —
+  the wiring owner composes each agent's gate.
+
 - **BREAKING (Rule 11 V6)**: `pauseAgent`/`resumeAgent` return the
   sealed `AgentLifecycle` the agent is now in — the transition is data.
 

@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A1**: the VM composes each agent's gate — program-policy binding
+  plus, when the descriptor declares one, its own policy
+  (`CompositeToolCallGate`). `AgentDescriptor.policy` was a dormant
+  field; it is enforced now.
+
 - **BREAKING (Rule 11 V1)**: registration/mount verbs return handles
   and displaced entities; the mount event now carries the NORMALIZED
   prefix.

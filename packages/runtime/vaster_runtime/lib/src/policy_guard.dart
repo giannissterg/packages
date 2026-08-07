@@ -1,5 +1,6 @@
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_policy_engine/vaster_policy_engine.dart';
+import 'package:vaster_tool/vaster_tool.dart';
 
 /// Immutable policy-enforcement collaborator.
 ///
@@ -12,15 +13,25 @@ import 'package:vaster_policy_engine/vaster_policy_engine.dart';
 /// Policy violations are deliberately thrown as [StateError]s prefixed with
 /// `Policy violation` — the run loop treats that prefix as uncatchable by
 /// program-level `TryCatch` handlers.
-final class PolicyGuard {
+final class PolicyGuard implements ToolCallGate {
   final PolicyEngine engine;
   final ExecutionPolicy policy;
 
   const PolicyGuard({required this.engine, required this.policy});
 
-  /// Authorizes [action] on [resource]; throws a `Policy violation`
-  /// [StateError] on denial.
-  void check(PolicyAction action, String resource) {
+  /// [ToolCallGate]: the program's policy gates a tool call (A1 — the
+  /// runtime binds this guard into the VM's agent gate binding, so
+  /// AGENT-internal tool calls answer to the same program policy the ISA
+  /// loop enforces). Throws [PolicyViolationException] — uncatchable.
+  @override
+  String permit(String toolName) {
+    check(PolicyAction.toolCall, toolName);
+    return toolName;
+  }
+
+  /// Authorizes [action] on [resource] and echoes the resource (Rule 11);
+  /// throws [PolicyViolationException] on denial.
+  String check(PolicyAction action, String resource) {
     final decision = engine.authorize(
       policy: policy,
       action: action,
@@ -33,5 +44,6 @@ final class PolicyGuard {
         reason: decision.reason,
       );
     }
+    return resource;
   }
 }

@@ -4,9 +4,9 @@ import 'package:vaster_model/vaster_model.dart';
 import 'package:vaster_policy/vaster_policy.dart';
 import 'package:vaster_resources/vaster_resources.dart';
 import 'package:vaster_token_estimate/vaster_token_estimate.dart';
+import 'package:vaster_tool/vaster_tool.dart';
 import 'package:vaster_vm_api/vaster_vm_api.dart';
 
-import 'effect_ledger.dart';
 import 'policy_guard.dart';
 
 
@@ -47,11 +47,12 @@ final class ToolCallOrchestrator {
   /// Maximum model turns in one tool-calling loop (runaway guard).
   final int maxIterations;
 
-  /// The runtime's idempotency ledger (REL-P4): inside an effect scope,
-  /// non-VFS tool calls execute-or-replay through it so a retry attempt
-  /// never re-performs a side effect that already happened. VFS syscalls
-  /// bypass it — the transaction machinery owns compensable effects.
-  final EffectLedger ledger;
+  /// The effect recorder (REL-P4/A6): the SAME instance the agent loops
+  /// use, so both loops share one key grammar — the ISA loop is region
+  /// [EffectRegion.isaLoop]. The adapter claims VFS syscalls inert (the
+  /// transaction machinery owns compensable effects) and claims are
+  /// inert outside an effect scope.
+  final ToolEffectRecorder recorder;
 
   const ToolCallOrchestrator({
     required this.host,
@@ -60,7 +61,7 @@ final class ToolCallOrchestrator {
     required this.quotaTracker,
     required this.guard,
     required this.maxIterations,
-    required this.ledger,
+    required this.recorder,
   });
 
   /// Runs the tool-calling loop until the model stops requesting tools (or
@@ -85,58 +86,60 @@ final class ToolCallOrchestrator {
     while (response.functionCalls.isNotEmpty && iterations < maxIterations) {
       iterations++;
 
-      // Echo the assistant turn (with its tool_use parts), then execute every
-      // call in the turn and answer them all in a single tool message.
+      // Echo the assistant turn (with its tool_use parts), then run the
+      // whole turn through the SHARED guarded pipeline (A1): the same
+      // ToolTurnRunner the agent loops use — the guard is this runtime's
+      // PolicyGuard, the recorder the shared ledger adapter, the ISA
+      // loop's dedup region is EffectRegion.isaLoop, and execution is
+      // declared sequential (VFS write ordering).
       transcript.add(response.message);
-      final results = <ContentPart>[];
-      for (final call in response.functionCalls) {
-        guard.check(PolicyAction.toolCall, call.name);
+      final turn = ToolTurn(response.functionCalls.toList());
+      for (final call in turn.calls) {
         host.eventBus.publish(ToolCalledEvent(
           eventId: 'evt_tool_call_${call.callId}',
           callId: call.callId,
           toolName: call.name,
           arguments: call.arguments,
         ));
-        // VFS syscalls are compensable (the transaction machinery rolls
-        // them back) so they always re-execute; everything else goes
-        // through the ledger — inside an effect scope, a retried call
-        // replays its recorded result instead of re-performing the effect.
-        final isVfsSyscall = call.name == VfsSyscalls.writeFileName ||
-            call.name == VfsSyscalls.readFileName;
-        final toolClock = Stopwatch()..start();
-        final outcome = isVfsSyscall
-            ? (result: await _dispatchToolCall(call), replayed: false)
-            : await ledger.executeOrReplay(
-                name: call.name,
-                arguments: call.arguments,
-                execute: () => _dispatchToolCall(call),
-              );
-        toolClock.stop();
-        if (outcome.replayed) {
-          host.eventBus.publish(ToolCallReplayedEvent(
-            eventId: 'evt_tool_replay_${call.callId}',
+      }
+      final runner = ToolTurnRunner(
+        gate: guard,
+        recorder: recorder,
+        dispatch: (call) async {
+          final toolClock = Stopwatch()..start();
+          final payload = await _dispatchToolCall(call);
+          toolClock.stop();
+          return ToolResult(
             callId: call.callId,
-            toolName: call.name,
-          ));
-        } else {
-          // Replays perform no work: only real executions count against
-          // the program's tool-call quota.
-          quotaTracker.recordToolCall();
-        }
+            name: call.name,
+            response: payload,
+            isError: payload.containsKey('error'),
+            executionDuration: toolClock.elapsed,
+          );
+        },
+        concurrency: ToolTurnConcurrency.sequential,
+      );
+      final outcome =
+          await runner.run(turn, region: const EffectRegion.isaLoop());
+      // ToolCallReplayedEvent has ONE owner — the effect recorder that
+      // decided the replay (one-owner emission, Rule 6.10's discipline).
+      // Publishing here too double-counted every replay.
+      for (final execution in outcome.executions) {
         host.eventBus.publish(ToolFinishedEvent(
-          eventId: 'evt_tool_done_${call.callId}',
-          callId: call.callId,
-          toolName: call.name,
-          isError: outcome.result.containsKey('error'),
-          executionDuration: toolClock.elapsed,
-        ));
-        results.add(FunctionResponsePart(
-          callId: call.callId,
-          name: call.name,
-          response: outcome.result,
+          eventId: 'evt_tool_done_${execution.result.callId}',
+          callId: execution.result.callId,
+          toolName: execution.result.name,
+          isError: execution.result.isError ||
+              execution.result.response.containsKey('error'),
+          executionDuration: execution.result.executionDuration,
         ));
       }
-      transcript.add(ChatMessage(role: Role.tool, parts: results));
+      // Replays perform no work: only real executions count against the
+      // program's tool-call quota.
+      if (outcome.executedCount > 0) {
+        quotaTracker.recordToolCall(count: outcome.executedCount);
+      }
+      transcript.add(outcome.toToolMessage());
 
       response = await host.promptWithHistory(
         transcript,
