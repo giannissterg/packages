@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **W2 (AST_REVIEW F2)**: whole-subtree role collection. Every
   `AgentRole` the tree names through an `agent:` slot provisions

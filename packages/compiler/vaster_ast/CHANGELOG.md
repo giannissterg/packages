@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **BREAKING — W2 (AST_REVIEW F1)**: `Specify.goal` and `Clarify.topic`
   are `Template`-typed. Bound values interpolate as typed `Binding`

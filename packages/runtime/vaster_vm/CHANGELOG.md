@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (B2)**: the engine's prompt verbs require an explicit
   model (no `?? config.defaultModel` fallback inside); `createAgent`

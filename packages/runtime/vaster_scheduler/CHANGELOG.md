@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **BREAKING (B2, Rule 5)**: `submitTask`/`scheduleOpcode` take a
   required `budget` (the hidden `?? unlimited()` default is gone —

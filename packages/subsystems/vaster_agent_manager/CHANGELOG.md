@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (Rule 11 V1)**: `registerAgent` returns the same-id agent
   it displaced.

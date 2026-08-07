@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - A3: disk mounts export EMPTY by contract — their bytes survive by
   nature and the checkpoint carries the mount PATH (Rule 8's

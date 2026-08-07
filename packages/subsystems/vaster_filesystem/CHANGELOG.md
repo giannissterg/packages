@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (A3)**: durability is a CONTRACT obligation —
   `exportFilesBase64`/`importFilesBase64` join `VasterFileSystem`, so

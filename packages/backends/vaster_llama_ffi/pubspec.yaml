@@ -1,6 +1,6 @@
 name: vaster_llama_ffi
 description: In-process llama.cpp inference over dart:ffi — hand-written libllama bindings, a deterministic engine wrapper, and a worker-isolate host that moves KV state directly between the engine and shared-memory frames.
-version: 0.4.0
+version: 0.5.0
 publish_to: none
 resolution: workspace
 

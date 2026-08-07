@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **BREAKING (C wave)**: `sendMessage` returns the message id — the
   same handle idiom `publish` uses; fan-out is not a sanctioned sink.

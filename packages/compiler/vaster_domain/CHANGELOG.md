@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **W1 (AST_REVIEW F3)**: `AgentRole.name`/`title` are optional —
   `name` defaults to `roleId`, `title` to `name`. A persona is an id

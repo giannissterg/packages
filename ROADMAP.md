@@ -114,11 +114,14 @@ compiler-behavior → W3 scope sugar): `docs/AST_REVIEW.md`. Benchmark and
 acceptance criterion: `plan_external_codebase.dart` in ≤ half the lines
 with zero escaped-dollar strings.
 
-### 1. Release v0.3.0
-Four of the five AR phases are breaking (`vaster_vm_api` extraction, required
-ownership params, interface promotion, package moves). Roll the `Unreleased`
-CHANGELOG sections into 0.3.0, bump pubspecs, tag. Cheap, and it puts a stake
-in the ground before the next breaking wave.
+### 1. Releases — ✅ current: v0.5.0 (2026-08-07)
+v0.3.0 and v0.4.0 shipped per plan. v0.5.0 rolls the A–D refactor board
+(one idiom per family, required collaborators, the tool-turn transcript
+rule, the cancellation leaf), TT-P4 debugger resume, the recorded 110
+format width, the layer agents, and the complete AST_REVIEW W0–W3
+(runPipeline, typed goals, collected roles, the Builder pattern, Sdd
+scope). Deferred to the next breaking batch: the unnamed-positional
+promotions (`AgentRole('id', …)`, `ReadFile('/x')`).
 
 ### 2. CI pipeline — ✅ delivered (lock-in), hardened 2026-08-06
 `.github/workflows/ci.yml`: `dart analyze --fatal-infos packages` + the

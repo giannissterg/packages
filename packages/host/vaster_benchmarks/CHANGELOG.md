@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - `agent_effects_once` (GAP-3a): the exactly-once claim inside an agent
   task — a re-dispatched task never re-executes its predecessor's tool

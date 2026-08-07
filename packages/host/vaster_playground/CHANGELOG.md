@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - `plan_external_codebase` — dogfood bin: disk-mount ANOTHER codebase at
   `/project`, read its real files into bindings, and run the SDD kit

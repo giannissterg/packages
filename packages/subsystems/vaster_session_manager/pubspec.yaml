@@ -1,6 +1,6 @@
 name: vaster_session_manager
 description: Multi-session creation, lookup, isolation, and lifecycle management for Vaster.
-version: 0.4.0
+version: 0.5.0
 
 resolution: workspace
 

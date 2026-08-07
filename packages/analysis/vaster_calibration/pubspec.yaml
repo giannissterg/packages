@@ -1,6 +1,6 @@
 name: vaster_calibration
 description: Estimate calibration for Vaster — fitted per-backend token-ratio profiles as data, a calibrated TokenEstimator composed beside the canonical heuristic, and a fitter that learns profiles from recorded replay tapes.
-version: 0.4.0
+version: 0.5.0
 publish_to: none
 resolution: workspace
 

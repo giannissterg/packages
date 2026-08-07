@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **TT-P4**: `DebugSession.materializedMachine()` returns a
   `MaterializedMachine` — the runtime plus the `SnapshotHost` facet of

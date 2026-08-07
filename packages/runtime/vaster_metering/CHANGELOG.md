@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **BREAKING (Rule 11 V2)**: `UsageSink.addTokens`/`addCost` return the
   sink's new consumed totals (both sinks delegate the balance through).

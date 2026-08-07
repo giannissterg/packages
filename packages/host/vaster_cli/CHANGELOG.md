@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **TT-P4 — the debugger becomes a surgery table.** `vaster debug
   <envelope> --resume-at N [--backend …] [--model …] [--trace]`

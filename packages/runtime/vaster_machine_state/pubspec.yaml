@@ -1,6 +1,6 @@
 name: vaster_machine_state
 description: The machine-state contract for Vaster — snapshotable state components and the whole-machine snapshot shared by the runtime and its carriers.
-version: 0.4.0
+version: 0.5.0
 publish_to: none
 resolution: workspace
 

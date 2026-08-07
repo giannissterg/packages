@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - C wave: `ContextHeap.clear` returns regions dropped (it sat void
   eight lines under the int-returning `clearNonCritical`).

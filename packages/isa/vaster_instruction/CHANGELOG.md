@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - Effect-scope opcodes (REL-P4): `push_effect_scope` / `pop_effect_scope` /
   `mark_effect_retry` — the compiled brackets of a retry region's dedup

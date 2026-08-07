@@ -1,6 +1,6 @@
 name: vaster_filesystem
 description: Pure virtual filesystem interfaces, node types, file descriptors, and snapshot models for Vaster.
-version: 0.4.0
+version: 0.5.0
 
 resolution: workspace
 

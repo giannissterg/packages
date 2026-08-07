@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Rule 11 V6: `RingSidecarHost.stop` returns whether this call
   performed the stop transition.

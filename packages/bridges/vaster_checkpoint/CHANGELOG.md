@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **B5**: capture composes the `SnapshotHost` facet — the checkpoint's
   type no longer claims it can run agents or shut the VM down.

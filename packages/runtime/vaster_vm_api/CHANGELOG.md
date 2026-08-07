@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **B5**: `SnapshotHost` facet — the six members checkpoint
   capture/restore actually uses; `MachineCheckpoint.capture` and

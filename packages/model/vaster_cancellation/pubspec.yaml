@@ -1,6 +1,6 @@
 name: vaster_cancellation
 description: The CancellationToken/CancelledException leaf shared by models, tools, and sandboxes.
-version: 0.1.0
+version: 0.5.0
 
 resolution: workspace
 

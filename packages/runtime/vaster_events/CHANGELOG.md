@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **A5**: the event-id contract is documented on the bus — unique
   within one machine run, deterministic under replay, never wall-clock;

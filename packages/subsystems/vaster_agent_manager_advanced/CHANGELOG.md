@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **A1**: `toolCallGateFor(descriptor)` construction collaborator —
   the wiring owner composes each agent's gate.

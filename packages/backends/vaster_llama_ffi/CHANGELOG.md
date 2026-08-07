@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - C wave: `LlamaWorker.close` returns whether THIS call tore down (the
   guard already computed it); `restore` reports state movement.

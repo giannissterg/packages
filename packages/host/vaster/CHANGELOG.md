@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **W0 (AST_REVIEW F0)**: `runPipeline` — the `runApp` of vaster. One
   top-level call owns the whole harness every host previously

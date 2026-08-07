@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **A1**: the tool loop runs through the shared `ToolTurnRunner` with a
   `ToolCallGate` collaborator; `PolicyViolationException` rethrows past

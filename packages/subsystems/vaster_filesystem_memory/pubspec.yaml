@@ -1,6 +1,6 @@
 name: vaster_filesystem_memory
 description: In-memory virtual filesystem backend implementation for Vaster.
-version: 0.4.0
+version: 0.5.0
 
 resolution: workspace
 

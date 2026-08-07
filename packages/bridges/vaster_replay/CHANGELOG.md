@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **BREAKING (C wave)**: `VasterExecutionRecorder.detach` returns the
   observer it RESTORED (symmetric with `attach`'s displaced observer),

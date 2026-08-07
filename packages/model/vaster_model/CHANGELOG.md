@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **D**: `CancellationToken`/`CancelledException` moved to the new
   `vaster_cancellation` leaf package and are re-exported here —

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **D**: depends on `vaster_cancellation` instead of `vaster_model` —
   `CancellationToken` was the only model-domain name used.

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - `modelDescriptor` + ordered `modelFallbacks` (GAP-3b): the agent's
   model — and its fallback chain — is descriptor data, compiled through

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (R wave)**: `pruneLifetimes` returns the named
   `PruneReport` (was an anonymous record declared verbatim at three

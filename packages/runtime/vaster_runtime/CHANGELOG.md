@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - `WriteFileOp` publishes `FileOperationEvent` (operation `write`,
   resolved path, UTF-8 byte size) — the enum member existed but only

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (R wave)**: `restoreConsumed` returns the named
   `ConsumptionSnapshot` (a Snapshot, not a Report — it echoes state).

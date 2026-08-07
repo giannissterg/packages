@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (Rule 11 V4)**: `beginTransaction`/`commit`/`rollback`
   return the transaction depth they left behind; `importTransactions`

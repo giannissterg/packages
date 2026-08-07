@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **BREAKING (C wave)**: `ContinuationStore.clear` returns how many
   snapshots it dropped.

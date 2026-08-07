@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (B3)**: `ToolManager.processFunctionCalls` is GONE — it
   was a second, ungated dispatch loop that bypassed `ToolTurnRunner`

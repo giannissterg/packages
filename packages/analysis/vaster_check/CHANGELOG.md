@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - `mostExpensiveSelectableModel` also scans `CreateAgentOp` descriptor
   chains (GAP-3b) — a pricey member hiding as an agent fallback rates

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **A5**: policy telemetry ids are deterministic sequences — the
   wall-clock ids on the SECURITY audit path made every replayed run's

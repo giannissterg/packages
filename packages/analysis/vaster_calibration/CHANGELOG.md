@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Prompt-side fitting (`fitPromptSide`) from tape-v2 full requests —
   whole-request chars vs measured `promptTokenCount`, same median-ratio

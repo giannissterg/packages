@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **BREAKING (C wave)**: `KvCacheController.restore` returns whether
   state really moved — content-addressed backends answer false, making

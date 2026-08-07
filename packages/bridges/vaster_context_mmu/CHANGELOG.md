@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - `contentRenderer` — the alignment-contract hook: backends whose prompt
   composition renders regions inject their renderer so materialized

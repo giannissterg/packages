@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (B3)**: `ToolResult.toChatMessage()` is GONE. A per-call
   tool message contradicted the one-turn-one-message batching rule that

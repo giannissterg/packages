@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **BREAKING (C wave)**: `ExecutionTracer.detach` returns the restored
   observer (was bool); `attach` returns the already-displaced observer

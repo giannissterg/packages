@@ -1,6 +1,6 @@
 name: vaster_benchmarks
 description: The reliability benchmark set — gate 4's evidence. Recorded-tape CI runs and the live-run protocol.
-version: 0.1.0
+version: 0.5.0
 
 resolution: workspace
 

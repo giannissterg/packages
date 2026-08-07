@@ -1,6 +1,6 @@
 name: vaster_context_mmu
 description: The bridge between virtual context and physical KV state — the ContextMmu page table that binds pinned context regions to materialized KV-cache handles through any KvCacheController backend.
-version: 0.4.0
+version: 0.5.0
 publish_to: none
 resolution: workspace
 
