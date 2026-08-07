@@ -118,14 +118,22 @@ final class EffectLedger implements MachineStateComponent {
   /// dispatch dedup and (through the recorder adapter) both tool loops;
   /// batch consumers claim every entry in declaration order BEFORE
   /// fanning out.
-  EffectClaim claim({required String name, required Map<String, dynamic> arguments}) {
+  EffectClaim claim({
+    required String name,
+    required Map<String, dynamic> arguments,
+    String scope = '',
+  }) {
     if (_frames.isEmpty) return const EffectClaim._(null, null);
     final frame = _frames.last;
-    final callKey = '$name|${_canonical(arguments)}';
+    final callKey = EffectKey.callKey(
+        scope: scope, name: name, canonicalArguments: _canonical(arguments));
     final occurrence = (frame.cursors[callKey] ?? 0) + 1;
     frame.cursors[callKey] = occurrence;
-    final regionPath = _frames.map((f) => f.pushPc).join('/');
-    final recordKey = '$regionPath|$callKey|$occurrence';
+    final recordKey = EffectKey.recordKey(
+      regionPath: [for (final f in _frames) f.pushPc],
+      callKey: callKey,
+      occurrence: occurrence,
+    );
     final recorded = _records[recordKey];
     return EffectClaim._(recorded == null ? null : Map<String, dynamic>.from(recorded), recordKey);
   }
@@ -183,4 +191,36 @@ final class EffectLedger implements MachineStateComponent {
     if (value is List) return [for (final item in value) _normalize(item)];
     return value;
   }
+}
+
+/// THE owner of the effect-record key grammar (A6). Keys were previously
+/// built from four ad-hoc separators (`:`, `#`, `/`, `|`) across three
+/// files, with collision-safety resting on undocumented invariants of
+/// OTHER files — and the keys serialize into checkpoints, making the
+/// encoding a durable format. This codec is versioned and
+/// self-delimiting (a JSON array cannot be confused by separators inside
+/// its segments), and it is the only place keys are composed.
+final class EffectKey {
+  /// Grammar version — bump on any change; restored checkpoints carrying
+  /// old-format records simply miss (re-execute), never mis-replay.
+  static const String version = 'e1';
+
+  /// Identity of one call within an attempt: (scope, name, canonical
+  /// args). The scope is the dispatch's [EffectRegion] key ('' for the
+  /// ISA loop's direct claims).
+  static String callKey({
+    required String scope,
+    required String name,
+    required String canonicalArguments,
+  }) =>
+      jsonEncode([version, scope, name, canonicalArguments]);
+
+  /// Identity of one recorded occurrence: region path (open-scope pcs,
+  /// outermost first) + call key + occurrence index.
+  static String recordKey({
+    required List<int> regionPath,
+    required String callKey,
+    required int occurrence,
+  }) =>
+      jsonEncode([version, regionPath, callKey, occurrence]);
 }

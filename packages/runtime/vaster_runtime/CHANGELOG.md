@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **A5+A6**: engine event ids are `evt_<kind>_<pc>_<seq>` — the
+  sequence is MACHINE STATE (unique across loop iterations, retries,
+  and checkpoint resumes; deterministic under replay). The effect-record
+  key grammar has ONE owner: `EffectKey`, versioned ('e1') and
+  self-delimiting JSON — four ad-hoc separators across three files are
+  gone, and `claim` takes the dispatch scope as its own parameter
+  instead of a `#`-concatenated name. **BREAKING (checkpoint format)**:
+  open-scope effect records from older checkpoints miss (re-execute),
+  never mis-replay.
+
 - **BREAKING (B2, Rule 5)**: `DecisionArbiter.decide` and
   `ToolCallOrchestrator.resolve` take a required model (their
   `defaultModel` constructor fields are gone — the engine's new

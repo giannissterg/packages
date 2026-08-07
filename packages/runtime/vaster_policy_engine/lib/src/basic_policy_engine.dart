@@ -8,6 +8,11 @@ import 'policy_engine_interface.dart';
 class BasicPolicyEngine implements PolicyEngine {
   final RuntimeEventBus? eventBus;
 
+  /// Monotonic id sequence for policy telemetry — deterministic under
+  /// replay (A5: wall-clock ids on the SECURITY telemetry path made every
+  /// replayed run's audit stream differ from the recorded one).
+  int _seq = 0;
+
   BasicPolicyEngine({this.eventBus});
 
   @override
@@ -101,7 +106,7 @@ class BasicPolicyEngine implements PolicyEngine {
   ) {
     return eventBus?.publish(
       PolicyEvaluatedEvent(
-        eventId: 'evt_policy_eval_${DateTime.now().microsecondsSinceEpoch}',
+        eventId: 'evt_policy_eval_${_seq++}',
         policyId: policy.policyId,
         action: action.name,
         resource: resource,

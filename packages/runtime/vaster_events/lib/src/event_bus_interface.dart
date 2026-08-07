@@ -1,6 +1,12 @@
 import 'runtime_event.dart';
 
 /// Interface defining the VM runtime Event Bus.
+///
+/// **Event-id contract (A5)**: an [RuntimeEvent.eventId] is unique within
+/// one machine run's stream and deterministic under replay — never
+/// wall-clock derived. Correlation ACROSS runs or process boundaries uses
+/// domain fields (taskId, callId, sessionId), not event ids. Meter-owned
+/// ids (`evt_usage_*`) are unique within one meter's lifetime.
 abstract interface class RuntimeEventBus {
   /// Stream of all runtime events emitted by the VM.
   Stream<RuntimeEvent> get stream;

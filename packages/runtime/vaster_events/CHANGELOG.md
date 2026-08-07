@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **A5**: the event-id contract is documented on the bus — unique
+  within one machine run, deterministic under replay, never wall-clock;
+  cross-run correlation uses domain fields.
+
 - **BREAKING (C wave)**: `publish` returns `String?` — null when the
   bus was closed and the event was DROPPED. A handle for an event that
   never reached a subscriber cannot be correlated or asserted on;

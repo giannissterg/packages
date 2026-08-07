@@ -159,10 +159,17 @@ class VasterRuntime {
   /// ISA `${name}` register interpolation (see RegisterInterpolation spec).
   final RegisterInterpolator _interpolator;
 
+  /// One home for engine event ids (A5): `evt_<kind>_<pc>_<seq>` — the
+  /// pc localizes, the machine-state sequence makes the id unique across
+  /// loop iterations, retry attempts, AND checkpoint resumes, while
+  /// staying deterministic under replay.
+  String _eventId(String kind) =>
+      'evt_${kind}_${_pc}_${_machineContext.nextEventSeq()}';
+
   /// Publishes one extraction warning (same pattern as unresolved
   /// interpolation: tolerated at runtime, visible in telemetry).
   void _warnExtract(String code, String message) => vm.eventBus.publish(
-    RuntimeWarningEvent(eventId: 'evt_warn_${code}_$_pc', code: code, message: message, pc: _pc),
+    RuntimeWarningEvent(eventId: _eventId('warn_$code'), code: code, message: message, pc: _pc),
   );
 
   /// Resolves an interpolated instruction field, surfacing unresolvable
@@ -177,7 +184,7 @@ class VasterRuntime {
 
   void _warnMissingRef(String name) => vm.eventBus.publish(
     RuntimeWarningEvent(
-      eventId: 'evt_warn_interp_$_pc',
+      eventId: _eventId('warn_interp'),
       code: 'unresolved_interpolation',
       message: 'Register "$name" referenced by \${...} is unset at PC $_pc.',
       pc: _pc,
@@ -659,7 +666,7 @@ class VasterRuntime {
         if (vm.fileSystemManager.transactionDepth == 0) {
           vm.eventBus.publish(
             RuntimeWarningEvent(
-              eventId: 'evt_warn_tx_unpaired_$_pc',
+              eventId: _eventId('warn_tx_unpaired_commit'),
               code: 'transaction_unpaired',
               message: 'CommitOp at PC $_pc found no open transaction.',
               pc: _pc,
@@ -672,7 +679,7 @@ class VasterRuntime {
         if (vm.fileSystemManager.transactionDepth == 0) {
           vm.eventBus.publish(
             RuntimeWarningEvent(
-              eventId: 'evt_warn_tx_unpaired_$_pc',
+              eventId: _eventId('warn_tx_unpaired_rollback'),
               code: 'transaction_unpaired',
               message: 'RollbackOp at PC $_pc found no open transaction.',
               pc: _pc,
@@ -710,7 +717,7 @@ class VasterRuntime {
         final languages = vm.sandboxManager.getSandbox(op.sandboxId)?.descriptor.supportedLanguages;
         vm.eventBus.publish(
           SandboxExecutedEvent(
-            eventId: 'evt_sandbox_exec_${op.sandboxId}_$_pc',
+            eventId: _eventId('sandbox_exec_${op.sandboxId}'),
             sandboxId: op.sandboxId,
             language: (languages == null || languages.isEmpty) ? 'unknown' : languages.first.name,
             exitCode: result.exitCode,
@@ -743,7 +750,7 @@ class VasterRuntime {
           output = AgentOutput.fromJson(dispatchClaim.recorded!);
           vm.eventBus.publish(
             AgentTaskReplayedEvent(
-              eventId: 'evt_task_replay_$_pc',
+              eventId: _eventId('task_replay'),
               agentId: op.agentId,
               taskId: output.taskId,
             ),
@@ -823,7 +830,7 @@ class VasterRuntime {
             outputs[i] = AgentOutput.fromJson(recorded);
             vm.eventBus.publish(
               AgentTaskReplayedEvent(
-                eventId: 'evt_task_replay_${_pc}_$i',
+                eventId: _eventId('task_replay_$i'),
                 agentId: dispatches[i].agentId,
                 taskId: outputs[i]!.taskId,
               ),
@@ -1040,7 +1047,7 @@ class VasterRuntime {
           if (!enforceable) {
             vm.eventBus.publish(
               RuntimeWarningEvent(
-                eventId: 'evt_warn_quota_cost_$_pc',
+                eventId: _eventId('warn_quota_cost'),
                 code: 'cost_quota_unenforced',
                 message:
                     'maxCostBudget is declared at PC $_pc but the active '
@@ -1143,7 +1150,7 @@ class VasterRuntime {
         }
         vm.eventBus.publish(
           DecisionMadeEvent(
-            eventId: 'evt_decide_$_pc',
+            eventId: _eventId('decide'),
             chosenLabel: branch.label,
             rationale: decision.rationale,
             branchCount: op.branches.length,

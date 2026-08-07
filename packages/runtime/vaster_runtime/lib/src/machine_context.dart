@@ -24,6 +24,14 @@ final class MachineContext implements MachineStateComponent {
   List<ToolDefinition> programToolSet = const [];
   final List<ErrorHandlerFrame> errorHandlers = [];
 
+  /// Monotonic event-id sequence (A5). Machine state, so ids stay unique
+  /// across a checkpoint resume and deterministic under replay — a bare
+  /// pc suffix collided on every loop iteration and retry attempt.
+  int eventSeq = 0;
+
+  /// Returns the next sequence value (post-incremented).
+  int nextEventSeq() => eventSeq++;
+
   /// Resets to program-start conditions.
   void clear() {
     activeSessionId = null;
@@ -31,6 +39,7 @@ final class MachineContext implements MachineStateComponent {
     activeModelFallbacks = const [];
     programToolSet = const [];
     errorHandlers.clear();
+    eventSeq = 0;
   }
 
   @override
@@ -44,6 +53,7 @@ final class MachineContext implements MachineStateComponent {
       'activeModelFallbacks': [for (final f in activeModelFallbacks) f.toJson()],
     if (programToolSet.isNotEmpty) 'programToolSet': [for (final t in programToolSet) t.toJson()],
     if (errorHandlers.isNotEmpty) 'errorHandlers': [for (final h in errorHandlers) h.toJson()],
+    if (eventSeq != 0) 'eventSeq': eventSeq,
   };
 
   @override
@@ -61,6 +71,7 @@ final class MachineContext implements MachineStateComponent {
       for (final t in snapshot['programToolSet'] as List? ?? const [])
         ToolDefinition.fromJson(Map<String, dynamic>.from(t as Map)),
     ];
+    eventSeq = (snapshot['eventSeq'] as num?)?.toInt() ?? 0;
     errorHandlers
       ..clear()
       ..addAll([
