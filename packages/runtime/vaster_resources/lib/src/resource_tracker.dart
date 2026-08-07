@@ -1,4 +1,5 @@
 import 'quota_exceeded_exception.dart';
+import 'consumption_snapshot.dart';
 import 'resource_quota.dart';
 
 /// Active resource usage tracker enforcing a [ResourceQuota].
@@ -65,9 +66,9 @@ class ResourceTracker {
   /// counters WITHOUT quota checks: the values were legal when captured, and
   /// a resume must not re-trip a quota the original run already survived —
   /// the next real consumption enforces as usual.
-  /// Returns the restored consumption snapshot (echo — the caller can
+  /// Returns the restored [ConsumptionSnapshot] (echo — the caller can
   /// assert what the tracker now believes).
-  ({int tokens, double cost, int toolCalls}) restoreConsumed({
+  ConsumptionSnapshot restoreConsumed({
     required int tokens,
     required double cost,
     required int toolCalls,
@@ -75,7 +76,10 @@ class ResourceTracker {
     _consumedTokens = tokens;
     _consumedCost = cost;
     _toolCallCount = toolCalls;
-    return (tokens: _consumedTokens, cost: _consumedCost, toolCalls: _toolCallCount);
+    return ConsumptionSnapshot(
+        tokens: _consumedTokens,
+        cost: _consumedCost,
+        toolCalls: _toolCallCount);
   }
 
   /// Returns the new tool-call total; throws when the quota trips.

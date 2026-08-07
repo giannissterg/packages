@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **BREAKING (R wave)**: `pruneLifetimes` returns the named
+  `PruneReport` (was an anonymous record declared verbatim at three
+  sites) with `operator +` and `const empty` — the composite manager's
+  hand-rolled merge is now a fold over the monoid, joining the
+  package's other named report classes.
+
 - Rule 11 V7: eviction telemetry helpers return the published event id.
 
 - **BREAKING (Rule 11 V3)**: `pinRegion`/`unpinRegion` return the

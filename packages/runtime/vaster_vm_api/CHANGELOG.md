@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **BREAKING (R wave)**: `shutdown` returns `VmShutdownReport`;
+  `registerSandbox` returns `SandboxRegistration` with fields that say
+  what they hold (`displacedSandbox`/`displacedBridgedTool` — the
+  record's `sandbox:` read as the registered one). Anonymous records no
+  longer cross the master interface (Rule 11).
+
 - **BREAKING (C wave)**: `registerModel` returns EVERY displaced
   binding keyed by slot — registration writes both the descriptor key
   and the bare provider key that `resolveModel` falls back to, so

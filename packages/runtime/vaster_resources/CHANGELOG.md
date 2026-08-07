@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **BREAKING (R wave)**: `restoreConsumed` returns the named
+  `ConsumptionSnapshot` (a Snapshot, not a Report — it echoes state).
+
 - C wave: doc repair — `restoreConsumed` no longer wears
   `recordToolCall`'s stale first line (it claimed to increment a counter
   and enforce a quota, doing neither); `applyQuota`'s duplicate

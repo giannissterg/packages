@@ -11,9 +11,11 @@ import 'package:vaster_scheduler/vaster_scheduler.dart';
 import 'package:vaster_session_manager/vaster_session_manager.dart';
 import 'package:vaster_tool_manager/vaster_tool_manager.dart';
 import 'model_registry.dart';
+import 'sandbox_registration.dart';
 import 'prompt_funnel.dart';
 import 'tool_loop_host.dart';
 import 'vm_config.dart';
+import 'vm_shutdown_report.dart';
 
 /// Master interface defining the top-level LLM Virtual Machine.
 ///
@@ -103,12 +105,10 @@ abstract interface class VasterVirtualMachine
   ExecutableTool? registerTool(ExecutableTool tool);
 
   /// Registers a [CodeSandbox] into [sandboxManager] and bridges it into
-  /// an [ExecutableTool]; returns the same-id sandbox it displaced.
-/// Registers a sandbox AND its bridged executable tool; returns what
-  /// each registration displaced (the bridge writes two registries, so
-  /// one return value could only ever report half of it).
-  ({CodeSandbox? sandbox, ExecutableTool? bridgedTool}) registerSandbox(
-      CodeSandbox sandbox);
+  /// an [ExecutableTool]; returns what each registration displaced (the
+  /// bridge writes two registries, so one return value could only ever
+  /// report half of it).
+  SandboxRegistration registerSandbox(CodeSandbox sandbox);
 
   /// Constructs and registers a default isolate-backed [CodeSandbox] for [sandboxId]
   /// supporting [language]. This is a factory convenience so the runtime does not
@@ -140,8 +140,7 @@ abstract interface class VasterVirtualMachine
     String? agentId,
   });
 
-  /// Shuts down VM resources cleanly; returns the teardown summary —
+  /// Shuts down VM resources cleanly; returns the teardown report —
   /// what was actually closed (Rule 11).
-  Future<({int sessionsClosed, bool messagingClosed, bool eventBusClosed})>
-      shutdown();
+  Future<VmShutdownReport> shutdown();
 }

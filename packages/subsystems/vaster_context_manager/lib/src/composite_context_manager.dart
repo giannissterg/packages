@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'prune_report.dart';
 import 'package:vaster_context/vaster_context.dart';
 
 import 'allocation_strategy.dart';
@@ -206,16 +207,11 @@ class CompositeContextManager implements ContextManager {
   CompiledContext? get lastCompiled => _lastCompiled;
 
   @override
-  ({List<String> prunedIds, int tokensFreed}) pruneLifetimes(
-      Set<ContextLifetime> expiredLifetimes,
-      {bool force = false}) {
-    final prunedIds = <String>[];
-    var tokensFreed = 0;
-    for (final child in children) {
-      final report = child.pruneLifetimes(expiredLifetimes, force: force);
-      prunedIds.addAll(report.prunedIds);
-      tokensFreed += report.tokensFreed;
-    }
-    return (prunedIds: prunedIds, tokensFreed: tokensFreed);
-  }
+  PruneReport pruneLifetimes(Set<ContextLifetime> expiredLifetimes,
+          {bool force = false}) =>
+      // The monoid does the merging — no hand-rolled accumulation.
+      children.fold(
+          PruneReport.empty,
+          (acc, child) =>
+              acc + child.pruneLifetimes(expiredLifetimes, force: force));
 }

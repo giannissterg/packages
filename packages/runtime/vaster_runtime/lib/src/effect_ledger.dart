@@ -119,9 +119,10 @@ final class EffectLedger implements MachineStateComponent {
   /// into. Outside any scope the claim is inert (no replay, commit is a
   /// no-op) — zero bookkeeping, zero overhead.
   ///
-  /// This is the primitive batch consumers need (parallel dispatch claims
-  /// every entry in declaration order BEFORE fanning out); sequential
-  /// callers use [executeOrReplay].
+  /// This is the primitive every consumer composes over — the engine's
+  /// dispatch dedup and (through the recorder adapter) both tool loops;
+  /// batch consumers claim every entry in declaration order BEFORE
+  /// fanning out.
   EffectClaim claim({
     required String name,
     required Map<String, dynamic> arguments,
@@ -146,26 +147,6 @@ final class EffectLedger implements MachineStateComponent {
     final key = claim._recordKey;
     if (key != null) _records[key] = Map<String, dynamic>.from(result);
     return result;
-  }
-
-  /// Executes [execute] exactly once per (region, name, args, occurrence):
-  /// a recorded result replays without re-executing. Sugar over
-  /// [claim]/[commit] for sequential callers.
-  ///
-  /// Only successful results are recorded: an errored result re-executes
-  /// on retry (the failed call most plausibly did not perform its effect,
-  /// and healing is what the retry is for).
-  Future<({Map<String, dynamic> result, bool replayed})> executeOrReplay({
-    required String name,
-    required Map<String, dynamic> arguments,
-    required Future<Map<String, dynamic>> Function() execute,
-  }) async {
-    final slot = claim(name: name, arguments: arguments);
-    final recorded = slot.recorded;
-    if (recorded != null) return (result: recorded, replayed: true);
-    final result = await execute();
-    if (!result.containsKey('error')) commit(slot, result);
-    return (result: result, replayed: false);
   }
 
   /// Resets to program-start conditions; returns the records dropped.

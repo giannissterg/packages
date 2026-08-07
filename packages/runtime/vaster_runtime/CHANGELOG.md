@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **BREAKING (R wave)**: `EffectLedger.executeOrReplay` DELETED — zero
+  production callers since GAP-2 (engine uses claim/commit) and A1 (the
+  tool loops use the shared runner). Dead sugar gets deleted, not
+  gold-plated; its unit tests migrated onto the primitives whose
+  semantics they actually assert.
+
 - C wave: `clear()` across the register file, call stack, and HITL
   controller returns what it dropped (HITL returns the discarded
   pending request — the abandoned pause is data).

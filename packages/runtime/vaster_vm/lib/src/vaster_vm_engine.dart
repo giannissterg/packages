@@ -646,8 +646,7 @@ class VasterVMEngine implements VasterVirtualMachine {
       toolManager.registerTool(tool);
 
   @override
-  ({CodeSandbox? sandbox, ExecutableTool? bridgedTool}) registerSandbox(
-      CodeSandbox sandbox) {
+  SandboxRegistration registerSandbox(CodeSandbox sandbox) {
     final displacedSandbox = sandboxManager.registerSandbox(sandbox);
 
     // Bridge: Automatically create executable tool for sandbox and register in ToolManager
@@ -658,7 +657,8 @@ class VasterVMEngine implements VasterVirtualMachine {
     );
     // Both registrations displace; reporting one hid the other.
     final displacedTool = toolManager.registerTool(sandboxTool);
-    return (sandbox: displacedSandbox, bridgedTool: displacedTool);
+    return SandboxRegistration(
+        displacedSandbox: displacedSandbox, displacedBridgedTool: displacedTool);
   }
 
   @override
@@ -739,12 +739,11 @@ class VasterVMEngine implements VasterVirtualMachine {
   }
 
   @override
-  Future<({int sessionsClosed, bool messagingClosed, bool eventBusClosed})>
-      shutdown() async {
+  Future<VmShutdownReport> shutdown() async {
     final sessionsClosed = await sessionManager.closeAllSessions();
     final messagingClosed = await messagingHub.close();
     final eventBusClosed = await eventBus.close();
-    return (
+    return VmShutdownReport(
       sessionsClosed: sessionsClosed,
       messagingClosed: messagingClosed,
       eventBusClosed: eventBusClosed,

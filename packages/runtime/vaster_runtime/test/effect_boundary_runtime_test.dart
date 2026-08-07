@@ -416,12 +416,30 @@ void main() {
       return result;
     }
 
+    // The claim→execute→commit protocol, test-local (the production
+    // consumers — dispatch dedup and both tool loops — compose the same
+    // primitives; the old executeOrReplay sugar had no production
+    // callers and was deleted).
+    Future<({Map<String, dynamic> result, bool replayed})> runThrough({
+      required EffectLedger ledger,
+      required String name,
+      required Map<String, dynamic> arguments,
+      required Future<Map<String, dynamic>> Function() execute,
+    }) async {
+      final slot = ledger.claim(name: name, arguments: arguments);
+      final recorded = slot.recorded;
+      if (recorded != null) return (result: recorded, replayed: true);
+      final result = await execute();
+      if (!result.containsKey('error')) ledger.commit(slot, result);
+      return (result: result, replayed: false);
+    }
+
     test('outside any scope, calls pass through with zero bookkeeping',
         () async {
       final ledger = EffectLedger();
       final calls = [0];
       for (var i = 0; i < 2; i++) {
-        final outcome = await ledger.executeOrReplay(
+        final outcome = await runThrough(ledger: ledger, 
             name: 't',
             arguments: {'a': 1},
             execute: () => counted(calls, {'ok': true}));
@@ -437,18 +455,18 @@ void main() {
       final calls = [0];
 
       // Attempt 1: the same call twice — both execute, occurrences 1 and 2.
-      final first = await ledger.executeOrReplay(
+      final first = await runThrough(ledger: ledger, 
           name: 't', arguments: {'a': 1}, execute: () => counted(calls, {'n': 1}));
-      final second = await ledger.executeOrReplay(
+      final second = await runThrough(ledger: ledger, 
           name: 't', arguments: {'a': 1}, execute: () => counted(calls, {'n': 2}));
       expect([first.replayed, second.replayed], [false, false]);
       expect(calls[0], 2);
 
       // Attempt 2 replays both, in order, without executing.
       ledger.markRetry();
-      final r1 = await ledger.executeOrReplay(
+      final r1 = await runThrough(ledger: ledger, 
           name: 't', arguments: {'a': 1}, execute: () => counted(calls, {'n': 99}));
-      final r2 = await ledger.executeOrReplay(
+      final r2 = await runThrough(ledger: ledger, 
           name: 't', arguments: {'a': 1}, execute: () => counted(calls, {'n': 99}));
       expect([r1.replayed, r2.replayed], [true, true]);
       expect([r1.result['n'], r2.result['n']], [1, 2]);
@@ -459,12 +477,12 @@ void main() {
         () async {
       final ledger = EffectLedger()..pushScope(0);
       final calls = [0];
-      await ledger.executeOrReplay(
+      await runThrough(ledger: ledger, 
           name: 't',
           arguments: {'b': 2, 'a': 1},
           execute: () => counted(calls, {'ok': true}));
       ledger.markRetry();
-      final outcome = await ledger.executeOrReplay(
+      final outcome = await runThrough(ledger: ledger, 
           name: 't',
           arguments: {'a': 1, 'b': 2},
           execute: () => counted(calls, {'ok': true}));
@@ -476,14 +494,14 @@ void main() {
         () async {
       final ledger = EffectLedger()..pushScope(0);
       final calls = [0];
-      final failed = await ledger.executeOrReplay(
+      final failed = await runThrough(ledger: ledger, 
           name: 't',
           arguments: {},
           execute: () => counted(calls, {'error': 'flaky'}));
       expect(failed.replayed, isFalse);
 
       ledger.markRetry();
-      final retried = await ledger.executeOrReplay(
+      final retried = await runThrough(ledger: ledger, 
           name: 't', arguments: {}, execute: () => counted(calls, {'ok': true}));
       expect(retried.replayed, isFalse, reason: 'errors never dedupe');
       expect(calls[0], 2);
@@ -496,7 +514,7 @@ void main() {
 
       // Outer attempt 1: inner scope opens at pc 20, executes, pops.
       ledger.pushScope(20);
-      await ledger.executeOrReplay(
+      await runThrough(ledger: ledger, 
           name: 'inner_t',
           arguments: {'x': 1},
           execute: () => counted(calls, {'n': 1}));
@@ -507,7 +525,7 @@ void main() {
       // same pc — its call must replay from attempt 1's record.
       ledger.markRetry();
       ledger.pushScope(20);
-      final outcome = await ledger.executeOrReplay(
+      final outcome = await runThrough(ledger: ledger, 
           name: 'inner_t',
           arguments: {'x': 1},
           execute: () => counted(calls, {'n': 99}));
@@ -518,7 +536,7 @@ void main() {
 
     test('closing the outermost scope drops the store', () async {
       final ledger = EffectLedger()..pushScope(0);
-      await ledger.executeOrReplay(
+      await runThrough(ledger: ledger, 
           name: 't', arguments: {}, execute: () async => {'ok': true});
       ledger.popScope();
       expect(ledger.captureState(), isEmpty,
@@ -529,12 +547,12 @@ void main() {
         () async {
       final ledger = EffectLedger()..pushScope(5);
       final calls = [0];
-      await ledger.executeOrReplay(
+      await runThrough(ledger: ledger, 
           name: 't', arguments: {'k': 'v'}, execute: () => counted(calls, {'n': 7}));
 
       final restored = EffectLedger()..restoreState(ledger.captureState());
       restored.markRetry();
-      final outcome = await restored.executeOrReplay(
+      final outcome = await runThrough(ledger: restored, 
           name: 't', arguments: {'k': 'v'}, execute: () => counted(calls, {'n': 99}));
       expect(outcome.replayed, isTrue);
       expect(outcome.result['n'], 7);

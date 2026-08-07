@@ -1,4 +1,5 @@
 import 'package:vaster_context/vaster_context.dart';
+import 'prune_report.dart';
 
 import 'compression/context_compactor.dart';
 
@@ -95,7 +96,7 @@ abstract interface class ContextManager {
   /// boundaries. Pinned and critical regions are kept unless [force].
   /// Returns what the sweep freed — ids and tokens; an empty report is
   /// an observable "pruned nothing".
-  ({List<String> prunedIds, int tokensFreed}) pruneLifetimes(
+  PruneReport pruneLifetimes(
       Set<ContextLifetime> expiredLifetimes,
       {bool force = false});
 }

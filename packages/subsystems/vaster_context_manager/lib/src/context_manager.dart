@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'prune_report.dart';
 import 'package:vaster_context/vaster_context.dart';
 import 'package:vaster_events/vaster_events.dart';
 
@@ -240,7 +241,7 @@ class BasicContextManager implements ContextManager {
   CompiledContext? get lastCompiled => _lastCompiled;
 
   @override
-  ({List<String> prunedIds, int tokensFreed}) pruneLifetimes(
+  PruneReport pruneLifetimes(
       Set<ContextLifetime> expiredLifetimes,
       {bool force = false}) {
     final removedIds = <String>[];
@@ -263,7 +264,7 @@ class BasicContextManager implements ContextManager {
     if (removedIds.isNotEmpty) {
       _emitEvicted(removedIds, tokensFreed, 'lifetime');
     }
-    return (prunedIds: removedIds, tokensFreed: tokensFreed);
+    return PruneReport(prunedIds: removedIds, tokensFreed: tokensFreed);
   }
 
   // ── Telemetry ──────────────────────────────────────────────────────────
