@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **BREAKING (B2, Rule 5)**: `PromptFunnel`'s four verbs take a
+  REQUIRED `model` — the caller that owns the selection resolves it.
+  `createAgent`'s `model:` override parameter is GONE: an agent's model
+  is descriptor configuration (`modelDescriptor`/`modelFallbacks`).
+
 - **BREAKING (R wave)**: `shutdown` returns `VmShutdownReport`;
   `registerSandbox` returns `SandboxRegistration` with fields that say
   what they hold (`displacedSandbox`/`displacedBridgedTool` — the

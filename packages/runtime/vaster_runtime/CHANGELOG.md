@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **BREAKING (B2, Rule 5)**: `DecisionArbiter.decide` and
+  `ToolCallOrchestrator.resolve` take a required model (their
+  `defaultModel` constructor fields are gone — the engine's new
+  `_resolvedModel` resolves active-chain-else-default once, at the
+  component that owns the choice). `RegisterInterpolator.resolve`
+  returns an `InterpolationResult` (text + missing names) instead of
+  taking an `onMissing` callback out-parameter; `resolveMap` likewise.
+  The doc comments that ARGUED their own Rule 5 exemption are gone.
+
 - **BREAKING (R wave)**: `EffectLedger.executeOrReplay` DELETED — zero
   production callers since GAP-2 (engine uses claim/commit) and A1 (the
   tool loops use the shared runner). Dead sugar gets deleted, not

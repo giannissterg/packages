@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **BREAKING (B2)**: the engine's prompt verbs require an explicit
+  model (no `?? config.defaultModel` fallback inside); `createAgent`
+  resolves the descriptor chain, then the VM default.
+
 - **A4**: agent chain resolution delegates to the shared
   `ModelChainResolver` — twin composer deleted.
 
