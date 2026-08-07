@@ -106,6 +106,73 @@ void main() {
     expect(out.toString(), contains('must be a step in 0..'));
   });
 
+  test('disk-mounted recordings open journal-tier; materialization refuses cleanly', () async {
+    // Synthesized recording of a disk-mounted program — the shape every
+    // external-codebase planning run produces.
+    final program = VasterProgram(
+      programName: 'disk_probe',
+      instructions: const [
+        MountFsOp(mountPrefix: '/project', diskPath: '/tmp/some_repo'),
+        SetRegisterOp(registerName: 'x', value: 'one'),
+        HaltOp(),
+      ],
+    );
+    final journal = VasterExecutionJournal()
+      ..recordStep(
+        ExecutionStepFrame(stepIndex: 0, pc: 0, instruction: program.instructions[0], registers: const {}),
+      )
+      ..recordStep(
+        ExecutionStepFrame(
+          stepIndex: 1,
+          pc: 1,
+          instruction: program.instructions[1],
+          registers: const {'x': 'one'},
+        ),
+      );
+    final envelopePath = '${tmp.path}/disk.replay.json';
+    File(envelopePath).writeAsStringSync(
+      jsonEncode(
+        const ReplayEnvelopeCodec().encode(
+          programJson: program.toJson(),
+          journalJson: journal.toJson(),
+          tape: ModelTape(),
+        ),
+      ),
+    );
+
+    // Journal tier works: the session opens with the warning, regs read.
+    final regsOut = StringBuffer();
+    final regsCode = await runner.run(
+      ['debug', envelopePath, '--script', 'seek 1; regs'],
+      stdoutSink: regsOut,
+      stderrSink: regsOut,
+    );
+    expect(regsCode, 0, reason: regsOut.toString());
+    expect(regsOut.toString(), contains('/tmp/some_repo'), reason: 'the load warning names the mount');
+    expect(regsOut.toString(), contains('x = one'));
+
+    // A materialized view refuses with the reason — the REPL survives.
+    final vfsOut = StringBuffer();
+    final vfsCode = await runner.run(
+      ['debug', envelopePath, '--script', 'vfs /project'],
+      stdoutSink: vfsOut,
+      stderrSink: vfsOut,
+    );
+    expect(vfsCode, 0);
+    expect(vfsOut.toString(), contains('✗'));
+    expect(vfsOut.toString(), contains('disk'));
+
+    // Live resume needs materialization: refused with exit 1.
+    final resumeOut = StringBuffer();
+    final resumeCode = await runner.run(
+      ['debug', envelopePath, '--resume-at', '1', '--backend', 'fake'],
+      stdoutSink: resumeOut,
+      stderrSink: resumeOut,
+    );
+    expect(resumeCode, 1);
+    expect(resumeOut.toString(), contains('disk'));
+  });
+
   test('the checkpoint REPL verb exports a file vaster resume completes', () async {
     final envelopePath = await writeEnvelope(probeProgram());
     final ckptPath = '${tmp.path}/at_step3.ckpt.json';

@@ -146,20 +146,69 @@ void main() {
     expect(spec, isNotNull);
   });
 
-  test('disk-mounted programs are refused', () {
+  test('disk-mounted recordings degrade to journal tier — never refused', () async {
     final program = VasterProgram(
       programName: 'disk',
       instructions: const [
         MountFsOp(mountPrefix: '/data', diskPath: '/tmp/real_disk'),
+        SetRegisterOp(registerName: 'x', value: 'one'),
         HaltOp(),
       ],
     );
+    final journal = VasterExecutionJournal()
+      ..recordStep(
+        ExecutionStepFrame(stepIndex: 0, pc: 0, instruction: program.instructions[0], registers: const {}),
+      )
+      ..recordStep(
+        ExecutionStepFrame(
+          stepIndex: 1,
+          pc: 1,
+          instruction: program.instructions[1],
+          registers: const {'x': 'one'},
+        ),
+      );
+
+    final session = DebugSession.load(
+      DebugEnvelope(program: program, journal: journal, tape: ModelTape()),
+      vmFactory: (replayModel) => VasterVMEngine.bootstrap(config: VMConfig(defaultModel: replayModel)),
+    );
+
+    // The refusal is a typed, required value naming its reason — and a
+    // banner warning; the session itself loads.
     expect(
-      () => DebugSession.load(
-        DebugEnvelope(program: program, journal: VasterExecutionJournal(), tape: ModelTape()),
-        vmFactory: (replayModel) => VasterVMEngine.bootstrap(config: VMConfig(defaultModel: replayModel)),
-      ),
+      session.materialization,
+      isA<MaterializationRefused>().having((m) => m.reason, 'reason', contains('/tmp/real_disk')),
+    );
+    expect(session.warnings.join(), contains('/tmp/real_disk'));
+
+    // Journal tier is fully alive: navigation, registers, deltas.
+    expect(session.length, 2);
+    session.seek(1);
+    expect(session.currentFrame.registers['x'], 'one');
+    expect(session.diffFromPrevious().changedRegisters, contains('x'));
+    expect(session.stepsAtPc(1), [1]);
+
+    // Every materialized surface refuses with the carried reason.
+    await expectLater(
+      session.readVfs('/data/anything'),
       throwsA(isA<StateError>().having((e) => e.message, 'message', contains('disk'))),
     );
+    await expectLater(session.materializedMachine(), throwsA(isA<StateError>()));
+  });
+
+  test('memory-mounted recordings load MaterializationAvailable', () {
+    final program = VasterProgram(
+      programName: 'mem',
+      instructions: const [
+        MountFsOp(mountPrefix: '/mem'),
+        HaltOp(),
+      ],
+    );
+    final session = DebugSession.load(
+      DebugEnvelope(program: program, journal: VasterExecutionJournal(), tape: ModelTape()),
+      vmFactory: (replayModel) => VasterVMEngine.bootstrap(config: VMConfig(defaultModel: replayModel)),
+    );
+    expect(session.materialization, isA<MaterializationAvailable>());
+    expect(session.warnings, isEmpty);
   });
 }

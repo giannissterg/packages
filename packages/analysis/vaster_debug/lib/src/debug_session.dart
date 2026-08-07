@@ -44,6 +44,28 @@ class DebugEnvelope {
   }
 }
 
+/// Whether this recording's materialized tier is available — decided once
+/// at [DebugSession.load] and carried as a REQUIRED value (never a
+/// nullable whose null secretly means "allowed"). Hosts branch on the
+/// sealed type; [DebugSession.materialize] enforces it.
+sealed class MaterializationSupport {
+  const MaterializationSupport();
+}
+
+/// The materialized tier works: `vfs`/`cat`/`ctx`, checkpoint export, and
+/// live resume are all available.
+final class MaterializationAvailable extends MaterializationSupport {
+  const MaterializationAvailable();
+}
+
+/// Materialization is refused for this recording; [reason] names the
+/// cause and the safety rationale. Journal-tier views remain exact.
+final class MaterializationRefused extends MaterializationSupport {
+  final String reason;
+
+  const MaterializationRefused({required this.reason});
+}
+
 /// Raised when re-execution disagrees with the recorded journal — the
 /// recording and the current toolchain no longer produce the same machine.
 class ReplayDivergence implements Exception {
@@ -100,11 +122,17 @@ class ContextStateView {
 /// backward re-materializes from step 0 (linear, and cheap: model calls
 /// answer from the tape).
 ///
-/// Safety: programs with disk mounts are refused at [load] (replay would
-/// write the real filesystem); sandbox execution and HITL yields degrade
-/// materialization with explicit warnings — journal-tier views always work.
+/// Safety: every limitation DEGRADES, never blocks — journal-tier views
+/// always work. Programs with disk mounts load with [materialization]
+/// resolved to [MaterializationRefused] (replaying them would write the
+/// real filesystem); sandbox execution and HITL yields degrade
+/// materialization with explicit warnings.
 class DebugSession {
   final DebugEnvelope envelope;
+
+  /// Whether the materialized tier is available for this recording —
+  /// resolved once at [load]; [materialize] enforces it.
+  final MaterializationSupport materialization;
 
   /// Builds the hermetic VM a materialization runs in, around the
   /// session's replay model (B1: hosts own composition — this package
@@ -122,22 +150,25 @@ class DebugSession {
   VasterRuntime? _runtime;
   int _materializedStep = -1;
 
-  DebugSession._(this.envelope, this.warnings, this.vmFactory);
+  DebugSession._(this.envelope, this.warnings, this.vmFactory, this.materialization);
 
-  /// Validates the envelope and constructs a session.
-  ///
-  /// Throws [StateError] for programs that cannot be safely replayed
-  /// (disk mounts).
+  /// Validates the envelope and constructs a session. Never refuses a
+  /// recording: limitations resolve into [materialization] and [warnings].
   static DebugSession load(
     DebugEnvelope envelope, {
     required Future<VasterVirtualMachine> Function(VasterModel replayModel) vmFactory,
   }) {
     final warnings = <String>[];
+    MaterializationSupport materialization = const MaterializationAvailable();
     for (final inst in envelope.program.instructions) {
-      if (inst is MountFsOp && inst.diskPath != null) {
-        throw StateError('Program mounts host disk path "${inst.diskPath}" — replaying '
-            'it would write the real filesystem. Debugging disk-mounted '
-            'programs is not supported.');
+      if (inst is MountFsOp && inst.diskPath != null && materialization is MaterializationAvailable) {
+        materialization = MaterializationRefused(
+          reason: 'Program mounts host disk path "${inst.diskPath}" — replaying '
+              'it would write the real filesystem. Journal views remain exact.',
+        );
+        warnings.add('Program mounts host disk path "${inst.diskPath}": materialized views '
+            '(vfs/cat/ctx, checkpoint, --resume-at) are unavailable; '
+            'journal views remain exact.');
       }
       if (inst is ExecSandboxOp || inst is RegisterSandboxOp) {
         warnings.add('Program executes sandbox code: sandbox output is not recorded '
@@ -151,7 +182,7 @@ class DebugSession {
           'unavailable past the first yield (human answers are not taped); '
           'journal views remain exact.');
     }
-    return DebugSession._(envelope, warnings, vmFactory);
+    return DebugSession._(envelope, warnings, vmFactory, materialization);
   }
 
   // ── Journal tier ─────────────────────────────────────────────────────────
@@ -210,6 +241,9 @@ class DebugSession {
   /// returns the live VM for state inspection. Incremental when moving
   /// forward; restarts from step 0 when the cursor moved backward.
   Future<VasterVirtualMachine> materialize() async {
+    if (materialization case MaterializationRefused(:final reason)) {
+      throw StateError(reason);
+    }
     if (_vm == null || _materializedStep > _cursor) {
       _replayModel = ReplayVasterModel(tape: tape);
       _vm = await vmFactory(_replayModel!);

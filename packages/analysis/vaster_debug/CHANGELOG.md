@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Disk-mounted recordings DEGRADE to the journal tier instead of
+  refusing to load: `DebugSession.load` never throws for them anymore.
+  The new required sealed `DebugSession.materialization`
+  (`MaterializationAvailable` / `MaterializationRefused(reason)`) is
+  resolved once at load; `materialize()` — and with it every
+  vfs/cat/ctx view, checkpoint export, and `--resume-at` — enforces it
+  with the carried reason. Journal views (cursor, registers, deltas,
+  call stacks, tape) work for every recording, including the
+  external-codebase planning runs that surfaced this.
+
 ## 0.5.0
 
 - **TT-P4**: `DebugSession.materializedMachine()` returns a
