@@ -183,6 +183,54 @@ void main() {
       expect(seen!.verdict.name, equals('checkout_review_verdict'));
     });
 
+    test('Ground expands to one ReadFile per binding, in declaration order', () {
+      const ground = Ground({Binding('a'): '/p/a.md', Binding('b'): '/p/b.md'});
+      final expanded = ground.build(baseContext) as Sequence;
+      expect(expanded.children, hasLength(2));
+      final first = expanded.children.first as ReadFile;
+      expect(first.path.lower(), '/p/a.md');
+      expect(first.output?.name, 'a');
+    });
+
+    test('Digest expands to ReadFile + focused summarize Task', () {
+      const digest = Digest(of: '/p/big.md', output: Binding('gist'), agentId: 'summarizer', focus: 'risks');
+      final expanded = digest.build(baseContext) as Sequence;
+      final read = expanded.children.first as ReadFile;
+      final task = expanded.children.last as Task;
+      expect(read.path.lower(), '/p/big.md');
+      expect(task.output?.name, 'gist');
+      expect(task.prompt.lower(), contains('focus on: risks'));
+      expect(task.prompt.lower(), contains('--- /p/big.md ---'));
+    });
+
+    test('Revise expands to ReadFile(current) + Author addressing the critique', () {
+      const revise = Revise(
+        agentId: 'engineer',
+        path: '/p/lib/x.dart',
+        addressing: Template(['Apply:\n', Binding('review')]),
+        output: Binding('revised'),
+      );
+      final expanded = revise.build(baseContext) as Sequence;
+      final read = expanded.children.first as ReadFile;
+      expect(read.path.lower(), '/p/lib/x.dart');
+      final author = expanded.children.last as Author;
+      expect(author.path, '/p/lib/x.dart');
+      expect(author.discipline, AuthorDiscipline.source);
+      expect(author.prompt.lower(), contains('--- current /p/lib/x.dart ---'));
+      expect(author.prompt.lower(), contains('\${review}'));
+      expect(author.prompt.lower(), contains('\${revise_current}'));
+    });
+
+    test('Template.sections renders the labeled-blocks idiom', () {
+      final t = Template.sections(
+        {'pubspec.yaml': const Binding('pubspec'), 'plan.md': const Binding('plan')},
+        lead: const ['Do the work.'],
+      );
+      expect(t.lower(), 'Do the work.\n\n--- pubspec.yaml ---\n\${pubspec}\n\n--- plan.md ---\n\${plan}');
+      final noLead = Template.sections({'a': const Binding('a')});
+      expect(noLead.lower(), '--- a ---\n\${a}', reason: 'no leading separator without lead parts');
+    });
+
     test('Author expands to Task + WriteFile with the declared discipline', () {
       const author = Author(
         agentId: 'engineer',

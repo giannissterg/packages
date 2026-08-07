@@ -64,6 +64,27 @@ final class Template {
   /// Pure-text template.
   const Template.text(String text) : _text = text, _parts = null;
 
+  /// The labeled-sections grounding idiom every external-codebase pipeline
+  /// hand-rolled: optional [lead] parts (the instructions), then each
+  /// section rendered as `--- label ---` above its value.
+  ///
+  /// ```dart
+  /// Template.sections(
+  ///   {'pubspec.yaml': pubspec, 'plan.md': plan},
+  ///   lead: ['Implement milestone A2 for the codebase below.'],
+  /// )
+  /// ```
+  factory Template.sections(Map<String, Object> sections, {List<Object> lead = const []}) {
+    final parts = <Object>[...lead];
+    var first = lead.isEmpty;
+    for (final entry in sections.entries) {
+      parts.add('${first ? '' : '\n\n'}--- ${entry.key} ---\n');
+      parts.add(entry.value);
+      first = false;
+    }
+    return Template(parts);
+  }
+
   /// The template's parts: `String` literals and `Binding` references.
   List<Object> get parts => _parts ?? [_text!];
 

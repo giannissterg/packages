@@ -61,12 +61,6 @@ const reviewer = AgentRole(
       'actually landed.',
 );
 
-/// Raw-source discipline (the code sibling of the SDD kit's document-only
-/// suffix): models love fences; files must be files.
-const rawSourceOnly =
-    '\n\nOutput ONLY the complete raw Dart source file, starting with its '
-    'first directive or declaration — no markdown fences, no commentary.';
-
 // Typed wires, declared once (AST_REVIEW F1/F7 style).
 const plan = Binding('plan');
 const review = Binding('review');
@@ -79,49 +73,49 @@ Pipeline implementFor(String targetDir) => Pipeline(
   name: 'implement_task_model',
   result: codeReview,
   mounts: [StorageMount.disk('/project', targetDir)],
-  children: const [
+  children: [
     // Ground in the REAL committed artifacts: the plan AND the review
     // whose blocking fixes the implementation must apply.
-    ReadFile.at('/project/planning/plan.md', output: plan),
-    ReadFile.at('/project/planning/review.md', output: review),
-    ReadFile.at('/project/pubspec.yaml', output: pubspec),
-    Task(
+    const Ground({
+      plan: '/project/planning/plan.md',
+      review: '/project/planning/review.md',
+      pubspec: '/project/pubspec.yaml',
+    }),
+    Author(
       agent: engineer,
+      path: '/project/lib/models/task.dart',
       output: modelSource,
-      prompt: Template([
-        'Implement `lib/models/task.dart` for the Flutter package below — '
-            'the immutable Task value type from milestone A2 of the plan, '
-            'WITH every blocking fix the review demands (the private '
-            'restore constructor for fromJson, the explicit createdAt '
-            'default, the corrected copyWith contract). Pure Dart, no '
-            'Flutter imports, no new dependencies.\n\n'
-            '--- pubspec.yaml ---\n',
-        pubspec,
-        '\n\n--- plan.md ---\n',
-        plan,
-        '\n\n--- review.md (blocking fixes to apply) ---\n',
-        review,
-        rawSourceOnly,
-      ]),
+      discipline: AuthorDiscipline.source,
+      prompt: Template.sections(
+        const {'pubspec.yaml': pubspec, 'plan.md': plan, 'review.md (blocking fixes to apply)': review},
+        lead: const [
+          'Implement `lib/models/task.dart` for the Flutter package below — '
+              'the immutable Task value type from milestone A2 of the plan, '
+              'WITH every blocking fix the review demands (the private '
+              'restore constructor for fromJson, the explicit createdAt '
+              'default, the corrected copyWith contract). Pure Dart, no '
+              'Flutter imports, no new dependencies.\n',
+        ],
+      ),
     ),
-    WriteFile.at('/project/lib/models/task.dart', content: Template([modelSource])),
-    Task(
+    Author(
       agent: engineer,
+      path: '/project/test/models/task_test.dart',
       output: testSource,
-      prompt: Template([
-        'Write `test/models/task_test.dart` for the Task model below '
-            '(package name: pocket_tasks — import it as '
-            "package:pocket_tasks/models/task.dart). Cover: JSON "
-            'round-trip preserving id and createdAt, copyWith field '
-            'updates, toggle/done semantics if present, and unique id '
-            'generation. Use package:flutter_test/flutter_test.dart.\n\n'
-            '--- lib/models/task.dart ---\n',
-        modelSource,
-        rawSourceOnly,
-      ]),
+      discipline: AuthorDiscipline.source,
+      prompt: Template.sections(
+        const {'lib/models/task.dart': modelSource},
+        lead: const [
+          'Write `test/models/task_test.dart` for the Task model below '
+              '(package name: pocket_tasks — import it as '
+              "package:pocket_tasks/models/task.dart). Cover: JSON "
+              'round-trip preserving id and createdAt, copyWith field '
+              'updates, toggle/done semantics if present, and unique id '
+              'generation. Use package:flutter_test/flutter_test.dart.\n',
+        ],
+      ),
     ),
-    WriteFile.at('/project/test/models/task_test.dart', content: Template([testSource])),
-    Review(
+    const Review(
       agent: reviewer,
       of: '/project/lib/models/task.dart',
       artifact: '/project/planning/code_review.md',

@@ -61,7 +61,6 @@ const reviewer = AgentRole(
 
 // Typed wires.
 const priorReview = Binding('prior_review');
-const currentSource = Binding('current_source');
 const modelSource = Binding('model_source');
 const testSource = Binding('test_source');
 const finalReview = Binding('final_review');
@@ -71,23 +70,18 @@ Pipeline reviseFor(String targetDir) => Pipeline(
   result: finalReview,
   mounts: [StorageMount.disk('/project', targetDir)],
   children: const [
-    ReadFile.at('/project/planning/code_review.md', output: priorReview),
-    ReadFile.at('/project/lib/models/task.dart', output: currentSource),
-    Author(
+    Ground({priorReview: '/project/planning/code_review.md'}),
+    Revise(
       agent: engineer,
       path: '/project/lib/models/task.dart',
       output: modelSource,
-      discipline: AuthorDiscipline.source,
-      prompt: Template([
-        'Revise this Dart file to address EVERY blocking issue in the review '
-            'below: a collision-proof id (no new dependencies — a monotonic '
-            'counter combined with the timestamp is acceptable), value '
-            'equality (`operator ==` and `hashCode` over all fields), a '
-            '`toString`, and remove `id` from `copyWith`. Keep the '
-            '`_restore`-based `fromJson` contract and the `createdAt` '
-            'default.\n\n--- current lib/models/task.dart ---\n',
-        currentSource,
-        '\n\n--- review to address ---\n',
+      addressing: Template([
+        'EVERY blocking issue in the review below: a collision-proof id '
+            '(no new dependencies — a monotonic counter combined with the '
+            'timestamp is acceptable), value equality (`operator ==` and '
+            '`hashCode` over all fields), a `toString`, and remove `id` '
+            'from `copyWith`. Keep the `_restore`-based `fromJson` contract '
+            'and the `createdAt` default.\n\n--- review ---\n',
         priorReview,
       ]),
     ),
