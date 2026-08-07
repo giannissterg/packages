@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **W1 (AST_REVIEW F4)**: `ReadFile.at('/path', output: …)` and
+  `WriteFile.at('/path', content: …)` — literal-path convenience without
+  the `Template.text` wrapper. Const-safe via the same two-form storage
+  `Template` itself uses; `path` remains a `Template` getter, so
+  compiler and consumers are unchanged.
+
 - **BREAKING (semantics)**: `Task` is transactional by default (REL-P4) —
   it wraps in `Transaction`, so a failed task's VFS writes roll back and a
   retry starts clean. Opt out with `transactional: false`. `Produce`

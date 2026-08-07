@@ -49,7 +49,6 @@ void main(List<String> args) async {
 
 const architect = AgentRole(
   roleId: 'architect',
-  name: 'Product Architect',
   title: 'Flutter Product Architect',
   instruction:
       'You write precise, reviewable product specifications for Flutter apps. '
@@ -57,7 +56,6 @@ const architect = AgentRole(
 );
 const lead = AgentRole(
   roleId: 'lead',
-  name: 'Tech Lead',
   title: 'Flutter Tech Lead',
   instruction:
       'You turn specifications into concrete, ordered implementation plans: '
@@ -65,7 +63,6 @@ const lead = AgentRole(
 );
 const reviewer = AgentRole(
   roleId: 'reviewer',
-  name: 'Reviewer',
   title: 'Staff Engineer',
   instruction:
       'You review plans rigorously: feasibility, ordering, missing work, '
@@ -76,15 +73,15 @@ Pipeline planFor(String targetDir) => Pipeline(
   name: 'external_codebase_plan',
   result: const Binding('review'),
   roles: const [architect, lead, reviewer],
-  mounts: [StorageMount(mountPrefix: '/project', type: StorageMountType.disk, diskPath: targetDir)],
+  mounts: [StorageMount.disk('/project', targetDir)],
   children: const [
     Provider<SddConventions>(
       value: SddConventions(root: '/project/planning'),
       children: [
         // Ground the pipeline in the REAL codebase: these are actual
         // file reads through the disk mount, not pasted context.
-        ReadFile(path: Template.text('/project/pubspec.yaml'), output: Binding('pubspec')),
-        ReadFile(path: Template.text('/project/lib/main.dart'), output: Binding('main_dart')),
+        ReadFile.at('/project/pubspec.yaml', output: Binding('pubspec')),
+        ReadFile.at('/project/lib/main.dart', output: Binding('main_dart')),
         Specify(
           agent: architect,
           goal:

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **W1 (AST_REVIEW F3)**: `AgentRole.name`/`title` are optional —
+  `name` defaults to `roleId`, `title` to `name`. A persona is an id
+  plus an instruction; display names are opt-in. Serialized shape
+  unchanged.
+
+- **W1 (AST_REVIEW F6)**: `StorageMount.disk('/prefix', hostPath)` and
+  `StorageMount.memory('/prefix')` factory constructors.
+
 - `AgentRole.model` + `modelFallbacks` (GAP-3b): agent model chains are
   declarable in the workflow language; the compiler threads them into
   the emitted `AgentDescriptor`.

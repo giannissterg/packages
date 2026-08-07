@@ -54,6 +54,28 @@ void main() {
       expect(StorageMount.fromJson(diskMount.toJson()).diskPath, equals('/Users/projects/vaster'));
     });
 
+    test('StorageMount factories carry type and path (AST_REVIEW F6)', () {
+      const disk = StorageMount.disk('/project', '/tmp/target');
+      expect(disk.type, StorageMountType.disk);
+      expect(disk.diskPath, '/tmp/target');
+      expect(StorageMount.fromJson(disk.toJson()).diskPath, '/tmp/target');
+
+      const mem = StorageMount.memory('/scratch');
+      expect(mem.type, StorageMountType.memory);
+      expect(mem.diskPath, isNull);
+    });
+
+    test('AgentRole display names default from roleId (AST_REVIEW F3)', () {
+      const minimal = AgentRole(roleId: 'architect', instruction: 'You write specs.');
+      expect(minimal.name, 'architect');
+      expect(minimal.title, 'architect');
+      // Round-trip keeps the derived values (serialized shape unchanged).
+      expect(AgentRole.fromJson(minimal.toJson()).name, 'architect');
+
+      const named = AgentRole(roleId: 'lead', name: 'Tech Lead', instruction: 'You plan.');
+      expect(named.title, 'Tech Lead', reason: 'title falls back to name before roleId');
+    });
+
     test('CodeEnvironment JSON roundtrip', () {
       final env = CodeEnvironment(envId: 'dart_sandbox', language: SandboxLanguage.dart, timeoutMs: 5000);
       final json = env.toJson();

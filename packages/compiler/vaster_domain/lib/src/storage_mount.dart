@@ -20,6 +20,12 @@ class StorageMount {
 
   const StorageMount({required this.mountPrefix, this.type = StorageMountType.memory, this.diskPath});
 
+  /// A host-disk mount (AST_REVIEW F6): `StorageMount.disk('/project', dir)`.
+  const StorageMount.disk(this.mountPrefix, String this.diskPath) : type = StorageMountType.disk;
+
+  /// An in-memory mount (AST_REVIEW F6): `StorageMount.memory('/scratch')`.
+  const StorageMount.memory(this.mountPrefix) : type = StorageMountType.memory, diskPath = null;
+
   Map<String, dynamic> toJson() => {
     'mountPrefix': mountPrefix,
     'type': type.name,

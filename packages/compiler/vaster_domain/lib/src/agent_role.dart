@@ -5,10 +5,12 @@ class AgentRole {
   /// Unique identifier for this role within the pipeline.
   final String roleId;
 
-  /// Human-readable display name.
+  /// Human-readable display name; defaults to [roleId] (AST_REVIEW F3 —
+  /// a persona is an id plus an instruction; display names are optional).
   final String name;
 
-  /// A short professional title describing the agent's function (e.g. "Backend Engineer").
+  /// A short professional title describing the agent's function
+  /// (e.g. "Backend Engineer"); defaults to [name].
   final String title;
 
   /// System instruction grounding the agent's behaviour and expertise.
@@ -24,12 +26,13 @@ class AgentRole {
 
   const AgentRole({
     required this.roleId,
-    required this.name,
-    required this.title,
+    String? name,
+    String? title,
     required this.instruction,
     this.model,
     this.modelFallbacks = const [],
-  });
+  }) : name = name ?? roleId,
+       title = title ?? name ?? roleId;
 
   Map<String, dynamic> toJson() => {
     'roleId': roleId,

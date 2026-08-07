@@ -314,19 +314,39 @@ final class Prompt extends VasterNode {
 /// Writes content to a VFS path. Both [path] and [content] support
 /// `${name}` interpolation.
 final class WriteFile extends VasterNode {
-  final Template path;
+  // Const constructors cannot create a Template in an initializer, so the
+  // two forms store separately and [path] unifies them (the same pattern
+  // Template itself uses for its text/parts forms).
+  final Template? _pathTemplate;
+  final String? _literalPath;
   final Template content;
 
-  const WriteFile({required this.path, required this.content});
+  const WriteFile({required Template path, required this.content})
+    : _pathTemplate = path,
+      _literalPath = null;
+
+  /// Literal-path convenience (AST_REVIEW F4): the common case is a
+  /// constant destination — no [Template] wrapper at the call site.
+  const WriteFile.at(String path, {required this.content}) : _literalPath = path, _pathTemplate = null;
+
+  Template get path => _pathTemplate ?? Template.text(_literalPath!);
 }
 
 /// Reads a VFS path into [output] (auto-allocated when omitted). [path]
 /// supports `${name}` interpolation.
 final class ReadFile extends VasterNode {
-  final Template path;
+  // Same two-form storage as [WriteFile] — see the note there.
+  final Template? _pathTemplate;
+  final String? _literalPath;
   final Binding? output;
 
-  const ReadFile({required this.path, this.output});
+  const ReadFile({required Template path, this.output}) : _pathTemplate = path, _literalPath = null;
+
+  /// Literal-path convenience (AST_REVIEW F4): the common case is a
+  /// constant source — no [Template] wrapper at the call site.
+  const ReadFile.at(String path, {this.output}) : _literalPath = path, _pathTemplate = null;
+
+  Template get path => _pathTemplate ?? Template.text(_literalPath!);
 }
 
 /// Code Sandbox scope provider node.

@@ -154,5 +154,16 @@ void main() {
       final enrichedContext = provider.applyToContext(baseContext);
       expect(enrichedContext.read<DatabaseConfig>().host, equals('primary.db'));
     });
+
+    test('ReadFile.at / WriteFile.at equal the Template-wrapped form (AST_REVIEW F4)', () {
+      const sugar = ReadFile.at('/project/pubspec.yaml', output: Binding('pubspec'));
+      const wrapped = ReadFile(path: Template.text('/project/pubspec.yaml'));
+      expect(sugar.path.lower(), equals(wrapped.path.lower()));
+      expect(sugar.output?.name, equals('pubspec'));
+
+      const write = WriteFile.at('/mem/out.txt', content: Template([Binding('spec')]));
+      expect(write.path.lower(), equals('/mem/out.txt'));
+      expect(write.content.lower(), equals('\${spec}'));
+    });
   });
 }
